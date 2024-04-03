@@ -1,0 +1,91 @@
+package roleservice
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/fastschema/fastschema/pkg/utils"
+	jwt "github.com/golang-jwt/jwt/v4"
+)
+
+func (rs *RoleService) ParseUser(c app.Context) error {
+	authToken := c.AuthToken()
+	jwtToken, err := jwt.ParseWithClaims(
+		authToken,
+		&app.UserJwtClaims{},
+		func(token *jwt.Token) (any, error) {
+			return []byte(rs.app.Key()), nil
+		},
+	)
+
+	if err == nil {
+		if claims, ok := jwtToken.Claims.(*app.UserJwtClaims); ok && jwtToken.Valid {
+			user := claims.User
+			user.Roles = rs.app.GetRolesFromIDs(user.RoleIDs)
+			c.Value("user", user)
+		}
+	}
+
+	return c.Next()
+}
+
+func (rs *RoleService) Authorize(c app.Context) error {
+	resource := c.Resource()
+	if resource == nil {
+		return errors.NotFound("Resource not found")
+	}
+
+	resourceID := resource.ID()
+	// If the resource id has prefix with "content.", for example: content.create
+	// Then add the schema name to the id: content.category.create
+	// Do this to clarify the content schema because the content service is dynamic.
+	if strings.HasPrefix(resourceID, "content.") {
+		resourceID = fmt.Sprintf("content.%s.%s", c.Arg("schema"), resourceID[8:])
+	}
+
+	user := c.User()
+	if user == nil {
+		user = app.GuestUser
+	}
+
+	// Allow root user to access all routes.
+	if user.IsRoot() {
+		return nil
+	}
+
+	// Allow white listed routes.
+	if resource.WhiteListed() {
+		return nil
+	}
+
+	// Disallow non active users.
+	if user.ID > 0 && !user.Active {
+		return errors.Forbidden("User is not active")
+	}
+
+	// If there is no roles in the cache, rebuild the cache.
+	if len(rs.app.Roles()) == 0 {
+		if err := rs.app.UpdateCache(); err != nil {
+			return err
+		}
+	}
+
+	// Check for all user roles for this action.
+	// If any role has permission value allow, then allow.
+	for _, role := range user.Roles {
+		permission := rs.app.GetRolePermission(role.ID, resourceID)
+
+		// if permission value is allow, then allow
+		if permission.Value == app.PermissionTypeAllow.String() {
+			return nil
+		}
+	}
+
+	return utils.If(
+		user.ID > 0,
+		errors.Forbidden("Forbidden"),
+		errors.Unauthorized("Unauthorized"),
+	)
+}

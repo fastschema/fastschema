@@ -1,0 +1,292 @@
+{
+  "name": "user",
+  "namespace": "users",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string",
+      "sortable": true,
+      "filterable": true,
+      "unique": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "type": "enum",
+      "optional": true,
+      "sortable": true,
+      "filterable": true,
+      "enums": [
+        {
+          "value": "online",
+          "label": "Online"
+        },
+        {
+          "value": "offline",
+          "label": "Offline"
+        },
+        {
+          "value": "busy",
+          "label": "Busy"
+        }
+      ]
+    },
+    {
+      "name": "approved",
+      "label": "Approved",
+      "type": "bool",
+      "optional": true,
+      "sortable": true,
+      "filterable": true
+    },
+    {
+      "name": "bio",
+      "label": "Bio",
+      "type": "text",
+      "optional": true
+    },
+    {
+      "name": "age",
+      "label": "Age",
+      "type": "uint",
+      "optional": true,
+      "sortable": true,
+      "filterable": true
+    },
+    {
+      "name": "json",
+      "label": "Json",
+      "type": "json",
+      "optional": true,
+      "sortable": false,
+      "filterable": false
+    },
+    {
+      "name": "deleted",
+      "label": "Deleted",
+      "type": "bool",
+      "default": false,
+      "sortable": true,
+      "filterable": true
+    },
+    {
+      "name": "card",
+      "label": "Card",
+      "type": "relation",
+      "relation": {
+        "type": "o2o",
+        "schema": "card",
+        "owner": true,
+        "field": "owner"
+      }
+    },
+    {
+      "name": "sub_card",
+      "label": "Sub Card",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2o",
+        "schema": "card",
+        "owner": true,
+        "field": "sub_owner"
+      }
+    },
+    {
+      "name": "spouse",
+      "label": "Spouse",
+      "type": "relation",
+      "unique": true,
+      "optional": true,
+      "relation": {
+        "type": "o2o",
+        "schema": "user",
+        "field": "spouse"
+      }
+    },
+    {
+      "name": "partner",
+      "label": "Partner",
+      "type": "relation",
+      "unique": true,
+      "optional": true,
+      "relation": {
+        "type": "o2o",
+        "schema": "user",
+        "field": "partner"
+      }
+    },
+    {
+      "name": "pets",
+      "label": "Pets",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "pet",
+        "owner": true,
+        "field": "owner"
+      }
+    },
+    {
+      "name": "sub_pets",
+      "label": "Sub Pets",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "pet",
+        "owner": true,
+        "field": "sub_owner"
+      }
+    },
+    {
+      "name": "groups",
+      "label": "Groups",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "group",
+        "field": "users"
+      }
+    },
+    {
+      "name": "sub_groups",
+      "label": "Sub Groups",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "m2m",
+        "schema": "group",
+        "field": "sub_users"
+      }
+    },
+    {
+      "name": "blocking",
+      "label": "Blocked",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "m2m",
+        "schema": "user",
+        "owner": true,
+        "field": "blockers"
+      }
+    },
+    {
+      "name": "blockers",
+      "label": "Blockers",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "m2m",
+        "schema": "user",
+        "field": "blocking"
+      }
+    },
+    {
+      "name": "following",
+      "label": "Following",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "m2m",
+        "schema": "user",
+        "owner": true,
+        "field": "followers"
+      }
+    },
+    {
+      "name": "followers",
+      "label": "Followers",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "m2m",
+        "schema": "user",
+        "field": "following"
+      }
+    },
+    {
+      "name": "friends",
+      "label": "Friends",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "m2m",
+        "schema": "user",
+        "field": "friends"
+      }
+    },
+    {
+      "name": "car",
+      "label": "Car",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2o",
+        "schema": "car",
+        "field": "owner",
+        "owner": true
+      }
+    },
+    {
+      "name": "workplace",
+      "label": "Workplace",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "workplace",
+        "field": "users"
+      }
+    },
+    {
+      "name": "room",
+      "label": "Room",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2o",
+        "schema": "room",
+        "field": "owner"
+      }
+    },
+    {
+      "name": "parent",
+      "label": "Parent",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "user",
+        "field": "children",
+        "optional": true
+      }
+    },
+    {
+      "name": "children",
+      "label": "Children",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "owner": true,
+        "schema": "user",
+        "field": "parent",
+        "optional": true
+      }
+    },
+    {
+      "name": "comments",
+      "label": "Comments",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "comment",
+        "field": "responder"
+      }
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+run:
+  go: "1.19"
+  concurrency: 4
+  timeout: 10m
+
+linters-settings:
+  errcheck:
+    ignore: fmt:.*,Read|Write|Close|Exec,io:Copy
+  dupl:
+    threshold: 100
+  funlen:
+    lines: 150
+    statements: 140
+
+linters:
+  disable-all: true
+  enable:
+    - asciicheck
+    - bodyclose
+    # - depguard
+    - dogsled
+    # - dupl
+    - errcheck
+    - funlen
+    - gocritic
+    - gofmt
+    - goheader
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unused
+    - whitespace
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - funlen
+        - gosec
+        - gocritic
+    - path: pkg/entdbadapter/query.go
+      linters:
+        - funlen
+    - path: \.go
+      linters:
+        - staticcheck
+      text: SA1019

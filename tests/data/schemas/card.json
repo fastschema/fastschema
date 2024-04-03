@@ -1,0 +1,62 @@
+{
+  "name": "card",
+  "namespace": "cards",
+  "label_field": "number",
+  "fields": [
+    {
+      "name": "number",
+      "label": "Number",
+      "type": "string",
+      "unique": true,
+      "sortable": true,
+      "filterable": true
+    },
+    {
+      "name": "active",
+      "label": "Active",
+      "type": "bool",
+      "optional": true,
+      "default": true,
+      "sortable": true,
+      "filterable": true
+    },
+    {
+      "name": "expiry_date",
+      "label": "Expiry Date",
+      "type": "time",
+      "optional": true,
+      "sortable": true,
+      "filterable": true
+    },
+    {
+      "name": "balance",
+      "label": "Balance",
+      "type": "int",
+      "default": 0,
+      "optional": true,
+      "sortable": true,
+      "filterable": true
+    },
+    {
+      "name": "owner",
+      "label": "Owner",
+      "type": "relation",
+      "relation": {
+        "type": "o2o",
+        "schema": "user",
+        "field": "card"
+      }
+    },
+    {
+      "name": "sub_owner",
+      "label": "Sub Owner",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2o",
+        "schema": "user",
+        "field": "sub_card"
+      }
+    }
+  ]
+}

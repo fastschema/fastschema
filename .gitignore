@@ -1,0 +1,9 @@
+releases/
+tests/coverage
+tests/data/migrations/*
+!tests/data/migrations/.gitkeep
+.env
+/private
+/public
+
+dist/

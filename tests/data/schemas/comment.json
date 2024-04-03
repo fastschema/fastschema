@@ -1,0 +1,25 @@
+{
+  "name": "comment",
+  "namespace": "comments",
+  "label_field": "content",
+  "fields": [
+    {
+      "name": "content",
+      "label": "Content",
+      "type": "string",
+      "unique": false
+    },
+    {
+      "name": "responder",
+      "label": "Responder",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "m2m",
+        "schema": "user",
+        "field": "comments",
+        "owner": true
+      }
+    }
+  ]
+}
