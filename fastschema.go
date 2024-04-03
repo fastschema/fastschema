@@ -228,7 +228,7 @@ func (a *App) Start() {
 
 	if setupToken != "" {
 		setupURL := fmt.Sprintf(
-			"%s/setup?token=%s\033[0m",
+			"%s/setup/?token=%s\033[0m",
 			a.config.DashURL,
 			setupToken,
 		)
