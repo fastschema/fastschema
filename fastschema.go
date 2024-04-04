@@ -31,7 +31,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-//go:embed all:pkg/dash/out/*
+//go:embed all:dash/*
 var embedDashStatic embed.FS
 
 type AppConfig struct {
@@ -528,7 +528,7 @@ func (a *App) createResources() error {
 	a.resources.RegisterStaticResources(&app.StaticResourceConfig{
 		Root:       http.FS(embedDashStatic),
 		BasePath:   "/" + a.config.DashBaseName,
-		PathPrefix: "pkg/dash/out",
+		PathPrefix: "dash",
 	})
 	a.resources.Middlewares = append(a.resources.Middlewares, roleService.ParseUser)
 	a.resources.BeforeResolveHooks = append(a.resources.BeforeResolveHooks, roleService.Authorize)

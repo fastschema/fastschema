@@ -258,10 +258,25 @@ func main() {
 
 ## Testing
 
-FastSchema comes with a suite of automated tests to ensure the stability and reliability of the platform. To run the tests, simply execute the following command:
+FastSchema comes with a suite of automated tests to ensure the stability and reliability of the platform.
+
+*Fastschema come with integration tests that require a database connection. You can use the following command to create DB containers.*
+
+```bash
+cd tests/integration
+docker compose up -d
+```
+
+To run the tests, execute the following command:
 
 ```bash
 go test ./...
+```
+
+You can skip the integration tests by running tests for packages only.
+
+```bash
+./tests/test.sh ./schema
 ```
 
 ## Dependencies
