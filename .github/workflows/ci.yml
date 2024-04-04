@@ -67,8 +67,8 @@ jobs:
       mysql56:
         image: mysql:5.6.35
         env:
-          MYSQL_DATABASE: test
-          MYSQL_ROOT_PASSWORD: pass
+          MYSQL_DATABASE: fastschema
+          MYSQL_ROOT_PASSWORD: 123
         ports:
           - 33061:3306
         options: >-
