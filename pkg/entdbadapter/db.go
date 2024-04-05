@@ -29,6 +29,10 @@ func NewEntClient(
 		sqlDriver  *dialectSql.Driver
 	)
 
+	if config.Driver == "sqlite" {
+		config.Driver = "sqlite3"
+	}
+
 	if db, err = sql.Open(config.Driver, CreateDBDSN(config)); err != nil {
 		return nil, err
 	}

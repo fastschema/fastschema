@@ -125,9 +125,9 @@ func CreateDBDSN(config *db.DBConfig) string {
 		)
 	}
 
-	if config.Driver == "sqlite3" {
+	if config.Driver == "sqlite" || config.Driver == "sqlite3" {
 		dsn = fmt.Sprintf(
-			"file:%s?mode=memory&cache=shared&_fk=1",
+			"file:%s?cache=shared&_fk=1",
 			config.Name,
 		)
 	}
