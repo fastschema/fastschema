@@ -6,7 +6,6 @@ version: 1
 before:
   hooks:
     - go mod tidy
-    - make builddash
 
 builds:
   - id: build_default
