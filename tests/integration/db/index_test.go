@@ -143,7 +143,7 @@ func TestSQLite(t *testing.T) {
 	sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas"))
 	removeAllMigrationFiles("../../../tests/data/migrations")
 	client := utils.Must(entdbadapter.NewEntClient(&db.DBConfig{
-		Driver:       "sqlite3",
+		Driver:       "sqlite",
 		Name:         "fastschema",
 		MigrationDir: "../../../tests/data/migrations",
 		LogQueries:   true,
