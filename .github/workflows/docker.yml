@@ -42,15 +42,19 @@ jobs:
         with:
           result-encoding: string
           script: |
-            const { data } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
-              org: context.repo.owner,
-              package_type: 'container',
-              package_name: 'fastschema',
-            });
-
-            const latest = data.filter(p => p.metadata.container.tags.includes("latest"))[0];
-
-            return latest.metadata.container.tags.find(v => /^v?\d+\.\d+\.\d+$/.test(v)) || '0.0.0'
+            try {
+              const { data } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
+                org: context.repo.owner,
+                package_type: 'container',
+                package_name: 'fastschema',
+              });
+  
+              const latest = data.filter(p => p.metadata.container.tags.includes("latest"))[0];
+  
+              return latest.metadata.container.tags.find(v => /^v?\d+\.\d+\.\d+$/.test(v)) || '0.0.0'
+            } catch (e) {
+              return '0.0.0';
+            }
 
   build:
     runs-on: ubuntu-latest
