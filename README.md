@@ -2,6 +2,35 @@
 
 FastSchema is an open-source headless Content Management System (CMS) designed to simplify the creation and management of structured content. By leveraging schema definitions, FastSchema automates the generation of databases and provides CRUD (Create, Read, Update, Delete) APIs effortlessly.
 
+## Try it out
+
+You can try out FastSchema by running FastSchema in a Docker container.
+
+### Pull the Docker Image:
+
+```bash
+docker pull ghcr.io/fastschema/fastschema:latest
+```
+
+### Run the Docker Container:
+
+```bash
+docker run \
+  -p 8000:8000 \
+  -v ./data:/fastschema/data \
+  ghcr.io/fastschema/fastschema:latest
+```
+
+**Example output:**
+
+```
+> APP_KEY is not set. A new key is generated and saved to /fastschema/data/.env
+> Using the default sqlite db file path: /fastschema/data/fastschema.db
+> Visit the following URL to setup the app: http://localhost:8000/dash/setup/?token=lUDRgoTUUNDsjCcitgGFTqwMZQPmYvlU
+```
+
+Now you can access to the FastSchema setup page by visiting [http://localhost:8000/setup?token=\{token\}](http://localhost:8000?token=\{token\}) (The setup token is displayed in the terminal).
+
 > **Note:** FastSchema is currently in beta and under active development. We welcome feedback, contributions, and suggestions from the community to help improve the platform and make it more robust and feature-rich.
 
 
