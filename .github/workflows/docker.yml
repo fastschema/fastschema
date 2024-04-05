@@ -21,16 +21,20 @@ jobs:
         with:
           result-encoding: string
           script: |
-            const excludes = ['draft', 'prerelease'];
-            const { data } = await github.rest.repos.listReleases({
-              owner: 'fastschema',
-              repo: 'fastschema'
-            });
-
-            const releases = data.filter(release => excludes.every(e => !release[e]))
-            const latest = releases[0];
-
-            return latest.tag_name.replace('v','');
+            try {
+              const excludes = ['draft', 'prerelease'];
+              const { data } = await github.rest.repos.listReleases({
+                owner: 'fastschema',
+                repo: 'fastschema'
+              });
+  
+              const releases = data.filter(release => excludes.every(e => !release[e]))
+              const latest = releases[0];
+  
+              return latest.tag_name.replace('v','');
+            } catch (e) {
+              return '0.0.0';
+            }
 
       - name: Get latest package version
         id: getLastPackageVersion
