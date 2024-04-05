@@ -620,7 +620,7 @@ func (a *App) prepareConfig() error {
 	}
 
 	if a.config.Port == "" {
-		a.config.Port = utils.Env("APP_PORT", "3000")
+		a.config.Port = utils.Env("APP_PORT", "8000")
 	}
 
 	if a.config.BaseURL == "" {
