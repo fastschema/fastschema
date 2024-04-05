@@ -63,9 +63,13 @@ func NewZapLogger(config *ZapConfig) (_ *ZapLogger, err error) {
 	)
 
 	defer func() {
-		if e := zapLogger.Sync(); e != nil {
-			fmt.Printf("zapLogger.Sync() error: %v\n", e)
-		}
+		// Currently, there always an error when calling Sync()
+		// /dev/stdout: invalid argument
+		// Skip this error for now
+		// if e := zapLogger.Sync(); e != nil {
+		// 	fmt.Printf("zapLogger.Sync() error: %v\n", e)
+		// }
+		_ = zapLogger.Sync()
 	}()
 
 	return &ZapLogger{

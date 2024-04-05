@@ -47,9 +47,43 @@ type DiskConfig struct {
 	ACL             string        `json:"acl"`
 }
 
+func (dc *DiskConfig) Clone() *DiskConfig {
+	return &DiskConfig{
+		Name:            dc.Name,
+		Driver:          dc.Driver,
+		Root:            dc.Root,
+		BaseURL:         dc.BaseURL,
+		GetBaseURL:      dc.GetBaseURL,
+		Provider:        dc.Provider,
+		Endpoint:        dc.Endpoint,
+		Region:          dc.Region,
+		Bucket:          dc.Bucket,
+		AccessKeyID:     dc.AccessKeyID,
+		SecretAccessKey: dc.SecretAccessKey,
+		ACL:             dc.ACL,
+	}
+}
+
 type StorageConfig struct {
 	DefaultDisk string        `json:"default_disk"`
 	DisksConfig []*DiskConfig `json:"disks"`
+}
+
+func (sc *StorageConfig) Clone() *StorageConfig {
+	if sc == nil {
+		return nil
+	}
+
+	clone := &StorageConfig{
+		DefaultDisk: sc.DefaultDisk,
+		DisksConfig: make([]*DiskConfig, len(sc.DisksConfig)),
+	}
+
+	for i, dc := range sc.DisksConfig {
+		clone.DisksConfig[i] = dc.Clone()
+	}
+
+	return clone
 }
 
 var AllowedFileTypes = []string{

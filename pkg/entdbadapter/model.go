@@ -87,8 +87,13 @@ func (m *Model) Query(predicates ...*db.Predicate) db.Query {
 		predicates:      predicates,
 		entities:        []*schema.Entity{},
 		withEdgesFields: []*schema.Field{},
-		hooks:           m.client.Hooks(),
+		hooks:           &db.Hooks{},
 	}
+
+	if m.client != nil {
+		q.hooks = m.client.Hooks()
+	}
+
 	q.querySpec = &sqlgraph.QuerySpec{
 		Node: &sqlgraph.NodeSpec{
 			Table: m.schema.Namespace,

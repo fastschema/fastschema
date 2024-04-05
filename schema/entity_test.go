@@ -30,9 +30,9 @@ func TestEntity(t *testing.T) {
 	entity.Set("group_id", uint64(1))
 	assert.Equal(t, uint64(1), utils.Must(entity.GetUint64("group_id", false)))
 
-	entity.Set("group_id", "1")
+	entity.Set("group_id", "a")
 	_, err = entity.GetUint64("group_id", false)
-	assert.Equal(t, "invalid uint64 value group_id=1 (string)", err.Error())
+	assert.Equal(t, "invalid uint64 value group_id=a (string)", err.Error())
 
 	entity.Set("group_id", 1)
 	assert.Equal(t, 1, entity.Get("group_id"))

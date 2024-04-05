@@ -34,7 +34,6 @@ var dialectMap = map[string]string{
 	"pgx":      dialect.Postgres,
 	"postgres": dialect.Postgres,
 	"sqlite":   dialect.SQLite,
-	"sqlite3":  dialect.SQLite,
 }
 
 // entFieldTypesMapper map the field type to the ent field type
@@ -125,9 +124,9 @@ func CreateDBDSN(config *db.DBConfig) string {
 		)
 	}
 
-	if config.Driver == "sqlite3" {
+	if config.Driver == "sqlite" {
 		dsn = fmt.Sprintf(
-			"file:%s?mode=memory&cache=shared&_fk=1",
+			"file:%s?cache=shared&_fk=1&_pragma=foreign_keys(1)",
 			config.Name,
 		)
 	}

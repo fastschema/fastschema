@@ -1,0 +1,105 @@
+name: Build docker image on release
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release'
+        required: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      buildVersion: ${{ steps.getBuildVersion.outputs.result }}
+      lastPackageVersion: ${{ steps.getLastPackageVersion.outputs.result }}
+    steps:
+      - name: Get latest fastschema release
+        id: getBuildVersion
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            try {
+              const excludes = ['draft', 'prerelease'];
+              const { data } = await github.rest.repos.listReleases({
+                owner: 'fastschema',
+                repo: 'fastschema'
+              });
+  
+              const releases = data.filter(release => excludes.every(e => !release[e]))
+              const latest = releases[0];
+  
+              return latest.tag_name.replace('v','');
+            } catch (e) {
+              return '0.0.0';
+            }
+
+      - name: Get latest package version
+        id: getLastPackageVersion
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            try {
+              const { data } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
+                org: context.repo.owner,
+                package_type: 'container',
+                package_name: 'fastschema',
+              });
+  
+              const latest = data.filter(p => p.metadata.container.tags.includes("latest"))[0];
+  
+              return latest.metadata.container.tags.find(v => /^v?\d+\.\d+\.\d+$/.test(v)) || '0.0.0'
+            } catch (e) {
+              return '0.0.0';
+            }
+
+  build:
+    runs-on: ubuntu-latest
+    needs: check
+    if: (needs.check.outputs.buildVersion != needs.check.outputs.lastPackageVersion) || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Login to Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get build version
+        id: getBuildVersion
+        run: echo "value=${{ github.event.inputs.version || needs.check.outputs.buildVersion }}" >> $GITHUB_OUTPUT
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/fastschema/fastschema
+          tags: |
+            type=semver,pattern={{ version }},value=${{ steps.getBuildVersion.outputs.value }}
+            type=semver,pattern={{ major }}.{{ minor }},value=${{ steps.getBuildVersion.outputs.value }}
+            type=semver,pattern={{ major }},value=${{ steps.getBuildVersion.outputs.value }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          provenance: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ steps.getBuildVersion.outputs.value }}
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

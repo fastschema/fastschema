@@ -1,0 +1,230 @@
+name: Continuous Integration
+on:
+  push:
+    paths-ignore:
+      - 'dash/**'
+    tags-ignore:
+      - '*.*'
+  pull_request:
+    paths-ignore:
+      - 'dash/**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Run linters
+        uses: golangci/golangci-lint-action@v4
+        with:
+          args: --verbose
+
+  unittest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.21', '1.22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Run tests for app
+        run: go test -race ./...
+        working-directory: app
+      - name: Run tests for cmd
+        run: go test -race ./...
+        working-directory: cmd
+      - name: Run tests for db
+        run: go test -race ./...
+        working-directory: db
+      - name: Run tests for logger
+        run: go test -race ./...
+        working-directory: logger
+      - name: Run tests for pkg
+        run: go test -race ./...
+        working-directory: pkg
+      - name: Run tests for schema
+        run: go test -race ./...
+        working-directory: schema
+      - name: Run tests for services
+        run: go test -race ./...
+        working-directory: services
+      
+
+  integrationtest:
+    runs-on: ubuntu-latest
+    services:
+      mysql56:
+        image: mysql:5.6.35
+        env:
+          MYSQL_DATABASE: fastschema
+          MYSQL_ROOT_PASSWORD: 123
+        ports:
+          - 33061:3306
+        options: >-
+          --health-cmd "mysqladmin ping -ppass"
+          --health-interval 10s
+          --health-start-period 10s
+          --health-timeout 5s
+          --health-retries 10
+      mysql57:
+        image: mysql:5.7.26
+        env:
+          MYSQL_DATABASE: fastschema
+          MYSQL_ROOT_PASSWORD: 123
+        ports:
+          - 33062:3306
+        options: >-
+          --health-cmd "mysqladmin ping -ppass"
+          --health-interval 10s
+          --health-start-period 10s
+          --health-timeout 5s
+          --health-retries 10
+      mysql8:
+        image: mysql:8
+        env:
+          MYSQL_DATABASE: fastschema
+          MYSQL_ROOT_PASSWORD: 123
+        ports:
+          - 33063:3306
+        options: >-
+          --health-cmd "mysqladmin ping -ppass"
+          --health-interval 10s
+          --health-start-period 10s
+          --health-timeout 5s
+          --health-retries 10
+      mariadb:
+        image: mariadb:10.4 # Temporary to unblock PRs from failing.
+        env:
+          MYSQL_DATABASE: fastschema
+          MYSQL_ROOT_PASSWORD: 123
+        ports:
+          - 33064:3306
+        options: >-
+          --health-cmd "mysqladmin ping -ppass"
+          --health-interval 10s
+          --health-start-period 10s
+          --health-timeout 5s
+          --health-retries 10
+      mariadb102:
+        image: mariadb:10.2.32
+        env:
+          MYSQL_DATABASE: fastschema
+          MYSQL_ROOT_PASSWORD: 123
+        ports:
+          - 33065:3306
+        options: >-
+          --health-cmd "mysqladmin ping -ppass"
+          --health-interval 10s
+          --health-start-period 10s
+          --health-timeout 5s
+          --health-retries 10
+      mariadb103:
+        image: mariadb:10.3.13
+        env:
+          MYSQL_DATABASE: fastschema
+          MYSQL_ROOT_PASSWORD: 123
+        ports:
+          - 33066:3306
+        options: >-
+          --health-cmd "mysqladmin ping -ppass"
+          --health-interval 10s
+          --health-start-period 10s
+          --health-timeout 5s
+          --health-retries 10
+      postgres10:
+        image: postgres:10
+        env:
+          POSTGRES_DB: fastschema
+          POSTGRES_PASSWORD: 123
+        ports:
+          - 54321:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres11:
+        image: postgres:11
+        env:
+          POSTGRES_DB: fastschema
+          POSTGRES_PASSWORD: 123
+        ports:
+          - 54322:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres12:
+        image: postgres:12.3
+        env:
+          POSTGRES_DB: fastschema
+          POSTGRES_PASSWORD: 123
+        ports:
+          - 54323:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres13:
+        image: postgres:13.1
+        env:
+          POSTGRES_DB: fastschema
+          POSTGRES_PASSWORD: 123
+        ports:
+          - 54324:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres14:
+        image: postgres:14
+        env:
+          POSTGRES_DB: fastschema
+          POSTGRES_PASSWORD: 123
+        ports:
+          - 54325:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres15:
+        image: postgres:15
+        env:
+          POSTGRES_DB: fastschema
+          POSTGRES_PASSWORD: 123
+        ports:
+          - 54326:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Run integration tests
+        working-directory: tests/integration
+        run: go test -race -count=2 ./...

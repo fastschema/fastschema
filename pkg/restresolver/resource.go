@@ -8,13 +8,20 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
 
-type RestSolver struct {
-	resourceManager *app.ResourcesManager
+type StaticPaths struct {
+	BasePath string
+	Root     string
 }
 
-func NewRestResolver(resourceManager *app.ResourcesManager) *RestSolver {
+type RestSolver struct {
+	resourceManager *app.ResourcesManager
+	statics         []*StaticPaths
+}
+
+func NewRestResolver(resourceManager *app.ResourcesManager, statics []*StaticPaths) *RestSolver {
 	return &RestSolver{
 		resourceManager: resourceManager,
+		statics:         statics,
 	}
 }
 
@@ -63,9 +70,11 @@ func (r *RestSolver) Start(address string, logger logger.Logger) error {
 		})
 	}
 
-	s.Static("/", "public")
-	s.Use(middlewares...)
+	for _, static := range r.statics {
+		s.Static(static.BasePath, static.Root)
+	}
 
+	s.Use(middlewares...)
 	api := s.Group(r.resourceManager.Name(), nil)
 
 	if err := registerResourceRoutes(
