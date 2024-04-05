@@ -299,6 +299,19 @@ func WriteFile(filePath string, content string) error {
 	return err2
 }
 
+// AppendFile appends the given content to the given file path.
+// If the file does not exist, it creates the file.
+func AppendFile(filePath string, content string) error {
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err2 := f.WriteString(content)
+	return err2
+}
+
 // IsFileExists checks if the given file path exists.
 func IsFileExists(filePath string) bool {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {

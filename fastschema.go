@@ -28,6 +28,7 @@ import (
 	ss "github.com/fastschema/fastschema/services/schema"
 	ts "github.com/fastschema/fastschema/services/tool"
 	us "github.com/fastschema/fastschema/services/user"
+	"github.com/fatih/color"
 	"github.com/joho/godotenv"
 )
 
@@ -35,82 +36,71 @@ import (
 var embedDashStatic embed.FS
 
 type AppConfig struct {
-	Dir          string
-	AppKey       string
-	Port         string
-	DashURL      string
-	APIBaseName  string
-	DashBaseName string
-	Logger       logger.Logger
-	DB           db.Client
-	Storage      *app.StorageConfig
+	Dir           string
+	AppKey        string
+	Port          string
+	BaseURL       string
+	DashURL       string
+	APIBaseName   string
+	DashBaseName  string
+	Logger        logger.Logger
+	DB            db.Client
+	StorageConfig *app.StorageConfig
+}
+
+func (ac *AppConfig) Clone() *AppConfig {
+	return &AppConfig{
+		Dir:           ac.Dir,
+		AppKey:        ac.AppKey,
+		Port:          ac.Port,
+		BaseURL:       ac.BaseURL,
+		DashURL:       ac.DashURL,
+		APIBaseName:   ac.APIBaseName,
+		DashBaseName:  ac.DashBaseName,
+		Logger:        ac.Logger,
+		DB:            ac.DB,
+		StorageConfig: ac.StorageConfig.Clone(),
+	}
 }
 
 type App struct {
-	config        *AppConfig
-	dir           string
-	schemasDir    string
-	migrationDir  string
-	db            db.Client
-	logger        logger.Logger
-	schemaBuilder *schema.Builder
-	resources     *app.ResourcesManager
-	api           *app.Resource
-	hooks         *app.Hooks
-	roles         []*app.Role
-	disks         []app.Disk
-	defaultDisk   app.Disk
-	setupToken    string
+	config          *AppConfig
+	dir             string
+	envFile         string
+	dataDir         string
+	logDir          string
+	publicDir       string
+	schemasDir      string
+	migrationDir    string
+	schemaBuilder   *schema.Builder
+	resources       *app.ResourcesManager
+	api             *app.Resource
+	hooks           *app.Hooks
+	roles           []*app.Role
+	disks           []app.Disk
+	defaultDisk     app.Disk
+	setupToken      string
+	startupMessages []string
 }
 
 func New(config *AppConfig) (_ *App, err error) {
-	appDir, err := getAppDir(config.Dir)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := parseEnvFile(path.Join(appDir, ".env")); err != nil {
-		return nil, err
-	}
-
-	if config.AppKey == "" {
-		config.AppKey = utils.Env("APP_KEY")
-	}
-
-	if config.Port == "" {
-		config.Port = utils.Env("APP_PORT", "3000")
-	}
-
-	if config.DashURL == "" {
-		config.DashURL = utils.Env("APP_DASH_URL")
-	}
-
-	if config.AppKey == "" {
-		return nil, fmt.Errorf("APP_KEY is required. Please check the environment variables")
-	}
-
-	if config.APIBaseName == "" {
-		config.APIBaseName = utils.Env("APP_API_BASE_NAME", "api")
-	}
-
-	if config.DashBaseName == "" {
-		config.DashBaseName = utils.Env("APP_DASH_BASE_NAME", "dash")
-	}
-
 	a := &App{
-		dir:          appDir,
-		config:       config,
-		schemasDir:   path.Join(appDir, "private/schemas"),
-		migrationDir: path.Join(appDir, "private/migrations"),
-		logger:       config.Logger,
-		db:           config.DB,
-		disks:        []app.Disk{},
-		roles:        []*app.Role{},
+		config: config.Clone(),
+		disks:  []app.Disk{},
+		roles:  []*app.Role{},
 		hooks: &app.Hooks{
 			BeforeResolve: []app.ResolveHook{},
 			AfterResolve:  []app.ResolveHook{},
 			ContentList:   []db.AfterDBContentListHook{},
 		},
+	}
+
+	if err := a.getAppDir(); err != nil {
+		return nil, err
+	}
+
+	if err := a.prepareConfig(); err != nil {
+		return nil, err
 	}
 
 	if err = a.init(); err != nil {
@@ -122,8 +112,8 @@ func New(config *AppConfig) (_ *App, err error) {
 
 func (a *App) init() (err error) {
 	if err = utils.MkDirs(
-		path.Join(a.dir, "private/logs"),
-		path.Join(a.dir, "public"),
+		a.logDir,
+		a.publicDir,
 		a.schemasDir,
 		a.migrationDir,
 	); err != nil {
@@ -158,8 +148,8 @@ func (a *App) Key() string {
 }
 
 func (a *App) Reload(migration *db.Migration) (err error) {
-	if a.db != nil {
-		if err = a.db.Close(); err != nil {
+	if a.DB() != nil {
+		if err = a.DB().Close(); err != nil {
 			return err
 		}
 	}
@@ -168,12 +158,12 @@ func (a *App) Reload(migration *db.Migration) (err error) {
 		return err
 	}
 
-	newDB, err := a.db.Reload(a.schemaBuilder, migration)
+	newDB, err := a.DB().Reload(a.schemaBuilder, migration)
 	if err != nil {
 		return err
 	}
 
-	a.db = newDB
+	a.config.DB = newDB
 
 	return nil
 }
@@ -232,14 +222,24 @@ func (a *App) Start() {
 			a.config.DashURL,
 			setupToken,
 		)
-		fmt.Printf(
-			"\n\033[32mYour app is not setup yet. Please visit the following URL to setup the app:\n%s",
+
+		a.startupMessages = append(a.startupMessages, fmt.Sprintf(
+			"Visit the following URL to setup the app: %s",
 			setupURL,
-		)
+		))
 	}
 
-	restResolver := restresolver.NewRestResolver(a.resources)
-	log.Fatal(restResolver.Start(addr, a.logger))
+	restResolver := restresolver.NewRestResolver(a.resources, []*restresolver.StaticPaths{{
+		BasePath: "/",
+		Root:     a.publicDir,
+	}})
+
+	fmt.Printf("\n")
+	for _, msg := range a.startupMessages {
+		color.Green("> %s", msg)
+	}
+	fmt.Printf("\n")
+	log.Fatal(restResolver.Start(addr, a.Logger()))
 }
 
 func (a *App) SchemaBuilder() *schema.Builder {
@@ -247,11 +247,11 @@ func (a *App) SchemaBuilder() *schema.Builder {
 }
 
 func (a *App) DB() db.Client {
-	return a.db
+	return a.config.DB
 }
 
 func (a *App) Logger() logger.Logger {
-	return a.logger
+	return a.config.Logger
 }
 
 func (a *App) Resources() *app.ResourcesManager {
@@ -421,38 +421,36 @@ func (a *App) needSetup() (bool, error) {
 }
 
 func (a *App) getDefaultDBClient() (err error) {
-	if a.db != nil {
+	if a.DB() != nil {
 		return nil
 	}
 
 	dbConfig := &db.DBConfig{
-		Driver:       utils.Env("DB_DRIVER"),
+		Driver:       utils.Env("DB_DRIVER", "sqlite"),
 		Name:         utils.Env("DB_NAME"),
 		User:         utils.Env("DB_USER"),
 		Pass:         utils.Env("DB_PASS"),
 		Host:         utils.Env("DB_HOST"),
 		Port:         utils.Env("DB_PORT"),
-		LogQueries:   utils.Env("DB_LOGGING") == "true",
-		Logger:       a.logger,
+		LogQueries:   utils.Env("DB_LOGGING", "true") == "true",
+		Logger:       a.Logger(),
 		MigrationDir: a.migrationDir,
 		Hooks: &db.Hooks{
 			AfterDBContentList: a.hooks.ContentList,
 		},
 	}
 
-	if dbConfig.Driver == "" {
-		return fmt.Errorf("DB_DRIVER is required. Pleas check the environment variables")
+	// If driver is sqlite and the DB_NAME (file path) is not set,
+	// Set the DB_NAME to the default sqlite db file path.
+	if dbConfig.Driver == "sqlite" && dbConfig.Name == "" {
+		dbConfig.Name = path.Join(a.dataDir, "fastschema.db")
+		a.startupMessages = append(
+			a.startupMessages,
+			fmt.Sprintf("Using the default sqlite db file path: %s", dbConfig.Name),
+		)
 	}
 
-	if dbConfig.Name == "" {
-		return fmt.Errorf("DB_NAME is required. Pleas check the environment variables")
-	}
-
-	if dbConfig.User == "" {
-		return fmt.Errorf("DB_USER is required. Pleas check the environment variables")
-	}
-
-	if a.db, err = entdbadapter.NewClient(dbConfig, a.schemaBuilder); err != nil {
+	if a.config.DB, err = entdbadapter.NewClient(dbConfig, a.schemaBuilder); err != nil {
 		return err
 	}
 
@@ -465,9 +463,9 @@ func (a *App) getDefaultDBClient() (err error) {
 
 func (a *App) getDefaultLogger() (err error) {
 	if a.config.Logger == nil {
-		a.logger, err = zaplogger.NewZapLogger(&zaplogger.ZapConfig{
+		a.config.Logger, err = zaplogger.NewZapLogger(&zaplogger.ZapConfig{
 			Development: true,
-			LogFile:     path.Join(a.dir, "private/logs/app.log"),
+			LogFile:     path.Join(a.dir, "data/logs/app.log"),
 		})
 	}
 
@@ -475,16 +473,16 @@ func (a *App) getDefaultLogger() (err error) {
 }
 
 func (a *App) getDefaultDisk() error {
-	if a.config.Storage == nil {
-		a.config.Storage = &app.StorageConfig{}
+	if a.config.StorageConfig == nil {
+		a.config.StorageConfig = &app.StorageConfig{}
 	}
 
-	defaultDiskName := a.config.Storage.DefaultDisk
+	defaultDiskName := a.config.StorageConfig.DefaultDisk
 	if defaultDiskName == "" {
 		defaultDiskName = utils.Env("STORAGE_DEFAULT_DISK")
 	}
 
-	storageDisksConfig := a.config.Storage.DisksConfig
+	storageDisksConfig := a.config.StorageConfig.DisksConfig
 	if utils.Env("STORAGE_DISKS") != "" && storageDisksConfig == nil {
 		if err := json.Unmarshal([]byte(utils.Env("STORAGE_DISKS")), &storageDisksConfig); err != nil {
 			return err
@@ -575,29 +573,93 @@ func (a *App) createResources() error {
 	return nil
 }
 
-func getAppDir(dirs ...string) (string, error) {
+func (a *App) getAppDir() (err error) {
+	defer func() {
+		if err == nil {
+			fmt.Println("> Using app directory:", a.dir)
+		}
+	}()
+
 	cwd, err := os.Getwd()
 
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	if len(dirs) == 0 {
-		return cwd, nil
+	if a.config.Dir == "" {
+		a.dir = cwd
+		return nil
 	}
 
-	if strings.HasPrefix(dirs[0], "/") {
-		return dirs[0], nil
+	if strings.HasPrefix(a.config.Dir, "/") {
+		a.dir = a.config.Dir
+		return nil
 	}
 
-	return path.Join(cwd, dirs[0]), nil
+	a.dir = path.Join(cwd, a.config.Dir)
+	return nil
 }
 
-func parseEnvFile(envFile string) error {
+func (a *App) prepareConfig() error {
+	a.dataDir = path.Join(a.dir, "data")
+	a.logDir = path.Join(a.dataDir, "logs")
+	a.publicDir = path.Join(a.dataDir, "public")
+	a.schemasDir = path.Join(a.dataDir, "schemas")
+	a.migrationDir = path.Join(a.dataDir, "migrations")
+	envFile := path.Join(a.dataDir, ".env")
+
 	if utils.IsFileExists(envFile) {
+		a.envFile = envFile
 		if err := godotenv.Load(envFile); err != nil {
 			return err
 		}
+	}
+
+	if a.config.AppKey == "" {
+		a.config.AppKey = utils.Env("APP_KEY")
+	}
+
+	if a.config.Port == "" {
+		a.config.Port = utils.Env("APP_PORT", "3000")
+	}
+
+	if a.config.BaseURL == "" {
+		a.config.BaseURL = utils.Env("APP_BASE_URL")
+	}
+
+	if a.config.DashURL == "" {
+		a.config.DashURL = utils.Env("APP_DASH_URL")
+	}
+
+	if a.config.APIBaseName == "" {
+		a.config.APIBaseName = utils.Env("APP_API_BASE_NAME", "api")
+	}
+
+	if a.config.DashBaseName == "" {
+		a.config.DashBaseName = utils.Env("APP_DASH_BASE_NAME", "dash")
+	}
+
+	if a.config.BaseURL == "" {
+		a.config.BaseURL = fmt.Sprintf("http://localhost:%s", a.config.Port)
+	}
+
+	if a.config.DashURL == "" {
+		a.config.DashURL = fmt.Sprintf("%s/%s", a.config.BaseURL, a.config.DashBaseName)
+	}
+
+	if a.config.AppKey == "" {
+		a.config.AppKey = utils.RandomString(32)
+		if err := utils.AppendFile(
+			envFile,
+			fmt.Sprintf("APP_KEY=%s\n", a.config.AppKey),
+		); err != nil {
+			return err
+		}
+
+		a.startupMessages = append(
+			a.startupMessages,
+			fmt.Sprintf("APP_KEY is not set. A new key is generated and saved to %s", envFile),
+		)
 	}
 
 	return nil

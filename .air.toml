@@ -1,14 +1,14 @@
 root = "."
 testdata_dir = "testdata"
-tmp_dir = "private/tmp"
+tmp_dir = "data/tmp"
 
 [build]
   args_bin = []
-  cmd = "go build -o ./private/tmp/fastschema.exe ./default/main.go"
-  bin = "./private/tmp/fastschema.exe"
+  cmd = "go build -o ./data/tmp/fastschema.exe ./default/main.go"
+  bin = "./data/tmp/fastschema.exe"
   full_bin = ""
   delay = 1
-  exclude_dir = ["tests", ".git", "private", "public", "testdata", "pkg/dash", "pkg\\dash"]
+  exclude_dir = ["tests", ".git", "data", "dash", "releases", "testdata", "pkg/dash", "pkg\\dash"]
   exclude_file = []
   exclude_regex = ["_test.go"]
   exclude_unchanged = false

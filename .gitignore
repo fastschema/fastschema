@@ -3,7 +3,6 @@ tests/coverage
 tests/data/migrations/*
 !tests/data/migrations/.gitkeep
 .env
-/private
-/public
+/data/
 
 dist/
