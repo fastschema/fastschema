@@ -195,7 +195,11 @@ func (a *App) Start() {
 				return false, errors.Unauthorized("Invalid setup token")
 			}
 
-			if err := cmd.Setup(a, setupData.Username, setupData.Email, setupData.Password); err != nil {
+			if err := cmd.Setup(
+				a.DB(),
+				a.Logger(),
+				setupData.Username, setupData.Email, setupData.Password,
+			); err != nil {
 				return false, err
 			}
 

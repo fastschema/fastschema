@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// Disk is the interface that defines the methods that a disk must implement
 type Disk interface {
 	Name() string
 	URL(filepath string) string
@@ -16,6 +17,7 @@ type Disk interface {
 	PutMultipart(c context.Context, m *multipart.FileHeader, dsts ...string) (*File, error)
 }
 
+// File holds the file data
 type File struct {
 	ID        uint64     `json:"id,omitempty"`
 	Disk      string     `json:"disk,omitempty"`
@@ -32,6 +34,7 @@ type File struct {
 	Reader    io.Reader  `json:"-"`
 }
 
+// DiskConfig holds the disk configuration
 type DiskConfig struct {
 	Name            string        `json:"name"`
 	Driver          string        `json:"driver"`
@@ -47,6 +50,7 @@ type DiskConfig struct {
 	ACL             string        `json:"acl"`
 }
 
+// Clone returns a clone of the disk configuration
 func (dc *DiskConfig) Clone() *DiskConfig {
 	return &DiskConfig{
 		Name:            dc.Name,
@@ -64,11 +68,13 @@ func (dc *DiskConfig) Clone() *DiskConfig {
 	}
 }
 
+// StorageConfig holds the storage configuration
 type StorageConfig struct {
 	DefaultDisk string        `json:"default_disk"`
 	DisksConfig []*DiskConfig `json:"disks"`
 }
 
+// Clone returns a clone of the storage configuration
 func (sc *StorageConfig) Clone() *StorageConfig {
 	if sc == nil {
 		return nil
@@ -86,6 +92,7 @@ func (sc *StorageConfig) Clone() *StorageConfig {
 	return clone
 }
 
+// AllowedFileTypes is a list of allowed file types
 var AllowedFileTypes = []string{
 	"text/xml",
 	"text/xml; charset=utf-8",
