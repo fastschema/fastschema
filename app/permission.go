@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Permission is a struct that contains the permission data
 type Permission struct {
 	ID       int    `json:"id,omitempty"`
 	RoleID   int    `json:"role_id,omitempty"`
@@ -18,6 +19,7 @@ type Permission struct {
 	DeletedAt *time.Time `json:"Deleted_at,omitempty"`
 }
 
+// PermissionType is an enum that represents the type of a permission
 type PermissionType uint
 
 const (
@@ -28,6 +30,7 @@ const (
 )
 
 var (
+	// PermissionTypeToStrings is a map that contains the string representation of the enum values
 	PermissionTypeToStrings = [...]string{
 		PermissionTypeInvalid: "invalid",
 		PermissionTypeAllow:   "allow",
@@ -41,6 +44,7 @@ var (
 	}
 )
 
+// GetPermissionTypeFromName returns the type from a string.
 func GetPermissionTypeFromName(name string) PermissionType {
 	return stringToPermissionTypees[name]
 }
@@ -65,6 +69,10 @@ func (p PermissionType) Valid() bool {
 
 // MarshalJSON marshal an enum value to the quoted json string value
 func (p PermissionType) MarshalJSON() ([]byte, error) {
+	if !p.Valid() {
+		p = PermissionTypeInvalid
+	}
+
 	buffer := bytes.NewBufferString(`"`)
 	buffer.WriteString(PermissionTypeToStrings[p])
 	buffer.WriteString(`"`)

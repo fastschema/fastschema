@@ -6,6 +6,7 @@ import (
 
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -24,8 +25,12 @@ func createRole(db db.Client, roleData *app.Role) (uint64, error) {
 	return roleModel.Create(role)
 }
 
-func Setup(fsApp app.App, username, email, password string) error {
-	tx := utils.Must(fsApp.DB().Tx(context.Background()))
+func Setup(
+	dbClient db.Client,
+	logger logger.Logger,
+	username, email, password string,
+) error {
+	tx := utils.Must(dbClient.Tx(context.Background()))
 	userModel := utils.Must(tx.Model("user"))
 	adminUser, err := userModel.Query(db.EQ("username", username)).First()
 	if err != nil && !db.IsNotFound(err) {
@@ -62,7 +67,7 @@ func Setup(fsApp app.App, username, email, password string) error {
 		return err
 	}
 
-	fsApp.Logger().Info("Setup root user successfully")
+	logger.Info("Setup root user successfully")
 
 	return nil
 }

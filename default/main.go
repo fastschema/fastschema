@@ -44,7 +44,11 @@ func main() {
 						Dir: c.Args().Get(0),
 					}))
 
-					return cmd.Setup(fsApp, c.String("username"), c.String("email"), c.String("password"))
+					return cmd.Setup(
+						fsApp.DB(),
+						fsApp.Logger(),
+						c.String("username"), c.String("email"), c.String("password"),
+					)
 				},
 			},
 			{
