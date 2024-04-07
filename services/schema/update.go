@@ -4,19 +4,18 @@ import (
 	"os"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/schema"
 )
 
 type SchemaUpdateData struct {
-	Schema       *schema.Schema   `json:"schema"`
-	RenameFields []*db.RenameItem `json:"rename_fields"`
-	RenameTables []*db.RenameItem `json:"rename_tables"`
+	Schema       *schema.Schema    `json:"schema"`
+	RenameFields []*app.RenameItem `json:"rename_fields"`
+	RenameTables []*app.RenameItem `json:"rename_tables"`
 }
 
 type SchemaUpdate struct {
-	DB               func() db.Client
+	DB               func() app.DBClient
 	updateDir        string
 	updateSchemas    map[string]*schema.Schema
 	newSchemaBuilder *schema.Builder
@@ -41,7 +40,7 @@ func (ss *SchemaService) Update(c app.Context, updateData *SchemaUpdateData) (_ 
 	}
 
 	if err = ss.app.Reload(
-		&db.Migration{
+		&app.Migration{
 			RenameTables: su.updateData.RenameTables,
 			RenameFields: su.updateData.RenameFields,
 		},

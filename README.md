@@ -237,7 +237,6 @@ package main
 import (
 	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -255,7 +254,7 @@ func main() {
 	)
 
 	newApp.OnAfterDBContentList(
-    func(query *db.QueryOptions, entities []*schema.Entity) ([]*schema.Entity, error) {
+    func(query *app.QueryOptions, entities []*schema.Entity) ([]*schema.Entity, error) {
       if query.Model.Schema().Name != "media" {
         return entities, nil
       }

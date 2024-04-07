@@ -2,7 +2,6 @@ package mediaservice
 
 import (
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -16,7 +15,7 @@ func NewMediaService(app app.App) *MediaService {
 	}
 }
 
-func (m *MediaService) MediaListHook(query *db.QueryOptions, entities []*schema.Entity) ([]*schema.Entity, error) {
+func (m *MediaService) MediaListHook(query *app.QueryOption, entities []*schema.Entity) ([]*schema.Entity, error) {
 	if query.Model.Schema().Name != "media" {
 		return entities, nil
 	}

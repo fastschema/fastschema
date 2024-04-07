@@ -5,7 +5,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
@@ -15,7 +15,7 @@ type PredicateFN func(*sql.Selector) *sql.Predicate
 func createEntPredicates(
 	entAdapter *Adapter,
 	model *Model,
-	predicates []*db.Predicate,
+	predicates []*app.Predicate,
 ) (func(*sql.Selector) []*sql.Predicate, error) {
 	var predicateFns = []PredicateFN{}
 
@@ -87,7 +87,7 @@ func createEntPredicates(
 func createRelationsPredicate(
 	entAdapter *Adapter,
 	model *Model,
-	lastFieldPredicate *db.Predicate,
+	lastFieldPredicate *app.Predicate,
 	relationFieldNames ...string,
 ) (PredicateFN, error) {
 	relationFieldName := relationFieldNames[0]
@@ -138,7 +138,7 @@ func createRelationsPredicate(
 			s2.Where(p(s2))
 		}
 	} else {
-		predFn, err := createEntPredicates(entAdapter, model, []*db.Predicate{lastFieldPredicate})
+		predFn, err := createEntPredicates(entAdapter, model, []*app.Predicate{lastFieldPredicate})
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +156,7 @@ func createRelationsPredicate(
 }
 
 // createFieldPredicate convert a predicate to ent predicate
-func createFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
+func createFieldPredicate(predicate *app.Predicate) (PredicateFN, error) {
 	var columnWrap = func(field string, selectors ...*sql.Selector) string {
 		if len(selectors) > 0 {
 			return selectors[0].C(field)
@@ -166,37 +166,37 @@ func createFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 	}
 
 	switch predicate.Operator {
-	case db.OpEQ:
+	case app.OpEQ:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.EQ(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case db.OpNEQ:
+	case app.OpNEQ:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.NEQ(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case db.OpGT:
+	case app.OpGT:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.GT(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case db.OpGTE:
+	case app.OpGTE:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.GTE(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case db.OpLT:
+	case app.OpLT:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.LT(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case db.OpLTE:
+	case app.OpLTE:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.LTE(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case db.OpLIKE:
+	case app.OpLIKE:
 		stringValue, ok := predicate.Value.(string)
 		if !ok {
 			return nil, fmt.Errorf(
 				"value of field %s.%s = %v (%T) must be string",
 				predicate.Field,
-				db.OpLIKE,
+				app.OpLIKE,
 				predicate.Value,
 				predicate.Value,
 			)
@@ -205,7 +205,7 @@ func createFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.Like(columnWrap(predicate.Field), stringValue)
 		}, nil
-	case db.OpIN, db.OpNIN:
+	case app.OpIN, app.OpNIN:
 		arrayValue, ok := predicate.Value.([]any)
 		if !ok {
 			return nil, fmt.Errorf(
@@ -218,10 +218,10 @@ func createFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 		}
 
 		return func(s *sql.Selector) *sql.Predicate {
-			op := utils.If(predicate.Operator == db.OpIN, sql.In, sql.NotIn)
+			op := utils.If(predicate.Operator == app.OpIN, sql.In, sql.NotIn)
 			return op(columnWrap(predicate.Field), arrayValue...)
 		}, nil
-	case db.OpNULL:
+	case app.OpNULL:
 		return func(s *sql.Selector) *sql.Predicate {
 			op := utils.If(predicate.Value == true, sql.IsNull, sql.NotNull)
 			return op(columnWrap(predicate.Field))

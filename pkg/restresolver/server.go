@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/utils"
@@ -13,13 +12,13 @@ import (
 type Server struct {
 	*fiber.App
 	hooks  []Handler
-	logger logger.Logger
+	logger app.Logger
 }
 
 type Config struct {
 	AppName     string
 	JSONEncoder utils.JSONMarshal
-	Logger      logger.Logger
+	Logger      app.Logger
 }
 
 func New(config Config) *Server {
@@ -49,7 +48,7 @@ func (s *Server) Test(req *http.Request, msTimeout ...int) (resp *http.Response,
 }
 
 func (s *Server) Listen(address string) {
-	s.logger.Fatal("Listen", logger.Context{"Error": s.App.Listen(address)})
+	s.logger.Fatal("Listen", app.LogContext{"Error": s.App.Listen(address)})
 }
 
 func (s *Server) Use(handlers ...Handler) {

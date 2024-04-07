@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -522,8 +522,8 @@ func TestCount(t *testing.T) {
 		},
 	}
 
-	testutils.MockRunCountTests(func(d *sql.DB) db.Client {
-		client := utils.Must(NewEntClient(&db.DBConfig{
+	testutils.MockRunCountTests(func(d *sql.DB) app.DBClient {
+		client := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sbq, dialectSql.OpenDB(dialect.MySQL, d)))
 		return client
@@ -1100,8 +1100,8 @@ func TestQuery(t *testing.T) {
 		},
 	}
 
-	testutils.MockRunQueryTests(func(d *sql.DB) db.Client {
-		client := utils.Must(NewEntClient(&db.DBConfig{
+	testutils.MockRunQueryTests(func(d *sql.DB) app.DBClient {
+		client := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sbq, dialectSql.OpenDB(dialect.MySQL, d)))
 		return client
@@ -1113,7 +1113,7 @@ func TestFirstOnly(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, d)
 	assert.NotNil(t, mock)
-	client := utils.Must(NewEntClient(&db.DBConfig{
+	client := utils.Must(NewEntClient(&app.DBConfig{
 		Driver: "sqlmock",
 	}, sbq, dialectSql.OpenDB(dialect.MySQL, d)))
 
@@ -1140,25 +1140,25 @@ func TestFirstOnly(t *testing.T) {
 		WithArgs("user5").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}))
 
-	query1 := utils.Must(client.Model("user")).Query(db.EQ("name", "user1"))
+	query1 := utils.Must(client.Model("user")).Query(app.EQ("name", "user1"))
 	user1, err := query1.First()
 	assert.NoError(t, err)
 	assert.Equal(t, "user1", user1.Get("name"))
 
-	query2 := utils.Must(client.Model("user")).Query(db.EQ("name", "user2"))
+	query2 := utils.Must(client.Model("user")).Query(app.EQ("name", "user2"))
 	_, err = query2.First()
 	assert.Equal(t, "no entities found", err.Error())
 
-	query3 := utils.Must(client.Model("user")).Query(db.EQ("name", "user3"))
+	query3 := utils.Must(client.Model("user")).Query(app.EQ("name", "user3"))
 	user3, err := query3.Only()
 	assert.NoError(t, err)
 	assert.Equal(t, "user3", user3.Get("name"))
 
-	query4 := utils.Must(client.Model("user")).Query(db.EQ("name", "user4"))
+	query4 := utils.Must(client.Model("user")).Query(app.EQ("name", "user4"))
 	_, err = query4.Only()
 	assert.Equal(t, "more than one entity found", err.Error())
 
-	query5 := utils.Must(client.Model("user")).Query(db.EQ("name", "user5"))
+	query5 := utils.Must(client.Model("user")).Query(app.EQ("name", "user5"))
 	_, err = query5.Only()
 	assert.Equal(t, "no entities found", err.Error())
 }

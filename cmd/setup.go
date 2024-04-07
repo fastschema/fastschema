@@ -5,13 +5,11 @@ import (
 	"fmt"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
 
-func createRole(db db.Client, roleData *app.Role) (uint64, error) {
+func createRole(db app.DBClient, roleData *app.Role) (uint64, error) {
 	roleModel, err := db.Model("role")
 	if err != nil {
 		return 0, err
@@ -26,14 +24,14 @@ func createRole(db db.Client, roleData *app.Role) (uint64, error) {
 }
 
 func Setup(
-	dbClient db.Client,
-	logger logger.Logger,
+	dbClient app.DBClient,
+	logger app.Logger,
 	username, email, password string,
 ) error {
 	tx := utils.Must(dbClient.Tx(context.Background()))
 	userModel := utils.Must(tx.Model("user"))
-	adminUser, err := userModel.Query(db.EQ("username", username)).First()
-	if err != nil && !db.IsNotFound(err) {
+	adminUser, err := userModel.Query(app.EQ("username", username)).First()
+	if err != nil && !app.IsNotFound(err) {
 		return err
 	}
 

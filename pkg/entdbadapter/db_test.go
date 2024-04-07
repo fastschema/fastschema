@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/go-sql-driver/mysql"
@@ -17,20 +17,20 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	_, err := NewEntClient(&db.DBConfig{
+	_, err := NewEntClient(&app.DBConfig{
 		Driver: "invalid",
 	}, nil)
 	assert.Equal(t, `sql: unknown driver "invalid" (forgotten import?)`, err.Error())
 
 	sql.Register("mysql2", &mysql.MySQLDriver{})
 
-	_, err = NewEntClient(&db.DBConfig{
+	_, err = NewEntClient(&app.DBConfig{
 		Driver: "mysql2",
 	}, nil)
 	assert.Equal(t, `unsupported driver: mysql2`, err.Error())
 
-	dbClient, err := testutils.NewMockClient(func(d *sql.DB) db.Client {
-		driver := utils.Must(NewEntClient(&db.DBConfig{
+	dbClient, err := testutils.NewMockClient(func(d *sql.DB) app.DBClient {
+		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sbc, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver

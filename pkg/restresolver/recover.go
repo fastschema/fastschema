@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/app"
 )
 
 func MiddlewareRecover(c *Context) error {
@@ -18,7 +18,7 @@ func MiddlewareRecover(c *Context) error {
 			stack := make([]byte, 4<<10)
 			length := runtime.Stack(stack, true)
 			msg := fmt.Sprintf("%v %s\n", err, stack[:length])
-			c.Logger().Error(msg, logger.Context{"recovered": true})
+			c.Logger().Error(msg, app.LogContext{"recovered": true})
 			if err := c.Status(http.StatusBadRequest).JSON(map[string]string{"error": err.Error()}); err != nil {
 				c.Logger().Error(err)
 			}

@@ -3,7 +3,7 @@ package testutils
 import (
 	"fmt"
 
-	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/app"
 )
 
 type MockLoggerMessage struct {
@@ -16,7 +16,7 @@ type MockLogger struct {
 	Messages []*MockLoggerMessage
 }
 
-func (l *MockLogger) WithContext(context logger.Context) logger.Logger {
+func (l *MockLogger) WithContext(context app.LogContext) app.Logger {
 	return l
 }
 

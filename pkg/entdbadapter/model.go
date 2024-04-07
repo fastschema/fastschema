@@ -7,7 +7,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	ef "entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -21,14 +21,14 @@ type Column struct {
 type Model struct {
 	name        string
 	ctx         context.Context
-	client      db.Client
+	client      app.DBClient
 	schema      *schema.Schema
 	entTable    *entSchema.Table  `json:"-"`
 	entIDColumn *entSchema.Column `json:"-"`
 	columns     []*Column         `json:"-"`
 }
 
-func (m *Model) Clone() db.Model {
+func (m *Model) Clone() app.Model {
 	return &Model{
 		name:        m.name,
 		ctx:         m.ctx,
@@ -47,7 +47,7 @@ func (m *Model) GetEntTable() *entSchema.Table {
 	return m.entTable
 }
 
-func (m *Model) SetClient(client db.Client) db.Model {
+func (m *Model) SetClient(client app.DBClient) app.Model {
 	m.client = client
 	return m
 }
@@ -80,14 +80,14 @@ func (m *Model) DBColumns() []string {
 }
 
 // Query returns a new query builder for the model
-func (m *Model) Query(predicates ...*db.Predicate) db.Query {
+func (m *Model) Query(predicates ...*app.Predicate) app.Query {
 	q := &Query{
 		model:           m,
 		client:          m.client,
 		predicates:      predicates,
 		entities:        []*schema.Entity{},
 		withEdgesFields: []*schema.Field{},
-		hooks:           &db.Hooks{},
+		hooks:           &app.Hooks{},
 	}
 
 	if m.client != nil {
@@ -119,7 +119,7 @@ func (m *Model) Query(predicates ...*db.Predicate) db.Query {
 }
 
 // Mutation returns a new mutation builder for the model
-func (m *Model) Mutation(skipTxs ...bool) (db.Mutation, error) {
+func (m *Model) Mutation(skipTxs ...bool) (app.Mutation, error) {
 	return &Mutation{
 		client: m.client,
 		ctx:    m.ctx,

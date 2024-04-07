@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
 
 	// "github.com/fastschema/fastschema/app/server"
@@ -34,7 +33,7 @@ type Context struct {
 	resource *app.Resource
 	result   *app.Result
 	entity   *schema.Entity
-	logger   logger.Logger
+	logger   app.Logger
 }
 
 func (c *Context) Result(results ...*app.Result) *app.Result {
@@ -122,8 +121,8 @@ func (c *Context) File(name string) (*multipart.FileHeader, error) {
 	return c.Ctx.FormFile(name)
 }
 
-func (c *Context) Logger() logger.Logger {
-	return c.logger.WithContext(logger.Context{requestID: c.ID()})
+func (c *Context) Logger() app.Logger {
+	return c.logger.WithContext(app.LogContext{requestID: c.ID()})
 }
 
 func (c *Context) User() *app.User {

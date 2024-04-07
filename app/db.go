@@ -1,4 +1,4 @@
-package db
+package app
 
 import (
 	"context"
@@ -6,25 +6,24 @@ import (
 	"database/sql/driver"
 
 	_ "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
 )
 
-type Client interface {
+type DBClient interface {
 	Dialect() string
 	Exec(ctx context.Context, query string, args any, bindValue any) error
 	Rollback() error
 	Commit() error
 	CreateDBModel(s *schema.Schema, rs ...*schema.Relation) Model
-	Tx(ctx context.Context) (Client, error)
+	Tx(ctx context.Context) (DBClient, error)
 	IsTx() bool
 	Model(name string) (Model, error)
 	Close() error
 	SchemaBuilder() *schema.Builder
-	Reload(newSchemaBuilder *schema.Builder, migration *Migration) (Client, error)
+	Reload(newSchemaBuilder *schema.Builder, migration *Migration) (DBClient, error)
 	DB() *sql.DB
 	Config() *DBConfig
 	Hooks() *Hooks
@@ -36,11 +35,11 @@ type Model interface {
 	Schema() *schema.Schema
 	CreateFromJSON(json string) (id uint64, err error)
 	Create(e *schema.Entity) (id uint64, err error)
-	SetClient(client Client) Model
+	SetClient(client DBClient) Model
 	Clone() Model
 }
 
-type QueryOptions struct {
+type QueryOption struct {
 	Limit      uint         `json:"limit"`
 	Offset     uint         `json:"offset"`
 	Columns    []string     `json:"columns"`
@@ -59,7 +58,7 @@ type Query interface {
 	Get(ctxs ...context.Context) ([]*schema.Entity, error)
 	First(ctxs ...context.Context) (*schema.Entity, error)
 	Only(ctxs ...context.Context) (*schema.Entity, error)
-	Options() *QueryOptions
+	Options() *QueryOption
 }
 
 type Mutation interface {
@@ -70,11 +69,7 @@ type Mutation interface {
 	Delete() (affected int, err error)
 }
 
-type AfterDBContentListHook = func(query *QueryOptions, entities []*schema.Entity) ([]*schema.Entity, error)
-
-type Hooks struct {
-	AfterDBContentList []AfterDBContentListHook
-}
+type AfterDBContentListHook = func(query *QueryOption, entities []*schema.Entity) ([]*schema.Entity, error)
 
 type DBConfig struct {
 	Driver          string
@@ -83,7 +78,7 @@ type DBConfig struct {
 	Port            string
 	User            string
 	Pass            string
-	Logger          logger.Logger
+	Logger          Logger
 	LogQueries      bool
 	MigrationDir    string
 	IgnoreMigration bool

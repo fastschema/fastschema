@@ -9,7 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/google/uuid"
@@ -21,16 +21,16 @@ type Query struct {
 	fields          []string
 	order           []string
 	entities        []*schema.Entity
-	predicates      []*db.Predicate
+	predicates      []*app.Predicate
 	withEdgesFields []*schema.Field
-	client          db.Client
+	client          app.DBClient
 	model           *Model
 	querySpec       *sqlgraph.QuerySpec
-	hooks           *db.Hooks
+	hooks           *app.Hooks
 }
 
-func (q *Query) Options() *db.QueryOptions {
-	return &db.QueryOptions{
+func (q *Query) Options() *app.QueryOption {
+	return &app.QueryOption{
 		Limit:      q.limit,
 		Offset:     q.offset,
 		Columns:    q.fields,
@@ -41,37 +41,37 @@ func (q *Query) Options() *db.QueryOptions {
 }
 
 // Limit sets the limit of the query.
-func (q *Query) Limit(limit uint) db.Query {
+func (q *Query) Limit(limit uint) app.Query {
 	q.limit = limit
 	return q
 }
 
 // Offset sets the offset of the query.
-func (q *Query) Offset(offset uint) db.Query {
+func (q *Query) Offset(offset uint) app.Query {
 	q.offset = offset
 	return q
 }
 
 // Order sets the order of the query.
-func (q *Query) Order(order ...string) db.Query {
+func (q *Query) Order(order ...string) app.Query {
 	q.order = append(q.order, order...)
 	return q
 }
 
 // Select sets the columns of the query.
-func (q *Query) Select(fields ...string) db.Query {
+func (q *Query) Select(fields ...string) app.Query {
 	q.fields = append(q.fields, fields...)
 	return q
 }
 
 // Where adds the given predicates to the query.
-func (q *Query) Where(predicates ...*db.Predicate) db.Query {
+func (q *Query) Where(predicates ...*app.Predicate) app.Query {
 	q.predicates = append(q.predicates, predicates...)
 	return q
 }
 
 // Count returns the number of entities that match the query.
-func (q *Query) Count(options *db.CountOption, ctxs ...context.Context) (int, error) {
+func (q *Query) Count(options *app.CountOption, ctxs ...context.Context) (int, error) {
 	ctxs = append(ctxs, context.Background())
 	entAdapter, ok := q.client.(*Adapter)
 	if !ok {
@@ -108,7 +108,7 @@ func (q *Query) First(ctxs ...context.Context) (*schema.Entity, error) {
 	}
 
 	if len(entities) == 0 {
-		return nil, &db.NotFoundError{Message: "no entities found"}
+		return nil, &app.NotFoundError{Message: "no entities found"}
 	}
 
 	return entities[0], nil
@@ -127,7 +127,7 @@ func (q *Query) Only(ctxs ...context.Context) (*schema.Entity, error) {
 	}
 
 	if len(entities) == 0 {
-		return nil, &db.NotFoundError{Message: "no entities found"}
+		return nil, &app.NotFoundError{Message: "no entities found"}
 	}
 
 	return entities[0], nil
@@ -449,7 +449,7 @@ func (q *Query) loadNonOwnerEdges(field *schema.Field, edgeModel *Model, edgeCol
 		return nil
 	}
 
-	edgeQuery := edgeModel.Query().Select(edgeColumns...).Where(db.In(edgeModel.entIDColumn.Name, ids))
+	edgeQuery := edgeModel.Query().Select(edgeColumns...).Where(app.In(edgeModel.entIDColumn.Name, ids))
 	neighbors, err := edgeQuery.Get(q.model.ctx)
 	if err != nil {
 		return err
@@ -492,7 +492,7 @@ func (q *Query) loadOwnerEdges(
 		edgeColumns = append(edgeColumns, fkColumn)
 	}
 
-	neighbors, err := edgeModel.Query().Select(edgeColumns...).Where(db.In(fkColumn, fks)).Get(q.model.ctx)
+	neighbors, err := edgeModel.Query().Select(edgeColumns...).Where(app.In(fkColumn, fks)).Get(q.model.ctx)
 	if err != nil {
 		return err
 	}

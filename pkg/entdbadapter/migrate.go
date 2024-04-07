@@ -8,17 +8,17 @@ import (
 	"ariga.io/atlas/sql/sqltool"
 	entDialect "entgo.io/ent/dialect"
 	entSchema "entgo.io/ent/dialect/sql/schema"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 func (d *Adapter) Migrate(
-	migration *db.Migration,
+	migration *app.Migration,
 	appendEntTables ...*entSchema.Table,
 ) (err error) {
 	ctx := context.Background()
 	tables := d.tables
-	migration = utils.If(migration == nil, &db.Migration{}, migration)
+	migration = utils.If(migration == nil, &app.Migration{}, migration)
 	renameTables := migration.RenameTables
 	renameFields := migration.RenameFields
 	migrationDir, err := atlasMigrate.NewLocalDir(d.migrationDir)

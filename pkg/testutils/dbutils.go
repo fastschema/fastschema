@@ -10,7 +10,7 @@ import (
 
 	"entgo.io/ent/dialect"
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +28,7 @@ func CreateSchemaBuilder(schemaDir string) *schema.Builder {
 	return sb
 }
 
-func ClearDBData(client db.Client, tables ...string) {
+func ClearDBData(client app.DBClient, tables ...string) {
 	sqls := []string{}
 
 	if client.Dialect() == dialect.MySQL {
@@ -93,11 +93,11 @@ func ClearDBData(client db.Client, tables ...string) {
 
 // NewMockClient creates a new mock db Client.
 func NewMockClient(
-	createMockClient func(db *sql.DB) db.Client,
+	createMockClient func(db *sql.DB) app.DBClient,
 	s *schema.Builder,
 	beforeCreateClient func(m sqlmock.Sqlmock),
 	expectTransaction bool,
-) (db.Client, error) {
+) (app.DBClient, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func NewMockClient(
 	return driver, nil
 }
 
-func MockRunCreateTests(createMockClient func(db *sql.DB) db.Client, sb *schema.Builder, t *testing.T, tests []MockTestCreateData) {
+func MockRunCreateTests(createMockClient func(db *sql.DB) app.DBClient, sb *schema.Builder, t *testing.T, tests []MockTestCreateData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -135,7 +135,7 @@ func MockRunCreateTests(createMockClient func(db *sql.DB) db.Client, sb *schema.
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model, entity *schema.Entity) error {
+				runFn = func(model app.Model, entity *schema.Entity) error {
 					_, err := utils.Must(model.Mutation()).Create(entity)
 					return err
 				}
@@ -151,7 +151,7 @@ func MockRunCreateTests(createMockClient func(db *sql.DB) db.Client, sb *schema.
 	}
 }
 
-func MockRunUpdateTests(createMockClient func(db *sql.DB) db.Client, sb *schema.Builder, t *testing.T, tests []MockTestUpdateData, extended ...bool) {
+func MockRunUpdateTests(createMockClient func(db *sql.DB) app.DBClient, sb *schema.Builder, t *testing.T, tests []MockTestUpdateData, extended ...bool) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -164,7 +164,7 @@ func MockRunUpdateTests(createMockClient func(db *sql.DB) db.Client, sb *schema.
 			require.NoError(t, err)
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model, entity *schema.Entity) (int, error) {
+				runFn = func(model app.Model, entity *schema.Entity) (int, error) {
 					mut := utils.Must(model.Mutation())
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
@@ -183,7 +183,7 @@ func MockRunUpdateTests(createMockClient func(db *sql.DB) db.Client, sb *schema.
 	}
 }
 
-func MockRunDeleteTests(createMockClient func(db *sql.DB) db.Client, sb *schema.Builder, t *testing.T, tests []MockTestDeleteData, extended ...bool) {
+func MockRunDeleteTests(createMockClient func(db *sql.DB) app.DBClient, sb *schema.Builder, t *testing.T, tests []MockTestDeleteData, extended ...bool) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -194,7 +194,7 @@ func MockRunDeleteTests(createMockClient func(db *sql.DB) db.Client, sb *schema.
 			require.NoError(t, err)
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model) (int, error) {
+				runFn = func(model app.Model) (int, error) {
 					mut := utils.Must(model.Mutation())
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
@@ -214,8 +214,8 @@ func MockRunDeleteTests(createMockClient func(db *sql.DB) db.Client, sb *schema.
 }
 
 func defaultRunFn(
-	model db.Model,
-	predicates []*db.Predicate,
+	model app.Model,
+	predicates []*app.Predicate,
 	limit, offset uint,
 	order []string,
 	columns ...string,
@@ -245,7 +245,7 @@ func defaultRunFn(
 }
 
 func MockRunQueryTests(
-	createMockClient func(db *sql.DB) db.Client,
+	createMockClient func(db *sql.DB) app.DBClient,
 	sb *schema.Builder,
 	t *testing.T,
 	tests []MockTestQueryData,
@@ -265,9 +265,9 @@ func MockRunQueryTests(
 				runFn = defaultRunFn
 			}
 
-			var predicates []*db.Predicate
+			var predicates []*app.Predicate
 			if tt.Filter != "" {
-				predicates, err = db.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
+				predicates, err = app.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
 				require.NoError(t, err)
 			}
 
@@ -308,7 +308,7 @@ func MockRunQueryTests(
 	}
 }
 
-func DBRunCreateTests(client db.Client, t *testing.T, tests []DBTestCreateData) {
+func DBRunCreateTests(client app.DBClient, t *testing.T, tests []DBTestCreateData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -327,9 +327,9 @@ func DBRunCreateTests(client db.Client, t *testing.T, tests []DBTestCreateData) 
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model, entity *schema.Entity) (*schema.Entity, error) {
+				runFn = func(model app.Model, entity *schema.Entity) (*schema.Entity, error) {
 					createdEntityID := utils.Must(model.Create(entity))
-					return model.Query(db.EQ("id", createdEntityID)).First()
+					return model.Query(app.EQ("id", createdEntityID)).First()
 				}
 			}
 
@@ -348,7 +348,7 @@ func DBRunCreateTests(client db.Client, t *testing.T, tests []DBTestCreateData) 
 	}
 }
 
-func DBRunUpdateTests(client db.Client, t *testing.T, tests []DBTestUpdateData) {
+func DBRunUpdateTests(client app.DBClient, t *testing.T, tests []DBTestUpdateData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -368,7 +368,7 @@ func DBRunUpdateTests(client db.Client, t *testing.T, tests []DBTestUpdateData) 
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model, entity *schema.Entity) (int, error) {
+				runFn = func(model app.Model, entity *schema.Entity) (int, error) {
 					mut := utils.Must(model.Mutation())
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
@@ -390,7 +390,7 @@ func DBRunUpdateTests(client db.Client, t *testing.T, tests []DBTestUpdateData) 
 	}
 }
 
-func DBRunDeleteTests(client db.Client, t *testing.T, tests []DBTestDeleteData) {
+func DBRunDeleteTests(client app.DBClient, t *testing.T, tests []DBTestDeleteData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -407,7 +407,7 @@ func DBRunDeleteTests(client db.Client, t *testing.T, tests []DBTestDeleteData) 
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model) (int, error) {
+				runFn = func(model app.Model) (int, error) {
 					mut := utils.Must(model.Mutation())
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
@@ -433,7 +433,7 @@ func DBRunDeleteTests(client db.Client, t *testing.T, tests []DBTestDeleteData) 
 	}
 }
 
-func DBRunQueryTests(client db.Client, t *testing.T, tests []DBTestQueryData) {
+func DBRunQueryTests(client app.DBClient, t *testing.T, tests []DBTestQueryData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -446,9 +446,9 @@ func DBRunQueryTests(client db.Client, t *testing.T, tests []DBTestQueryData) {
 				runFn = defaultRunFn
 			}
 
-			var predicates []*db.Predicate
+			var predicates []*app.Predicate
 			if tt.Filter != "" {
-				predicates, err = db.CreatePredicatesFromFilterObject(client.SchemaBuilder(), model.Schema(), tt.Filter)
+				predicates, err = app.CreatePredicatesFromFilterObject(client.SchemaBuilder(), model.Schema(), tt.Filter)
 				require.NoError(t, err)
 			}
 
@@ -492,7 +492,7 @@ func DBRunQueryTests(client db.Client, t *testing.T, tests []DBTestQueryData) {
 }
 
 func MockRunCountTests(
-	createMockClient func(db *sql.DB) db.Client,
+	createMockClient func(db *sql.DB) app.DBClient,
 	sb *schema.Builder,
 	t *testing.T,
 	tests []MockTestCountData,
@@ -509,8 +509,8 @@ func MockRunCountTests(
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(
-					model db.Model,
-					predicates []*db.Predicate,
+					model app.Model,
+					predicates []*app.Predicate,
 					unique bool,
 					column string,
 				) (int, error) {
@@ -518,7 +518,7 @@ func MockRunCountTests(
 					if len(predicates) > 0 {
 						query = query.Where(predicates...)
 					}
-					countOpts := &db.CountOption{
+					countOpts := &app.CountOption{
 						Unique: unique,
 						Column: column,
 					}
@@ -527,9 +527,9 @@ func MockRunCountTests(
 				}
 			}
 
-			var predicates []*db.Predicate
+			var predicates []*app.Predicate
 			if tt.Filter != "" {
-				predicates, err = db.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
+				predicates, err = app.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
 				require.NoError(t, err)
 			}
 
@@ -547,7 +547,7 @@ func MockRunCountTests(
 	}
 }
 
-func DBRunCountTests(client db.Client, t *testing.T, tests []DBTestCountData) {
+func DBRunCountTests(client app.DBClient, t *testing.T, tests []DBTestCountData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -558,8 +558,8 @@ func DBRunCountTests(client db.Client, t *testing.T, tests []DBTestCountData) {
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(
-					model db.Model,
-					predicates []*db.Predicate,
+					model app.Model,
+					predicates []*app.Predicate,
 					unique bool,
 					column string,
 				) (int, error) {
@@ -568,7 +568,7 @@ func DBRunCountTests(client db.Client, t *testing.T, tests []DBTestCountData) {
 						query = query.Where(predicates...)
 					}
 
-					countOptions := &db.CountOption{
+					countOptions := &app.CountOption{
 						Unique: unique,
 						Column: column,
 					}
@@ -577,9 +577,9 @@ func DBRunCountTests(client db.Client, t *testing.T, tests []DBTestCountData) {
 				}
 			}
 
-			var predicates []*db.Predicate
+			var predicates []*app.Predicate
 			if tt.Filter != "" {
-				predicates, err = db.CreatePredicatesFromFilterObject(client.SchemaBuilder(), model.Schema(), tt.Filter)
+				predicates, err = app.CreatePredicatesFromFilterObject(client.SchemaBuilder(), model.Schema(), tt.Filter)
 				require.NoError(t, err)
 			}
 

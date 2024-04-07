@@ -2,7 +2,6 @@ package restresolver
 
 import (
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/logger"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -27,7 +26,7 @@ type Router struct {
 	*fiber.App
 	fiberGroup *fiber.Group
 	hooks      []Handler
-	logger     logger.Logger
+	logger     app.Logger
 }
 
 func (g *Router) Use(handlers ...Handler) {

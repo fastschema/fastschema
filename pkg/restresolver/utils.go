@@ -2,14 +2,13 @@ package restresolver
 
 import (
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/gofiber/fiber/v2"
 )
 
 func transformHandlers(
 	r *app.Resource,
 	handlers []Handler,
-	l logger.Logger,
+	l app.Logger,
 ) []fiber.Handler {
 	var fiberHandlers []fiber.Handler
 
@@ -24,7 +23,7 @@ func transformHandlers(
 	return fiberHandlers
 }
 
-func createContext(r *app.Resource, c *fiber.Ctx, logger logger.Logger) *Context {
+func createContext(r *app.Resource, c *fiber.Ctx, logger app.Logger) *Context {
 	args := make(map[string]string)
 	allParams := c.AllParams()
 	queries := c.Queries()

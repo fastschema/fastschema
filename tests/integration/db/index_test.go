@@ -7,29 +7,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
-
-// var testDBTables = []string{
-// 	"cards",
-// 	"cars",
-// 	"followers_following",
-// 	"friends_user",
-// 	"groups",
-// 	"groups_users",
-// 	"nodes",
-// 	"pets",
-// 	"topics",
-// 	"users",
-// 	"workplaces",
-// 	"rooms",
-// 	"sub_groups_sub_users",
-// 	"comments_responder",
-// 	"blockers_blocking",
-// }
 
 type dbConfig struct {
 	name string
@@ -38,7 +20,7 @@ type dbConfig struct {
 
 type dbClient struct {
 	name   string
-	client db.Client
+	client app.DBClient
 }
 
 func removeAllMigrationFiles(migrationDir string) {
@@ -71,7 +53,7 @@ func runTests(t *testing.T, clients []dbClient) {
 
 var tests = []struct {
 	name string
-	fn   func(t *testing.T, client db.Client)
+	fn   func(t *testing.T, client app.DBClient)
 }{
 	{"DBQueryNode", DBQueryNode},
 	{"DBCountNode", DBCountNode},
@@ -92,7 +74,7 @@ func TestMysql(t *testing.T) {
 	}, func(sc dbConfig) dbClient {
 		sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas"))
 		removeAllMigrationFiles("../../../tests/data/migrations")
-		client := utils.Must(entdbadapter.NewEntClient(&db.DBConfig{
+		client := utils.Must(entdbadapter.NewEntClient(&app.DBConfig{
 			Driver:       "mysql",
 			Name:         "fastschema",
 			User:         "root",
@@ -121,7 +103,7 @@ func TestPostgres(t *testing.T) {
 	}, func(sc dbConfig) dbClient {
 		sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas"))
 		removeAllMigrationFiles("../../../tests/data/migrations")
-		client := utils.Must(entdbadapter.NewEntClient(&db.DBConfig{
+		client := utils.Must(entdbadapter.NewEntClient(&app.DBConfig{
 			Driver:       "pgx",
 			Name:         "fastschema",
 			User:         "postgres",
@@ -142,7 +124,7 @@ func TestPostgres(t *testing.T) {
 func TestSQLite(t *testing.T) {
 	sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas"))
 	removeAllMigrationFiles("../../../tests/data/migrations")
-	client := utils.Must(entdbadapter.NewEntClient(&db.DBConfig{
+	client := utils.Must(entdbadapter.NewEntClient(&app.DBConfig{
 		Driver:       "sqlite",
 		Name:         "fastschema",
 		MigrationDir: "../../../tests/data/migrations",

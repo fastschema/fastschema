@@ -3,7 +3,7 @@ package restresolver
 import (
 	"time"
 
-	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/app"
 	"github.com/google/uuid"
 )
 
@@ -26,7 +26,7 @@ func MiddlewareRequestLog(c *Context) error {
 	start := time.Now()
 	err := c.Next()
 	latency := time.Since(start).Round(time.Millisecond)
-	logContext := logger.Context{
+	logContext := app.LogContext{
 		"latency": latency.String(),
 		"status":  c.Response().StatusCode(),
 		"method":  c.Method(),

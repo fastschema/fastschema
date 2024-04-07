@@ -5,14 +5,14 @@ import (
 	"testing"
 
 	"entgo.io/ent/dialect"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
-func DBUpdateNodes(t *testing.T, client db.Client) {
+func DBUpdateNodes(t *testing.T, client app.DBClient) {
 	tests := []testutils.DBTestUpdateData{
 		{
 			Name:         "fields",
@@ -20,11 +20,11 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 			InputJSON:    `{ "age": 20 }`,
 			WantAffected: 2,
 			ClearTables:  []string{"users"},
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1" }`))
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 2", "username": "user2" }`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
+			Expect: func(t *testing.T, m app.Model) {
 				entities, err := m.Query().Get()
 				assert.NoError(t, err)
 				assert.NotNil(t, entities)
@@ -40,14 +40,14 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 			InputJSON:    `{ "age": 20 }`,
 			WantAffected: 2,
 			ClearTables:  []string{"users"},
-			Predicates:   []*db.Predicate{db.GT("id", 1)},
-			Prepare: func(t *testing.T, m db.Model) {
+			Predicates:   []*app.Predicate{app.GT("id", 1)},
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1" }`))
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 2", "username": "user2" }`))
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 3", "username": "user3" }`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
-				entities, err := m.Query(db.GT("id", 1)).Get()
+			Expect: func(t *testing.T, m app.Model) {
+				entities, err := m.Query(app.GT("id", 1)).Get()
 				assert.NoError(t, err)
 				assert.NotNil(t, entities)
 				assert.Equal(t, uint64(2), entities[0].ID())
@@ -68,12 +68,12 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 				}
 			}`, utils.If(client.Dialect() == dialect.Postgres, "bio", "`bio`")),
 			WantAffected: 1,
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1", "bio": "My BIO" }`))
 			},
-			Predicates: []*db.Predicate{db.EQ("id", 1)},
-			Expect: func(t *testing.T, m db.Model) {
-				entity := utils.Must(m.Query(db.EQ("id", 1)).Only())
+			Predicates: []*app.Predicate{app.EQ("id", 1)},
+			Expect: func(t *testing.T, m app.Model) {
+				entity := utils.Must(m.Query(app.EQ("id", 1)).Only())
 				assert.NotNil(t, entity)
 				assert.Equal(t, "my bio", entity.Get("bio"))
 			},
@@ -87,13 +87,13 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 				}
 			}`,
 			ClearTables:  []string{"users"},
-			Predicates:   []*db.Predicate{db.EQ("id", 1)},
+			Predicates:   []*app.Predicate{app.EQ("id", 1)},
 			WantAffected: 1,
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1", "age": "5" }`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
-				entity := utils.Must(m.Query(db.EQ("id", 1)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				entity := utils.Must(m.Query(app.EQ("id", 1)).Only())
 				assert.NotNil(t, entity)
 				assert.Equal(t, uint(8), entity.Get("age"))
 			},
@@ -108,9 +108,9 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 				}
 			}`,
 			ClearTables:  []string{"users", "groups", "pets", "sub_groups_sub_users", "groups_users"},
-			Predicates:   []*db.Predicate{db.EQ("id", 1)},
+			Predicates:   []*app.Predicate{app.EQ("id", 1)},
 			WantAffected: 1,
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1" }`))
 				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(`{ "name": "Group 1" }`))
 				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(`{ "name": "Group 2" }`))
@@ -136,13 +136,13 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					}
 				}`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
-				pet2 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", 2)).Only())
-				pet3 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", 3)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				pet2 := utils.Must(utils.Must(client.Model("pet")).Query(app.EQ("id", 2)).Only())
+				pet3 := utils.Must(utils.Must(client.Model("pet")).Query(app.EQ("id", 3)).Only())
 				assert.Equal(t, uint64(1), pet2.Get("sub_owner_id"))
 				assert.Equal(t, uint64(1), pet3.Get("sub_owner_id"))
 
-				subGroupsUsers := utils.Must(utils.Must(client.Model("sub_groups_sub_users")).Query(db.EQ("sub_users", 1)).Get())
+				subGroupsUsers := utils.Must(utils.Must(client.Model("sub_groups_sub_users")).Query(app.EQ("sub_users", 1)).Get())
 				subGroupsIDs := utils.Map(subGroupsUsers, func(e *schema.Entity) uint64 {
 					return e.Get("sub_groups").(uint64)
 				})
@@ -159,13 +159,13 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 				}
 			}`,
 			ClearTables:  []string{"users"},
-			Predicates:   []*db.Predicate{db.EQ("id", 1)},
+			Predicates:   []*app.Predicate{app.EQ("id", 1)},
 			WantAffected: 1,
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1", "bio": "My BIO" }`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
-				user := utils.Must(m.Query(db.EQ("id", 1)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				user := utils.Must(m.Query(app.EQ("id", 1)).Only())
 				assert.NotNil(t, user)
 				assert.Equal(t, true, user.Get("deleted"))
 				assert.Equal(t, nil, user.Get("bio"))
@@ -174,10 +174,10 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 		{
 			Name:         "fields/clear/o2o_o2m_m2m_all",
 			Schema:       "user",
-			Predicates:   []*db.Predicate{db.EQ("id", 2)},
+			Predicates:   []*app.Predicate{app.EQ("id", 2)},
 			WantAffected: 1,
 			ClearTables:  []string{"users", "groups", "pets", "cars"},
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1" }`))
 				utils.Must(utils.Must(client.Model("car")).CreateFromJSON(`{ "name": "Car 1" }`))
 				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(`{ "name": "Group 1" }`))
@@ -213,26 +213,26 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					"sub_groups": true
 				}
 			}`,
-			Expect: func(t *testing.T, m db.Model) {
-				user := utils.Must(m.Query(db.EQ("id", 2)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				user := utils.Must(m.Query(app.EQ("id", 2)).Only())
 				assert.NotNil(t, user)
 				assert.Equal(t, nil, user.Get("bio"))
 				assert.Equal(t, nil, user.Get("car_id"))
 
-				subGroupsUsers := utils.Must(utils.Must(client.Model("sub_groups_sub_users")).Query(db.EQ("sub_users", 2)).Get())
+				subGroupsUsers := utils.Must(utils.Must(client.Model("sub_groups_sub_users")).Query(app.EQ("sub_users", 2)).Get())
 				assert.Equal(t, 0, len(subGroupsUsers))
 
-				subPets := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("owner_id", 2)).Get())
+				subPets := utils.Must(utils.Must(client.Model("pet")).Query(app.EQ("owner_id", 2)).Get())
 				assert.Equal(t, 0, len(subPets))
 			},
 		},
 		{
 			Name:         "fields/clear/o2o_o2m_m2m_part",
 			Schema:       "user",
-			Predicates:   []*db.Predicate{db.EQ("id", 2)},
+			Predicates:   []*app.Predicate{app.EQ("id", 2)},
 			WantAffected: 1,
 			ClearTables:  []string{"users", "groups", "pets", "cars"},
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1" }`))
 				utils.Must(utils.Must(client.Model("car")).CreateFromJSON(`{ "name": "Car 1" }`))
 				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(`{ "name": "Group 1" }`))
@@ -271,18 +271,18 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					"sub_groups": [ { "id": 1 }, { "id": 2 }]
 				}
 			}`,
-			Expect: func(t *testing.T, m db.Model) {
-				user := utils.Must(m.Query(db.EQ("id", 2)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				user := utils.Must(m.Query(app.EQ("id", 2)).Only())
 				assert.NotNil(t, user)
 
-				subGroupsUsers := utils.Must(utils.Must(client.Model("sub_groups_sub_users")).Query(db.EQ("sub_users", 2)).Get())
+				subGroupsUsers := utils.Must(utils.Must(client.Model("sub_groups_sub_users")).Query(app.EQ("sub_users", 2)).Get())
 				subGroupsUsersIds := utils.Map(subGroupsUsers, func(e *schema.Entity) uint64 {
 					return e.Get("sub_groups").(uint64)
 				})
 				assert.Equal(t, 1, len(subGroupsUsersIds))
 				assert.Equal(t, []uint64{3}, subGroupsUsersIds)
 
-				subPets := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("sub_owner_id", 2)).Get())
+				subPets := utils.Must(utils.Must(client.Model("pet")).Query(app.EQ("sub_owner_id", 2)).Get())
 				subPetsIds := utils.Map(subPets, func(e *schema.Entity) uint64 {
 					return e.Get("id").(uint64)
 				})
@@ -303,10 +303,10 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					"sub_groups": [ { "id": 2 } ]
 				}
 			}`,
-			Predicates:   []*db.Predicate{db.EQ("id", 3)},
+			Predicates:   []*app.Predicate{app.EQ("id", 3)},
 			WantAffected: 1,
 			ClearTables:  []string{"users", "pets", "cards"},
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1" }`))
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 2", "username": "user2" }`))
 				utils.Must(utils.Must(client.Model("card")).CreateFromJSON(`{
@@ -344,28 +344,28 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					"sub_groups": [ { "id": 1 } ]
 				}`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
-				user3 := utils.Must(m.Query(db.EQ("id", 3)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				user3 := utils.Must(m.Query(app.EQ("id", 3)).Only())
 				assert.NotNil(t, user3)
 
 				assert.Equal(t, "User 3 updated", user3.Get("name").(string))
 				assert.Equal(t, "Hello World", user3.Get("bio").(string))
 
-				subCards := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("sub_owner_id", 3)).Get())
+				subCards := utils.Must(utils.Must(client.Model("pet")).Query(app.EQ("sub_owner_id", 3)).Get())
 				subCardsIds := utils.Map(subCards, func(e *schema.Entity) uint64 {
 					return e.Get("id").(uint64)
 				})
 				assert.Equal(t, 1, len(subCardsIds))
 				assert.Equal(t, []uint64{2}, subCardsIds)
 
-				subPets := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("sub_owner_id", 3)).Get())
+				subPets := utils.Must(utils.Must(client.Model("pet")).Query(app.EQ("sub_owner_id", 3)).Get())
 				subPetsIds := utils.Map(subPets, func(e *schema.Entity) uint64 {
 					return e.Get("id").(uint64)
 				})
 				assert.Equal(t, 1, len(subPetsIds))
 				assert.Equal(t, []uint64{2}, subPetsIds)
 
-				subGroupsUsers := utils.Must(utils.Must(client.Model("sub_groups_sub_users")).Query(db.EQ("sub_users", 3)).Get())
+				subGroupsUsers := utils.Must(utils.Must(client.Model("sub_groups_sub_users")).Query(app.EQ("sub_users", 3)).Get())
 				subGroupsUsersIds := utils.Map(subGroupsUsers, func(e *schema.Entity) uint64 {
 					return e.Get("sub_groups").(uint64)
 				})
@@ -386,10 +386,10 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					"parent": { "id": 1 }
 				}
 			}`,
-			Predicates:   []*db.Predicate{db.EQ("id", 2)},
+			Predicates:   []*app.Predicate{app.EQ("id", 2)},
 			WantAffected: 1,
 			ClearTables:  []string{"users", "cars", "workplaces", "rooms", "users"},
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1" }`))
 				utils.Must(utils.Must(client.Model("car")).CreateFromJSON(`{ "name": "Car 1" }`))
 				utils.Must(utils.Must(client.Model("workplace")).CreateFromJSON(`{ "name": "Workplace 1" }`))
@@ -405,8 +405,8 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					}
 				}`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
-				user2 := utils.Must(m.Query(db.EQ("id", 2)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				user2 := utils.Must(m.Query(app.EQ("id", 2)).Only())
 				assert.NotNil(t, user2)
 
 				assert.Equal(t, nil, user2.Get("car_id"))
@@ -427,10 +427,10 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					"spouse": { "id": 3 }
 				}
 			}`,
-			Predicates:   []*db.Predicate{db.EQ("id", 4)},
+			Predicates:   []*app.Predicate{app.EQ("id", 4)},
 			WantAffected: 1,
 			ClearTables:  []string{"users"},
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1" }`))
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 2", "username": "user2" }`))
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 3", "username": "user3" }`))
@@ -445,8 +445,8 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					}
 				}`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
-				user4 := utils.Must(m.Query(db.EQ("id", 4)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				user4 := utils.Must(m.Query(app.EQ("id", 4)).Only())
 				assert.NotNil(t, user4)
 
 				assert.Equal(t, nil, user4.Get("partner_id"))
@@ -456,10 +456,10 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 		{
 			Name:         "edges/clear_add_m2m",
 			Schema:       "user",
-			Predicates:   []*db.Predicate{db.EQ("id", 9)},
+			Predicates:   []*app.Predicate{app.EQ("id", 9)},
 			WantAffected: 1,
 			ClearTables:  []string{"users", "groups", "groups_users", "followers_following", "blockers_blocking", "friends_user"},
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("comment")).CreateFromJSON(`{ "content": "Comment 1" }`))
 				utils.Must(utils.Must(client.Model("comment")).CreateFromJSON(`{ "content": "Comment 2" }`))
 
@@ -501,24 +501,24 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 					"groups": [ { "id": 4 }, { "id": 5 } ]
 				}
 			}`,
-			Expect: func(t *testing.T, m db.Model) {
-				user9 := utils.Must(m.Query(db.EQ("id", 9)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				user9 := utils.Must(m.Query(app.EQ("id", 9)).Only())
 				assert.NotNil(t, user9)
 
-				blockingUsers := utils.Must(utils.Must(client.Model("blockers_blocking")).Query(db.EQ("blockers", 9)).Get())
+				blockingUsers := utils.Must(utils.Must(client.Model("blockers_blocking")).Query(app.EQ("blockers", 9)).Get())
 				assert.Equal(t, 0, len(blockingUsers))
 
-				followingUsers := utils.Must(utils.Must(client.Model("followers_following")).Query(db.EQ("followers", 9)).Get())
+				followingUsers := utils.Must(utils.Must(client.Model("followers_following")).Query(app.EQ("followers", 9)).Get())
 				assert.Equal(t, 1, len(followingUsers))
 				assert.Equal(t, uint64(4), followingUsers[0].Get("following"))
 
-				friends := utils.Must(utils.Must(client.Model("friends_user")).Query(db.EQ("user", 9)).Get())
+				friends := utils.Must(utils.Must(client.Model("friends_user")).Query(app.EQ("user", 9)).Get())
 				friendsIds := utils.Map(friends, func(e *schema.Entity) uint64 {
 					return e.Get("friends").(uint64)
 				})
 				assert.Equal(t, []uint64{6, 7, 8}, friendsIds)
 
-				subGroupsUsers := utils.Must(utils.Must(client.Model("groups_users")).Query(db.EQ("users", 9)).Get())
+				subGroupsUsers := utils.Must(utils.Must(client.Model("groups_users")).Query(app.EQ("users", 9)).Get())
 				subGroupsUsersIds := utils.Map(subGroupsUsers, func(e *schema.Entity) uint64 {
 					return e.Get("groups").(uint64)
 				})
@@ -540,13 +540,13 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 				}
 			}`,
 			ClearTables:  []string{"users"},
-			Predicates:   []*db.Predicate{db.EQ("id", 1)},
+			Predicates:   []*app.Predicate{app.EQ("id", 1)},
 			WantAffected: 1,
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1", "age": 10, "bio": "Bio 1" }`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
-				user1 := utils.Must(m.Query(db.EQ("id", 1)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				user1 := utils.Must(m.Query(app.EQ("id", 1)).Only())
 				assert.NotNil(t, user1)
 
 				assert.Equal(t, "User 1 updated", user1.Get("name"))
@@ -567,17 +567,17 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 				},
 				"deleted": true
 			}`,
-			Predicates: []*db.Predicate{
-				db.EQ("id", 1),
-				db.IsFalse("deleted"),
+			Predicates: []*app.Predicate{
+				app.EQ("id", 1),
+				app.IsFalse("deleted"),
 			},
 			WantAffected: 1,
 			ClearTables:  []string{"users"},
-			Prepare: func(t *testing.T, m db.Model) {
+			Prepare: func(t *testing.T, m app.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(`{ "name": "User 1", "username": "user1", "age": 10, "bio": "Bio 1" }`))
 			},
-			Expect: func(t *testing.T, m db.Model) {
-				user1 := utils.Must(m.Query(db.EQ("id", 1)).Only())
+			Expect: func(t *testing.T, m app.Model) {
+				user1 := utils.Must(m.Query(app.EQ("id", 1)).Only())
 				assert.NotNil(t, user1)
 
 				assert.Equal(t, true, user1.Get("deleted"))

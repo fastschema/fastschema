@@ -1,6 +1,6 @@
-package logger
+package app
 
-type Context map[string]any
+type LogContext Map
 
 type Logger interface {
 	Info(...any)
@@ -12,5 +12,5 @@ type Logger interface {
 	Warn(...any)
 	Panic(...any)
 	DPanic(...any)
-	WithContext(context Context) Logger
+	WithContext(context LogContext) Logger
 }

@@ -13,8 +13,6 @@ import (
 
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/cmd"
-	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/rclonefs"
@@ -43,8 +41,8 @@ type AppConfig struct {
 	DashURL       string
 	APIBaseName   string
 	DashBaseName  string
-	Logger        logger.Logger
-	DB            db.Client
+	Logger        app.Logger
+	DB            app.DBClient
 	StorageConfig *app.StorageConfig
 }
 
@@ -89,9 +87,9 @@ func New(config *AppConfig) (_ *App, err error) {
 		disks:  []app.Disk{},
 		roles:  []*app.Role{},
 		hooks: &app.Hooks{
-			BeforeResolve: []app.ResolveHook{},
-			AfterResolve:  []app.ResolveHook{},
-			ContentList:   []db.AfterDBContentListHook{},
+			BeforeResolve:      []app.ResolveHook{},
+			AfterResolve:       []app.ResolveHook{},
+			AfterDBContentList: []app.AfterDBContentListHook{},
 		},
 	}
 
@@ -147,7 +145,7 @@ func (a *App) Key() string {
 	return a.config.AppKey
 }
 
-func (a *App) Reload(migration *db.Migration) (err error) {
+func (a *App) Reload(migration *app.Migration) (err error) {
 	if a.DB() != nil {
 		if err = a.DB().Close(); err != nil {
 			return err
@@ -211,7 +209,7 @@ func (a *App) Start() {
 			a.setupToken = ""
 
 			return true, nil
-		}, app.Meta{app.POST: "/setup"}, true))
+		}, app.Map{app.POST: "/setup"}, true))
 	}
 
 	if err := a.resources.Init(); err != nil {
@@ -250,11 +248,11 @@ func (a *App) SchemaBuilder() *schema.Builder {
 	return a.schemaBuilder
 }
 
-func (a *App) DB() db.Client {
+func (a *App) DB() app.DBClient {
 	return a.config.DB
 }
 
-func (a *App) Logger() logger.Logger {
+func (a *App) Logger() app.Logger {
 	return a.config.Logger
 }
 
@@ -300,8 +298,8 @@ func (a *App) OnAfterResolve(middlewares ...app.Middleware) {
 	a.hooks.AfterResolve = append(a.hooks.AfterResolve, middlewares...)
 }
 
-func (a *App) OnAfterDBContentList(hook db.AfterDBContentListHook) {
-	a.hooks.ContentList = append(a.hooks.ContentList, hook)
+func (a *App) OnAfterDBContentList(hook app.AfterDBContentListHook) {
+	a.hooks.AfterDBContentList = append(a.hooks.AfterDBContentList, hook)
 }
 
 func (a *App) GetRolesFromIDs(ids []uint64) []*app.Role {
@@ -398,7 +396,7 @@ func (a *App) needSetup() (bool, error) {
 	var userCount int
 	var roleCount int
 	ctx := context.Background()
-	countOption := &db.CountOption{
+	countOption := &app.CountOption{
 		Column: "id",
 		Unique: true,
 	}
@@ -429,7 +427,7 @@ func (a *App) getDefaultDBClient() (err error) {
 		return nil
 	}
 
-	dbConfig := &db.DBConfig{
+	dbConfig := &app.DBConfig{
 		Driver:       utils.Env("DB_DRIVER", "sqlite"),
 		Name:         utils.Env("DB_NAME"),
 		User:         utils.Env("DB_USER"),
@@ -439,8 +437,8 @@ func (a *App) getDefaultDBClient() (err error) {
 		LogQueries:   utils.Env("DB_LOGGING", "true") == "true",
 		Logger:       a.Logger(),
 		MigrationDir: a.migrationDir,
-		Hooks: &db.Hooks{
-			AfterDBContentList: a.hooks.ContentList,
+		Hooks: &app.Hooks{
+			AfterDBContentList: a.hooks.AfterDBContentList,
 		},
 	}
 

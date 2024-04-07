@@ -6,7 +6,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -30,11 +30,11 @@ func (su *SchemaUpdate) prepare(schemaName string) (err error) {
 	}
 
 	if su.updateData.RenameTables == nil {
-		su.updateData.RenameTables = []*db.RenameItem{}
+		su.updateData.RenameTables = []*app.RenameItem{}
 	}
 
 	// add the type and schema information to the rename fields
-	su.updateData.RenameFields = utils.Map(su.updateData.RenameFields, func(rf *db.RenameItem) *db.RenameItem {
+	su.updateData.RenameFields = utils.Map(su.updateData.RenameFields, func(rf *app.RenameItem) *app.RenameItem {
 		rf.Type = "column"
 		rf.SchemaName = su.oldSchema.Name
 		rf.SchemaNamespace = su.oldSchema.Namespace
@@ -53,7 +53,7 @@ func (su *SchemaUpdate) prepare(schemaName string) (err error) {
 		return err
 	}
 
-	su.updateData.RenameFields = utils.Filter(su.updateData.RenameFields, func(f *db.RenameItem) bool {
+	su.updateData.RenameFields = utils.Filter(su.updateData.RenameFields, func(f *app.RenameItem) bool {
 		return f.From != f.To
 	})
 
@@ -153,7 +153,7 @@ func (su *SchemaUpdate) applyRenameSchemaNamespace() (err error) {
 		return nil
 	}
 
-	su.updateData.RenameTables = append(su.updateData.RenameTables, &db.RenameItem{
+	su.updateData.RenameTables = append(su.updateData.RenameTables, &app.RenameItem{
 		Type: "table",
 		From: su.oldSchema.Namespace,
 		To:   newSchemaNamespace,
@@ -273,7 +273,7 @@ func (su *SchemaUpdate) updateRelatedSchemas() error {
 // add the rename columns for the foreign key columns
 func (su *SchemaUpdate) renameRelations(newField *schema.Field) (err error) {
 	// filter from RenameFields to find the original field name (old field name)
-	matchedFields := utils.Filter(su.updateData.RenameFields, func(f *db.RenameItem) bool {
+	matchedFields := utils.Filter(su.updateData.RenameFields, func(f *app.RenameItem) bool {
 		return f.To == newField.Name
 	})
 
@@ -291,7 +291,7 @@ func (su *SchemaUpdate) renameRelations(newField *schema.Field) (err error) {
 		// RenameFields will be used to rename the db table columns,
 		// remove the current relation field from the RenameFields because these fields are not exist in table,
 		// we use the FK columns instead of these fields.
-		su.updateData.RenameFields = utils.Filter(su.updateData.RenameFields, func(rf *db.RenameItem) bool {
+		su.updateData.RenameFields = utils.Filter(su.updateData.RenameFields, func(rf *app.RenameItem) bool {
 			// with m2m relations, we have added a rename for two columns of the junction table,
 			// the two columns of the junction table have the same name with the two fields of the two relation schemas.
 			// so there will be two rename fields with the same From and To:
@@ -327,14 +327,14 @@ func (su *SchemaUpdate) renameRelations(newField *schema.Field) (err error) {
 		// Ent do not perform the rename table operation, so we have to do it manually.
 		// - Rename the junction table columns: Add the rename columns to the RenameFields so DiffHook can rename the columns.
 		// - Rename the junction table: Add the rename table to the RenameTables and manually rename the table in ApplyHook.
-		su.updateData.RenameTables = append(su.updateData.RenameTables, &db.RenameItem{
+		su.updateData.RenameTables = append(su.updateData.RenameTables, &app.RenameItem{
 			Type:            "table",
 			From:            originalJunctionSchema.Namespace,
 			To:              newJunctionSchema.Namespace,
 			IsJunctionTable: true,
 		})
 
-		su.updateData.RenameFields = append(su.updateData.RenameFields, &db.RenameItem{
+		su.updateData.RenameFields = append(su.updateData.RenameFields, &app.RenameItem{
 			Type:            "column",
 			From:            originalFieldRelation.FKColumns.CurrentColumn,
 			To:              newFieldRelation.FKColumns.CurrentColumn,
@@ -342,7 +342,7 @@ func (su *SchemaUpdate) renameRelations(newField *schema.Field) (err error) {
 			SchemaNamespace: originalJunctionSchema.Namespace, // newJunctionSchema.Namespace
 		})
 
-		su.updateData.RenameFields = append(su.updateData.RenameFields, &db.RenameItem{
+		su.updateData.RenameFields = append(su.updateData.RenameFields, &app.RenameItem{
 			Type:            "column",
 			From:            originalFieldRelation.FKColumns.TargetColumn,
 			To:              newFieldRelation.FKColumns.TargetColumn,
@@ -359,7 +359,7 @@ func (su *SchemaUpdate) renameRelations(newField *schema.Field) (err error) {
 		return nil
 	}
 
-	su.updateData.RenameFields = append(su.updateData.RenameFields, &db.RenameItem{
+	su.updateData.RenameFields = append(su.updateData.RenameFields, &app.RenameItem{
 		Type:            "column",
 		From:            originalFieldRelation.GetTargetFKColumn(),
 		To:              newFieldRelation.GetTargetFKColumn(),

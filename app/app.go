@@ -1,8 +1,6 @@
 package app
 
 import (
-	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -10,10 +8,10 @@ import (
 type App interface {
 	Key() string
 	SchemaBuilder() *schema.Builder
-	DB() db.Client
+	DB() DBClient
 	Resources() *ResourcesManager
-	Reload(migration *db.Migration) (err error)
-	Logger() logger.Logger
+	Reload(migration *Migration) (err error)
+	Logger() Logger
 	UpdateCache() error
 	Roles() []*Role
 	GetRolesFromIDs(ids []uint64) []*Role
@@ -26,7 +24,7 @@ type App interface {
 	Hooks() *Hooks
 	OnBeforeResolve(hooks ...Middleware)
 	OnAfterResolve(hooks ...Middleware)
-	OnAfterDBContentList(db.AfterDBContentListHook)
+	OnAfterDBContentList(AfterDBContentListHook)
 }
 
 // ResolveHook is a function that can be used to add hooks to a resource
@@ -34,7 +32,7 @@ type ResolveHook = Middleware
 
 // Hooks is a struct that contains app hooks
 type Hooks struct {
-	BeforeResolve []ResolveHook
-	AfterResolve  []ResolveHook
-	ContentList   []db.AfterDBContentListHook
+	BeforeResolve      []ResolveHook
+	AfterResolve       []ResolveHook
+	AfterDBContentList []AfterDBContentListHook
 }

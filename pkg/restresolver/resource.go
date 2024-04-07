@@ -2,7 +2,6 @@ package restresolver
 
 import (
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
@@ -29,7 +28,7 @@ func (r RestSolver) Resource(routeName string) *app.Resource {
 	return r.resourceManager.Find(routeName)
 }
 
-func (r *RestSolver) Start(address string, logger logger.Logger) error {
+func (r *RestSolver) Start(address string, logger app.Logger) error {
 	middlewares := []Handler{
 		MiddlewareCors,
 		MiddlewareRecover,

@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -82,8 +82,8 @@ func TestMockCreateNode(t *testing.T) {
 		},
 	}
 
-	testutils.MockRunCreateTests(func(d *sql.DB) db.Client {
-		driver := utils.Must(NewEntClient(&db.DBConfig{
+	testutils.MockRunCreateTests(func(d *sql.DB) app.DBClient {
+		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sbc, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
@@ -297,8 +297,8 @@ func TestMockCreateNodeEdges(t *testing.T) {
 			},
 		},
 	}
-	testutils.MockRunCreateTests(func(d *sql.DB) db.Client {
-		driver := utils.Must(NewEntClient(&db.DBConfig{
+	testutils.MockRunCreateTests(func(d *sql.DB) app.DBClient {
+		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
 			LogQueries: true,
 		}, sbc, dialectSql.OpenDB(dialect.MySQL, d)))
@@ -341,8 +341,8 @@ func TestMockCreateNodeWithRelationData(t *testing.T) {
 		// },
 	}
 
-	testutils.MockRunCreateTests(func(d *sql.DB) db.Client {
-		driver := utils.Must(NewEntClient(&db.DBConfig{
+	testutils.MockRunCreateTests(func(d *sql.DB) app.DBClient {
+		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sbc, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver

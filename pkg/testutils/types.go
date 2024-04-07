@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -12,7 +12,7 @@ type MockTestCreateData struct {
 	Name        string
 	Schema      string
 	InputJSON   string
-	Run         func(model db.Model, entity *schema.Entity) error
+	Run         func(model app.Model, entity *schema.Entity) error
 	Expect      func(sqlmock.Sqlmock)
 	ExpectError string
 	Transaction bool
@@ -22,9 +22,9 @@ type MockTestUpdateData struct {
 	Name         string
 	Schema       string
 	InputJSON    string
-	Run          func(model db.Model, entity *schema.Entity) (int, error)
+	Run          func(model app.Model, entity *schema.Entity) (int, error)
 	Expect       func(sqlmock.Sqlmock)
-	Predicates   []*db.Predicate
+	Predicates   []*app.Predicate
 	WantErr      bool
 	WantAffected int
 	Transaction  bool
@@ -33,9 +33,9 @@ type MockTestUpdateData struct {
 type MockTestDeleteData struct {
 	Name         string
 	Schema       string
-	Run          func(model db.Model) (int, error)
+	Run          func(model app.Model) (int, error)
 	Expect       func(sqlmock.Sqlmock)
-	Predicates   []*db.Predicate
+	Predicates   []*app.Predicate
 	WantErr      bool
 	WantAffected int
 	Transaction  bool
@@ -51,8 +51,8 @@ type MockTestQueryData struct {
 	Order   []string
 	Expect  func(sqlmock.Sqlmock)
 	Run     func(
-		model db.Model,
-		predicates []*db.Predicate,
+		model app.Model,
+		predicates []*app.Predicate,
 		limit, offset uint,
 		order []string,
 		columns ...string,
@@ -69,8 +69,8 @@ type MockTestCountData struct {
 	Unique bool
 	Expect func(sqlmock.Sqlmock)
 	Run    func(
-		model db.Model,
-		predicates []*db.Predicate,
+		model app.Model,
+		predicates []*app.Predicate,
 		unique bool,
 		column string,
 	) (int, error)
@@ -83,9 +83,9 @@ type DBTestCreateData struct {
 	Schema      string
 	InputJSON   string
 	ClearTables []string
-	Run         func(model db.Model, entity *schema.Entity) (*schema.Entity, error)
+	Run         func(model app.Model, entity *schema.Entity) (*schema.Entity, error)
 	Prepare     func(t *testing.T)
-	Expect      func(t *testing.T, m db.Model, e *schema.Entity)
+	Expect      func(t *testing.T, m app.Model, e *schema.Entity)
 	WantErr     bool
 	ExpectError error
 }
@@ -95,10 +95,10 @@ type DBTestUpdateData struct {
 	Schema       string
 	InputJSON    string
 	ClearTables  []string
-	Run          func(model db.Model, entity *schema.Entity) (int, error)
-	Expect       func(t *testing.T, m db.Model)
-	Prepare      func(t *testing.T, m db.Model)
-	Predicates   []*db.Predicate
+	Run          func(model app.Model, entity *schema.Entity) (int, error)
+	Expect       func(t *testing.T, m app.Model)
+	Prepare      func(t *testing.T, m app.Model)
+	Predicates   []*app.Predicate
 	WantErr      bool
 	WantAffected int
 	Transaction  bool
@@ -108,10 +108,10 @@ type DBTestDeleteData struct {
 	Name         string
 	Schema       string
 	ClearTables  []string
-	Run          func(model db.Model) (int, error)
-	Expect       func(t *testing.T, m db.Model)
-	Prepare      func(t *testing.T, m db.Model)
-	Predicates   []*db.Predicate
+	Run          func(model app.Model) (int, error)
+	Expect       func(t *testing.T, m app.Model)
+	Prepare      func(t *testing.T, m app.Model)
+	Predicates   []*app.Predicate
 	WantErr      bool
 	ExpectError  error
 	WantAffected int
@@ -128,16 +128,16 @@ type DBTestQueryData struct {
 	Order       []string
 	ClearTables []string
 	Run         func(
-		model db.Model,
-		predicates []*db.Predicate,
+		model app.Model,
+		predicates []*app.Predicate,
 		limit, offset uint,
 		order []string,
 		columns ...string,
 	) ([]*schema.Entity, error)
-	Prepare func(t *testing.T, client db.Client, m db.Model) []*schema.Entity
+	Prepare func(t *testing.T, client app.DBClient, m app.Model) []*schema.Entity
 	Expect  func(
 		t *testing.T,
-		m db.Model,
+		m app.Model,
 		preparedEntities []*schema.Entity,
 		results []*schema.Entity,
 	)
@@ -152,15 +152,15 @@ type DBTestCountData struct {
 	Unique      bool
 	ClearTables []string
 	Run         func(
-		model db.Model,
-		predicates []*db.Predicate,
+		model app.Model,
+		predicates []*app.Predicate,
 		unique bool,
 		column string,
 	) (int, error)
-	Prepare func(t *testing.T, client db.Client, m db.Model) int
+	Prepare func(t *testing.T, client app.DBClient, m app.Model) int
 	Expect  func(
 		t *testing.T,
-		m db.Model,
+		m app.Model,
 		preparedCount int,
 		results int,
 	)

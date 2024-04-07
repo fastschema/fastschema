@@ -2,7 +2,6 @@ package mediaservice
 
 import (
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/errors"
 )
 
@@ -12,7 +11,7 @@ func (m *MediaService) Delete(c app.Context, fileIDs *[]any) (any, error) {
 		return nil, errors.BadGateway("Failed to get model: %s", err)
 	}
 
-	fileEntities, err := fileModel.Query(db.In("id", *fileIDs)).Get(c.Context())
+	fileEntities, err := fileModel.Query(app.In("id", *fileIDs)).Get(c.Context())
 	if err != nil {
 		return nil, errors.BadGateway("Failed to get files: %s", err)
 	}
@@ -22,7 +21,7 @@ func (m *MediaService) Delete(c app.Context, fileIDs *[]any) (any, error) {
 		return nil, errors.BadGateway("Failed to get mutation: %s", err)
 	}
 
-	if _, err = fileMutation.Where(db.In("id", *fileIDs)).Delete(); err != nil {
+	if _, err = fileMutation.Where(app.In("id", *fileIDs)).Delete(); err != nil {
 		return nil, errors.BadGateway("Failed to delete files: %s", err)
 	}
 

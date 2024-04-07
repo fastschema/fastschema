@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -22,7 +21,6 @@ type LoginResponse struct {
 }
 
 type UserService struct {
-	// DB  func() db.Client
 	app app.App
 }
 
@@ -58,9 +56,9 @@ func (u *UserService) Login(c app.Context, loginData *LoginData) (*LoginResponse
 		return nil, err
 	}
 
-	userEntity, err := userModel.Query(db.Or(
-		db.EQ("username", loginData.Login),
-		db.EQ("email", loginData.Login),
+	userEntity, err := userModel.Query(app.Or(
+		app.EQ("username", loginData.Login),
+		app.EQ("email", loginData.Login),
 	)).Select(
 		"id",
 		"username",
@@ -75,7 +73,7 @@ func (u *UserService) Login(c app.Context, loginData *LoginData) (*LoginResponse
 		schema.FieldUpdatedAt,
 		schema.FieldDeletedAt,
 	).First()
-	if err != nil && !db.IsNotFound(err) {
+	if err != nil && !app.IsNotFound(err) {
 		return nil, err
 	}
 

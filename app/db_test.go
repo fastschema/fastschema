@@ -1,14 +1,14 @@
-package db_test
+package app_test
 
 import (
 	"testing"
 
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDBConfigClone(t *testing.T) {
-	c := &db.DBConfig{
+	c := &app.DBConfig{
 		Driver:       "mysql",
 		Name:         "mydb",
 		Host:         "localhost",

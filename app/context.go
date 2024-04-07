@@ -4,7 +4,6 @@ import (
 	"context"
 	"math"
 
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -12,11 +11,11 @@ import (
 // Resolver is a function that resolves a request
 type Resolver func(c Context) (any, error)
 
-// Meta hold extra data, ex: request method, path, etc
-type Meta map[string]any
-
 // Map is a shortcut for map[string]any
 type Map map[string]any
+
+// Meta hold extra data, ex: request method, path, etc
+type Meta Map
 
 // Signature hold the input and output types of a resolver
 type Signature = [2]any
@@ -33,7 +32,7 @@ type Context interface {
 	ID() string
 	User() *User
 	Value(string, ...any) (val any)
-	Logger() logger.Logger
+	Logger() Logger
 	Parse(any) error
 	Context() context.Context
 	Args() map[string]string

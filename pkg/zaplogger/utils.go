@@ -3,17 +3,17 @@ package zaplogger
 import (
 	"strconv"
 
-	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/app"
 )
 
-func (l *ZapLogger) getLogContext(params ...any) (string, []logger.Context) {
+func (l *ZapLogger) getLogContext(params ...any) (string, []app.LogContext) {
 	if len(params) == 0 {
-		return "", []logger.Context{}
+		return "", []app.LogContext{}
 	}
 
 	msg := ""
-	ctx := logger.Context{}
-	contexts := []logger.Context{l.Context}
+	ctx := app.LogContext{}
+	contexts := []app.LogContext{l.LogContext}
 
 	if m, ok := params[0].(string); ok {
 		msg = m
@@ -25,7 +25,7 @@ func (l *ZapLogger) getLogContext(params ...any) (string, []logger.Context) {
 			msg = err.Error()
 		}
 
-		if c, ok := p.(logger.Context); ok {
+		if c, ok := p.(app.LogContext); ok {
 			contexts = append(contexts, c)
 		} else {
 			ctx[strconv.Itoa(i)] = p

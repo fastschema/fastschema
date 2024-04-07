@@ -8,21 +8,21 @@ import (
 	dialectSql "entgo.io/ent/dialect/sql"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/schema"
 )
 
 // NewClient creates a new ent client
-func NewClient(config *db.DBConfig, schemaBuilder *schema.Builder) (_ db.Client, err error) {
+func NewClient(config *app.DBConfig, schemaBuilder *schema.Builder) (_ app.DBClient, err error) {
 	return NewEntClient(config, schemaBuilder)
 }
 
 // NewEntClient creates a new ent client
 func NewEntClient(
-	config *db.DBConfig,
+	config *app.DBConfig,
 	schemaBuilder *schema.Builder,
 	useEntDrivers ...*dialectSql.Driver,
-) (_ db.Client, err error) {
+) (_ app.DBClient, err error) {
 	var (
 		db         *sql.DB
 		entDialect string
@@ -72,8 +72,8 @@ func NewEntClient(
 
 func (d *Adapter) Reload(
 	newSchemaBuilder *schema.Builder,
-	migration *db.Migration,
-) (_ db.Client, err error) {
+	migration *app.Migration,
+) (_ app.DBClient, err error) {
 	renamedEntTables := make([]*entSchema.Table, 0)
 	newConfig := d.config.Clone()
 	newConfig.IgnoreMigration = true
@@ -157,9 +157,9 @@ func (d *Adapter) Reload(
 }
 
 func NewDBAdapter(
-	config *db.DBConfig,
+	config *app.DBConfig,
 	schemaBuilder *schema.Builder,
-) (db.Client, error) {
+) (app.DBClient, error) {
 	a := &Adapter{
 		driver:        nil,
 		sqldb:         nil,

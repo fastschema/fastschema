@@ -2,7 +2,6 @@ package roleservice
 
 import (
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -16,11 +15,11 @@ func (rs *RoleService) Detail(c app.Context, _ *any) (*schema.Entity, error) {
 	}
 
 	role, err := model.Query().
-		Where(db.EQ("id", roleID)).
+		Where(app.EQ("id", roleID)).
 		Select("permissions", "users.id", "users.username").
 		First(c.Context())
 	if err != nil {
-		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
+		e := utils.If(app.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())
 	}
 
