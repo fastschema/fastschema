@@ -150,8 +150,8 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				assert.True(t, pet2ID > 0)
 				user1 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user1ID)).First())
 				return []*schema.Entity{
-					schema.NewEntity(pet1ID).Set("name", "Pet 1").Set("owner_id", 1).Set("owner", user1),
-					schema.NewEntity(pet2ID).Set("name", "Pet 2").Set("owner_id", 1).Set("owner", user1),
+					schema.NewEntity(pet1ID).Set("name", "Pet 1").Set("owner_id", uint64(1)).Set("owner", user1),
+					schema.NewEntity(pet2ID).Set("name", "Pet 2").Set("owner_id", uint64(1)).Set("owner", user1),
 				}
 			},
 		},
@@ -198,8 +198,14 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				node4ID := utils.Must(m.CreateFromJSON(`{"name": "Node 4", "parent": {"id": 2}}`))
 				assert.True(t, node4ID > 0)
 				return []*schema.Entity{
-					schema.NewEntity(node3ID).Set("name", "Node 3").Set("parent_id", 1).Set("parent", utils.Must(m.Query(db.EQ("id", node1ID)).First())),
-					schema.NewEntity(node4ID).Set("name", "Node 4").Set("parent_id", 2).Set("parent", utils.Must(m.Query(db.EQ("id", node2ID)).First())),
+					schema.NewEntity(node3ID).
+						Set("name", "Node 3").
+						Set("parent_id", uint64(1)).
+						Set("parent", utils.Must(m.Query(db.EQ("id", node1ID)).First())),
+					schema.NewEntity(node4ID).
+						Set("name", "Node 4").
+						Set("parent_id", uint64(2)).
+						Set("parent", utils.Must(m.Query(db.EQ("id", node2ID)).First())),
 				}
 			},
 		},
@@ -251,12 +257,15 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				return []*schema.Entity{
 					schema.NewEntity(card1ID).
 						Set("number", "1234").
-						Set("owner_id", 1).
-						Set("sub_owner_id", 2).
+						Set("owner_id", uint64(1)).
+						Set("sub_owner_id", uint64(2)).
 						Set("owner", user1).
-						Set("sub_owner_id", 2).
+						Set("sub_owner_id", uint64(2)).
 						Set("sub_owner", user2),
-					schema.NewEntity(card2ID).Set("number", "5678").Set("owner_id", 2).Set("owner", user2),
+					schema.NewEntity(card2ID).
+						Set("number", "5678").
+						Set("owner_id", uint64(2)).
+						Set("owner", user2),
 				}
 			},
 		},
@@ -282,10 +291,18 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				assert.Equal(t, 1, a2)
 
 				return []*schema.Entity{
-					schema.NewEntity(node1ID).Set("name", "Node 1").Set("next", utils.Must(m.Query(db.EQ("id", node3ID)).First())),
-					schema.NewEntity(node2ID).Set("name", "Node 2").Set("next", utils.Must(m.Query(db.EQ("id", node4ID)).First())),
-					schema.NewEntity(node3ID).Set("name", "Node 3").Set("prev_id", 1),
-					schema.NewEntity(node4ID).Set("name", "Node 4").Set("prev_id", 2),
+					schema.NewEntity(node1ID).
+						Set("name", "Node 1").
+						Set("next", utils.Must(m.Query(db.EQ("id", node3ID)).First())),
+					schema.NewEntity(node2ID).
+						Set("name", "Node 2").
+						Set("next", utils.Must(m.Query(db.EQ("id", node4ID)).First())),
+					schema.NewEntity(node3ID).
+						Set("name", "Node 3").
+						Set("prev_id", uint64(1)),
+					schema.NewEntity(node4ID).
+						Set("name", "Node 4").
+						Set("prev_id", uint64(2)),
 				}
 			},
 		},
@@ -307,8 +324,14 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				return []*schema.Entity{
 					schema.NewEntity(node1ID).Set("name", "Node 1"),
 					schema.NewEntity(node2ID).Set("name", "Node 2"),
-					schema.NewEntity(node3ID).Set("name", "Node 3").Set("prev_id", 1).Set("prev", utils.Must(m.Query(db.EQ("id", 1)).First())),
-					schema.NewEntity(node4ID).Set("name", "Node 4").Set("prev_id", 2).Set("prev", utils.Must(m.Query(db.EQ("id", 2)).First())),
+					schema.NewEntity(node3ID).
+						Set("name", "Node 3").
+						Set("prev_id", uint64(1)).
+						Set("prev", utils.Must(m.Query(db.EQ("id", 1)).First())),
+					schema.NewEntity(node4ID).
+						Set("name", "Node 4").
+						Set("prev_id", uint64(2)).
+						Set("prev", utils.Must(m.Query(db.EQ("id", 2)).First())),
 				}
 			},
 		},
@@ -330,8 +353,8 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				assert.Equal(t, 1, a2)
 
 				return []*schema.Entity{
-					schema.NewEntity(user1ID).Set("name", "User 1").Set("spouse_id", 2).Set("spouse", utils.Must(m.Query(db.EQ("id", user2ID)).First())),
-					schema.NewEntity(user2ID).Set("name", "User 2").Set("spouse_id", 1).Set("spouse", utils.Must(m.Query(db.EQ("id", user1ID)).First())),
+					schema.NewEntity(user1ID).Set("name", "User 1").Set("spouse_id", uint64(2)).Set("spouse", utils.Must(m.Query(db.EQ("id", user2ID)).First())),
+					schema.NewEntity(user2ID).Set("name", "User 2").Set("spouse_id", uint64(1)).Set("spouse", utils.Must(m.Query(db.EQ("id", user1ID)).First())),
 				}
 			},
 		},
@@ -588,8 +611,8 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				assert.True(t, user1ID > 0)
 				card1ID := utils.Must(utils.Must(client.Model("card")).CreateFromJSON(`{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
 				assert.True(t, card1ID > 0)
-				card1 := schema.NewEntity(card1ID).Set("number", "1234").Set("owner_id", 1)
-				card1Sub := schema.NewEntity(card1ID).Set("number", "1234").Set("sub_owner_id", 2)
+				card1 := schema.NewEntity(card1ID).Set("number", "1234").Set("owner_id", uint64(1))
+				card1Sub := schema.NewEntity(card1ID).Set("number", "1234").Set("sub_owner_id", uint64(2))
 				return []*schema.Entity{
 					schema.NewEntity(user1ID).Set("name", "User 1").Set("card", card1),
 					schema.NewEntity(user2ID).Set("name", "User 2").Set("sub_card", card1Sub),
@@ -615,18 +638,18 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				assert.True(t, card1ID > 0)
 				card2ID := utils.Must(m.CreateFromJSON(`{"number": "5678", "owner": {"id": 2}}`))
 
-				user1 := schema.NewEntity(user1ID).Set("name", "User 1").Set("age", 5)
-				user2 := schema.NewEntity(user2ID).Set("name", "User 2").Set("age", 8)
+				user1 := schema.NewEntity(user1ID).Set("name", "User 1").Set("age", uint(5))
+				user2 := schema.NewEntity(user2ID).Set("name", "User 2").Set("age", uint(8))
 
 				return []*schema.Entity{
 					schema.NewEntity(card1ID).
 						Set("number", "1234").
-						Set("owner_id", 1).
-						Set("sub_owner_id", 2).
+						Set("owner_id", uint64(1)).
+						Set("sub_owner_id", uint64(2)).
 						Set("owner", user1).
-						Set("sub_owner_id", 2).
+						Set("sub_owner_id", uint64(2)).
 						Set("sub_owner", user2),
-					schema.NewEntity(card2ID).Set("number", "5678").Set("owner_id", 2).Set("owner", user2),
+					schema.NewEntity(card2ID).Set("number", "5678").Set("owner_id", uint64(2)).Set("owner", user2),
 				}
 			},
 		},
@@ -651,10 +674,19 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				pet1 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet1ID)).First())
 				pet2 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet2ID)).First())
 
-				return []*schema.Entity{schema.NewEntity(user1ID).Set("name", "User 1").Set("pets", []*schema.Entity{
-					schema.NewEntity(pet1ID).Set("name", "Pet 1").Set("created_at", pet1.Get("created_at")).Set("owner_id", 1),
-					schema.NewEntity(pet2ID).Set("name", "Pet 2").Set("created_at", pet2.Get("created_at")).Set("owner_id", 1),
-				})}
+				return []*schema.Entity{schema.NewEntity(user1ID).
+					Set("name", "User 1").
+					Set("pets", []*schema.Entity{
+						schema.NewEntity(pet1ID).
+							Set("name", "Pet 1").
+							Set("created_at", pet1.Get("created_at")).
+							Set("owner_id", uint64(1)),
+						schema.NewEntity(pet2ID).
+							Set("name", "Pet 2").
+							Set("created_at", pet2.Get("created_at")).
+							Set("owner_id", uint64(1)),
+					}),
+				}
 			},
 		},
 		{
@@ -674,10 +706,18 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				assert.True(t, pet1ID > 0)
 				pet2ID := utils.Must(m.CreateFromJSON(`{"name": "Pet 2", "owner": {"id": 1}}`))
 				assert.True(t, pet2ID > 0)
-				user1 := schema.NewEntity(user1ID).Set("name", "User 1").Set("age", 8)
+				user1 := schema.NewEntity(user1ID).
+					Set("name", "User 1").
+					Set("age", uint(8))
 				return []*schema.Entity{
-					schema.NewEntity(pet1ID).Set("name", "Pet 1").Set("owner_id", 1).Set("owner", user1),
-					schema.NewEntity(pet2ID).Set("name", "Pet 2").Set("owner_id", 1).Set("owner", user1),
+					schema.NewEntity(pet1ID).
+						Set("name", "Pet 1").
+						Set("owner_id", uint64(1)).
+						Set("owner", user1),
+					schema.NewEntity(pet2ID).
+						Set("name", "Pet 2").
+						Set("owner_id", uint64(1)).
+						Set("owner", user1),
 				}
 			},
 		},
@@ -706,14 +746,26 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				assert.True(t, user3ID > 0)
 
 				return []*schema.Entity{
-					schema.NewEntity(group1ID).Set("name", "Group 1").Set("users", []*schema.Entity{
-						schema.NewEntity(user1ID).Set("name", "User 1").Set("age", 8),
-						schema.NewEntity(user2ID).Set("name", "User 2").Set("age", 5),
-					}),
-					schema.NewEntity(group2ID).Set("name", "Group 2").Set("users", []*schema.Entity{
-						schema.NewEntity(user2ID).Set("name", "User 2").Set("age", 5),
-					}),
-					schema.NewEntity(group3ID).Set("name", "Group 3").Set("users", []*schema.Entity{}),
+					schema.NewEntity(group1ID).
+						Set("name", "Group 1").
+						Set("users", []*schema.Entity{
+							schema.NewEntity(user1ID).
+								Set("name", "User 1").
+								Set("age", uint(8)),
+							schema.NewEntity(user2ID).
+								Set("name", "User 2").
+								Set("age", uint(5)),
+						}),
+					schema.NewEntity(group2ID).
+						Set("name", "Group 2").
+						Set("users", []*schema.Entity{
+							schema.NewEntity(user2ID).
+								Set("name", "User 2").
+								Set("age", uint(5)),
+						}),
+					schema.NewEntity(group3ID).
+						Set("name", "Group 3").
+						Set("users", []*schema.Entity{}),
 				}
 			},
 		},

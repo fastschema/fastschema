@@ -56,42 +56,20 @@ func (r *Relation) Init(schema *Schema, relationSchema *Schema, f *Field) *Relat
 	return r
 }
 
+// Clone clone the relation
 func (r *Relation) Clone() *Relation {
 	if r == nil {
 		return nil
 	}
 
+	// Skip clone auto generated fields
 	newRelation := &Relation{
-		// BackRef:          r.BackRef, // Should check if this is correct
-		// Name:             r.Name,
-		// SchemaName:       r.SchemaName,
-		// FieldName:        r.FieldName,
 		TargetSchemaName: r.TargetSchemaName,
 		TargetFieldName:  r.TargetFieldName,
 		Type:             r.Type,
 		Owner:            r.Owner,
-		// FKColumns:        r.FKColumns,
-		// JunctionTable:    r.JunctionTable,
-		Optional: r.Optional,
+		Optional:         r.Optional,
 	}
-
-	// if r.FKFields != nil {
-	// 	newRelation.FKFields = make([]*Field, len(r.FKFields))
-	// 	for i, fkField := range r.FKFields {
-	// 		newRelation.FKFields[i] = fkField.Clone()
-	// 	}
-	// }
-
-	// if r.RelationSchemas != nil {
-	// 	newRelation.RelationSchemas = make([]*Schema, len(r.RelationSchemas))
-	// 	for i, relationSchema := range r.RelationSchemas {
-	// 		newRelation.RelationSchemas[i] = relationSchema.Clone()
-	// 	}
-	// }
-
-	// if r.JunctionSchema != nil {
-	// 	newRelation.JunctionSchema = r.JunctionSchema.Clone()
-	// }
 
 	return newRelation
 }
@@ -117,6 +95,7 @@ func (r *Relation) IsBidi() bool {
 	return r.IsSameType() && r.FieldName == r.TargetFieldName
 }
 
+// GetFKColumns return the foreign key columns
 func (r *Relation) GetFKColumns() *RelationFKColumns {
 	if r.HasFKs() {
 		return r.FKColumns
@@ -148,9 +127,9 @@ func (r *Relation) HasFKs() bool {
 }
 
 // CreateFKFields create the foreign key fields
-func (r *Relation) CreateFKFields() error {
+func (r *Relation) CreateFKFields() {
 	if !r.HasFKs() {
-		return nil
+		return
 	}
 
 	fk := r.GetTargetFKColumn()
@@ -168,10 +147,7 @@ func (r *Relation) CreateFKFields() error {
 	}
 
 	fkField.Init()
-
 	r.FKFields = []*Field{fkField}
-
-	return nil
 }
 
 func NewRelationNodeError(schema *Schema, field *Field) error {

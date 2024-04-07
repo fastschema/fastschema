@@ -134,3 +134,235 @@ func TestEntity(t *testing.T) {
 	_, err = NewEntityFromJSON(`{"id":5`)
 	assert.Error(t, err)
 }
+
+func TestEntityEmpty(t *testing.T) {
+	entity := NewEntity()
+	assert.True(t, entity.Empty())
+
+	entity.Set("name", "John")
+	assert.False(t, entity.Empty())
+}
+
+func TestEntityDelete(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+
+	// Delete existing field
+	entity.Delete("name")
+	assert.Nil(t, entity.Get("name"))
+
+	// Delete non-existing field
+	entity.Delete("address")
+	assert.Nil(t, entity.Get("address"))
+
+	// Delete field with multiple values
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+	entity.Delete("skills")
+	assert.Nil(t, entity.Get("skills"))
+}
+
+func TestEntityGetString(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+
+	// Test getting existing string value
+	result := entity.GetString("name")
+	assert.Equal(t, "John", result)
+
+	// Test getting non-existing string value
+	result = entity.GetString("age")
+	assert.Equal(t, "", result)
+
+	// Test getting existing string value with default value
+	result = entity.GetString("name", "Default")
+	assert.Equal(t, "John", result)
+
+	// Test getting non-existing string value with default value
+	result = entity.GetString("age", "Default")
+	assert.Equal(t, "Default", result)
+}
+
+func TestNewEntityFromMap(t *testing.T) {
+	data := map[string]any{
+		"name": "John",
+		"age":  30,
+		"skills": []string{
+			"Go",
+			"Python",
+			"Java",
+		},
+		"group": map[string]any{
+			"id":   1,
+			"name": "Admin",
+		},
+	}
+
+	entity := NewEntityFromMap(data)
+
+	assert.Equal(t, "John", entity.Get("name"))
+	assert.Equal(t, 30, entity.Get("age"))
+	assert.Equal(t, []string{"Go", "Python", "Java"}, entity.Get("skills"))
+
+	group := entity.Get("group")
+	assert.NotNil(t, group)
+
+	groupEntity, ok := group.(*Entity)
+	assert.True(t, ok)
+
+	assert.Equal(t, 1, groupEntity.Get("id"))
+	assert.Equal(t, "Admin", groupEntity.Get("name"))
+}
+
+func TestToJsonError(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+
+	_, err := entity.ToJSON()
+	assert.NoError(t, err)
+
+	// Test error when marshaling entity to JSON
+	entity.Set("skills", make(chan int))
+	_, err = entity.ToJSON()
+	assert.Error(t, err)
+}
+func TestEntityToMap(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+	group := NewEntity()
+	group.Set("id", 1)
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+
+	expected := map[string]any{
+		"name": "John",
+		"age":  30,
+		"skills": []string{
+			"Go",
+			"Python",
+			"Java",
+		},
+		"group": map[string]any{
+			"id":   1,
+			"name": "Admin",
+		},
+	}
+
+	result := entity.ToMap()
+	assert.Equal(t, expected, result)
+}
+
+func TestEntityToMapEmptyEntity(t *testing.T) {
+	entity := NewEntity()
+
+	expected := map[string]any{}
+
+	result := entity.ToMap()
+	assert.Equal(t, expected, result)
+}
+
+func TestEntityToMapNestedEntities(t *testing.T) {
+	entity1 := NewEntity()
+	entity1.Set("name", "John")
+
+	entity2 := NewEntity()
+	entity2.Set("age", float64(30))
+
+	entity3 := NewEntity()
+	entity3.Set("skills", []string{"Go", "Python", "Java"})
+
+	entity2.Set("group", entity3)
+
+	entity1.Set("info", entity2)
+
+	expected := map[string]any{
+		"name": "John",
+		"info": map[string]any{
+			"age": float64(30),
+			"group": map[string]any{
+				"skills": []string{"Go", "Python", "Java"},
+			},
+		},
+	}
+
+	result := entity1.ToMap()
+	assert.Equal(t, expected, result)
+}
+
+func TestEntityUnmarshalJSON(t *testing.T) {
+	entity := NewEntity()
+
+	t.Run("ObjectEach", func(t *testing.T) {
+		data := []byte(`{
+			"name": "John",
+			"age": 30,
+			"skills": [
+				{
+					"id": 1,
+					"name": "Go"
+				},
+				{
+					"id": 2,
+					"name": "Python"
+				}
+			]
+		}`)
+
+		err := entity.UnmarshalJSON(data)
+		assert.NoError(t, err)
+
+		assert.Equal(t, "John", entity.Get("name"))
+		assert.Equal(t, float64(30), entity.Get("age"))
+
+		skills := entity.Get("skills")
+		assert.NotNil(t, skills)
+
+		skillsArr, ok := skills.([]*Entity)
+		assert.True(t, ok)
+		assert.Equal(t, 2, len(skillsArr))
+
+		assert.Equal(t, float64(1), skillsArr[0].Get("id"))
+		assert.Equal(t, "Go", skillsArr[0].Get("name"))
+
+		assert.Equal(t, float64(2), skillsArr[1].Get("id"))
+		assert.Equal(t, "Python", skillsArr[1].Get("name"))
+	})
+
+	t.Run("ArrayEach", func(t *testing.T) {
+		data := []byte(`{
+			"numbers": [1, 2, 3, 4, 5]
+		}`)
+
+		err := entity.UnmarshalJSON(data)
+		assert.NoError(t, err)
+
+		numbers := entity.Get("numbers")
+		assert.NotNil(t, numbers)
+
+		numbersArr, ok := numbers.([]any)
+		assert.True(t, ok)
+		assert.Equal(t, []any{float64(1), float64(2), float64(3), float64(4), float64(5)}, numbersArr)
+	})
+
+	t.Run("MixedEntitiesAndNonEntities", func(t *testing.T) {
+		data := []byte(`{"mixed":[{"id":1,"name":"Go"},"Python","Java"]}`)
+
+		err := entity.UnmarshalJSON(data)
+		assert.Error(t, err)
+		assert.Equal(t, "cannot mix entities and non-entities in a slice: mixed=[{\"id\":1,\"name\":\"Go\"},\"Python\",\"Java\"]", err.Error())
+	})
+}
+
+func TestEntityUnmarshalJSONErrorArrayEach(t *testing.T) {
+	entity := NewEntity()
+
+	data := []byte(`{
+		"mixed": [1, 2, 3,]
+	}`)
+
+	err := entity.UnmarshalJSON(data)
+	assert.Error(t, err)
+	assert.Equal(t, "Unknown value type", err.Error())
+}

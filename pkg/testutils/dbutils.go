@@ -462,14 +462,10 @@ func DBRunQueryTests(client db.Client, t *testing.T, tests []DBTestQueryData) {
 			if tt.ExpectError == "" {
 				assert.NoError(t, err)
 				preparedJSONs := utils.Map(preparedEntities, func(e *schema.Entity) map[string]any {
-					j, err := e.ToMap()
-					require.NoError(t, err)
-					return j
+					return e.ToMap()
 				})
 				entityJSONs := utils.Map(entities, func(e *schema.Entity) map[string]any {
-					j, err := e.ToMap()
-					require.NoError(t, err)
-					return j
+					return e.ToMap()
 				})
 
 				if !assert.Equal(t, preparedJSONs, entityJSONs) {

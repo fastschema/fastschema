@@ -39,3 +39,40 @@ func TestCommon(t *testing.T) {
 	assert.Equal(t, M2M, relationType)
 	assert.Error(t, relationType.UnmarshalJSON([]byte(`"m2m`)))
 }
+
+func TestFieldEnumClone(t *testing.T) {
+	// Create a sample FieldEnum instance
+	field := &FieldEnum{
+		Value: "value",
+		Label: "label",
+	}
+
+	// Clone the FieldEnum instance
+	clone := field.Clone()
+
+	// Verify that the cloned instance has the same values as the original
+	assert.Equal(t, field.Value, clone.Value)
+	assert.Equal(t, field.Label, clone.Label)
+}
+
+func TestFieldDBClone(t *testing.T) {
+	var f *FieldDB
+	assert.Nil(t, f.Clone())
+
+	// Create a sample FieldDB instance
+	field := &FieldDB{
+		Attr:      "attr",
+		Collation: "collation",
+		Increment: true,
+		Key:       "key",
+	}
+
+	// Clone the FieldDB instance
+	clone := field.Clone()
+
+	// Verify that the cloned instance has the same values as the original
+	assert.Equal(t, field.Attr, clone.Attr)
+	assert.Equal(t, field.Collation, clone.Collation)
+	assert.Equal(t, field.Increment, clone.Increment)
+	assert.Equal(t, field.Key, clone.Key)
+}

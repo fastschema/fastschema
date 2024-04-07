@@ -694,9 +694,21 @@ func TestQuery(t *testing.T) {
 						AddRow(2, "Jane"))
 			},
 			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "Pet 1").Set("owner_id", 1).Set("owner", schema.NewEntity(1).Set("name", "John")),
-				schema.NewEntity(2).Set("name", "Pet 2").Set("owner_id", 1).Set("owner", schema.NewEntity(1).Set("name", "John")),
-				schema.NewEntity(3).Set("name", "Pet 3").Set("owner_id", 2).Set("owner", schema.NewEntity(2).Set("name", "Jane")),
+				schema.NewEntity(1).
+					Set("name", "Pet 1").
+					Set("owner_id", uint64(1)).
+					Set("owner", schema.NewEntity(1).
+						Set("name", "John")),
+				schema.NewEntity(2).
+					Set("name", "Pet 2").
+					Set("owner_id", uint64(1)).
+					Set("owner", schema.NewEntity(1).
+						Set("name", "John")),
+				schema.NewEntity(3).
+					Set("name", "Pet 3").
+					Set("owner_id", uint64(2)).
+					Set("owner", schema.NewEntity(2).
+						Set("name", "Jane")),
 			},
 		},
 		{

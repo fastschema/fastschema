@@ -233,9 +233,8 @@ func (b *Builder) CreateFKs() error {
 
 		// O2O and O2M relations
 		if relation.Type.IsO2O() || relation.Type.IsO2M() {
-			if err := relation.CreateFKFields(); err != nil {
-				return err
-			}
+			relation.CreateFKFields()
+
 			if relation.FKFields != nil {
 				schema.Fields = utils.SliceInsertBeforeElement(schema.Fields, relation.FKFields[0], func(f *Field) bool {
 					return f.Name == FieldCreatedAt
