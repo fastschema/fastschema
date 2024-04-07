@@ -219,8 +219,11 @@ func TestCreateEntPredicates(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, client)
 
+	entAdapter, ok := client.(*Adapter)
+	require.True(t, ok)
+
 	carModel := &Model{
-		client:  client.(*Adapter),
+		client:  entAdapter,
 		columns: []*Column{},
 		schema:  carSchema,
 		entIDColumn: &entSchema.Column{
@@ -288,7 +291,7 @@ func TestCreateEntPredicates(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			selector := dialectSql.Select("*").From(dialectSql.Table("cars"))
-			gotFn, err := createEntPredicates(carModel, tt.predicates)
+			gotFn, err := createEntPredicates(entAdapter, carModel, tt.predicates)
 			assert.NoError(t, err)
 			got := gotFn(selector)
 

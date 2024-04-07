@@ -115,11 +115,6 @@ func NewMockClient(
 		mock.ExpectCommit()
 	}
 
-	// driver, err := NewClient(s, "sqlmock", "", sql.OpenDB(dialect.MySQL, db))
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	driver := createMockClient(db)
 
 	return driver, nil

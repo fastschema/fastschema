@@ -1,6 +1,8 @@
 package entdbadapter
 
 import (
+	"fmt"
+
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 )
@@ -17,8 +19,13 @@ func (m *Mutation) Delete() (affected int, err error) {
 		},
 	}
 
+	entAdapter, ok := m.client.(*Adapter)
+	if !ok {
+		return 0, fmt.Errorf("client is not an ent adapter")
+	}
+
 	if len(m.predicates) > 0 {
-		sqlPredicatesFn, err := createEntPredicates(m.model, m.predicates)
+		sqlPredicatesFn, err := createEntPredicates(entAdapter, m.model, m.predicates)
 		if err != nil {
 			return 0, err
 		}
@@ -27,10 +34,5 @@ func (m *Mutation) Delete() (affected int, err error) {
 		}
 	}
 
-	// adapter, ok := m.client.(*Adapter)
-	// if !ok {
-	// 	return 0, fmt.Errorf("client is not an ent adapter")
-	// }
-
-	return sqlgraph.DeleteNodes(m.ctx, m.client.Driver(), deleteSpec)
+	return sqlgraph.DeleteNodes(m.ctx, entAdapter.Driver(), deleteSpec)
 }

@@ -16,6 +16,11 @@ func (m *Mutation) Update(e *schema.Entity) (affected int, err error) {
 		return 0, fmt.Errorf("model or schema %s not found", m.model.name)
 	}
 
+	entAdapter, ok := m.client.(*Adapter)
+	if !ok {
+		return 0, fmt.Errorf("client is not an ent adapter")
+	}
+
 	m.updateSpec = &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
 			Table: m.model.schema.Namespace,
@@ -37,7 +42,7 @@ func (m *Mutation) Update(e *schema.Entity) (affected int, err error) {
 	}
 
 	if len(m.predicates) > 0 {
-		sqlPredicatesFn, err := createEntPredicates(m.model, m.predicates)
+		sqlPredicatesFn, err := createEntPredicates(entAdapter, m.model, m.predicates)
 		if err != nil {
 			return 0, err
 		}
@@ -49,28 +54,28 @@ func (m *Mutation) Update(e *schema.Entity) (affected int, err error) {
 	for pair := e.First(); pair != nil; pair = pair.Next() {
 		switch pair.Key {
 		case "$add":
-			if err := m.ProcessUpdateBlockAdd(pair.Value); err != nil {
+			if err := m.ProcessUpdateBlockAdd(entAdapter, pair.Value); err != nil {
 				return 0, err
 			}
 			continue
 		case "$clear":
-			if err := m.ProcessUpdateBlockClear(pair.Value); err != nil {
+			if err := m.ProcessUpdateBlockClear(entAdapter, pair.Value); err != nil {
 				return 0, err
 			}
 			continue
 		case "$expr":
-			if err := m.ProcessUpdateBlockExpr(pair.Value); err != nil {
+			if err := m.ProcessUpdateBlockExpr(entAdapter, pair.Value); err != nil {
 				return 0, err
 			}
 			continue
 		case "$set":
-			if err := m.ProcessUpdateBlockSet(pair.Value); err != nil {
+			if err := m.ProcessUpdateBlockSet(entAdapter, pair.Value); err != nil {
 				return 0, err
 			}
 			continue
 		}
 
-		if err := m.ProcessUpdateFieldSet(pair.Key, pair.Value); err != nil {
+		if err := m.ProcessUpdateFieldSet(entAdapter, pair.Key, pair.Value); err != nil {
 			return 0, err
 		}
 	}
@@ -86,7 +91,7 @@ func (m *Mutation) Update(e *schema.Entity) (affected int, err error) {
 		})
 	}
 
-	if affected, err = sqlgraph.UpdateNodes(m.ctx, m.client.Driver(), m.updateSpec); err != nil {
+	if affected, err = sqlgraph.UpdateNodes(m.ctx, entAdapter.Driver(), m.updateSpec); err != nil {
 		return 0, err
 	}
 
@@ -100,10 +105,10 @@ func (m *Mutation) Update(e *schema.Entity) (affected int, err error) {
 }
 
 // ProcessUpdateBlockExpr processes the $expr block
-func (m *Mutation) ProcessUpdateBlockExpr(fieldValue any) error {
+func (m *Mutation) ProcessUpdateBlockExpr(entAdapter *Adapter, fieldValue any) error {
 	if expr, ok := fieldValue.(*schema.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
-			if err := m.ProcessFieldExpr(pair.Key, pair.Value); err != nil {
+			if err := m.ProcessFieldExpr(entAdapter, pair.Key, pair.Value); err != nil {
 				return err
 			}
 		}
@@ -113,7 +118,7 @@ func (m *Mutation) ProcessUpdateBlockExpr(fieldValue any) error {
 }
 
 // ProcessFieldExpr processes a field in the $expr block
-func (m *Mutation) ProcessFieldExpr(k string, v any) error {
+func (m *Mutation) ProcessFieldExpr(entAdapter *Adapter, k string, v any) error {
 	m.updateSpec.Modifiers = append(m.updateSpec.Modifiers, func(u *sql.UpdateBuilder) {
 		u.Set(k, sql.Expr(v.(string)))
 	})
@@ -121,10 +126,10 @@ func (m *Mutation) ProcessFieldExpr(k string, v any) error {
 }
 
 // ProcessUpdateBlockAdd processes the $add block
-func (m *Mutation) ProcessUpdateBlockAdd(fieldValue any) error {
+func (m *Mutation) ProcessUpdateBlockAdd(entAdapter *Adapter, fieldValue any) error {
 	if expr, ok := fieldValue.(*schema.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
-			if err := m.ProcessFieldAdd(pair.Key, pair.Value); err != nil {
+			if err := m.ProcessFieldAdd(entAdapter, pair.Key, pair.Value); err != nil {
 				return err
 			}
 		}
@@ -134,7 +139,7 @@ func (m *Mutation) ProcessUpdateBlockAdd(fieldValue any) error {
 }
 
 // ProcessFieldAdd processes a field in the $add block
-func (m *Mutation) ProcessFieldAdd(k string, v any) error {
+func (m *Mutation) ProcessFieldAdd(entAdapter *Adapter, k string, v any) error {
 	c, err := m.model.Column(k)
 
 	if err != nil {
@@ -164,7 +169,7 @@ func (m *Mutation) ProcessFieldAdd(k string, v any) error {
 			m.shouldUpdateTimestamps = true
 		}
 
-		addSpec, err := m.client.NewEdgeSpec(relation, entitiesID)
+		addSpec, err := entAdapter.NewEdgeSpec(relation, entitiesID)
 		if err != nil {
 			return fmt.Errorf("field $add.%s error: %w", k, err)
 		}
@@ -176,10 +181,10 @@ func (m *Mutation) ProcessFieldAdd(k string, v any) error {
 }
 
 // ProcessUpdateBlockClear processes the $clear block
-func (m *Mutation) ProcessUpdateBlockClear(fieldValue any) error {
+func (m *Mutation) ProcessUpdateBlockClear(entAdapter *Adapter, fieldValue any) error {
 	if expr, ok := fieldValue.(*schema.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
-			if err := m.ProcessFieldClear(pair.Key, pair.Value); err != nil {
+			if err := m.ProcessFieldClear(entAdapter, pair.Key, pair.Value); err != nil {
 				return err
 			}
 		}
@@ -189,7 +194,7 @@ func (m *Mutation) ProcessUpdateBlockClear(fieldValue any) error {
 }
 
 // ProcessFieldClear processes a field in the $clear block
-func (m *Mutation) ProcessFieldClear(k string, v any) error {
+func (m *Mutation) ProcessFieldClear(entAdapter *Adapter, k string, v any) error {
 	c, err := m.model.Column(k)
 	if err != nil {
 		return fmt.Errorf("field $clear.%s error: %w", k, err)
@@ -221,7 +226,7 @@ func (m *Mutation) ProcessFieldClear(k string, v any) error {
 			m.shouldUpdateTimestamps = true
 		}
 
-		clearSpec, err := m.client.NewEdgeSpec(relation, entitiesID)
+		clearSpec, err := entAdapter.NewEdgeSpec(relation, entitiesID)
 		if err != nil {
 			return fmt.Errorf("field $clear.%s error: %w", k, err)
 		}
@@ -233,10 +238,10 @@ func (m *Mutation) ProcessFieldClear(k string, v any) error {
 }
 
 // ProcessUpdateBlockSet processes the $set block
-func (m *Mutation) ProcessUpdateBlockSet(fieldValue any) error {
+func (m *Mutation) ProcessUpdateBlockSet(entAdapter *Adapter, fieldValue any) error {
 	if expr, ok := fieldValue.(*schema.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
-			if err := m.ProcessUpdateFieldSet(pair.Key, pair.Value); err != nil {
+			if err := m.ProcessUpdateFieldSet(entAdapter, pair.Key, pair.Value); err != nil {
 				return err
 			}
 		}
@@ -246,7 +251,7 @@ func (m *Mutation) ProcessUpdateBlockSet(fieldValue any) error {
 }
 
 // ProcessUpdateFieldSet processes a field in the $set block
-func (m *Mutation) ProcessUpdateFieldSet(k string, v any) error {
+func (m *Mutation) ProcessUpdateFieldSet(entAdapter *Adapter, k string, v any) error {
 	c, err := m.model.Column(k)
 	if err != nil {
 		return fmt.Errorf("field $set.%s error: %w", k, err)
@@ -277,12 +282,12 @@ func (m *Mutation) ProcessUpdateFieldSet(k string, v any) error {
 
 		// currently, ent does not support setting edges.
 		// so we need to clear and add the edges
-		clearSpec, err := m.client.NewEdgeSpec(relation, nil)
+		clearSpec, err := entAdapter.NewEdgeSpec(relation, nil)
 		if err != nil {
 			return fmt.Errorf("field $set.%s clearSpec error: %w", k, err)
 		}
 
-		addSpec, err := m.client.NewEdgeSpec(relation, entityIDs)
+		addSpec, err := entAdapter.NewEdgeSpec(relation, entityIDs)
 		if err != nil {
 			return fmt.Errorf("field $set.%s addSpec error: %w", k, err)
 		}

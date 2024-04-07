@@ -116,11 +116,21 @@ func (d *Adapter) Reload(
 				return nil, err
 			}
 
-			newJunctionTable := newJunctionModel.GetEntTable()
+			oldEntJunctionModel, ok := oldJunctionModel.(*Model)
+			if !ok {
+				return nil, fmt.Errorf("model is not an ent model")
+			}
+
+			newEntJunctionModel, ok := newJunctionModel.(*Model)
+			if !ok {
+				return nil, fmt.Errorf("model is not an ent model")
+			}
+
+			newJunctionTable := newEntJunctionModel.GetEntTable()
 			renamedEntTables = append(renamedEntTables, &entSchema.Table{
 				// Override the new junction table name with the old name
 				// to help Ent know about the old junction table columns changes
-				Name:        oldJunctionModel.GetEntTable().Name,
+				Name:        oldEntJunctionModel.GetEntTable().Name,
 				Columns:     newJunctionTable.Columns,
 				PrimaryKey:  newJunctionTable.PrimaryKey,
 				ForeignKeys: newJunctionTable.ForeignKeys,

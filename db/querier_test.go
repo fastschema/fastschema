@@ -389,6 +389,15 @@ func TestCreateObjectPredicates(t *testing.T) {
 			expectError: "filter error: invalid value for field age (uint) = five (string)",
 		},
 		{
+			name: "relation_invalid_schema",
+			filter: `{
+				"cars.model": {
+					"$like": "carmodel",
+				}
+			}`,
+			expectError: "filter error: invalid value for field model.$like (relation) = carmodel (string)",
+		},
+		{
 			name: "relation_invalid_format",
 			filter: `{
 				"cars.": {
@@ -475,4 +484,12 @@ func TestCreatePredicatesFromFilterObject(t *testing.T) {
 			assert.Equal(t, tt.expectResult, actual)
 		})
 	}
+}
+
+func TestCreatePredicatesFromEmptyFilterObject(t *testing.T) {
+	testSchema := &schema.Schema{}
+	assert.Nil(t, json.Unmarshal([]byte(userSchemaJSON), testSchema))
+	actual, err := CreatePredicatesFromFilterObject(nil, testSchema, "")
+	assert.NoError(t, err)
+	assert.Equal(t, []*Predicate{}, actual)
 }

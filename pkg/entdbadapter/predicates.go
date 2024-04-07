@@ -13,6 +13,7 @@ type PredicateFN func(*sql.Selector) *sql.Predicate
 
 // createEntPredicates creates ent sql predicates from the given predicates
 func createEntPredicates(
+	entAdapter *Adapter,
 	model *Model,
 	predicates []*db.Predicate,
 ) (func(*sql.Selector) []*sql.Predicate, error) {
@@ -23,6 +24,7 @@ func createEntPredicates(
 			lastFieldPredicate := p.Clone()
 			lastFieldPredicate.RelationFieldNames = []string{}
 			relationPredicateFn, err := createRelationsPredicate(
+				entAdapter,
 				model,
 				lastFieldPredicate,
 				p.RelationFieldNames...,
@@ -47,7 +49,7 @@ func createEntPredicates(
 		}
 
 		if p.And != nil {
-			andPredicatesFn, err := createEntPredicates(model, p.And)
+			andPredicatesFn, err := createEntPredicates(entAdapter, model, p.And)
 			if err != nil {
 				return nil, err
 			}
@@ -59,7 +61,7 @@ func createEntPredicates(
 		}
 
 		if p.Or != nil {
-			orPredicatesFn, err := createEntPredicates(model, p.Or)
+			orPredicatesFn, err := createEntPredicates(entAdapter, model, p.Or)
 			if err != nil {
 				return nil, err
 			}
@@ -83,6 +85,7 @@ func createEntPredicates(
 
 // createRelationsPredicate creates the relation predicate
 func createRelationsPredicate(
+	entAdapter *Adapter,
 	model *Model,
 	lastFieldPredicate *db.Predicate,
 	relationFieldNames ...string,
@@ -107,7 +110,7 @@ func createRelationsPredicate(
 		return nil, fmt.Errorf("model %s is not an ent model", targetModel.Schema().Name)
 	}
 
-	stepOption, err := model.client.NewEdgeStepOption(relation)
+	stepOption, err := entAdapter.NewEdgeStepOption(relation)
 	if err != nil {
 		return nil, fmt.Errorf("invalid edge step option '%s': %w", relationFieldName, err)
 	}
@@ -121,6 +124,7 @@ func createRelationsPredicate(
 	var pred func(*sql.Selector)
 	if len(relationFieldNames) > 0 {
 		p, err := createRelationsPredicate(
+			entAdapter,
 			entTargetModel,
 			lastFieldPredicate,
 			relationFieldNames...,
@@ -134,7 +138,7 @@ func createRelationsPredicate(
 			s2.Where(p(s2))
 		}
 	} else {
-		predFn, err := createEntPredicates(model, []*db.Predicate{lastFieldPredicate})
+		predFn, err := createEntPredicates(entAdapter, model, []*db.Predicate{lastFieldPredicate})
 		if err != nil {
 			return nil, err
 		}

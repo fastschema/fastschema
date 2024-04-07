@@ -73,6 +73,10 @@ func (q *Query) Where(predicates ...*db.Predicate) db.Query {
 // Count returns the number of entities that match the query.
 func (q *Query) Count(options *db.CountOption, ctxs ...context.Context) (int, error) {
 	ctxs = append(ctxs, context.Background())
+	entAdapter, ok := q.client.(*Adapter)
+	if !ok {
+		return 0, fmt.Errorf("client is not an ent adapter")
+	}
 
 	if options != nil {
 		q.querySpec.Unique = options.Unique
@@ -82,7 +86,7 @@ func (q *Query) Count(options *db.CountOption, ctxs ...context.Context) (int, er
 	}
 
 	if len(q.predicates) > 0 {
-		sqlPredicatesFn, err := createEntPredicates(q.model, q.predicates)
+		sqlPredicatesFn, err := createEntPredicates(entAdapter, q.model, q.predicates)
 		if err != nil {
 			return 0, err
 		}
@@ -91,7 +95,7 @@ func (q *Query) Count(options *db.CountOption, ctxs ...context.Context) (int, er
 		}
 	}
 
-	return sqlgraph.CountNodes(ctxs[0], q.client.Driver(), q.querySpec)
+	return sqlgraph.CountNodes(ctxs[0], entAdapter.Driver(), q.querySpec)
 }
 
 // First returns the first entity that matches the query.
@@ -179,7 +183,12 @@ func (q *Query) Get(ctxs ...context.Context) ([]*schema.Entity, error) {
 		}
 	}
 
-	builder := sql.Dialect(q.client.Driver().Dialect())
+	entAdapter, ok := q.client.(*Adapter)
+	if !ok {
+		return nil, fmt.Errorf("client is not an ent adapter")
+	}
+
+	builder := sql.Dialect(entAdapter.Driver().Dialect())
 	if !allSelectsAreEdges {
 		q.querySpec.Node.Columns = columnNames
 	}
@@ -188,7 +197,7 @@ func (q *Query) Get(ctxs ...context.Context) ([]*schema.Entity, error) {
 		From(builder.Table(q.model.schema.Namespace))
 
 	if len(q.predicates) > 0 {
-		sqlPredicatesFn, err := createEntPredicates(q.model, q.predicates)
+		sqlPredicatesFn, err := createEntPredicates(entAdapter, q.model, q.predicates)
 		if err != nil {
 			return nil, err
 		}
@@ -238,7 +247,7 @@ func (q *Query) Get(ctxs ...context.Context) ([]*schema.Entity, error) {
 		q.querySpec.Offset = int(q.offset)
 	}
 
-	if err := sqlgraph.QueryNodes(ctxs[0], q.client.Driver(), q.querySpec); err != nil {
+	if err := sqlgraph.QueryNodes(ctxs[0], entAdapter.Driver(), q.querySpec); err != nil {
 		return nil, err
 	}
 

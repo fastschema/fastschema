@@ -5,9 +5,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
-	"entgo.io/ent/dialect"
-	entSchema "entgo.io/ent/dialect/sql/schema"
-	"entgo.io/ent/dialect/sql/sqlgraph"
 	_ "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
@@ -27,9 +24,6 @@ type Client interface {
 	Model(name string) (Model, error)
 	Close() error
 	SchemaBuilder() *schema.Builder
-	Driver() dialect.Driver
-	NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, error)
-	NewEdgeSpec(r *schema.Relation, nodeIDs []driver.Value) (*sqlgraph.EdgeSpec, error)
 	Reload(newSchemaBuilder *schema.Builder, migration *Migration) (Client, error)
 	DB() *sql.DB
 	Config() *DBConfig
@@ -37,7 +31,6 @@ type Client interface {
 }
 
 type Model interface {
-	GetEntTable() *entSchema.Table
 	Query(predicates ...*Predicate) Query
 	Mutation(skipTxs ...bool) (Mutation, error)
 	Schema() *schema.Schema
