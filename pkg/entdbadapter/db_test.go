@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewClient(t *testing.T) {
+func TestNewEntClient(t *testing.T) {
 	_, err := NewEntClient(&app.DBConfig{
 		Driver: "invalid",
 	}, nil)
@@ -29,10 +29,11 @@ func TestNewClient(t *testing.T) {
 	}, nil)
 	assert.Equal(t, `unsupported driver: mysql2`, err.Error())
 
+	sb := createSchemaBuilder()
 	dbClient, err := testutils.NewMockClient(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
-		}, sbc, dialectSql.OpenDB(dialect.MySQL, d)))
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
 	}, nil, func(m sqlmock.Sqlmock) {
 		m.ExpectBegin()
@@ -53,4 +54,66 @@ func TestNewClient(t *testing.T) {
 	assert.Equal(t, nil, client.Rollback())
 	assert.Equal(t, nil, client.Commit())
 	assert.Equal(t, nil, client.Exec(context.Background(), "SELECT 1", []any{}, nil))
+}
+func TestNewClient(t *testing.T) {
+	config := &app.DBConfig{
+		Driver: "sqlmock",
+	}
+
+	sb := createSchemaBuilder()
+
+	client, err := NewClient(config, sb)
+	require.NoError(t, err)
+	assert.NotNil(t, client)
+}
+
+func TestAdapterReloadErrorTableNotFound(t *testing.T) {
+	// Create a new schema builder
+	newSchemaBuilder := createSchemaBuilder()
+
+	// Create a mock migration
+	migration := &app.Migration{
+		RenameTables: []*app.RenameItem{
+			{
+				Type:            "table",
+				From:            "old_table",
+				To:              "new_table",
+				IsJunctionTable: true,
+			},
+		},
+	}
+
+	// Create a mock adapter
+	adapter := &Adapter{
+		config: &app.DBConfig{
+			Driver: "sqlmock",
+		},
+	}
+
+	// Call the Reload function
+	_, err := adapter.Reload(newSchemaBuilder, migration)
+	assert.Error(t, err)
+}
+
+func TestAdapterReloadError(t *testing.T) {
+	// Create a new schema builder
+	newSchemaBuilder := createSchemaBuilder()
+
+	// Create a mock migration
+	migration := &app.Migration{
+		RenameTables: []*app.RenameItem{
+			{
+				Type:            "table",
+				From:            "user",
+				To:              "user",
+				IsJunctionTable: true,
+			},
+		},
+	}
+
+	// Create a mock adapter
+	adapter := createMockAdapter(t)
+	// Call the Reload function
+	_, err := adapter.Reload(newSchemaBuilder, migration)
+	require.Error(t, err)
 }

@@ -43,6 +43,7 @@ func (m *Model) Clone() app.Model {
 func (m *Model) Name() string {
 	return m.name
 }
+
 func (m *Model) GetEntTable() *entSchema.Table {
 	return m.entTable
 }

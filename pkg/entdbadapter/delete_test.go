@@ -2,17 +2,19 @@ package entdbadapter
 
 import (
 	"database/sql"
+	"errors"
 	"testing"
 
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
+	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
+	"github.com/stretchr/testify/assert"
 )
-
-var sbd = testutils.CreateSchemaBuilder("../../tests/data/schemas")
 
 func TestDeleteNodes(t *testing.T) {
 	tests := []testutils.MockTestDeleteData{
@@ -41,10 +43,43 @@ func TestDeleteNodes(t *testing.T) {
 		},
 	}
 
+	sb := createSchemaBuilder()
 	testutils.MockRunDeleteTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
-		}, sbd, dialectSql.OpenDB(dialect.MySQL, d)))
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
-	}, sbd, t, tests)
+	}, sb, t, tests)
+}
+
+func TestDeleteClientIsNotEntClient(t *testing.T) {
+	mut := &Mutation{
+		model: &Model{
+			name:        "user",
+			schema:      &schema.Schema{},
+			entIDColumn: &entSchema.Column{},
+		},
+		client: nil,
+	}
+	_, err := mut.Delete()
+	assert.Equal(t, errors.New("client is not an ent adapter"), err)
+}
+
+func TestDeleteInvalidOperator(t *testing.T) {
+	mut := &Mutation{
+		model: &Model{
+			name:        "user",
+			schema:      &schema.Schema{},
+			entIDColumn: &entSchema.Column{},
+		},
+		client: createMockAdapter(t),
+		predicates: []*app.Predicate{
+			{
+				Field:    "id",
+				Operator: app.OpInvalid,
+			},
+		},
+	}
+	_, err := mut.Delete()
+	assert.Equal(t, errors.New("operator invalid not supported"), err)
 }

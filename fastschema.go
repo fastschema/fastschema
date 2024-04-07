@@ -474,7 +474,7 @@ func (a *App) getDefaultLogger() (err error) {
 	return err
 }
 
-func (a *App) getDefaultDisk() error {
+func (a *App) getDefaultDisk() (err error) {
 	if a.config.StorageConfig == nil {
 		a.config.StorageConfig = &app.StorageConfig{}
 	}
@@ -491,7 +491,9 @@ func (a *App) getDefaultDisk() error {
 		}
 	}
 
-	a.disks = rclonefs.NewFromConfig(storageDisksConfig, a.dir)
+	if a.disks, err = rclonefs.NewFromConfig(storageDisksConfig, a.dir); err != nil {
+		return err
+	}
 
 	if defaultDiskName == "" && len(a.disks) > 0 {
 		a.defaultDisk = a.disks[0]

@@ -10,7 +10,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-func createErrorFn(status int) func(msgs ...any) *Error {
+func CreateErrorFn(status int) func(msgs ...any) *Error {
 	return func(msgs ...any) *Error {
 		err := &Error{Status: status}
 		if len(msgs) > 0 {
@@ -27,14 +27,14 @@ func createErrorFn(status int) func(msgs ...any) *Error {
 }
 
 var (
-	InternalServerError = createErrorFn(http.StatusInternalServerError)
-	Unauthorized        = createErrorFn(http.StatusUnauthorized)
-	Unauthenticated     = createErrorFn(http.StatusUnauthorized)
-	BadRequest          = createErrorFn(http.StatusBadRequest)
-	Forbidden           = createErrorFn(http.StatusForbidden)
-	NotFound            = createErrorFn(http.StatusNotFound)
-	BadGateway          = createErrorFn(http.StatusBadGateway)
-	UnprocessableEntity = createErrorFn(http.StatusUnprocessableEntity)
+	InternalServerError = CreateErrorFn(http.StatusInternalServerError)
+	Unauthorized        = CreateErrorFn(http.StatusUnauthorized)
+	Unauthenticated     = CreateErrorFn(http.StatusUnauthorized)
+	BadRequest          = CreateErrorFn(http.StatusBadRequest)
+	Forbidden           = CreateErrorFn(http.StatusForbidden)
+	NotFound            = CreateErrorFn(http.StatusNotFound)
+	BadGateway          = CreateErrorFn(http.StatusBadGateway)
+	UnprocessableEntity = CreateErrorFn(http.StatusUnprocessableEntity)
 )
 
 var errStatusMap = map[int]func(msgs ...any) *Error{
@@ -100,6 +100,7 @@ func Is(err, target error) bool {
 		}
 		return errors.Is(e.base, target)
 	}
+
 	if errors.As(target, &t) {
 		return errors.Is(err, t.base)
 	}

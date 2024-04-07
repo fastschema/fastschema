@@ -23,7 +23,7 @@ type RcloneLocalConfig struct {
 	GetBaseURL func() string `json:"-"`
 }
 
-func NewLocal(cfg *RcloneLocalConfig) app.Disk {
+func NewLocal(cfg *RcloneLocalConfig) (app.Disk, error) {
 	rl := &RcloneLocal{
 		BaseRcloneDisk: &BaseRcloneDisk{
 			DiskName: cfg.Name,
@@ -36,7 +36,7 @@ func NewLocal(cfg *RcloneLocalConfig) app.Disk {
 	rl.BaseRcloneDisk.GetURL = rl.URL
 
 	if err := os.MkdirAll(cfg.Root, os.ModePerm); err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	cfgMap := configmap.New()
@@ -44,12 +44,12 @@ func NewLocal(cfg *RcloneLocalConfig) app.Disk {
 	fsDriver, err := local.NewFs(context.Background(), rl.DiskName, rl.Root, cfgMap)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	rl.Fs = fsDriver
 
-	return rl
+	return rl, nil
 }
 
 func (r *RcloneLocal) URL(filepath string) string {

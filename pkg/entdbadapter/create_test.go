@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
+	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/testutils"
@@ -16,21 +17,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var sbc *schema.Builder
-
-func init() {
-	var err error
-	if sbc, err = schema.NewBuilderFromDir("../../tests/data/schemas"); err != nil {
-		panic(err)
-	}
-}
-
 func TestCreateError(t *testing.T) {
 	mut := &Mutation{
 		model: &Model{name: "user"},
 	}
 	_, err := mut.Create(nil)
 	assert.Equal(t, errors.New("model or schema user not found"), err)
+}
+
+func TestCreateClientIsNotEntClient(t *testing.T) {
+	mut := &Mutation{
+		model: &Model{
+			name:        "user",
+			schema:      &schema.Schema{},
+			entIDColumn: &entSchema.Column{},
+		},
+		client: nil,
+	}
+	_, err := mut.Create(schema.NewEntity())
+	assert.Equal(t, errors.New("client is not an ent adapter"), err)
 }
 
 // Test cases copied from: ent/dialect/sql/sqlgraph/graph_test.go#TestCreateNode
@@ -82,12 +87,13 @@ func TestMockCreateNode(t *testing.T) {
 		},
 	}
 
+	sb := createSchemaBuilder()
 	testutils.MockRunCreateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
-		}, sbc, dialectSql.OpenDB(dialect.MySQL, d)))
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
-	}, sbc, t, tests)
+	}, sb, t, tests)
 }
 
 func TestMockCreateNodeEdges(t *testing.T) {
@@ -297,13 +303,15 @@ func TestMockCreateNodeEdges(t *testing.T) {
 			},
 		},
 	}
+
+	sb := createSchemaBuilder()
 	testutils.MockRunCreateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
 			LogQueries: true,
-		}, sbc, dialectSql.OpenDB(dialect.MySQL, d)))
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
-	}, sbc, t, tests)
+	}, sb, t, tests)
 }
 
 func TestMockCreateNodeWithRelationData(t *testing.T) {
@@ -341,10 +349,11 @@ func TestMockCreateNodeWithRelationData(t *testing.T) {
 		// },
 	}
 
+	sb := createSchemaBuilder()
 	testutils.MockRunCreateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
-		}, sbc, dialectSql.OpenDB(dialect.MySQL, d)))
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
-	}, sbc, t, tests)
+	}, sb, t, tests)
 }

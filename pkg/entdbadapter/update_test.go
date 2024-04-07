@@ -2,19 +2,41 @@ package entdbadapter
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"testing"
 
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
+	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
-var sbu = testutils.CreateSchemaBuilder("../../tests/data/schemas")
+func TestUpdateError(t *testing.T) {
+	mut := &Mutation{
+		model: &Model{name: "user"},
+	}
+	_, err := mut.Update(nil)
+	assert.Equal(t, errors.New("model or schema user not found"), err)
+}
+
+func TestUpdateClientIsNotEntClient(t *testing.T) {
+	mut := &Mutation{
+		model: &Model{
+			name:        "user",
+			schema:      &schema.Schema{},
+			entIDColumn: &entSchema.Column{},
+		},
+		client: nil,
+	}
+	_, err := mut.Update(schema.NewEntity())
+	assert.Equal(t, errors.New("client is not an ent adapter"), err)
+}
 
 func TestUpdateNodes(t *testing.T) {
 	tests := []testutils.MockTestUpdateData{
@@ -370,13 +392,14 @@ func TestUpdateNodes(t *testing.T) {
 		},
 	}
 
+	sb := createSchemaBuilder()
 	testutils.MockRunUpdateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
 			LogQueries: true,
-		}, sbu, dialectSql.OpenDB(dialect.MySQL, d)))
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
-	}, sbu, t, tests)
+	}, sb, t, tests)
 }
 
 func TestUpdateNodesExtended(t *testing.T) {
@@ -581,11 +604,13 @@ func TestUpdateNodesExtended(t *testing.T) {
 			WantAffected: 2,
 		},
 	}
+
+	sb := createSchemaBuilder()
 	testutils.MockRunUpdateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
 			LogQueries: true,
-		}, sbu, dialectSql.OpenDB(dialect.MySQL, d)))
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
-	}, sbu, t, tests, true)
+	}, sb, t, tests, true)
 }

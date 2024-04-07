@@ -60,8 +60,8 @@ var entFieldTypesMapper = map[schema.FieldType]field.Type{
 	schema.TypeFloat64: field.TypeFloat64,
 }
 
-// CreateEntColumn convert a field to ent column
-func CreateEntColumn(f *schema.Field) *entSchema.Column {
+// createEntColumn convert a field to ent column
+func createEntColumn(f *schema.Field) *entSchema.Column {
 	entColumn := &entSchema.Column{
 		Name: f.Name,
 		Type: entFieldTypesMapper[f.Type],
@@ -99,6 +99,7 @@ func CreateEntColumn(f *schema.Field) *entSchema.Column {
 	return entColumn
 }
 
+// CreateDBDSN create a DSN string for the database connection
 func CreateDBDSN(config *app.DBConfig) string {
 	dsn := ""
 

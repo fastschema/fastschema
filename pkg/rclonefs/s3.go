@@ -13,7 +13,6 @@ type RcloneS3 struct {
 	*BaseRcloneDisk
 	Root            string              `json:"root"`
 	Provider        string              `json:"provider"`
-	Bucket          string              `json:"bucket"`
 	Region          string              `json:"region"`
 	Endpoint        string              `json:"endpoint"`
 	ChunkSize       rclonefs.SizeSuffix `json:"chunk_size"`
@@ -37,7 +36,7 @@ type RcloneS3Config struct {
 	ACL             string              `json:"acl"`
 }
 
-func NewS3(cfg *RcloneS3Config) app.Disk {
+func NewS3(cfg *RcloneS3Config) (app.Disk, error) {
 	if cfg.ChunkSize < rclonefs.SizeSuffix(1024*1024*5) {
 		cfg.ChunkSize = rclonefs.SizeSuffix(1024 * 1024 * 5)
 	}
@@ -73,18 +72,14 @@ func NewS3(cfg *RcloneS3Config) app.Disk {
 	fsDriver, err := s3.NewFs(context.Background(), "s3", cfg.Bucket, cfgMap)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	rs3.Fs = fsDriver
 
-	return rs3
+	return rs3, nil
 }
 
 func (r *RcloneS3) URL(filepath string) string {
 	return r.BaseURL + filepath
-}
-
-func (r *RcloneS3) Delete(ctx context.Context, filepath string) error {
-	return nil
 }

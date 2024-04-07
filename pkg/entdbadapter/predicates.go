@@ -39,7 +39,7 @@ func createEntPredicates(
 		}
 
 		if p.Field != "" {
-			predicateFn, err := createFieldPredicate(p)
+			predicateFn, err := CreateFieldPredicate(p)
 			if err != nil {
 				return nil, err
 			}
@@ -155,8 +155,8 @@ func createRelationsPredicate(
 	}, nil
 }
 
-// createFieldPredicate convert a predicate to ent predicate
-func createFieldPredicate(predicate *app.Predicate) (PredicateFN, error) {
+// CreateFieldPredicate convert a predicate to ent predicate
+func CreateFieldPredicate(predicate *app.Predicate) (PredicateFN, error) {
 	var columnWrap = func(field string, selectors ...*sql.Selector) string {
 		if len(selectors) > 0 {
 			return selectors[0].C(field)

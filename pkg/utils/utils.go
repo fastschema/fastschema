@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"regexp"
@@ -30,7 +29,7 @@ func RandomString(length int) string {
 	bufferSize := int(float64(length) * 1.3)
 	for i, j, randomBytes := 0, 0, []byte{}; i < length; j++ {
 		if j%bufferSize == 0 {
-			randomBytes = SecureRandomBytes(bufferSize)
+			randomBytes, _ = SecureRandomBytes(bufferSize)
 		}
 		if idx := int(randomBytes[j%length] & letterIdxMask); idx < len(letterBytes) {
 			result[i] = letterBytes[idx]
@@ -42,13 +41,13 @@ func RandomString(length int) string {
 }
 
 // SecureRandomBytes returns the requested number of bytes using crypto/rand
-func SecureRandomBytes(length int) []byte {
+func SecureRandomBytes(length int) ([]byte, error) {
 	var randomBytes = make([]byte, length)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
-		log.Fatal("Unable to generate random bytes")
+		return nil, err
 	}
-	return randomBytes
+	return randomBytes, nil
 }
 
 func Map[T any, R any](slice []T, mapper func(T) R) []R {

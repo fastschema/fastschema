@@ -3,6 +3,7 @@ package entdbadapter
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -17,139 +18,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var sbq = testutils.CreateSchemaBuilder("../../tests/data/schemas")
-var testUserSchemaJSON = `{
-	"name": "user",
-	"namespace": "users",
-	"label_field": "name",
-	"fields": [
-		{
-			"name": "name",
-			"label": "Name",
-			"type": "string",
-			"sortable": true
-		},
-		{
-			"name": "json_field",
-			"label": "JSON Field",
-			"type": "json"
-		},
-		{
-			"name": "bytes_field",
-			"label": "Bytes Field",
-			"type": "bytes"
-		},
-		{
-			"name": "bool_field",
-			"label": "Bool Field",
-			"type": "bool"
-		},
-		{
-			"name": "float32_field",
-			"label": "Float32 Field",
-			"type": "float32"
-		},
-		{
-			"name": "float64_field",
-			"label": "Float64 Field",
-			"type": "float64"
-		},
-		{
-			"name": "int8_field",
-			"label": "int8 Field",
-			"type": "int8"
-		},
-		{
-			"name": "int16_field",
-			"label": "int16 Field",
-			"type": "int16"
-		},
-		{
-			"name": "int32_field",
-			"label": "int32 Field",
-			"type": "int32"
-		},
-		{
-			"name": "int_field",
-			"label": "int Field",
-			"type": "int"
-		},
-		{
-			"name": "int64_field",
-			"label": "int64 Field",
-			"type": "int64"
-		},
-		{
-			"name": "uint8_field",
-			"label": "uint8 Field",
-			"type": "uint8"
-		},
-		{
-			"label": "uint16 Field",
-			"name": "uint16_field",
-			"type": "uint16"
-		},
-		{
-			"label": "uint32 Field",
-			"name": "uint32_field",
-			"type": "uint32"
-		},
-		{
-			"label": "uint Field",
-			"name": "uint_field",
-			"type": "uint"
-		},
-		{
-			"label": "uint64 Field",
-			"name": "uint64_field",
-			"type": "uint64"
-		},
-		{
-			"label": "time Field",
-			"name": "time_field",
-			"type": "time"
-		},
-		{
-			"label": "uuid Field",
-			"name": "uuid_field",
-			"type": "uuid"
-		},
-		{
-			"label": "enum Field",
-			"name": "enum_field",
-			"type": "enum",
-			"enums": [
-				{
-					"label": "Enum1",
-					"value": "enum1"
-				},
-				{
-					"label": "Enum2",
-					"value": "enum2"
-				}
-			]
-		},
-		{
-			"label": "string Field",
-			"name": "string_field",
-			"type": "string"
-		},
-		{
-			"label": "text Field",
-			"name": "text_field",
-			"type": "text"
-		}
-	]
-}`
-
 func TestScanValues(t *testing.T) {
 	userSchema := &schema.Schema{}
 	assert.Nil(t, json.Unmarshal([]byte(testUserSchemaJSON), userSchema))
 	assert.NoError(t, userSchema.Init(false))
-
-	// _, err := ScanValues(userSchema, []string{"invalid"})
-	// assert.Error(t, err)
-
 	results := utils.Must(scanValues(userSchema, []string{
 		"json_field",
 		"bytes_field",
@@ -208,9 +80,6 @@ func TestAssignValues(t *testing.T) {
 
 	err := assignValues(userSchema, entity, []string{"id", "name"}, []any{1})
 	assert.Equal(t, "mismatch number of scan values: 1 != 2", err.Error())
-
-	// err = AssignValues(userSchema, entity, []string{"invalid"}, []any{1})
-	// assert.Equal(t, "field user.invalid not found", err.Error())
 
 	type args struct {
 		column      string
@@ -522,12 +391,13 @@ func TestCount(t *testing.T) {
 		},
 	}
 
+	sb := createSchemaBuilder()
 	testutils.MockRunCountTests(func(d *sql.DB) app.DBClient {
 		client := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
-		}, sbq, dialectSql.OpenDB(dialect.MySQL, d)))
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return client
-	}, sbq, t, tests)
+	}, sb, t, tests)
 }
 
 func TestQuery(t *testing.T) {
@@ -1100,12 +970,13 @@ func TestQuery(t *testing.T) {
 		},
 	}
 
+	sb := createSchemaBuilder()
 	testutils.MockRunQueryTests(func(d *sql.DB) app.DBClient {
 		client := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
-		}, sbq, dialectSql.OpenDB(dialect.MySQL, d)))
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return client
-	}, sbq, t, tests)
+	}, sb, t, tests)
 }
 
 func TestFirstOnly(t *testing.T) {
@@ -1113,9 +984,10 @@ func TestFirstOnly(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, d)
 	assert.NotNil(t, mock)
+	sb := createSchemaBuilder()
 	client := utils.Must(NewEntClient(&app.DBConfig{
 		Driver: "sqlmock",
-	}, sbq, dialectSql.OpenDB(dialect.MySQL, d)))
+	}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 
 	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `name` = ? LIMIT 1")).
 		WithArgs("user1").
@@ -1161,4 +1033,59 @@ func TestFirstOnly(t *testing.T) {
 	query5 := utils.Must(client.Model("user")).Query(app.EQ("name", "user5"))
 	_, err = query5.Only()
 	assert.Equal(t, "no entities found", err.Error())
+}
+
+func TestQueryOptions(t *testing.T) {
+	q := &Query{
+		limit:      10,
+		offset:     0,
+		fields:     []string{"column1", "column2"},
+		order:      []string{"order1", "order2"},
+		predicates: []*app.Predicate{app.EQ("column1", "value1"), app.EQ("column2", "value2")},
+		model:      &Model{},
+	}
+
+	expected := &app.QueryOption{
+		Limit:      q.limit,
+		Offset:     q.offset,
+		Columns:    q.fields,
+		Order:      q.order,
+		Predicates: q.predicates,
+		Model:      q.model,
+	}
+
+	result := q.Options()
+
+	assert.Equal(t, expected, result)
+}
+
+func TestInvalidFKError(t *testing.T) {
+	err := invalidFKError("edgeSchema", "fkColumn", 123, errors.New("some error"))
+	expectedError := "invalid FK value edgeSchema.fkColumn for node id=123: some error"
+	assert.EqualError(t, err, expectedError)
+}
+
+func TestNoFKNodeError(t *testing.T) {
+	err := noFKNodeError("schemaName", "edgeSchemaName", "fkColumn", 123, 456)
+	expectedErr := `no FK node (schemaName) found for (edgeSchemaName=123).fkColumn=456`
+	assert.EqualError(t, err, expectedErr)
+}
+
+func TestInvalidEntityArrayError(t *testing.T) {
+	err := invalidEntityArrayError("schemaName", "fieldName", []int{1, 2, 3})
+	expectedErr := `edge values schemaName.fieldName=[1 2 3] ([]int) is not []*schema.Entity`
+	assert.EqualError(t, err, expectedErr)
+}
+
+func TestScanValuesError(t *testing.T) {
+	schema := &schema.Schema{}
+	v, err := scanValues(schema, []string{"test"})
+	assert.Equal(t, []any{new(any)}, v)
+	assert.NoError(t, err)
+}
+
+func TestCountClientIsNotEntAdapter(t *testing.T) {
+	q := &Query{}
+	_, err := q.Count(&app.CountOption{})
+	assert.EqualError(t, err, "client is not an ent adapter")
 }

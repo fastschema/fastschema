@@ -171,7 +171,7 @@ func TestCreateFieldPredicate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotFn, err := createFieldPredicate(tt.predicate)
+			gotFn, err := CreateFieldPredicate(tt.predicate)
 			assert.Equal(t, tt.expectError, err)
 
 			if tt.expectError == nil {

@@ -40,3 +40,24 @@ func TestMutation(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, []driver.Value{uint64(1), uint64(2)}, relationEntityIDs)
 }
+
+func TestMutationGetRelationEntityIDsNil(t *testing.T) {
+	var expected []driver.Value
+	mutation := &Mutation{}
+	value, err := mutation.GetRelationEntityIDs("test", nil)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, value)
+
+	mutation2 := &Mutation{}
+	value2, err := mutation2.GetRelationEntityIDs("test", schema.NewEntity())
+	assert.NoError(t, err)
+	assert.Equal(t, []driver.Value{}, value2)
+
+	mutation3 := &Mutation{
+		model: &Model{
+			name: "test",
+		},
+	}
+	_, err = mutation3.GetRelationEntityIDs("test", schema.NewEntity(0))
+	assert.Error(t, err)
+}

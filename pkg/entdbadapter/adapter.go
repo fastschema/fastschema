@@ -143,7 +143,7 @@ func (d *Adapter) init() error {
 				currentModel.entTable.ForeignKeys,
 				&entSchema.ForeignKey{
 					Symbol:     fmt.Sprintf("%s_%s", targetSchema.Name, r.GetTargetFKColumn()),
-					Columns:    []*entSchema.Column{CreateEntColumn(r.FKFields[0])},
+					Columns:    []*entSchema.Column{createEntColumn(r.FKFields[0])},
 					RefColumns: []*entSchema.Column{targetModel.entIDColumn},
 					OnDelete:   onDelete,
 					RefTable:   targetModel.entTable,
@@ -307,7 +307,7 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 	for _, f := range s.Fields {
 		column := &Column{field: f}
 		if !f.Type.IsRelationType() {
-			entColumn := CreateEntColumn(f)
+			entColumn := createEntColumn(f)
 			m.entTable.Columns = append(m.entTable.Columns, entColumn)
 			column.entColumn = entColumn
 		}

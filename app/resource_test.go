@@ -188,7 +188,7 @@ func TestResourceClone(t *testing.T) {
 func TestAddResource(t *testing.T) {
 	r := app.NewResource("parent", ResourceResolver1)
 	extras := []interface{}{
-		app.Map{"key": "value"},
+		app.Meta{"key": "value"},
 		app.Signature{"param1", "param2"},
 		true,
 	}
@@ -202,7 +202,7 @@ func TestAddResource(t *testing.T) {
 
 	assert.NotNil(t, child, "Resource should not be nil")
 	assert.Equal(t, "child", child.Name(), "Resource name should be 'child'")
-	assert.Equal(t, app.Map{"key": "value"}, child.Meta(), "Resource meta should match")
+	assert.Equal(t, app.Meta{"key": "value"}, child.Meta(), "Resource meta should match")
 	assert.True(t, child.WhiteListed(), "Resource should be a white list")
 	assert.Contains(t, r.Resources(), child, "Resource should be added to the parent's resources")
 }
@@ -237,7 +237,7 @@ func TestGroup(t *testing.T) {
 }
 
 func TestResourceString(t *testing.T) {
-	r := app.NewResource("test", ResourceResolver1, app.Map{"key": "value"})
+	r := app.NewResource("test", ResourceResolver1, app.Meta{"key": "value"})
 
 	expected := "[test] - map[key:value]"
 	result := r.String()
