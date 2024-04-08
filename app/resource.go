@@ -13,8 +13,7 @@ import (
 
 var resourceNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_:/]+$`)
 
-// StaticResourceConfig is used to configure static resources
-type StaticResourceConfig struct {
+type StaticFs struct {
 	Root       http.FileSystem
 	BasePath   string
 	PathPrefix string
@@ -32,12 +31,6 @@ type ResourcesManager struct {
 	BeforeResolveHooks []Middleware
 	AfterResolveHooks  []Middleware
 	Middlewares        []Middleware
-	StaticResources    []*StaticResourceConfig
-}
-
-// RegisterStaticResources registers static resources
-func (rs *ResourcesManager) RegisterStaticResources(configs ...*StaticResourceConfig) {
-	rs.StaticResources = append(rs.StaticResources, configs...)
 }
 
 // Init validates the resource and all sub resources

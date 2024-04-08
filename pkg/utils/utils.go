@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"regexp"
@@ -411,4 +412,14 @@ func Env(name string, defaultValues ...string) string {
 	}
 
 	return value
+}
+
+func ReadCloserToString(rc io.ReadCloser) (string, error) {
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
 }

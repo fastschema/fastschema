@@ -21,26 +21,6 @@ var ResourceResolver1 = func(c app.Context, input *TestResourceInput) (*TestReso
 	return input, nil
 }
 
-func TestRegisterStaticResources(t *testing.T) {
-	rs := &app.ResourcesManager{}
-	configs := []*app.StaticResourceConfig{
-		{
-			Root:       nil,
-			BasePath:   "/",
-			PathPrefix: "/",
-		},
-		{
-			Root:       nil,
-			BasePath:   "/",
-			PathPrefix: "/",
-		},
-	}
-
-	rs.RegisterStaticResources(configs...)
-
-	assert.Equal(t, configs, rs.StaticResources, "Registered static resources should match the input configs")
-}
-
 func TestInit(t *testing.T) {
 	rs := app.NewResourcesManager()
 

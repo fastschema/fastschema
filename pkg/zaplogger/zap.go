@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/fastschema/fastschema/app"
@@ -12,9 +13,10 @@ import (
 )
 
 type ZapConfig struct {
-	Development bool `json:"development"`
-	LogFile     string
-	CallerSkip  int
+	Development    bool `json:"development"`
+	LogFile        string
+	CallerSkip     int
+	DisableConsole bool
 }
 
 type ZapLogger struct {
@@ -41,14 +43,20 @@ func NewZapLogger(config *ZapConfig) (_ *ZapLogger, err error) {
 	// zapConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	zapConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339Nano)
 	fileEncoder := zapcore.NewJSONEncoder(zapConfig)
-	consoleEncoder := zapcore.NewConsoleEncoder(zapConfig)
 	logFile, _ := os.OpenFile(config.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	writer := zapcore.AddSync(logFile)
 	defaultLogLevel := zapcore.DebugLevel
 	core := zapcore.NewTee(
 		zapcore.NewCore(fileEncoder, writer, defaultLogLevel),
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), defaultLogLevel),
 	)
+
+	if !config.DisableConsole {
+		consoleEncoder := zapcore.NewConsoleEncoder(zapConfig)
+		core = zapcore.NewTee(
+			core,
+			zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), defaultLogLevel),
+		)
+	}
 
 	callerSkip := 1
 	if config.CallerSkip > 0 {
@@ -64,12 +72,17 @@ func NewZapLogger(config *ZapConfig) (_ *ZapLogger, err error) {
 
 	defer func() {
 		// Currently, there always an error when calling Sync()
-		// /dev/stdout: invalid argument
+		// sync /dev/stdout: invalid argument
 		// Skip this error for now
-		// if e := zapLogger.Sync(); e != nil {
-		// 	fmt.Printf("zapLogger.Sync() error: %v\n", e)
-		// }
-		_ = zapLogger.Sync()
+		e := zapLogger.Sync()
+		if e != nil {
+			// check if the error is related to /dev/stdout
+			if strings.Contains(e.Error(), "sync /dev/stdout: invalid argument") {
+				return
+			}
+
+			err = e
+		}
 	}()
 
 	return &ZapLogger{

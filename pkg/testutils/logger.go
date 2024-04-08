@@ -7,8 +7,12 @@ import (
 )
 
 type MockLoggerMessage struct {
-	Type   string
-	Params []any
+	Type   string `json:"type"`
+	Params []any  `json:"params"`
+}
+
+func (m MockLoggerMessage) String() string {
+	return fmt.Sprintf("%s: %v", m.Type, m.Params)
 }
 
 type MockLogger struct {

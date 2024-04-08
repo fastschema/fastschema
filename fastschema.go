@@ -231,10 +231,17 @@ func (a *App) Start() {
 		))
 	}
 
-	restResolver := restresolver.NewRestResolver(a.resources, []*restresolver.StaticPaths{{
-		BasePath: "/",
-		Root:     a.publicDir,
-	}})
+	restResolver := restresolver.NewRestResolver(
+		a.resources,
+		[]*app.StaticFs{{
+			BasePath: "/",
+			Root:     http.Dir(a.publicDir),
+		}, {
+			BasePath:   "/" + a.config.DashBaseName,
+			Root:       http.FS(embedDashStatic),
+			PathPrefix: "dash",
+		}}...,
+	)
 
 	fmt.Printf("\n")
 	for _, msg := range a.startupMessages {
@@ -527,11 +534,6 @@ func (a *App) createResources() error {
 	toolService := ts.NewToolService(a)
 
 	a.resources = app.NewResourcesManager()
-	a.resources.RegisterStaticResources(&app.StaticResourceConfig{
-		Root:       http.FS(embedDashStatic),
-		BasePath:   "/" + a.config.DashBaseName,
-		PathPrefix: "dash",
-	})
 	a.resources.Middlewares = append(a.resources.Middlewares, roleService.ParseUser)
 	a.resources.BeforeResolveHooks = append(a.resources.BeforeResolveHooks, roleService.Authorize)
 	a.resources.BeforeResolveHooks = append(a.resources.BeforeResolveHooks, a.hooks.BeforeResolve...)

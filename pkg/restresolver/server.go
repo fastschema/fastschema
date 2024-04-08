@@ -11,7 +11,6 @@ import (
 
 type Server struct {
 	*fiber.App
-	hooks  []Handler
 	logger app.Logger
 }
 
@@ -47,13 +46,13 @@ func (s *Server) Test(req *http.Request, msTimeout ...int) (resp *http.Response,
 	return s.App.Test(req, msTimeout...)
 }
 
-func (s *Server) Listen(address string) {
-	s.logger.Fatal("Listen", app.LogContext{"Error": s.App.Listen(address)})
+func (s *Server) Listen(address string) error {
+	return s.App.Listen(address)
 }
 
 func (s *Server) Use(handlers ...Handler) {
 	middlewares := []any{}
-	transformedHandlers := transformHandlers(nil, handlers, s.logger)
+	transformedHandlers := TransformHandlers(nil, handlers, s.logger)
 	for _, handler := range transformedHandlers {
 		middlewares = append(middlewares, handler)
 	}
@@ -61,16 +60,12 @@ func (s *Server) Use(handlers ...Handler) {
 	s.App.Use(middlewares...)
 }
 
-func (s *Server) Hook(handlers ...Handler) {
-	s.hooks = append(s.hooks, handlers...)
-}
-
 func (s *Server) Group(prefix string, r *app.Resource, handlers ...Handler) *Router {
 	var fiberHandlers []fiber.Handler
 
 	for _, handler := range handlers {
 		fiberHandlers = append(fiberHandlers, func(c *fiber.Ctx) error {
-			return handler(createContext(r, c, s.logger))
+			return handler(CreateContext(r, c, s.logger))
 		})
 	}
 
@@ -107,7 +102,7 @@ func (s *Server) Get(path string, handler Handler, resources ...*app.Resource) {
 		name = resources[0].Name()
 		r = resources[0]
 	}
-	handlers := transformHandlers(r, []Handler{handler}, s.logger)
+	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
 	s.App.Get(path, handlers...).Name(name)
 }
 
@@ -118,7 +113,7 @@ func (s *Server) Post(path string, handler Handler, resources ...*app.Resource) 
 		name = resources[0].Name()
 		r = resources[0]
 	}
-	handlers := transformHandlers(r, []Handler{handler}, s.logger)
+	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
 	s.App.Post(path, handlers...).Name(name)
 }
 
@@ -129,7 +124,7 @@ func (s *Server) Put(path string, handler Handler, resources ...*app.Resource) {
 		name = resources[0].Name()
 		r = resources[0]
 	}
-	handlers := transformHandlers(r, []Handler{handler}, s.logger)
+	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
 	s.App.Put(path, handlers...).Name(name)
 }
 
@@ -140,7 +135,7 @@ func (s *Server) Delete(path string, handler Handler, resources ...*app.Resource
 		name = resources[0].Name()
 		r = resources[0]
 	}
-	handlers := transformHandlers(r, []Handler{handler}, s.logger)
+	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
 	s.App.Delete(path, handlers...).Name(name)
 }
 
@@ -151,7 +146,7 @@ func (s *Server) Patch(path string, handler Handler, resources ...*app.Resource)
 		name = resources[0].Name()
 		r = resources[0]
 	}
-	handlers := transformHandlers(r, []Handler{handler}, s.logger)
+	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
 	s.App.Patch(path, handlers...).Name(name)
 }
 
@@ -162,6 +157,6 @@ func (s *Server) Options(path string, handler Handler, resources ...*app.Resourc
 		name = resources[0].Name()
 		r = resources[0]
 	}
-	handlers := transformHandlers(r, []Handler{handler}, s.logger)
+	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
 	s.App.Options(path, handlers...).Name(name)
 }

@@ -3,7 +3,9 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -823,4 +825,38 @@ func TestEnv(t *testing.T) {
 	expected3 := ""
 	result3 := Env("NON_EXISTING_ENV")
 	assert.Equal(t, expected3, result3)
+}
+
+func TestReadCloserToString(t *testing.T) {
+	// Test case 1: ReadCloser with valid data
+	rc1 := io.NopCloser(strings.NewReader("Hello, World!"))
+	expected1 := "Hello, World!"
+	result1, err1 := ReadCloserToString(rc1)
+	assert.NoError(t, err1)
+	assert.Equal(t, expected1, result1)
+
+	// Test case 2: ReadCloser with empty data
+	rc2 := io.NopCloser(strings.NewReader(""))
+	expected2 := ""
+	result2, err2 := ReadCloserToString(rc2)
+	assert.NoError(t, err2)
+	assert.Equal(t, expected2, result2)
+
+	// Test case 3: ReadCloser with error
+	rc3 := io.NopCloser(errorReader{})
+	expected3 := ""
+	result3, err3 := ReadCloserToString(rc3)
+	assert.Error(t, err3)
+	assert.Equal(t, expected3, result3)
+}
+
+// Helper struct for generating ReadCloser with error
+type errorReader struct{}
+
+func (er errorReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("error reading data")
+}
+
+func (er errorReader) Close() error {
+	return nil
 }

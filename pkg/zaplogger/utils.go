@@ -1,8 +1,6 @@
 package zaplogger
 
 import (
-	"strconv"
-
 	"github.com/fastschema/fastschema/app"
 )
 
@@ -12,27 +10,28 @@ func (l *ZapLogger) getLogContext(params ...any) (string, []app.LogContext) {
 	}
 
 	msg := ""
-	ctx := app.LogContext{}
-	contexts := []app.LogContext{l.LogContext}
+	// ctx := app.LogContext{}
+	var contexts []app.LogContext
 
-	if m, ok := params[0].(string); ok {
+	if l.LogContext != nil {
+		contexts = append(contexts, l.LogContext)
+	}
+
+	firstParam := params[0]
+
+	if m, ok := firstParam.(string); ok {
 		msg = m
 		params = params[1:]
 	}
 
-	for i, p := range params {
-		if err, ok := p.(error); ok && msg == "" {
-			msg = err.Error()
-		}
-
-		if c, ok := p.(app.LogContext); ok {
-			contexts = append(contexts, c)
-		} else {
-			ctx[strconv.Itoa(i)] = p
-		}
+	if err, ok := firstParam.(error); ok {
+		msg = err.Error()
+		params = params[1:]
 	}
 
-	contexts = append(contexts, ctx)
+	if len(params) > 0 {
+		contexts = append(contexts, app.LogContext{"params": params})
+	}
 
 	return msg, contexts
 }

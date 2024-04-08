@@ -7,44 +7,38 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
 
-type StaticPaths struct {
-	BasePath string
-	Root     string
-}
-
 type RestSolver struct {
 	resourceManager *app.ResourcesManager
-	statics         []*StaticPaths
+	staticFSs       []*app.StaticFs
+	server          *Server
 }
 
-func NewRestResolver(resourceManager *app.ResourcesManager, statics []*StaticPaths) *RestSolver {
+func NewRestResolver(
+	resourceManager *app.ResourcesManager,
+	staticFSs ...*app.StaticFs,
+) *RestSolver {
 	return &RestSolver{
 		resourceManager: resourceManager,
-		statics:         statics,
+		staticFSs:       staticFSs,
 	}
 }
 
-func (r RestSolver) Resource(routeName string) *app.Resource {
-	return r.resourceManager.Find(routeName)
-}
-
-func (r *RestSolver) Start(address string, logger app.Logger) error {
+func (r *RestSolver) Init(logger app.Logger) {
 	middlewares := []Handler{
 		MiddlewareCors,
 		MiddlewareRecover,
 		MiddlewareRequestID,
 		MiddlewareRequestLog,
 	}
-	s := New(Config{
+	r.server = New(Config{
 		AppName: "fastschema",
 		Logger:  logger,
 	})
 
-	for _, staticResource := range r.resourceManager.StaticResources {
-		s.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
+	for _, staticResource := range r.staticFSs {
+		r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
 			Root:       staticResource.Root,
 			PathPrefix: staticResource.PathPrefix,
-			Browse:     true,
 		}))
 	}
 
@@ -69,25 +63,28 @@ func (r *RestSolver) Start(address string, logger app.Logger) error {
 		})
 	}
 
-	for _, static := range r.statics {
-		s.Static(static.BasePath, static.Root)
-	}
+	r.server.Use(middlewares...)
+	manager := r.server.Group(r.resourceManager.Name(), nil)
 
-	s.Use(middlewares...)
-	api := s.Group(r.resourceManager.Name(), nil)
-
-	if err := registerResourceRoutes(
+	registerResourceRoutes(
 		r.resourceManager.Resources(),
-		api,
+		manager,
 		r.resourceManager.BeforeResolveHooks,
 		r.resourceManager.AfterResolveHooks,
-	); err != nil {
-		panic(err)
-	}
+	)
+}
 
-	s.Listen(address)
+func (r *RestSolver) Server() *Server {
+	return r.server
+}
 
-	return nil
+func (r *RestSolver) Start(address string, logger app.Logger) error {
+	r.Init(logger)
+	return r.server.Listen(address)
+}
+
+func (r *RestSolver) Shutdown() error {
+	return r.server.App.Shutdown()
 }
 
 func registerResourceRoutes(
@@ -95,7 +92,7 @@ func registerResourceRoutes(
 	router *Router,
 	beforeHandlerHooks []app.Middleware,
 	afterHandlerHooks []app.Middleware,
-) error {
+) {
 	methodMapper := map[string]func(string, Handler, ...*app.Resource){
 		app.GET:     router.Get,
 		app.POST:    router.Post,
@@ -108,14 +105,12 @@ func registerResourceRoutes(
 	for _, r := range resources {
 		if r.IsGroup() {
 			group := router.Group(r.Name(), r)
-			if err := registerResourceRoutes(
+			registerResourceRoutes(
 				r.Resources(),
 				group,
 				beforeHandlerHooks,
 				afterHandlerHooks,
-			); err != nil {
-				return err
-			}
+			)
 
 			continue
 		}
@@ -166,6 +161,4 @@ func registerResourceRoutes(
 			}, r)
 		}(r)
 	}
-
-	return nil
 }

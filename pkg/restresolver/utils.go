@@ -5,7 +5,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func transformHandlers(
+func TransformHandlers(
 	r *app.Resource,
 	handlers []Handler,
 	l app.Logger,
@@ -15,7 +15,7 @@ func transformHandlers(
 	for i := 0; i < len(handlers); i++ {
 		func(r *app.Resource, i int) {
 			fiberHandlers = append(fiberHandlers, func(c *fiber.Ctx) error {
-				return handlers[i](createContext(r, c, l))
+				return handlers[i](CreateContext(r, c, l))
 			})
 		}(r, i)
 	}
@@ -23,7 +23,7 @@ func transformHandlers(
 	return fiberHandlers
 }
 
-func createContext(r *app.Resource, c *fiber.Ctx, logger app.Logger) *Context {
+func CreateContext(r *app.Resource, c *fiber.Ctx, logger app.Logger) *Context {
 	args := make(map[string]string)
 	allParams := c.AllParams()
 	queries := c.Queries()
