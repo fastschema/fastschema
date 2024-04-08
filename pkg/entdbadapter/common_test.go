@@ -139,6 +139,9 @@ func TestCreateDBDSN(t *testing.T) {
 	config.Driver = "sqlite"
 	expectedSQLiteDSN := "file:database?cache=shared&_fk=1&_pragma=foreign_keys(1)"
 	assert.Equal(t, expectedSQLiteDSN, CreateDBDSN(config))
+	config.Name = ":memory:"
+	expectedSQLiteMemoryDSN := ":memory:?cache=shared&_fk=1&_pragma=foreign_keys(1)"
+	assert.Equal(t, expectedSQLiteMemoryDSN, CreateDBDSN(config))
 }
 
 func TestGetEntDialect(t *testing.T) {

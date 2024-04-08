@@ -17,6 +17,12 @@ func NewClient(config *app.DBConfig, schemaBuilder *schema.Builder) (_ app.DBCli
 	return NewEntClient(config, schemaBuilder)
 }
 
+func NewSQLMockClient(schemaBuilder *schema.Builder) (_ app.DBClient, err error) {
+	return NewEntClient(&app.DBConfig{
+		Driver: "sqlmock",
+	}, schemaBuilder)
+}
+
 // NewEntClient creates a new ent client
 func NewEntClient(
 	config *app.DBConfig,
@@ -28,6 +34,10 @@ func NewEntClient(
 		entDialect string
 		sqlDriver  *dialectSql.Driver
 	)
+
+	if schemaBuilder == nil {
+		return nil, fmt.Errorf("schema builder is required")
+	}
 
 	if db, err = sql.Open(config.Driver, CreateDBDSN(config)); err != nil {
 		return nil, err

@@ -5,14 +5,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/restresolver"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMiddlewares(t *testing.T) {
-	mockLogger := testutils.CreateLogger(true)
+	mockLogger := app.CreateMockLogger(true)
 	server := restresolver.New(restresolver.Config{
 		Logger: mockLogger,
 	})

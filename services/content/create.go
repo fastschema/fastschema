@@ -9,7 +9,7 @@ import (
 
 func (cs *ContentService) Create(c app.Context, _ *any) (*schema.Entity, error) {
 	schemaName := c.Arg("schema")
-	model, err := cs.app.DB().Model(schemaName)
+	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}

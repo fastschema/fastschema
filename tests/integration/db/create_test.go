@@ -6,14 +6,13 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
 func DBCreateNode(t *testing.T, client app.DBClient) {
-	tests := []testutils.DBTestCreateData{
+	tests := []DBTestCreateData{
 		{
 			Name:        "fields",
 			Schema:      "user",
@@ -97,11 +96,11 @@ func DBCreateNode(t *testing.T, client app.DBClient) {
 		},
 	}
 
-	testutils.DBRunCreateTests(client, t, tests)
+	DBRunCreateTests(client, t, tests)
 }
 
 func DBCreateNodeEdges(t *testing.T, client app.DBClient) {
-	tests := []testutils.DBTestCreateData{
+	tests := []DBTestCreateData{
 		{
 			Name:   "edges/o2o_two_types",
 			Schema: "user",
@@ -511,5 +510,5 @@ func DBCreateNodeEdges(t *testing.T, client app.DBClient) {
 		},
 	}
 
-	testutils.DBRunCreateTests(client, t, tests)
+	DBRunCreateTests(client, t, tests)
 }

@@ -4,14 +4,13 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
 func DBQueryNode(t *testing.T, client app.DBClient) {
-	tests := []testutils.DBTestQueryData{
+	tests := []DBTestQueryData{
 		{
 			Name:        "Query_with_no_filter",
 			Schema:      "user",
@@ -771,11 +770,11 @@ func DBQueryNode(t *testing.T, client app.DBClient) {
 		},
 	}
 
-	testutils.DBRunQueryTests(client, t, tests)
+	DBRunQueryTests(client, t, tests)
 }
 
 func DBCountNode(t *testing.T, client app.DBClient) {
-	tests := []testutils.DBTestCountData{
+	tests := []DBTestCountData{
 		{
 			Name:        "Count_with_no_filter",
 			Schema:      "user",
@@ -864,5 +863,5 @@ func DBCountNode(t *testing.T, client app.DBClient) {
 		},
 	}
 
-	testutils.DBRunCountTests(client, t, tests)
+	DBRunCountTests(client, t, tests)
 }

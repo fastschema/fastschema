@@ -26,7 +26,7 @@ func New(config Config) *Server {
 		StrictRouting:         true,
 		CaseSensitive:         true,
 		EnablePrintRoutes:     false,
-		DisableStartupMessage: false,
+		DisableStartupMessage: true,
 		JSONEncoder:           config.JSONEncoder,
 		// Prefork:       true,
 		// Immutable:     true,

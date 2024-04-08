@@ -9,7 +9,6 @@ import (
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -87,7 +86,7 @@ func TestModelCreate(t *testing.T) {
 		return driver
 	}
 
-	client, err := testutils.NewMockClient(
+	client, err := NewMockExpectClient(
 		createMockClient,
 		sb,
 		func(m sqlmock.Sqlmock) {
@@ -119,7 +118,7 @@ func TestModelCreateFromJson(t *testing.T) {
 		return driver
 	}
 
-	client, err := testutils.NewMockClient(
+	client, err := NewMockExpectClient(
 		createMockClient,
 		sb,
 		func(m sqlmock.Sqlmock) {

@@ -11,7 +11,6 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +38,7 @@ func TestUpdateClientIsNotEntClient(t *testing.T) {
 }
 
 func TestUpdateNodes(t *testing.T) {
-	tests := []testutils.MockTestUpdateData{
+	tests := []MockTestUpdateData{
 		{
 			Name:   "fields/set",
 			Schema: "user",
@@ -393,7 +392,7 @@ func TestUpdateNodes(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	testutils.MockRunUpdateTests(func(d *sql.DB) app.DBClient {
+	MockRunUpdateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
 			LogQueries: true,
@@ -404,7 +403,7 @@ func TestUpdateNodes(t *testing.T) {
 
 func TestUpdateNodesExtended(t *testing.T) {
 	assert.Equal(t, 1, 1)
-	tests := []testutils.MockTestUpdateData{
+	tests := []MockTestUpdateData{
 		{
 			Name:   "without_predicate",
 			Schema: "user",
@@ -606,7 +605,7 @@ func TestUpdateNodesExtended(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	testutils.MockRunUpdateTests(func(d *sql.DB) app.DBClient {
+	MockRunUpdateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
 			LogQueries: true,

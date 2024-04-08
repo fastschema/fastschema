@@ -13,7 +13,6 @@ import (
 	"entgo.io/ent/schema/field"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -207,7 +206,7 @@ func TestCreateEntPredicates(t *testing.T) {
 	sb.AddSchema(carSchema)
 	assert.NoError(t, sb.Init())
 
-	client, err := testutils.NewMockClient(func(d *sql.DB) app.DBClient {
+	client, err := NewMockExpectClient(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))

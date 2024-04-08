@@ -13,7 +13,6 @@ import (
 
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/restresolver"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -150,7 +149,7 @@ func TestContextMethods(t *testing.T) {
 		return nil, nil
 	})
 	server := restresolver.New(restresolver.Config{
-		Logger: &testutils.MockLogger{Silence: true},
+		Logger: app.CreateMockLogger(true),
 	})
 	server.Get("/test", func(c *restresolver.Context) error {
 		c.Value("test", "test_value")

@@ -10,7 +10,6 @@ import (
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/restresolver"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
@@ -48,7 +47,7 @@ func TestNewRestResolver(t *testing.T) {
 		}, app.Meta{app.POST: "/profileerror"}))
 
 	restResolver := restresolver.NewRestResolver(resourceManager, staticFSs...)
-	restResolver.Init(testutils.CreateLogger(true))
+	restResolver.Init(app.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/static/test.txt", nil)
@@ -83,8 +82,8 @@ func TestNewRestResolverErrorMiddleware(t *testing.T) {
 		},
 	}
 
-	restResolver := restresolver.NewRestResolver(resourceManager, nil)
-	restResolver.Init(testutils.CreateLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager)
+	restResolver.Init(app.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -100,7 +99,7 @@ func TestNewRestResolverErrorMiddleware(t *testing.T) {
 		},
 	}
 
-	restResolver.Init(testutils.CreateLogger(true))
+	restResolver.Init(app.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req2 := httptest.NewRequest("GET", "/test", nil)
@@ -121,8 +120,8 @@ func TestNewRestResolverWithBeforeResolverHookError(t *testing.T) {
 		},
 	}
 
-	restResolver := restresolver.NewRestResolver(resourceManager, nil)
-	restResolver.Init(testutils.CreateLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager)
+	restResolver.Init(app.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -144,8 +143,8 @@ func TestNewRestResolverWithAfterResolverHookError(t *testing.T) {
 		},
 	}
 
-	restResolver := restresolver.NewRestResolver(resourceManager, nil)
-	restResolver.Init(testutils.CreateLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager)
+	restResolver.Init(app.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -162,7 +161,7 @@ func TestNewRestResolverStart(t *testing.T) {
 		return nil, nil
 	}))
 
-	restResolver := restresolver.NewRestResolver(resourceManager, nil)
+	restResolver := restresolver.NewRestResolver(resourceManager)
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
@@ -172,6 +171,6 @@ func TestNewRestResolverStart(t *testing.T) {
 		assert.NoError(t, restResolver.Shutdown())
 	}()
 
-	err := restResolver.Start(":8080", testutils.CreateLogger(true))
+	err := restResolver.Start(":8080", app.CreateMockLogger(true))
 	assert.NoError(t, err)
 }

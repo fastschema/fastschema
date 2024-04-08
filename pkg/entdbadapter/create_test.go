@@ -11,7 +11,6 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -46,7 +45,7 @@ func TestCreateClientIsNotEntClient(t *testing.T) {
 // - schema: Custom db schema name is currently not supported by fastschema
 
 func TestMockCreateNode(t *testing.T) {
-	tests := []testutils.MockTestCreateData{
+	tests := []MockTestCreateData{
 		{
 			Name:      "fields",
 			Schema:    "user",
@@ -88,7 +87,7 @@ func TestMockCreateNode(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	testutils.MockRunCreateTests(func(d *sql.DB) app.DBClient {
+	MockRunCreateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
@@ -97,7 +96,7 @@ func TestMockCreateNode(t *testing.T) {
 }
 
 func TestMockCreateNodeEdges(t *testing.T) {
-	tests := []testutils.MockTestCreateData{
+	tests := []MockTestCreateData{
 		{
 			Name:        "edges/o2o_two_types",
 			Schema:      "user",
@@ -305,7 +304,7 @@ func TestMockCreateNodeEdges(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	testutils.MockRunCreateTests(func(d *sql.DB) app.DBClient {
+	MockRunCreateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
 			LogQueries: true,
@@ -316,12 +315,12 @@ func TestMockCreateNodeEdges(t *testing.T) {
 
 func TestMockCreateNodeWithRelationData(t *testing.T) {
 	fmt.Printf("\n\n")
-	tests := []testutils.MockTestCreateData{
+	tests := []MockTestCreateData{
 		// {
-		// 	name:      "edges/m2o/create_relation_entity",
-		// 	schema:    "pet",
-		// 	inputJson: `{ "name": "pet 1", "owner": { "name": "User 2" } }`,
-		// 	expect: func(m sqlmock.Sqlmock) {
+		// 	Name:      "edges/m2o/create_relation_entity",
+		// 	Schema:    "pet",
+		// 	InputJSON: `{ "name": "pet 1", "owner": { "name": "User 2" } }`,
+		// 	Expect: func(m sqlmock.Sqlmock) {
 		// 		m.ExpectBegin()
 		// 		m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
 		// 			WithArgs("User 2").
@@ -333,10 +332,10 @@ func TestMockCreateNodeWithRelationData(t *testing.T) {
 		// 	},
 		// },
 		// {
-		// 	name:      "edges/o2o/inverse/create_relation_entity",
-		// 	schema:    "card",
-		// 	inputJson: `{ "number": "0001", "owner": { "name": "User 1" } }`,
-		// 	expect: func(m sqlmock.Sqlmock) {
+		// 	Name:      "edges/o2o/inverse/create_relation_entity",
+		// 	Schema:    "card",
+		// 	InputJSON: `{ "number": "0001", "owner": { "name": "User 1" } }`,
+		// 	Expect: func(m sqlmock.Sqlmock) {
 		// 		m.ExpectBegin()
 		// 		m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
 		// 			WithArgs("User 1").
@@ -350,7 +349,7 @@ func TestMockCreateNodeWithRelationData(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	testutils.MockRunCreateTests(func(d *sql.DB) app.DBClient {
+	MockRunCreateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))

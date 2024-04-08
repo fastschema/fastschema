@@ -530,7 +530,7 @@ func (a *App) createResources() error {
 	roleService := rs.NewRoleService(a)
 	mediaService := ms.NewMediaService(a)
 	schemaService := ss.NewSchemaService(a)
-	contentService := cs.NewContentService(a)
+	contentService := cs.New(a)
 	toolService := ts.NewToolService(a)
 
 	a.resources = app.NewResourcesManager()

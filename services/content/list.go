@@ -9,14 +9,14 @@ import (
 
 func (cs *ContentService) List(c app.Context, _ *any) (*app.Pagination, error) {
 	schemaName := c.Arg("schema")
-	model, err := cs.app.DB().Model(schemaName)
+	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
 	filter := c.Arg("filter")
 	predicates, err := app.CreatePredicatesFromFilterObject(
-		cs.app.DB().SchemaBuilder(),
+		cs.DB().SchemaBuilder(),
 		model.Schema(),
 		filter,
 	)

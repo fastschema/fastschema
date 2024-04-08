@@ -11,7 +11,6 @@ import (
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/google/uuid"
@@ -315,7 +314,7 @@ func TestAssignValues(t *testing.T) {
 }
 
 func TestCount(t *testing.T) {
-	tests := []testutils.MockTestCountData{
+	tests := []MockTestCountData{
 		{
 			Name:   "Count_with_no_filter",
 			Schema: "user",
@@ -392,7 +391,7 @@ func TestCount(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	testutils.MockRunCountTests(func(d *sql.DB) app.DBClient {
+	MockRunCountTests(func(d *sql.DB) app.DBClient {
 		client := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
@@ -401,7 +400,7 @@ func TestCount(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	tests := []testutils.MockTestQueryData{
+	tests := []MockTestQueryData{
 		{
 			Name:   "Query_with_no_filter",
 			Schema: "user",
@@ -971,7 +970,7 @@ func TestQuery(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	testutils.MockRunQueryTests(func(d *sql.DB) app.DBClient {
+	MockRunQueryTests(func(d *sql.DB) app.DBClient {
 		client := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))

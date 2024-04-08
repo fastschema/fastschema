@@ -9,8 +9,8 @@ import (
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,18 +19,23 @@ import (
 func TestNewEntClient(t *testing.T) {
 	_, err := NewEntClient(&app.DBConfig{
 		Driver: "invalid",
-	}, nil)
+	}, &schema.Builder{})
 	assert.Equal(t, `sql: unknown driver "invalid" (forgotten import?)`, err.Error())
+
+	_, err = NewEntClient(&app.DBConfig{
+		Driver: "mysql",
+	}, nil)
+	assert.Equal(t, `schema builder is required`, err.Error())
 
 	sql.Register("mysql2", &mysql.MySQLDriver{})
 
 	_, err = NewEntClient(&app.DBConfig{
 		Driver: "mysql2",
-	}, nil)
+	}, &schema.Builder{})
 	assert.Equal(t, `unsupported driver: mysql2`, err.Error())
 
 	sb := createSchemaBuilder()
-	dbClient, err := testutils.NewMockClient(func(d *sql.DB) app.DBClient {
+	dbClient, err := NewMockExpectClient(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
@@ -55,6 +60,14 @@ func TestNewEntClient(t *testing.T) {
 	assert.Equal(t, nil, client.Commit())
 	assert.Equal(t, nil, client.Exec(context.Background(), "SELECT 1", []any{}, nil))
 }
+
+func TestNewSQLMockClient(t *testing.T) {
+	schemaBuilder := &schema.Builder{}
+	client, err := NewSQLMockClient(schemaBuilder)
+	assert.NoError(t, err)
+	assert.NotNil(t, client)
+}
+
 func TestNewClient(t *testing.T) {
 	config := &app.DBConfig{
 		Driver: "sqlmock",

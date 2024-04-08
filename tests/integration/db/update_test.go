@@ -6,14 +6,13 @@ import (
 
 	"entgo.io/ent/dialect"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
 func DBUpdateNodes(t *testing.T, client app.DBClient) {
-	tests := []testutils.DBTestUpdateData{
+	tests := []DBTestUpdateData{
 		{
 			Name:         "fields",
 			Schema:       "user",
@@ -587,5 +586,5 @@ func DBUpdateNodes(t *testing.T, client app.DBClient) {
 		},
 	}
 
-	testutils.DBRunUpdateTests(client, t, tests)
+	DBRunUpdateTests(client, t, tests)
 }

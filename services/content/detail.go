@@ -12,7 +12,7 @@ import (
 func (cs *ContentService) Detail(c app.Context, _ *any) (*schema.Entity, error) {
 	id := c.ArgInt("id")
 	schemaName := c.Arg("schema")
-	model, err := cs.app.DB().Model(schemaName)
+	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}

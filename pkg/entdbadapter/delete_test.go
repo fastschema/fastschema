@@ -10,14 +10,13 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDeleteNodes(t *testing.T) {
-	tests := []testutils.MockTestDeleteData{
+	tests := []MockTestDeleteData{
 		{
 			Name:       "delete",
 			Schema:     "user",
@@ -44,7 +43,7 @@ func TestDeleteNodes(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	testutils.MockRunDeleteTests(func(d *sql.DB) app.DBClient {
+	MockRunDeleteTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))

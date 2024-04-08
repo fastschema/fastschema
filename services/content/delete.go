@@ -6,7 +6,7 @@ import (
 )
 
 func (cs *ContentService) Delete(c app.Context, _ *any) (any, error) {
-	model, err := cs.app.DB().Model(c.Arg("schema"))
+	model, err := cs.DB().Model(c.Arg("schema"))
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}

@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func DBDeleteNodes(t *testing.T, client app.DBClient) {
-	tests := []testutils.DBTestDeleteData{
+	tests := []DBTestDeleteData{
 		{
 			Name:         "delete",
 			Schema:       "user",
@@ -127,5 +126,5 @@ func DBDeleteNodes(t *testing.T, client app.DBClient) {
 		},
 	}
 
-	testutils.DBRunDeleteTests(client, t, tests)
+	DBRunDeleteTests(client, t, tests)
 }

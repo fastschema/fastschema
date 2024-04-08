@@ -1,4 +1,4 @@
-package testutils
+package db
 
 import (
 	"context"
@@ -6,10 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"database/sql"
-
 	"entgo.io/ent/dialect"
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -17,15 +14,93 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func CreateSchemaBuilder(schemaDir string) *schema.Builder {
-	var err error
-	var sb *schema.Builder
+type DBTestCreateData struct {
+	Name        string
+	Schema      string
+	InputJSON   string
+	ClearTables []string
+	Run         func(model app.Model, entity *schema.Entity) (*schema.Entity, error)
+	Prepare     func(t *testing.T)
+	Expect      func(t *testing.T, m app.Model, e *schema.Entity)
+	WantErr     bool
+	ExpectError error
+}
 
-	if sb, err = schema.NewBuilderFromDir(schemaDir); err != nil {
-		panic(err)
-	}
+type DBTestUpdateData struct {
+	Name         string
+	Schema       string
+	InputJSON    string
+	ClearTables  []string
+	Run          func(model app.Model, entity *schema.Entity) (int, error)
+	Expect       func(t *testing.T, m app.Model)
+	Prepare      func(t *testing.T, m app.Model)
+	Predicates   []*app.Predicate
+	WantErr      bool
+	WantAffected int
+	Transaction  bool
+}
 
-	return sb
+type DBTestDeleteData struct {
+	Name         string
+	Schema       string
+	ClearTables  []string
+	Run          func(model app.Model) (int, error)
+	Expect       func(t *testing.T, m app.Model)
+	Prepare      func(t *testing.T, m app.Model)
+	Predicates   []*app.Predicate
+	WantErr      bool
+	ExpectError  error
+	WantAffected int
+	Transaction  bool
+}
+
+type DBTestQueryData struct {
+	Name        string
+	Schema      string
+	Filter      string
+	Limit       uint
+	Offset      uint
+	Columns     []string
+	Order       []string
+	ClearTables []string
+	Run         func(
+		model app.Model,
+		predicates []*app.Predicate,
+		limit, offset uint,
+		order []string,
+		columns ...string,
+	) ([]*schema.Entity, error)
+	Prepare func(t *testing.T, client app.DBClient, m app.Model) []*schema.Entity
+	Expect  func(
+		t *testing.T,
+		m app.Model,
+		preparedEntities []*schema.Entity,
+		results []*schema.Entity,
+	)
+	ExpectError string
+}
+
+type DBTestCountData struct {
+	Name        string
+	Schema      string
+	Filter      string
+	Column      string
+	Unique      bool
+	ClearTables []string
+	Run         func(
+		model app.Model,
+		predicates []*app.Predicate,
+		unique bool,
+		column string,
+	) (int, error)
+	Prepare func(t *testing.T, client app.DBClient, m app.Model) int
+	Expect  func(
+		t *testing.T,
+		m app.Model,
+		preparedCount int,
+		results int,
+	)
+	ExpectError string
 }
 
 func ClearDBData(client app.DBClient, tables ...string) {
@@ -89,223 +164,6 @@ func ClearDBData(client app.DBClient, tables ...string) {
 		panic(err)
 	}
 	fmt.Printf("\n")
-}
-
-// NewMockClient creates a new mock db Client.
-func NewMockClient(
-	createMockClient func(db *sql.DB) app.DBClient,
-	s *schema.Builder,
-	beforeCreateClient func(m sqlmock.Sqlmock),
-	expectTransaction bool,
-) (app.DBClient, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-
-	if expectTransaction {
-		mock.ExpectBegin()
-	}
-
-	if beforeCreateClient != nil {
-		beforeCreateClient(mock)
-	}
-
-	if expectTransaction {
-		mock.ExpectCommit()
-	}
-
-	driver := createMockClient(db)
-
-	return driver, nil
-}
-
-func MockRunCreateTests(createMockClient func(db *sql.DB) app.DBClient, sb *schema.Builder, t *testing.T, tests []MockTestCreateData) {
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			fmt.Printf("Running test: %s\n", tt.Name)
-			entity, err := schema.NewEntityFromJSON(tt.InputJSON)
-			require.NoError(t, err)
-
-			client, err := NewMockClient(createMockClient, sb, tt.Expect, tt.Transaction)
-			require.NoError(t, err)
-
-			model, err := client.Model(tt.Schema)
-			require.NoError(t, err)
-
-			runFn := tt.Run
-			if runFn == nil {
-				runFn = func(model app.Model, entity *schema.Entity) error {
-					_, err := utils.Must(model.Mutation()).Create(entity)
-					return err
-				}
-			}
-
-			err = runFn(model, entity)
-			if err != nil {
-				assert.Equal(t, tt.ExpectError, err.Error())
-			}
-
-			fmt.Printf("\n\n\n")
-		})
-	}
-}
-
-func MockRunUpdateTests(createMockClient func(db *sql.DB) app.DBClient, sb *schema.Builder, t *testing.T, tests []MockTestUpdateData, extended ...bool) {
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			fmt.Printf("Running test: %s\n", tt.Name)
-			client, err := NewMockClient(createMockClient, sb, tt.Expect, tt.Transaction)
-			require.NoError(t, err)
-			entity, err := schema.NewEntityFromJSON(tt.InputJSON)
-			require.NoError(t, err)
-
-			model, err := client.Model(tt.Schema)
-			require.NoError(t, err)
-			runFn := tt.Run
-			if runFn == nil {
-				runFn = func(model app.Model, entity *schema.Entity) (int, error) {
-					mut := utils.Must(model.Mutation())
-					if len(tt.Predicates) > 0 {
-						mut = mut.Where(tt.Predicates...)
-					}
-					return mut.Update(entity)
-				}
-			}
-
-			affected, err := runFn(model, entity)
-			require.Equal(t, tt.WantErr, err != nil, err)
-			if len(extended) > 0 && extended[0] {
-				require.Equal(t, tt.WantAffected, affected)
-			}
-			fmt.Printf("\n\n\n")
-		})
-	}
-}
-
-func MockRunDeleteTests(createMockClient func(db *sql.DB) app.DBClient, sb *schema.Builder, t *testing.T, tests []MockTestDeleteData, extended ...bool) {
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			fmt.Printf("Running test: %s\n", tt.Name)
-			client, err := NewMockClient(createMockClient, sb, tt.Expect, tt.Transaction)
-			require.NoError(t, err)
-
-			model, err := client.Model(tt.Schema)
-			require.NoError(t, err)
-			runFn := tt.Run
-			if runFn == nil {
-				runFn = func(model app.Model) (int, error) {
-					mut := utils.Must(model.Mutation())
-					if len(tt.Predicates) > 0 {
-						mut = mut.Where(tt.Predicates...)
-					}
-					return mut.Delete()
-				}
-			}
-
-			affected, err := runFn(model)
-			require.Equal(t, tt.WantErr, err != nil, err)
-			if len(extended) > 0 && extended[0] {
-				require.Equal(t, tt.WantAffected, affected)
-			}
-			fmt.Printf("\n\n\n")
-		})
-	}
-}
-
-func defaultRunFn(
-	model app.Model,
-	predicates []*app.Predicate,
-	limit, offset uint,
-	order []string,
-	columns ...string,
-) ([]*schema.Entity, error) {
-	query := model.Query()
-	if len(predicates) > 0 {
-		query = query.Where(predicates...)
-	}
-
-	if len(order) > 0 {
-		query = query.Order(order...)
-	}
-
-	if limit > 0 {
-		query = query.Limit(limit)
-	}
-
-	if offset > 0 {
-		query = query.Offset(offset)
-	}
-
-	if len(columns) > 0 {
-		query = query.Select(columns...)
-	}
-
-	return query.Get()
-}
-
-func MockRunQueryTests(
-	createMockClient func(db *sql.DB) app.DBClient,
-	sb *schema.Builder,
-	t *testing.T,
-	tests []MockTestQueryData,
-	extended ...bool,
-) {
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			fmt.Printf("Running test: %s\n", tt.Name)
-			client, err := NewMockClient(createMockClient, sb, tt.Expect, false)
-			require.NoError(t, err)
-
-			model, err := client.Model(tt.Schema)
-			require.NoError(t, err)
-
-			runFn := tt.Run
-			if runFn == nil {
-				runFn = defaultRunFn
-			}
-
-			var predicates []*app.Predicate
-			if tt.Filter != "" {
-				predicates, err = app.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
-				require.NoError(t, err)
-			}
-
-			entities, err := runFn(model, predicates, tt.Limit, tt.Offset, tt.Order, tt.Columns...)
-			if tt.ExpectError == "" {
-				assert.NoError(t, err)
-				expectEntititiesJSONs := make([]string, len(tt.ExpectEntities))
-				entitiesJSONs := make([]string, len(entities))
-				for i, e := range tt.ExpectEntities {
-					expectEntitityJSON, err := e.ToJSON()
-					require.NoError(t, err)
-					expectEntititiesJSONs[i] = expectEntitityJSON
-				}
-
-				for i, e := range entities {
-					expectJSON, err := e.ToJSON()
-					require.NoError(t, err)
-					entitiesJSONs[i] = expectJSON
-				}
-
-				if !assert.Equal(t, expectEntititiesJSONs, entitiesJSONs) {
-					fmt.Println("------------WANT-----------")
-					for _, we := range expectEntititiesJSONs {
-						fmt.Println(we)
-					}
-					fmt.Println("------------GOT-----------")
-					for _, e := range entitiesJSONs {
-						fmt.Println(e)
-					}
-				}
-			} else {
-				assert.Error(t, err)
-				require.Equal(t, tt.ExpectError, err.Error(), err)
-			}
-
-			fmt.Printf("\n\n\n")
-		})
-	}
 }
 
 func DBRunCreateTests(client app.DBClient, t *testing.T, tests []DBTestCreateData) {
@@ -433,6 +291,37 @@ func DBRunDeleteTests(client app.DBClient, t *testing.T, tests []DBTestDeleteDat
 	}
 }
 
+func MockDefaultQueryRunFn(
+	model app.Model,
+	predicates []*app.Predicate,
+	limit, offset uint,
+	order []string,
+	columns ...string,
+) ([]*schema.Entity, error) {
+	query := model.Query()
+	if len(predicates) > 0 {
+		query = query.Where(predicates...)
+	}
+
+	if len(order) > 0 {
+		query = query.Order(order...)
+	}
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+
+	if len(columns) > 0 {
+		query = query.Select(columns...)
+	}
+
+	return query.Get()
+}
+
 func DBRunQueryTests(client app.DBClient, t *testing.T, tests []DBTestQueryData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -443,7 +332,7 @@ func DBRunQueryTests(client app.DBClient, t *testing.T, tests []DBTestQueryData)
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = defaultRunFn
+				runFn = MockDefaultQueryRunFn
 			}
 
 			var predicates []*app.Predicate
@@ -481,62 +370,6 @@ func DBRunQueryTests(client app.DBClient, t *testing.T, tests []DBTestQueryData)
 				if tt.Expect != nil {
 					tt.Expect(t, model, preparedEntities, entities)
 				}
-			} else {
-				assert.Error(t, err)
-				require.Equal(t, tt.ExpectError, err.Error(), err)
-			}
-
-			fmt.Printf("\n\n\n")
-		})
-	}
-}
-
-func MockRunCountTests(
-	createMockClient func(db *sql.DB) app.DBClient,
-	sb *schema.Builder,
-	t *testing.T,
-	tests []MockTestCountData,
-) {
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			fmt.Printf("Running test: %s\n", tt.Name)
-			client, err := NewMockClient(createMockClient, sb, tt.Expect, false)
-			require.NoError(t, err)
-
-			model, err := client.Model(tt.Schema)
-			require.NoError(t, err)
-
-			runFn := tt.Run
-			if runFn == nil {
-				runFn = func(
-					model app.Model,
-					predicates []*app.Predicate,
-					unique bool,
-					column string,
-				) (int, error) {
-					query := model.Query()
-					if len(predicates) > 0 {
-						query = query.Where(predicates...)
-					}
-					countOpts := &app.CountOption{
-						Unique: unique,
-						Column: column,
-					}
-
-					return query.Count(countOpts)
-				}
-			}
-
-			var predicates []*app.Predicate
-			if tt.Filter != "" {
-				predicates, err = app.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
-				require.NoError(t, err)
-			}
-
-			count, err := runFn(model, predicates, tt.Unique, tt.Column)
-			if tt.ExpectError == "" {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.ExpectCount, count)
 			} else {
 				assert.Error(t, err)
 				require.Equal(t, tt.ExpectError, err.Error(), err)

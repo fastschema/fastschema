@@ -8,7 +8,6 @@ import (
 
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/restresolver"
-	"github.com/fastschema/fastschema/pkg/testutils"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +16,7 @@ func TestNew(t *testing.T) {
 	config := restresolver.Config{
 		AppName:     "TestApp",
 		JSONEncoder: json.Marshal,
-		Logger:      testutils.CreateLogger(true),
+		Logger:      app.CreateMockLogger(true),
 	}
 
 	server := restresolver.New(config)

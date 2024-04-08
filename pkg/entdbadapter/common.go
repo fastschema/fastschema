@@ -126,6 +126,10 @@ func CreateDBDSN(config *app.DBConfig) string {
 	}
 
 	if config.Driver == "sqlite" {
+		if config.Name == ":memory:" {
+			return ":memory:?cache=shared&_fk=1&_pragma=foreign_keys(1)"
+		}
+
 		dsn = fmt.Sprintf(
 			"file:%s?cache=shared&_fk=1&_pragma=foreign_keys(1)",
 			config.Name,
