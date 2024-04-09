@@ -5,13 +5,20 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-type MediaService struct {
-	app app.App
+type AppLike interface {
+	DB() app.DBClient
+	Disk(names ...string) app.Disk
 }
 
-func NewMediaService(app app.App) *MediaService {
+type MediaService struct {
+	DB   func() app.DBClient
+	Disk func(names ...string) app.Disk
+}
+
+func New(app AppLike) *MediaService {
 	return &MediaService{
-		app: app,
+		DB:   app.DB,
+		Disk: app.Disk,
 	}
 }
 
@@ -22,8 +29,9 @@ func (m *MediaService) MediaListHook(query *app.QueryOption, entities []*schema.
 
 	for _, entity := range entities {
 		path := entity.GetString("path")
+		disk := entity.GetString("disk")
 		if path != "" {
-			entity.Set("url", m.app.Disk().URL(entity.GetString("path")))
+			entity.Set("url", m.Disk(disk).URL(entity.GetString("path")))
 		}
 	}
 

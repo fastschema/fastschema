@@ -166,6 +166,38 @@ func (a *App) Reload(migration *app.Migration) (err error) {
 	return nil
 }
 
+// UpdateCache updates the application cache.
+// It fetches all roles from the database and stores them in the cache.
+func (a *App) UpdateCache() error {
+	a.roles = []*app.Role{}
+	roleModel, err := a.DB().Model("role")
+	if err != nil {
+		return err
+	}
+
+	roles, err := roleModel.Query().Select(
+		"id",
+		"name",
+		"description",
+		"root",
+		"permissions",
+		schema.FieldCreatedAt,
+		schema.FieldUpdatedAt,
+		schema.FieldDeletedAt,
+	).Get(context.Background())
+
+	if err != nil {
+		return err
+	}
+
+	for _, r := range roles {
+		role := app.EntityToRole(r)
+		a.roles = append(a.roles, role)
+	}
+
+	return nil
+}
+
 func (a *App) Start() {
 	addr := fmt.Sprintf(":%s", a.config.Port)
 	setupToken, err := a.SetupToken()
@@ -190,7 +222,7 @@ func (a *App) Start() {
 			}
 
 			if setupData.Token != setupToken {
-				return false, errors.Unauthorized("Invalid setup token")
+				return false, errors.Forbidden("Invalid setup token")
 			}
 
 			if err := cmd.Setup(
@@ -307,75 +339,6 @@ func (a *App) OnAfterResolve(middlewares ...app.Middleware) {
 
 func (a *App) OnAfterDBContentList(hook app.AfterDBContentListHook) {
 	a.hooks.AfterDBContentList = append(a.hooks.AfterDBContentList, hook)
-}
-
-func (a *App) GetRolesFromIDs(ids []uint64) []*app.Role {
-	result := []*app.Role{}
-
-	for _, role := range a.Roles() {
-		for _, id := range ids {
-			if role.ID == id {
-				result = append(result, role)
-			}
-		}
-	}
-
-	return result
-}
-
-func (a *App) GetRoleDetail(roleID uint64) *app.Role {
-	for _, role := range a.Roles() {
-		if role.ID == roleID {
-			return role
-		}
-	}
-
-	return &app.Role{
-		ID:          roleID,
-		Permissions: []*app.Permission{},
-	}
-}
-
-func (a *App) GetRolePermission(roleID uint64, action string) *app.Permission {
-	rolePermissions := a.GetRoleDetail(roleID)
-
-	for _, permission := range rolePermissions.Permissions {
-		if permission.Resource == action {
-			return permission
-		}
-	}
-
-	return &app.Permission{}
-}
-
-func (a *App) UpdateCache() error {
-	a.roles = []*app.Role{}
-	roleModel, err := a.DB().Model("role")
-	if err != nil {
-		return err
-	}
-
-	roles, err := roleModel.Query().Select(
-		"id",
-		"name",
-		"description",
-		"root",
-		"permissions",
-		schema.FieldCreatedAt,
-		schema.FieldUpdatedAt,
-		schema.FieldDeletedAt,
-	).Get(context.Background())
-
-	if err != nil {
-		return err
-	}
-
-	for _, r := range roles {
-		role := app.EntityToRole(r)
-		a.roles = append(a.roles, role)
-	}
-
-	return nil
 }
 
 func (a *App) SetupToken() (string, error) {
@@ -527,8 +490,8 @@ func (a *App) createSchemaBuilder() (err error) {
 
 func (a *App) createResources() error {
 	userService := us.NewUserService(a)
-	roleService := rs.NewRoleService(a)
-	mediaService := ms.NewMediaService(a)
+	roleService := rs.New(a)
+	mediaService := ms.New(a)
 	schemaService := ss.NewSchemaService(a)
 	contentService := cs.New(a)
 	toolService := ts.NewToolService(a)
@@ -563,7 +526,7 @@ func (a *App) createResources() error {
 
 	a.api.Group("role").
 		Add(app.NewResource("list", roleService.List, app.Meta{app.GET: ""})).
-		Add(app.NewResource("resources", roleService.Resources, app.Meta{app.GET: "/resources"})).
+		Add(app.NewResource("resources", roleService.ResourcesList, app.Meta{app.GET: "/resources"})).
 		Add(app.NewResource("detail", roleService.Detail, app.Meta{app.GET: "/:id"})).
 		Add(app.NewResource("create", roleService.Create, app.Meta{app.POST: ""})).
 		Add(app.NewResource("update", roleService.Update, app.Meta{app.PUT: "/:id"})).

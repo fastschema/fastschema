@@ -14,9 +14,6 @@ type App interface {
 	Logger() Logger
 	UpdateCache() error
 	Roles() []*Role
-	GetRolesFromIDs(ids []uint64) []*Role
-	GetRoleDetail(roleID uint64) *Role
-	GetRolePermission(roleID uint64, action string) *Permission
 	Disk(names ...string) Disk
 
 	AddResource(resource *Resource)

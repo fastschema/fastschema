@@ -31,7 +31,7 @@ type DBClient interface {
 
 type Model interface {
 	Query(predicates ...*Predicate) Query
-	Mutation(skipTxs ...bool) (Mutation, error)
+	Mutation(skipTxs ...bool) Mutation
 	Schema() *schema.Schema
 	CreateFromJSON(json string) (id uint64, err error)
 	Create(e *schema.Entity) (id uint64, err error)

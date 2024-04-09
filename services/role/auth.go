@@ -16,14 +16,14 @@ func (rs *RoleService) ParseUser(c app.Context) error {
 		authToken,
 		&app.UserJwtClaims{},
 		func(token *jwt.Token) (any, error) {
-			return []byte(rs.app.Key()), nil
+			return []byte(rs.AppKey()), nil
 		},
 	)
 
 	if err == nil {
 		if claims, ok := jwtToken.Claims.(*app.UserJwtClaims); ok && jwtToken.Valid {
 			user := claims.User
-			user.Roles = rs.app.GetRolesFromIDs(user.RoleIDs)
+			user.Roles = rs.GetRolesFromIDs(user.RoleIDs)
 			c.Value("user", user)
 		}
 	}
@@ -33,6 +33,7 @@ func (rs *RoleService) ParseUser(c app.Context) error {
 
 func (rs *RoleService) Authorize(c app.Context) error {
 	resource := c.Resource()
+
 	if resource == nil {
 		return errors.NotFound("Resource not found")
 	}
@@ -60,22 +61,15 @@ func (rs *RoleService) Authorize(c app.Context) error {
 		return nil
 	}
 
-	// Disallow non active users.
+	// Disallow inactive users.
 	if user.ID > 0 && !user.Active {
-		return errors.Forbidden("User is not active")
-	}
-
-	// If there is no roles in the cache, rebuild the cache.
-	if len(rs.app.Roles()) == 0 {
-		if err := rs.app.UpdateCache(); err != nil {
-			return err
-		}
+		return errors.Forbidden("User is inactive")
 	}
 
 	// Check for all user roles for this action.
 	// If any role has permission value allow, then allow.
 	for _, role := range user.Roles {
-		permission := rs.app.GetRolePermission(role.ID, resourceID)
+		permission := rs.GetPermission(role.ID, resourceID)
 
 		// if permission value is allow, then allow
 		if permission.Value == app.PermissionTypeAllow.String() {

@@ -8,7 +8,7 @@ import (
 )
 
 func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
-	tx, err := rs.app.DB().Tx(c.Context())
+	tx, err := rs.DB().Tx(c.Context())
 	if err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
@@ -25,7 +25,7 @@ func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
 			return
 		}
 
-		if err := rs.app.UpdateCache(); err != nil {
+		if err := rs.UpdateCache(); err != nil {
 			c.Logger().Error(err.Error())
 		}
 	}()
@@ -36,10 +36,7 @@ func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	if err := updateRoleData.SetID(id); err != nil {
-		return nil, errors.BadRequest(err.Error())
-	}
-
+	updateRoleData.SetID(id)
 	roleModel, err := tx.Model("role")
 	if err != nil {
 		return nil, errors.NotFound(err.Error())
@@ -61,12 +58,7 @@ func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
 		return nil, err
 	}
 
-	roleMutation, err := roleModel.Mutation()
-	if err != nil {
-		return nil, errors.InternalServerError(err.Error())
-	}
-
-	if _, err := roleMutation.Where(app.EQ("id", id)).Update(updateRoleData); err != nil {
+	if _, err := roleModel.Mutation().Where(app.EQ("id", id)).Update(updateRoleData); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
@@ -101,12 +93,7 @@ func updateRolePermissions(existingRole *app.Role, updateRoleData *schema.Entity
 	}
 
 	for _, permissionName := range removed {
-		permissionMutation, err := permissionModel.Mutation()
-		if err != nil {
-			return errors.InternalServerError(err.Error())
-		}
-
-		if _, err := permissionMutation.Where(app.And(
+		if _, err := permissionModel.Mutation().Where(app.And(
 			app.EQ("role_id", existingRole.ID),
 			app.EQ("resource", permissionName),
 		)).Delete(); err != nil {

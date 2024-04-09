@@ -37,17 +37,19 @@ func TestEntity(t *testing.T) {
 	entity.Set("group_id", 1)
 	assert.Equal(t, 1, entity.Get("group_id"))
 
-	assert.Error(t, entity.SetID("invalid"))
-	assert.NoError(t, entity.SetID("1"))
+	entity.SetID("invalid")
+	assert.Equal(t, uint64(0), entity.ID())
+
+	entity.SetID("1")
 	assert.Equal(t, uint64(1), entity.ID())
 
-	assert.NoError(t, entity.SetID(2))
+	entity.SetID(2)
 	assert.Equal(t, uint64(2), entity.ID())
 
-	assert.NoError(t, entity.SetID(float64(3)))
+	entity.SetID(float64(3))
 	assert.Equal(t, uint64(3), entity.ID())
 
-	assert.NoError(t, entity.SetID(uint64(4)))
+	entity.SetID(uint64(4))
 	assert.Equal(t, uint64(4), entity.ID())
 
 	entityBytes, err := entity.MarshalJSON()

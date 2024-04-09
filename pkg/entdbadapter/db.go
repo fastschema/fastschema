@@ -17,9 +17,18 @@ func NewClient(config *app.DBConfig, schemaBuilder *schema.Builder) (_ app.DBCli
 	return NewEntClient(config, schemaBuilder)
 }
 
-func NewSQLMockClient(schemaBuilder *schema.Builder) (_ app.DBClient, err error) {
-	return NewEntClient(&app.DBConfig{
-		Driver: "sqlmock",
+// NewTestClient creates a new ent client with sqlite memory
+func NewTestClient(
+	migrationDir string,
+	schemaBuilder *schema.Builder,
+	hooks ...*app.Hooks,
+) (_ app.DBClient, err error) {
+	return NewClient(&app.DBConfig{
+		Driver:       "sqlite",
+		Name:         ":memory:",
+		MigrationDir: migrationDir,
+		LogQueries:   false,
+		Hooks:        append(hooks, &app.Hooks{})[0],
 	}, schemaBuilder)
 }
 

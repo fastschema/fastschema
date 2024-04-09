@@ -7,7 +7,7 @@ import (
 )
 
 func (rs *RoleService) List(c app.Context, _ *any) ([]*schema.Entity, error) {
-	model, err := rs.app.DB().Model("role")
+	model, err := rs.DB().Model("role")
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}

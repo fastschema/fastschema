@@ -16,9 +16,9 @@ func DBQueryNode(t *testing.T, client app.DBClient) {
 			Schema:      "user",
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client app.DBClient, m app.Model) []*schema.Entity {
-				user1ID, err1 := utils.Must(m.Mutation()).Create(schema.NewEntity().Set("name", "John Doe").Set("username", "john"))
+				user1ID, err1 := m.Mutation().Create(schema.NewEntity().Set("name", "John Doe").Set("username", "john"))
 				assert.NoError(t, err1)
-				user2ID, err2 := utils.Must(m.Mutation()).Create(schema.NewEntity().Set("name", "Jane Doe").Set("username", "jane"))
+				user2ID, err2 := m.Mutation().Create(schema.NewEntity().Set("name", "Jane Doe").Set("username", "jane"))
 				assert.NoError(t, err2)
 				return []*schema.Entity{
 					utils.Must(m.Query(app.EQ("id", user1ID)).First()),
@@ -36,9 +36,9 @@ func DBQueryNode(t *testing.T, client app.DBClient) {
 			}`,
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client app.DBClient, m app.Model) []*schema.Entity {
-				user1ID, err1 := utils.Must(m.Mutation()).Create(schema.NewEntity().Set("name", "John Doe").Set("age", 10).Set("username", "john"))
+				user1ID, err1 := m.Mutation().Create(schema.NewEntity().Set("name", "John Doe").Set("age", 10).Set("username", "john"))
 				assert.NoError(t, err1)
-				_, err2 := utils.Must(m.Mutation()).Create(schema.NewEntity().Set("name", "Jane Doe").Set("age", 2).Set("username", "jane"))
+				_, err2 := m.Mutation().Create(schema.NewEntity().Set("name", "Jane Doe").Set("age", 2).Set("username", "jane"))
 				assert.NoError(t, err2)
 				return []*schema.Entity{utils.Must(m.Query(app.EQ("id", user1ID)).First())}
 			},
@@ -283,10 +283,10 @@ func DBQueryNode(t *testing.T, client app.DBClient) {
 				node4ID := utils.Must(m.CreateFromJSON(`{"name": "Node 4"}`))
 				assert.True(t, node4ID > 0)
 
-				a1 := utils.Must(utils.Must(m.Mutation()).Where(app.EQ("id", node3ID)).Update(schema.NewEntity().Set("prev_id", 1)))
+				a1 := utils.Must(m.Mutation().Where(app.EQ("id", node3ID)).Update(schema.NewEntity().Set("prev_id", 1)))
 				assert.Equal(t, 1, a1)
 
-				a2 := utils.Must(utils.Must(m.Mutation()).Where(app.EQ("id", node4ID)).Update(schema.NewEntity().Set("prev_id", 2)))
+				a2 := utils.Must(m.Mutation().Where(app.EQ("id", node4ID)).Update(schema.NewEntity().Set("prev_id", 2)))
 				assert.Equal(t, 1, a2)
 
 				return []*schema.Entity{
@@ -345,10 +345,10 @@ func DBQueryNode(t *testing.T, client app.DBClient) {
 				user2ID := utils.Must(m.CreateFromJSON(`{"name": "User 2", "username": "user2"}`))
 				assert.True(t, user2ID > 0)
 
-				a1 := utils.Must(utils.Must(m.Mutation()).Where(app.EQ("id", user1ID)).Update(schema.NewEntity().Set("spouse_id", user2ID)))
+				a1 := utils.Must(m.Mutation().Where(app.EQ("id", user1ID)).Update(schema.NewEntity().Set("spouse_id", user2ID)))
 				assert.Equal(t, 1, a1)
 
-				a2 := utils.Must(utils.Must(m.Mutation()).Where(app.EQ("id", user2ID)).Update(schema.NewEntity().Set("spouse_id", user1ID)))
+				a2 := utils.Must(m.Mutation().Where(app.EQ("id", user2ID)).Update(schema.NewEntity().Set("spouse_id", user1ID)))
 				assert.Equal(t, 1, a2)
 
 				return []*schema.Entity{
@@ -456,19 +456,19 @@ func DBQueryNode(t *testing.T, client app.DBClient) {
 				user5ID := utils.Must(m.CreateFromJSON(`{"name": "User 5", "username": "user5"}`))
 				assert.True(t, user5ID > 0)
 
-				_, err := utils.Must(m.Mutation()).Where(app.EQ("id", user1ID)).Update(schema.NewEntity(user1ID).Set("following", []*schema.Entity{
+				_, err := m.Mutation().Where(app.EQ("id", user1ID)).Update(schema.NewEntity(user1ID).Set("following", []*schema.Entity{
 					schema.NewEntity(user2ID),
 					schema.NewEntity(user3ID),
 				}))
 				assert.NoError(t, err)
 
-				_, err = utils.Must(m.Mutation()).Where(app.EQ("id", user2ID)).Update(schema.NewEntity(user2ID).Set("following", []*schema.Entity{
+				_, err = m.Mutation().Where(app.EQ("id", user2ID)).Update(schema.NewEntity(user2ID).Set("following", []*schema.Entity{
 					schema.NewEntity(user3ID),
 					schema.NewEntity(user4ID),
 				}))
 				assert.NoError(t, err)
 
-				_, err = utils.Must(m.Mutation()).Where(app.EQ("id", user3ID)).Update(schema.NewEntity(user3ID).Set("following", []*schema.Entity{
+				_, err = m.Mutation().Where(app.EQ("id", user3ID)).Update(schema.NewEntity(user3ID).Set("following", []*schema.Entity{
 					schema.NewEntity(user4ID),
 				}))
 				assert.NoError(t, err)

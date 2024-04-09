@@ -23,7 +23,7 @@ func NewRestResolver(
 	}
 }
 
-func (r *RestSolver) Init(logger app.Logger) {
+func (r *RestSolver) Init(logger app.Logger) *RestSolver {
 	middlewares := []Handler{
 		MiddlewareCors,
 		MiddlewareRecover,
@@ -72,6 +72,8 @@ func (r *RestSolver) Init(logger app.Logger) {
 		r.resourceManager.BeforeResolveHooks,
 		r.resourceManager.AfterResolveHooks,
 	)
+
+	return r
 }
 
 func (r *RestSolver) Server() *Server {

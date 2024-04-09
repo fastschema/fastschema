@@ -227,7 +227,7 @@ func DBRunUpdateTests(client app.DBClient, t *testing.T, tests []DBTestUpdateDat
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(model app.Model, entity *schema.Entity) (int, error) {
-					mut := utils.Must(model.Mutation())
+					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
@@ -266,7 +266,7 @@ func DBRunDeleteTests(client app.DBClient, t *testing.T, tests []DBTestDeleteDat
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(model app.Model) (int, error) {
-					mut := utils.Must(model.Mutation())
+					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}

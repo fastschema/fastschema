@@ -120,22 +120,18 @@ func (m *Model) Query(predicates ...*app.Predicate) app.Query {
 }
 
 // Mutation returns a new mutation builder for the model
-func (m *Model) Mutation(skipTxs ...bool) (app.Mutation, error) {
+func (m *Model) Mutation(skipTxs ...bool) app.Mutation {
 	return &Mutation{
 		client: m.client,
 		ctx:    m.ctx,
 		skipTx: true,
 		model:  m,
-	}, nil
+	}
 }
 
 // Create creates a new entity
 func (m *Model) Create(e *schema.Entity) (_ uint64, err error) {
-	mut, err := m.Mutation()
-	if err != nil {
-		return 0, err
-	}
-	return mut.Create(e)
+	return m.Mutation().Create(e)
 }
 
 // CreateFromJSON creates a new entity from JSON
@@ -146,10 +142,5 @@ func (m *Model) CreateFromJSON(json string) (_ uint64, err error) {
 		return 0, err
 	}
 
-	mut, err := m.Mutation()
-	if err != nil {
-		return 0, err
-	}
-
-	return mut.Create(entity)
+	return m.Mutation().Create(entity)
 }

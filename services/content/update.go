@@ -34,18 +34,9 @@ func (cs *ContentService) Update(c app.Context, _ *any) (*schema.Entity, error) 
 		}
 	}
 
-	mutation, err := model.Mutation()
-	if err != nil {
+	if _, err := model.Mutation().Where(app.EQ("id", id)).Update(entity); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	if _, err := mutation.Where(app.EQ("id", id)).Update(entity); err != nil {
-		return nil, errors.InternalServerError(err.Error())
-	}
-
-	if err := entity.SetID(id); err != nil {
-		return nil, errors.BadRequest(err.Error())
-	}
-
-	return entity, nil
+	return entity.SetID(id).Delete("password"), nil
 }

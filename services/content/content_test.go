@@ -1,38 +1,27 @@
 package contentservice_test
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	rr "github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
-	contentservice "github.com/fastschema/fastschema/services/content"
+	cs "github.com/fastschema/fastschema/services/content"
 	"github.com/stretchr/testify/assert"
 )
 
-type contentService struct {
-	t             *testing.T
-	schemaBuilder *schema.Builder
+type testApp struct {
+	sb *schema.Builder
+	db app.DBClient
 }
 
-func (s contentService) DB() app.DBClient {
-	migrateDir := s.t.TempDir()
-	dbClient, err := entdbadapter.NewClient(&app.DBConfig{
-		Driver:       "sqlite",
-		Name:         ":memory:",
-		MigrationDir: migrateDir,
-	}, s.schemaBuilder)
-	assert.NoError(s.t, err)
-	return dbClient
+func (s testApp) DB() app.DBClient {
+	return s.db
 }
 
-func createContentService(t *testing.T) (
-	*contentservice.ContentService,
-	*restresolver.Server,
-) {
+func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 	schemaDir := t.TempDir()
 	utils.WriteFile(schemaDir+"/post.json", `{
 		"name": "blog",
@@ -47,10 +36,9 @@ func createContentService(t *testing.T) (
 			}
 		]
 	}`)
-	schemaBuilder, err := schema.NewBuilderFromDir(schemaDir)
-	assert.NoError(t, err)
-	config := &contentService{t: t, schemaBuilder: schemaBuilder}
-	contentService := contentservice.New(config)
+	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
+	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+	contentService := cs.New(&testApp{sb: sb, db: db})
 	resources := app.NewResourcesManager()
 	resources.Group("content").
 		Add(app.NewResource("list", contentService.List, app.Meta{app.GET: "/:schema"})).
@@ -58,18 +46,11 @@ func createContentService(t *testing.T) (
 		Add(app.NewResource("create", contentService.Create, app.Meta{app.POST: "/:schema"})).
 		Add(app.NewResource("update", contentService.Update, app.Meta{app.PUT: "/:schema/:id"})).
 		Add(app.NewResource("delete", contentService.Delete, app.Meta{app.DELETE: "/:schema/:id"}))
-	err = resources.Init()
-	assert.NoError(t, err)
-	restResolver := restresolver.NewRestResolver(resources)
-	restResolver.Init(app.CreateMockLogger())
-	server := restResolver.Server()
 
-	return contentService, server
-}
+	assert.NoError(t, resources.Init())
+	restResolver := rr.NewRestResolver(resources).Init(app.CreateMockLogger(true))
 
-func closeResponse(t *testing.T, resp *http.Response) {
-	err := resp.Body.Close()
-	assert.NoError(t, err)
+	return contentService, restResolver.Server()
 }
 
 func TestNewContentService(t *testing.T) {

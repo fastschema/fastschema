@@ -11,7 +11,7 @@ func (rs *RoleService) Create(c app.Context, _ *any) (*app.Role, error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	model, err := rs.app.DB().Model("role")
+	model, err := rs.DB().Model("role")
 	if err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
@@ -21,9 +21,5 @@ func (rs *RoleService) Create(c app.Context, _ *any) (*app.Role, error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	if err := entity.SetID(id); err != nil {
-		return nil, errors.BadRequest(err.Error())
-	}
-
-	return app.EntityToRole(entity), nil
+	return app.EntityToRole(entity.SetID(id)), nil
 }

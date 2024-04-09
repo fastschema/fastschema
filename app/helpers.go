@@ -50,6 +50,15 @@ func EntityToRole(e *schema.Entity) *Role {
 	return role
 }
 
+// EntitiesToRoles converts entities to roles
+func EntitiesToRoles(entities []*schema.Entity) []*Role {
+	roles := make([]*Role, 0, len(entities))
+	for _, e := range entities {
+		roles = append(roles, EntityToRole(e))
+	}
+	return roles
+}
+
 // EntityToUser converts an entity to a user
 func EntityToUser(e *schema.Entity) *User {
 	if e == nil {

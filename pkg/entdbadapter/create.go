@@ -74,9 +74,7 @@ func (m *Mutation) Create(e *schema.Entity) (_ uint64, err error) {
 		return 0, err
 	}
 
-	if err := e.SetID(createSpec.ID.Value); err != nil {
-		return 0, err
-	}
+	e.SetID(createSpec.ID.Value)
 
 	if !m.skipTx {
 		if err = m.client.Commit(); err != nil {

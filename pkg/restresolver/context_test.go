@@ -97,7 +97,6 @@ func TestContextParse(t *testing.T) {
 	})
 
 	req := httptest.NewRequest("POST", "/test", bytes.NewReader([]byte(`{"key": "value"}`)))
-	req.Header.Add("Content-Type", "application/json")
 	defer req.Body.Close()
 	resp, err := server.Test(req)
 	defer closeResponse(t, resp)

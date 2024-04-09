@@ -61,13 +61,6 @@ func TestNewEntClient(t *testing.T) {
 	assert.Equal(t, nil, client.Exec(context.Background(), "SELECT 1", []any{}, nil))
 }
 
-func TestNewSQLMockClient(t *testing.T) {
-	schemaBuilder := &schema.Builder{}
-	client, err := NewSQLMockClient(schemaBuilder)
-	assert.NoError(t, err)
-	assert.NotNil(t, client)
-}
-
 func TestNewClient(t *testing.T) {
 	config := &app.DBConfig{
 		Driver: "sqlmock",
@@ -77,6 +70,13 @@ func TestNewClient(t *testing.T) {
 
 	client, err := NewClient(config, sb)
 	require.NoError(t, err)
+	assert.NotNil(t, client)
+}
+
+func TestNewTestClient(t *testing.T) {
+	schemaBuilder := &schema.Builder{}
+	client, err := NewTestClient(t.TempDir(), schemaBuilder)
+	assert.NoError(t, err)
 	assert.NotNil(t, client)
 }
 

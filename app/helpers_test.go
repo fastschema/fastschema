@@ -72,6 +72,67 @@ func TestEntityToRole(t *testing.T) {
 	}
 }
 
+func TestEntitiesToRoles(t *testing.T) {
+	entities := []*schema.Entity{
+		schema.NewEntityFromMap(map[string]interface{}{
+			"id":          1,
+			"name":        "Role 1",
+			"description": "Description 1",
+			"root":        true,
+			"permissions": []*schema.Entity{
+				schema.NewEntityFromMap(map[string]interface{}{
+					"resource": "Resource 1",
+					"value":    "Value 1",
+				}),
+			},
+		}),
+		schema.NewEntityFromMap(map[string]interface{}{
+			"id":          2,
+			"name":        "Role 2",
+			"description": "Description 2",
+			"root":        false,
+			"permissions": []*schema.Entity{
+				schema.NewEntityFromMap(map[string]interface{}{
+					"resource": "Resource 2",
+					"value":    "Value 2",
+				}),
+			},
+		}),
+	}
+
+	expectedRoles := []*app.Role{
+		{
+			ID:          1,
+			Name:        "Role 1",
+			Description: "Description 1",
+			Root:        true,
+			Users:       []*app.User{},
+			Permissions: []*app.Permission{
+				{
+					Resource: "Resource 1",
+					Value:    "Value 1",
+				},
+			},
+		},
+		{
+			ID:          2,
+			Name:        "Role 2",
+			Description: "Description 2",
+			Root:        false,
+			Users:       []*app.User{},
+			Permissions: []*app.Permission{
+				{
+					Resource: "Resource 2",
+					Value:    "Value 2",
+				},
+			},
+		},
+	}
+
+	roles := app.EntitiesToRoles(entities)
+	assert.Equal(t, expectedRoles, roles)
+}
+
 func TestEntityToUserNil(t *testing.T) {
 	user := app.EntityToUser(nil)
 

@@ -292,7 +292,7 @@ func MockRunCreateTests(
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(model app.Model, entity *schema.Entity) error {
-					_, err := utils.Must(model.Mutation()).Create(entity)
+					_, err := model.Mutation().Create(entity)
 					return err
 				}
 			}
@@ -327,7 +327,7 @@ func MockRunUpdateTests(
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(model app.Model, entity *schema.Entity) (int, error) {
-					mut := utils.Must(model.Mutation())
+					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
@@ -363,7 +363,7 @@ func MockRunDeleteTests(
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(model app.Model) (int, error) {
-					mut := utils.Must(model.Mutation())
+					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}

@@ -9,7 +9,7 @@ import (
 
 func (rs *RoleService) Detail(c app.Context, _ *any) (*schema.Entity, error) {
 	roleID := c.ArgInt("id")
-	model, err := rs.app.DB().Model("role")
+	model, err := rs.DB().Model("role")
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}

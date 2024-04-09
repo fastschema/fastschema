@@ -12,17 +12,12 @@ func (rs *RoleService) Delete(c app.Context, _ *any) (any, error) {
 		return nil, errors.BadRequest("Can't delete default roles")
 	}
 
-	model, err := rs.app.DB().Model("role")
+	model, err := rs.DB().Model("role")
 	if err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	mutation, err := model.Mutation()
-	if err != nil {
-		return nil, errors.InternalServerError(err.Error())
-	}
-
-	if _, err := mutation.Where(app.EQ("id", id)).Delete(); err != nil {
+	if _, err := model.Mutation().Where(app.EQ("id", id)).Delete(); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 

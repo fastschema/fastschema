@@ -28,6 +28,20 @@ func NewUserService(app app.App) *UserService {
 	return &UserService{app: app}
 }
 
+func (u *UserService) GetRolesFromIDs(ids []uint64) []*app.Role {
+	result := []*app.Role{}
+
+	for _, role := range u.app.Roles() {
+		for _, id := range ids {
+			if role.ID == id {
+				result = append(result, role)
+			}
+		}
+	}
+
+	return result
+}
+
 func (u *UserService) ParseUserToken(clientToken string) (*app.User, error) {
 	jwtToken, err := jwt.ParseWithClaims(
 		clientToken,
@@ -43,7 +57,7 @@ func (u *UserService) ParseUserToken(clientToken string) (*app.User, error) {
 
 	if claims, ok := jwtToken.Claims.(*app.UserJwtClaims); ok && jwtToken.Valid {
 		user := claims.User
-		user.Roles = u.app.GetRolesFromIDs(user.RoleIDs)
+		user.Roles = u.GetRolesFromIDs(user.RoleIDs)
 		return user, nil
 	}
 

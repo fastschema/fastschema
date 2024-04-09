@@ -102,21 +102,21 @@ func (e *Entity) ID() uint64 {
 }
 
 // SetID sets the ID of the entity.
-func (e *Entity) SetID(value any) error {
+// value can be uint64, float64, or a string that can be converted to uint64.
+// if the value is not a valid ID, do nothing.
+// returns the entity.
+func (e *Entity) SetID(value any) *Entity {
 	if uint64ID, ok := value.(uint64); ok {
 		e.data.Set(FieldID, uint64ID)
-		return nil
 	} else if float64ID, ok := value.(float64); ok {
 		e.data.Set(FieldID, uint64(float64ID))
-		return nil
 	}
 
-	valueUint64, err := strconv.ParseUint(fmt.Sprintf("%v", value), 10, 64)
-	if err != nil {
-		return fmt.Errorf("cannot convert ID value %v to uint64", value)
+	if uint64Value, err := strconv.ParseUint(fmt.Sprintf("%v", value), 10, 64); err == nil {
+		e.data.Set(FieldID, uint64Value)
 	}
-	e.data.Set(FieldID, valueUint64)
-	return nil
+
+	return e
 }
 
 // MarshalJSON implements the json.Marshaler interface.

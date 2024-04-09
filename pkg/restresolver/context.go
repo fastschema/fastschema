@@ -200,6 +200,12 @@ func (c *Context) Redirect(path string) error {
 }
 
 func (c *Context) Parse(v any) error {
+	// if there is no content type header, we assume it's JSON
+	if c.Ctx.Get("Content-Type") == "" {
+		c.Ctx.Set("Content-Type", "application/json")
+		c.Ctx.Request().Header.Set("Content-Type", "application/json")
+	}
+
 	return c.Ctx.BodyParser(v)
 }
 
