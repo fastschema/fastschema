@@ -73,7 +73,7 @@ func (q *Query) Where(predicates ...*app.Predicate) app.Query {
 // Count returns the number of entities that match the query.
 func (q *Query) Count(options *app.CountOption, ctxs ...context.Context) (int, error) {
 	ctxs = append(ctxs, context.Background())
-	entAdapter, ok := q.client.(*Adapter)
+	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
 		return 0, fmt.Errorf("client is not an ent adapter")
 	}
@@ -183,8 +183,11 @@ func (q *Query) Get(ctxs ...context.Context) ([]*schema.Entity, error) {
 		}
 	}
 
-	entAdapter, ok := q.client.(*Adapter)
+	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
+		// print type of q.client
+		fmt.Printf("%T\n", q.client)
+
 		return nil, fmt.Errorf("client is not an ent adapter")
 	}
 

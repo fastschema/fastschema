@@ -23,7 +23,7 @@ func TestContentServiceDelete(t *testing.T) {
 	req = httptest.NewRequest("DELETE", "/content/blog/2", nil)
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 400, resp.StatusCode)
+	assert.Equal(t, 404, resp.StatusCode)
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `no entities found`)
 
 	blogModel := utils.Must(cs.DB().Model("blog"))

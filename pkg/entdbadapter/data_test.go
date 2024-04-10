@@ -100,7 +100,7 @@ func createSchemaBuilder() *schema.Builder {
 	return createSchemaBuilderFromDir("../../tests/data/schemas")
 }
 
-func createMockAdapter(t *testing.T) *Adapter {
+func createMockAdapter(t *testing.T) EntAdapter {
 	db, _, err := sqlmock.New()
 	assert.NoError(t, err)
 
@@ -113,7 +113,7 @@ func createMockAdapter(t *testing.T) *Adapter {
 		MigrationDir: tmpDir,
 	}, sb, dialectSql.OpenDB(dialect.MySQL, db)))
 
-	adapter, ok := client.(*Adapter)
+	adapter, ok := client.(EntAdapter)
 	assert.True(t, ok)
 
 	return adapter

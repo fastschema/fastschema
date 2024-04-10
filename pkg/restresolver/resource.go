@@ -151,6 +151,7 @@ func registerResourceRoutes(
 				for _, hook := range afterHandlerHooks {
 					if err := hook(c); err != nil {
 						result := app.NewResult(nil, err)
+
 						if result.Error != nil && result.Error.Status != 0 {
 							c.Status(result.Error.Status)
 						}

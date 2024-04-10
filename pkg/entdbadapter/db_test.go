@@ -45,7 +45,7 @@ func TestNewEntClient(t *testing.T) {
 		m.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
 	}, false)
 	require.NoError(t, err)
-	client := dbClient.(*Adapter)
+	client := dbClient.(EntAdapter)
 	assert.NotNil(t, client)
 
 	tx, err := client.Tx(context.Background())

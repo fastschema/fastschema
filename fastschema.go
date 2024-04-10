@@ -241,7 +241,7 @@ func (a *App) Start() {
 			a.setupToken = ""
 
 			return true, nil
-		}, app.Map{app.POST: "/setup"}, true))
+		}, app.Meta{app.POST: "/setup"}, true))
 	}
 
 	if err := a.resources.Init(); err != nil {
@@ -266,7 +266,7 @@ func (a *App) Start() {
 	restResolver := restresolver.NewRestResolver(
 		a.resources,
 		[]*app.StaticFs{{
-			BasePath: "/",
+			BasePath: "/files",
 			Root:     http.Dir(a.publicDir),
 		}, {
 			BasePath:   "/" + a.config.DashBaseName,
@@ -404,7 +404,7 @@ func (a *App) getDefaultDBClient() (err error) {
 		Pass:         utils.Env("DB_PASS"),
 		Host:         utils.Env("DB_HOST"),
 		Port:         utils.Env("DB_PORT"),
-		LogQueries:   utils.Env("DB_LOGGING", "true") == "true",
+		LogQueries:   utils.Env("DB_LOGGING", "false") == "true",
 		Logger:       a.Logger(),
 		MigrationDir: a.migrationDir,
 		Hooks: &app.Hooks{
@@ -489,12 +489,12 @@ func (a *App) createSchemaBuilder() (err error) {
 }
 
 func (a *App) createResources() error {
-	userService := us.NewUserService(a)
+	userService := us.New(a)
 	roleService := rs.New(a)
 	mediaService := ms.New(a)
-	schemaService := ss.NewSchemaService(a)
+	schemaService := ss.New(a)
 	contentService := cs.New(a)
-	toolService := ts.NewToolService(a)
+	toolService := ts.New(a)
 
 	a.resources = app.NewResourcesManager()
 	a.resources.Middlewares = append(a.resources.Middlewares, roleService.ParseUser)
@@ -537,7 +537,7 @@ func (a *App) createResources() error {
 		Add(app.NewResource("delete", mediaService.Delete, app.Meta{app.DELETE: ""}))
 
 	a.api.Group("tool").
-		Add(app.NewResource("stats", toolService.Stats, app.Meta{app.GET: "/stats"}))
+		Add(app.NewResource("stats", toolService.Stats, app.Meta{app.GET: "/stats"}, true))
 
 	return nil
 }

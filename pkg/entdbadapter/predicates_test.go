@@ -218,7 +218,7 @@ func TestCreateEntPredicates(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, client)
 
-	entAdapter, ok := client.(*Adapter)
+	entAdapter, ok := client.(EntAdapter)
 	require.True(t, ok)
 
 	carModel := &Model{

@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"entgo.io/ent/dialect"
+	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/schema"
@@ -23,7 +24,7 @@ type Tx struct {
 
 // NewTx creates a new transaction.
 func NewTx(ctx context.Context, client app.DBClient) (*Tx, error) {
-	entAdapter := client.(*Adapter)
+	entAdapter := client.(EntAdapter)
 	driver := entAdapter.Driver()
 	tx, err := driver.Tx(ctx)
 	if err != nil {
@@ -41,7 +42,7 @@ func NewTx(ctx context.Context, client app.DBClient) (*Tx, error) {
 }
 
 func (tx *Tx) NewEdgeSpec(r *schema.Relation, nodeIDs []driver.Value) (*sqlgraph.EdgeSpec, error) {
-	entAdapter, ok := tx.client.(*Adapter)
+	entAdapter, ok := tx.client.(EntAdapter)
 	if !ok {
 		return nil, fmt.Errorf("client is not an ent adapter")
 	}
@@ -50,7 +51,7 @@ func (tx *Tx) NewEdgeSpec(r *schema.Relation, nodeIDs []driver.Value) (*sqlgraph
 }
 
 func (tx *Tx) NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, error) {
-	entAdapter, ok := tx.client.(*Adapter)
+	entAdapter, ok := tx.client.(EntAdapter)
 	if !ok {
 		return nil, fmt.Errorf("client is not an ent adapter")
 	}
@@ -67,6 +68,18 @@ func (tx *Tx) Hooks() *app.Hooks {
 
 func (tx *Tx) DB() *sql.DB {
 	return tx.client.DB()
+}
+
+func (tx *Tx) SetSQLDB(db *sql.DB) {
+	// This method is only used to satisfy the EntAdapter interface
+}
+
+func (tx *Tx) SetDriver(driver dialect.Driver) {
+	// This method is only used to satisfy the EntAdapter interface
+}
+
+func (tx *Tx) Migrate(migration *app.Migration, appendEntTables ...*entSchema.Table) (err error) {
+	return nil
 }
 
 // Reload reloads the schema.

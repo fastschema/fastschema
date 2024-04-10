@@ -52,13 +52,18 @@ func (u *User) IsRoot() bool {
 }
 
 // JwtClaim generates a jwt claim
-func (u *User) JwtClaim(exp time.Time, key string, jwtHeaders ...map[string]any) (string, error) {
+func (u *User) JwtClaim(key string, exps ...time.Time) (string, time.Time, error) {
 	u.RoleIDs = make([]uint64, 0)
 
 	for _, role := range u.Roles {
 		if role.ID > 0 {
 			u.RoleIDs = append(u.RoleIDs, role.ID)
 		}
+	}
+
+	exp := time.Now().Add(time.Hour * 24 * 30)
+	if len(exps) > 0 {
+		exp = exps[0]
 	}
 
 	claims := &UserJwtClaims{
@@ -76,13 +81,8 @@ func (u *User) JwtClaim(exp time.Time, key string, jwtHeaders ...map[string]any)
 		},
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedString, err := jwtToken.SignedString([]byte(key))
 
-	if len(jwtHeaders) > 0 {
-		for k, v := range jwtHeaders[0] {
-			token.Header[k] = v
-		}
-	}
-
-	return token.SignedString([]byte(key))
+	return signedString, exp, err
 }

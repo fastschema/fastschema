@@ -23,7 +23,7 @@ func (s testApp) DB() app.DBClient {
 
 func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 	schemaDir := t.TempDir()
-	utils.WriteFile(schemaDir+"/post.json", `{
+	utils.WriteFile(schemaDir+"/blog.json", `{
 		"name": "blog",
 		"namespace": "blogs",
 		"label_field": "name",

@@ -39,7 +39,7 @@ func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
 	updateRoleData.SetID(id)
 	roleModel, err := tx.Model("role")
 	if err != nil {
-		return nil, errors.NotFound(err.Error())
+		return nil, errors.InternalServerError(err.Error())
 	}
 
 	existingRole, err := roleModel.Query().
@@ -47,7 +47,8 @@ func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
 		Select("permissions").
 		First()
 	if err != nil {
-		return nil, errors.NotFound(err.Error())
+		e := utils.If(app.IsNotFound(err), errors.NotFound, errors.InternalServerError)
+		return nil, e(err.Error())
 	}
 
 	if err := updateRolePermissions(

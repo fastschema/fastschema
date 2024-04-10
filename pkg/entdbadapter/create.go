@@ -29,7 +29,7 @@ func (m *Mutation) Create(e *schema.Entity) (_ uint64, err error) {
 		Edges:  []*sqlgraph.EdgeSpec{},
 	}
 
-	entAdapter, ok := m.client.(*Adapter)
+	entAdapter, ok := m.client.(EntAdapter)
 	if !ok {
 		return 0, fmt.Errorf("client is not an ent adapter")
 	}

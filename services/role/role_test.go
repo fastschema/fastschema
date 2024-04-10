@@ -1,6 +1,7 @@
 package roleservice_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
@@ -12,41 +13,64 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type testApp struct {
-	sb           *schema.Builder
-	db           app.DBClient
-	roles        []*app.Role
-	adminUser    *app.User
-	normalUser   *app.User
-	inactiveUser *app.User
-	resources    *app.ResourcesManager
+type TestApp struct {
+	sb        *schema.Builder
+	db        app.DBClient
+	resources *app.ResourcesManager
 }
 
-func (s testApp) DB() app.DBClient {
+func (s TestApp) DB() app.DBClient {
 	return s.db
 }
 
-func (s testApp) Roles() []*app.Role {
-	return s.roles
+func (s TestApp) Roles() []*app.Role {
+	roleEntities := utils.Must(roleModel.Query().Select("id", "name", "root", "permissions").Get())
+	return app.EntitiesToRoles(roleEntities)
 }
 
-func (s testApp) Key() string {
+func (s TestApp) Key() string {
 	return "test"
 }
 
-func (s testApp) UpdateCache() error {
+func (s TestApp) UpdateCache() error {
 	return nil
 }
 
-func (s testApp) Resources() *app.ResourcesManager {
+func (s TestApp) Resources() *app.ResourcesManager {
 	return s.resources
 }
 
-func createRoleService(t *testing.T, disableServer bool) (*testApp, *rs.RoleService, *rr.Server) {
-	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
-	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+var (
+	adminUser         *app.User
+	normalUser        *app.User
+	inactiveUser      *app.User
+	testApp           *TestApp
+	roleService       *rs.RoleService
+	roleModel         app.Model
+	server            *rr.Server
+	adminToken        string
+	normalUserToken   string
+	inactiveUserToken string
+)
 
-	roleModel := utils.Must(db.Model("role"))
+func init() {
+	schemaDir := os.TempDir()
+	utils.WriteFile(schemaDir+"/blog.json", `{
+		"name": "blog",
+		"namespace": "blogs",
+		"label_field": "name",
+		"fields": [
+			{
+				"type": "string",
+				"name": "name",
+				"label": "Name",
+				"sortable": true
+			}
+		]
+	}`)
+	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
+	db := utils.Must(entdbadapter.NewTestClient(os.TempDir(), sb))
+	roleModel = utils.Must(db.Model("role"))
 	userModel := utils.Must(db.Model("user"))
 	appRoles := []*app.Role{app.RoleAdmin, app.RoleUser, app.RoleGuest}
 
@@ -57,65 +81,66 @@ func createRoleService(t *testing.T, disableServer bool) (*testApp, *rs.RoleServ
 		))
 	}
 
-	assert.Equal(t, uint64(1), utils.Must(userModel.Create(schema.NewEntity().
+	utils.Must(userModel.Create(schema.NewEntity().
 		Set("username", "adminuser").
 		Set("password", "adminuser").
 		Set("roles", []*schema.Entity{schema.NewEntity(1)}),
-	)))
+	))
 
-	assert.Equal(t, uint64(2), utils.Must(userModel.Create(schema.NewEntity().
+	utils.Must(userModel.Create(schema.NewEntity().
 		Set("username", "normaluser").
 		Set("password", "normaluser").
 		Set("roles", []*schema.Entity{schema.NewEntity(2)}),
-	)))
+	))
 
 	// There are three resources in this test: content.list, content.detail and content.meta
 	// We set role user to have permission to "allow" for content.list but, "deny" for content.detail
 	// And no permission set for content.meta
 	// We expect that user with role user should have access to content.list but not content.detail and content.meta
 	permissionModel := utils.Must(db.Model("permission"))
-	assert.Equal(t, uint64(1), utils.Must(permissionModel.Create(schema.NewEntity().
+	utils.Must(permissionModel.Create(schema.NewEntity().
 		Set("resource", "content.blog.list").
 		Set("value", app.PermissionTypeAllow.String()).
 		Set("role_id", app.RoleUser.ID),
-	)))
-	assert.Equal(t, uint64(2), utils.Must(permissionModel.Create(schema.NewEntity().
+	))
+	utils.Must(permissionModel.Create(schema.NewEntity().
 		Set("resource", "content.blog.detail").
 		Set("value", app.PermissionTypeDeny.String()).
 		Set("role_id", app.RoleUser.ID),
-	)))
+	))
 
-	roleEntities := utils.Must(roleModel.Query().Select("id", "name", "root", "permissions").Get())
-	dbRoles := app.EntitiesToRoles(roleEntities)
-
-	testApp := &testApp{
-		sb:    sb,
-		db:    db,
-		roles: dbRoles,
-		adminUser: &app.User{
-			ID:       1,
-			Username: "adminuser",
-			Active:   true,
-			Roles:    []*app.Role{app.RoleAdmin},
-			RoleIDs:  []uint64{1},
-		},
-		normalUser: &app.User{
-			ID:       2,
-			Username: "normaluser",
-			Active:   true,
-			Roles:    []*app.Role{app.RoleUser},
-			RoleIDs:  []uint64{2},
-		},
-		inactiveUser: &app.User{
-			ID:       3,
-			Username: "inactiveuser",
-			Active:   false,
-			Roles:    []*app.Role{app.RoleUser},
-			RoleIDs:  []uint64{2},
-		},
+	testApp = &TestApp{
+		sb: sb,
+		db: db,
 	}
 
-	roleService := rs.New(testApp)
+	adminUser = &app.User{
+		ID:       1,
+		Username: "adminuser",
+		Active:   true,
+		Roles:    []*app.Role{app.RoleAdmin},
+		RoleIDs:  []uint64{1},
+	}
+	normalUser = &app.User{
+		ID:       2,
+		Username: "normaluser",
+		Active:   true,
+		Roles:    []*app.Role{app.RoleUser},
+		RoleIDs:  []uint64{2},
+	}
+	inactiveUser = &app.User{
+		ID:       3,
+		Username: "inactiveuser",
+		Active:   false,
+		Roles:    []*app.Role{app.RoleUser},
+		RoleIDs:  []uint64{2},
+	}
+
+	adminToken, _, _ = adminUser.JwtClaim(testApp.Key())
+	normalUserToken, _, _ = normalUser.JwtClaim(testApp.Key())
+	inactiveUserToken, _, _ = inactiveUser.JwtClaim(testApp.Key())
+
+	roleService = rs.New(testApp)
 	testApp.resources = app.NewResourcesManager()
 	testApp.resources.Middlewares = append(testApp.resources.Middlewares, roleService.ParseUser)
 	testApp.resources.BeforeResolveHooks = append(testApp.resources.BeforeResolveHooks, roleService.Authorize)
@@ -138,19 +163,27 @@ func createRoleService(t *testing.T, disableServer bool) (*testApp, *rs.RoleServ
 			return "blog meta", nil
 		}, app.Meta{app.GET: "/:schema/meta"}))
 
-	if !disableServer {
-		assert.NoError(t, testApp.resources.Init())
-		restResolver := rr.NewRestResolver(testApp.resources).Init(app.CreateMockLogger(true))
+	testApp.resources.
+		Add(
+			app.NewResource("testuser", func(c app.Context, _ *any) (any, error) {
+				return c.User(), nil
+			}, true),
+		).
+		Add(
+			app.NewResource("test", func(c app.Context, _ *any) (any, error) {
+				return "test response", nil
+			}, true),
+		)
 
-		return testApp, roleService, restResolver.Server()
+	if err := testApp.resources.Init(); err != nil {
+		panic(err)
 	}
 
-	return testApp, roleService, nil
+	server = rr.NewRestResolver(testApp.resources).Init(app.CreateMockLogger(true)).Server()
 }
 
 func TestNewRoleService(t *testing.T) {
-	testApp, service, server := createRoleService(t, false)
 	assert.NotNil(t, testApp)
-	assert.NotNil(t, service)
+	assert.NotNil(t, roleService)
 	assert.NotNil(t, server)
 }

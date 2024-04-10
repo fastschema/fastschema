@@ -19,7 +19,7 @@ func (m *Mutation) Delete() (affected int, err error) {
 		},
 	}
 
-	entAdapter, ok := m.client.(*Adapter)
+	entAdapter, ok := m.client.(EntAdapter)
 	if !ok {
 		return 0, fmt.Errorf("client is not an ent adapter")
 	}

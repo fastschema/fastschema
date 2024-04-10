@@ -5,16 +5,17 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-type CreateDBAdapterFunc func(
-	config *app.DBConfig,
-	schemaBuilder *schema.Builder,
-) (app.DBClient, error)
-
-type SchemaService struct {
-	app app.App
+type AppLike interface {
+	DB() app.DBClient
+	Reload(migration *app.Migration) error
+	SchemaBuilder() *schema.Builder
 }
 
-func NewSchemaService(app app.App) *SchemaService {
+type SchemaService struct {
+	app AppLike
+}
+
+func New(app AppLike) *SchemaService {
 	ss := &SchemaService{app}
 
 	return ss

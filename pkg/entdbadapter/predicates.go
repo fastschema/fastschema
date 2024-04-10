@@ -13,7 +13,7 @@ type PredicateFN func(*sql.Selector) *sql.Predicate
 
 // createEntPredicates creates ent sql predicates from the given predicates
 func createEntPredicates(
-	entAdapter *Adapter,
+	entAdapter EntAdapter,
 	model *Model,
 	predicates []*app.Predicate,
 ) (func(*sql.Selector) []*sql.Predicate, error) {
@@ -85,7 +85,7 @@ func createEntPredicates(
 
 // createRelationsPredicate creates the relation predicate
 func createRelationsPredicate(
-	entAdapter *Adapter,
+	entAdapter EntAdapter,
 	model *Model,
 	lastFieldPredicate *app.Predicate,
 	relationFieldNames ...string,

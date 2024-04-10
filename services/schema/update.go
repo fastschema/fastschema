@@ -25,7 +25,6 @@ type SchemaUpdate struct {
 }
 
 func (ss *SchemaService) Update(c app.Context, updateData *SchemaUpdateData) (_ *schema.Schema, err error) {
-	schemaName := c.Arg("name")
 	oldSchemaDir := ss.app.SchemaBuilder().Dir()
 	su := &SchemaUpdate{
 		DB:               ss.app.DB,
@@ -35,9 +34,23 @@ func (ss *SchemaService) Update(c app.Context, updateData *SchemaUpdateData) (_ 
 		updateData:       updateData,
 	}
 
-	if err = su.prepare(schemaName); err != nil {
+	if su.oldSchema, err = su.DB().SchemaBuilder().Schema(c.Arg("name")); err != nil {
+		return nil, errors.NotFound(err.Error())
+	}
+
+	if su.updateData.Schema == nil {
+		return nil, errors.BadRequest("schema update data is required")
+	}
+
+	if err = su.prepare(); err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
+
+	// catJSON := string(utils.Must(os.ReadFile(oldSchemaDir + "/category.json")))
+	// blogJSON := string(utils.Must(os.ReadFile(oldSchemaDir + "/blog.json")))
+
+	// fmt.Println(catJSON)
+	// fmt.Println(blogJSON)
 
 	if err = ss.app.Reload(
 		&app.Migration{

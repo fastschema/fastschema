@@ -30,6 +30,14 @@ type Adapter struct {
 	hooks         *app.Hooks
 }
 
+func (d *Adapter) SetSQLDB(db *sql.DB) {
+	d.sqldb = db
+}
+
+func (d *Adapter) SetDriver(driver dialect.Driver) {
+	d.driver = driver
+}
+
 func (d *Adapter) DB() *sql.DB {
 	return d.sqldb
 }

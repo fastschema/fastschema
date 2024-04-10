@@ -14,15 +14,8 @@ import (
 	"golang.org/x/text/language"
 )
 
-func (su *SchemaUpdate) prepare(schemaName string) (err error) {
+func (su *SchemaUpdate) prepare() (err error) {
 	oldSchemasDir := su.DB().SchemaBuilder().Dir()
-	if su.oldSchema, err = su.DB().SchemaBuilder().Schema(schemaName); err != nil {
-		return err
-	}
-
-	if su.updateData.Schema == nil {
-		return errors.New("schema data is required")
-	}
 
 	// Create the new schema update dir
 	if su.updateDir, err = createSchemaUpdateDir(oldSchemasDir, true); err != nil {

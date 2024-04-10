@@ -16,7 +16,7 @@ func (m *Mutation) Update(e *schema.Entity) (affected int, err error) {
 		return 0, fmt.Errorf("model or schema %s not found", m.model.name)
 	}
 
-	entAdapter, ok := m.client.(*Adapter)
+	entAdapter, ok := m.client.(EntAdapter)
 	if !ok {
 		return 0, fmt.Errorf("client is not an ent adapter")
 	}
@@ -105,7 +105,7 @@ func (m *Mutation) Update(e *schema.Entity) (affected int, err error) {
 }
 
 // ProcessUpdateBlockExpr processes the $expr block
-func (m *Mutation) ProcessUpdateBlockExpr(entAdapter *Adapter, fieldValue any) error {
+func (m *Mutation) ProcessUpdateBlockExpr(entAdapter EntAdapter, fieldValue any) error {
 	if expr, ok := fieldValue.(*schema.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
 			if err := m.ProcessFieldExpr(entAdapter, pair.Key, pair.Value); err != nil {
@@ -118,7 +118,7 @@ func (m *Mutation) ProcessUpdateBlockExpr(entAdapter *Adapter, fieldValue any) e
 }
 
 // ProcessFieldExpr processes a field in the $expr block
-func (m *Mutation) ProcessFieldExpr(entAdapter *Adapter, k string, v any) error {
+func (m *Mutation) ProcessFieldExpr(entAdapter EntAdapter, k string, v any) error {
 	m.updateSpec.Modifiers = append(m.updateSpec.Modifiers, func(u *sql.UpdateBuilder) {
 		u.Set(k, sql.Expr(v.(string)))
 	})
@@ -126,7 +126,7 @@ func (m *Mutation) ProcessFieldExpr(entAdapter *Adapter, k string, v any) error 
 }
 
 // ProcessUpdateBlockAdd processes the $add block
-func (m *Mutation) ProcessUpdateBlockAdd(entAdapter *Adapter, fieldValue any) error {
+func (m *Mutation) ProcessUpdateBlockAdd(entAdapter EntAdapter, fieldValue any) error {
 	if expr, ok := fieldValue.(*schema.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
 			if err := m.ProcessFieldAdd(entAdapter, pair.Key, pair.Value); err != nil {
@@ -139,7 +139,7 @@ func (m *Mutation) ProcessUpdateBlockAdd(entAdapter *Adapter, fieldValue any) er
 }
 
 // ProcessFieldAdd processes a field in the $add block
-func (m *Mutation) ProcessFieldAdd(entAdapter *Adapter, k string, v any) error {
+func (m *Mutation) ProcessFieldAdd(entAdapter EntAdapter, k string, v any) error {
 	c, err := m.model.Column(k)
 
 	if err != nil {
@@ -181,7 +181,7 @@ func (m *Mutation) ProcessFieldAdd(entAdapter *Adapter, k string, v any) error {
 }
 
 // ProcessUpdateBlockClear processes the $clear block
-func (m *Mutation) ProcessUpdateBlockClear(entAdapter *Adapter, fieldValue any) error {
+func (m *Mutation) ProcessUpdateBlockClear(entAdapter EntAdapter, fieldValue any) error {
 	if expr, ok := fieldValue.(*schema.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
 			if err := m.ProcessFieldClear(entAdapter, pair.Key, pair.Value); err != nil {
@@ -194,7 +194,7 @@ func (m *Mutation) ProcessUpdateBlockClear(entAdapter *Adapter, fieldValue any) 
 }
 
 // ProcessFieldClear processes a field in the $clear block
-func (m *Mutation) ProcessFieldClear(entAdapter *Adapter, k string, v any) error {
+func (m *Mutation) ProcessFieldClear(entAdapter EntAdapter, k string, v any) error {
 	c, err := m.model.Column(k)
 	if err != nil {
 		return fmt.Errorf("field $clear.%s error: %w", k, err)
@@ -238,7 +238,7 @@ func (m *Mutation) ProcessFieldClear(entAdapter *Adapter, k string, v any) error
 }
 
 // ProcessUpdateBlockSet processes the $set block
-func (m *Mutation) ProcessUpdateBlockSet(entAdapter *Adapter, fieldValue any) error {
+func (m *Mutation) ProcessUpdateBlockSet(entAdapter EntAdapter, fieldValue any) error {
 	if expr, ok := fieldValue.(*schema.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
 			if err := m.ProcessUpdateFieldSet(entAdapter, pair.Key, pair.Value); err != nil {
@@ -251,7 +251,7 @@ func (m *Mutation) ProcessUpdateBlockSet(entAdapter *Adapter, fieldValue any) er
 }
 
 // ProcessUpdateFieldSet processes a field in the $set block
-func (m *Mutation) ProcessUpdateFieldSet(entAdapter *Adapter, k string, v any) error {
+func (m *Mutation) ProcessUpdateFieldSet(entAdapter EntAdapter, k string, v any) error {
 	c, err := m.model.Column(k)
 	if err != nil {
 		return fmt.Errorf("field $set.%s error: %w", k, err)

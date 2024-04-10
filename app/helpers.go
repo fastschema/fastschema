@@ -41,8 +41,8 @@ func EntityToRole(e *schema.Entity) *Role {
 	if ok {
 		for _, p := range permissions {
 			role.Permissions = append(role.Permissions, &Permission{
-				Resource: p.Get("resource").(string),
-				Value:    p.Get("value").(string),
+				Resource: p.GetString("resource", ""),
+				Value:    p.GetString("value", ""),
 			})
 		}
 	}

@@ -1,7 +1,9 @@
 package entdbadapter
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 
 	"entgo.io/ent/dialect"
@@ -11,6 +13,43 @@ import (
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/schema"
 )
+
+type EntAdapter interface {
+	NewEdgeSpec(
+		r *schema.Relation,
+		nodeIDs []driver.Value,
+	) (*sqlgraph.EdgeSpec, error)
+	NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, error)
+	Reload(
+		newSchemaBuilder *schema.Builder,
+		migration *app.Migration,
+	) (_ app.DBClient, err error)
+	Driver() dialect.Driver
+	CreateDBModel(s *schema.Schema, relations ...*schema.Relation) app.Model
+	Close() error
+	Commit() error
+	Rollback() error
+	Config() *app.DBConfig
+	DB() *sql.DB
+	Dialect() string
+	Exec(
+		ctx context.Context,
+		query string,
+		args,
+		bindValue any,
+	) error
+	Hooks() *app.Hooks
+	IsTx() bool
+	Model(name string) (app.Model, error)
+	SchemaBuilder() *schema.Builder
+	Tx(ctx context.Context) (app.DBClient, error)
+	Migrate(
+		migration *app.Migration,
+		appendEntTables ...*entSchema.Table,
+	) (err error)
+	SetSQLDB(db *sql.DB)
+	SetDriver(driver dialect.Driver)
+}
 
 // NewClient creates a new ent client
 func NewClient(config *app.DBConfig, schemaBuilder *schema.Builder) (_ app.DBClient, err error) {
@@ -68,13 +107,13 @@ func NewEntClient(
 		return nil, err
 	}
 
-	entAdapter, ok := adapter.(*Adapter)
+	entAdapter, ok := adapter.(EntAdapter)
 	if !ok {
 		return nil, fmt.Errorf("invalid adapter")
 	}
 
-	entAdapter.sqldb = db
-	entAdapter.driver = dialect.DebugWithContext(sqlDriver, CreateDebugFN(config))
+	entAdapter.SetSQLDB(db)
+	entAdapter.SetDriver(dialect.DebugWithContext(sqlDriver, CreateDebugFN(config)))
 
 	if config.Driver == "sqlmock" {
 		return adapter, nil
@@ -163,7 +202,7 @@ func (d *Adapter) Reload(
 		return nil, err
 	}
 
-	entAdapter, ok := adapter.(*Adapter)
+	entAdapter, ok := adapter.(EntAdapter)
 	if !ok {
 		return nil, fmt.Errorf("invalid adapter")
 	}
