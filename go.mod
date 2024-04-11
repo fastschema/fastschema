@@ -26,7 +26,7 @@ require (
 	golang.org/x/crypto v0.22.0
 	golang.org/x/text v0.14.0
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028
-	modernc.org/sqlite v1.29.5
+	modernc.org/sqlite v1.29.6
 )
 
 require (
