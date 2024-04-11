@@ -16,7 +16,6 @@ var categorySchemaJSON = `{
 	"name": "category",
 	"namespace": "categories",
 	"label_field": "name",
-	"disable_timestamp": false,
 	"fields": [
 		{
 			"type": "string",
@@ -29,8 +28,11 @@ var categorySchemaJSON = `{
 }`
 
 func TestSchemaServiceUpdateError(t *testing.T) {
-	_, _, server := createSchemaService(t, map[string]string{
-		"category": categorySchemaJSON,
+	_, _, server := createSchemaService(t, &testSchemaSeviceConfig{
+		schemaDir: "/home/phuong/projects/fastschema/fastschema/data/schemas",
+		extraSchemas: map[string]string{
+			"category": categorySchemaJSON,
+		},
 	})
 
 	// Case 1: invalid payload
@@ -42,7 +44,7 @@ func TestSchemaServiceUpdateError(t *testing.T) {
 	assert.Contains(t, response, `"error":{`)
 
 	// Case 2: invalid schema
-	req = httptest.NewRequest("PUT", "/schema/product", bytes.NewReader([]byte(`{}`)))
+	req = httptest.NewRequest("PUT", "/schema/product", bytes.NewReader([]byte(`{"schema":{}}`)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 404, resp.StatusCode)
@@ -50,7 +52,7 @@ func TestSchemaServiceUpdateError(t *testing.T) {
 	assert.Contains(t, response, `schema product not found`)
 
 	// Case 3: update data is empty
-	req = httptest.NewRequest("PUT", "/schema/blog", bytes.NewReader([]byte(`{}`)))
+	req = httptest.NewRequest("PUT", "/schema/category", bytes.NewReader([]byte(`{}`)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
@@ -59,8 +61,13 @@ func TestSchemaServiceUpdateError(t *testing.T) {
 }
 
 func TestSchemaServiceUpdateSuccess(t *testing.T) {
-	newJSON := categorySchemaJSON
-	testApp, _, server := createSchemaService(t, map[string]string{"category": newJSON})
+	newJSON := testBlogJSON
+	testApp, _, server := createSchemaService(t, &testSchemaSeviceConfig{
+		schemaDir: "/home/phuong/projects/fastschema/fastschema/data/schemas",
+		extraSchemas: map[string]string{
+			"blog": newJSON,
+		},
+	})
 
 	// Case 1: add normal field
 	newJSON = strings.ReplaceAll(
@@ -69,7 +76,7 @@ func TestSchemaServiceUpdateSuccess(t *testing.T) {
 		`"fields": [{"type": "string","name": "description","label": "Description","sortable": true},`,
 	)
 	req := httptest.NewRequest(
-		"PUT", "/schema/category",
+		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(
 			fmt.Sprintf(`{"schema":%s}`, newJSON),
 		)),
@@ -79,7 +86,7 @@ func TestSchemaServiceUpdateSuccess(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
-	assert.Equal(t, "description", utils.Must(testApp.Schema("category").Field("description")).Name)
+	assert.Equal(t, "description", utils.Must(testApp.Schema("blog").Field("description")).Name)
 
 	// Case 2: add relation field
 	newJSON = strings.ReplaceAll(
@@ -87,19 +94,19 @@ func TestSchemaServiceUpdateSuccess(t *testing.T) {
 		`"fields": [`,
 		`"fields": [{
 			"type": "relation",
-			"name": "blogs",
-			"label": "Blogs",
+			"name": "categories",
+			"label": "Categories",
 			"relation": {
-				"schema": "blog",
-				"field": "categories",
+				"schema": "category",
+				"field": "blogs",
 				"type": "m2m",
-				"owner": true,
+				"owner": false,
 				"optional": false
 			}
 		},`,
 	)
 	req = httptest.NewRequest(
-		"PUT", "/schema/category",
+		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(
 			fmt.Sprintf(`{"schema":%s}`, newJSON),
 		)),
@@ -109,14 +116,24 @@ func TestSchemaServiceUpdateSuccess(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
-	assert.Equal(t, "blogs", utils.Must(testApp.Schema("category").Field("blogs")).Name)
-	assert.Equal(t, schema.M2M, utils.Must(testApp.Schema("category").Field("blogs")).Relation.Type)
-	assert.Equal(t, "blog", utils.Must(testApp.Schema("category").Field("blogs")).Relation.TargetSchemaName)
-	assert.Equal(t, "categories", utils.Must(testApp.Schema("category").Field("blogs")).Relation.TargetFieldName)
-	assert.True(t, utils.Must(testApp.Schema("category").Field("blogs")).Relation.Owner)
-	assert.False(t, utils.Must(testApp.Schema("category").Field("blogs")).Relation.Optional)
 
-	// Case 2: update schema name
+	blogFieldCategories := utils.Must(testApp.Schema("blog").Field("categories"))
+	assert.Equal(t, "categories", blogFieldCategories.Name)
+	assert.Equal(t, schema.M2M, blogFieldCategories.Relation.Type)
+	assert.Equal(t, "category", blogFieldCategories.Relation.TargetSchemaName)
+	assert.Equal(t, "blogs", blogFieldCategories.Relation.TargetFieldName)
+	assert.False(t, blogFieldCategories.Relation.Owner)
+	assert.False(t, blogFieldCategories.Relation.Optional)
+
+	categoryFieldBlogs := utils.Must(testApp.Schema("category").Field("blogs"))
+	assert.Equal(t, "blogs", categoryFieldBlogs.Name)
+	assert.Equal(t, schema.M2M, categoryFieldBlogs.Relation.Type)
+	assert.Equal(t, "blog", categoryFieldBlogs.Relation.TargetSchemaName)
+	assert.Equal(t, "categories", categoryFieldBlogs.Relation.TargetFieldName)
+	assert.True(t, categoryFieldBlogs.Relation.Owner)
+	assert.True(t, categoryFieldBlogs.Relation.Optional)
+
+	// Case 3: update schema name
 	newJSON = strings.ReplaceAll(newJSON, `"name": "category"`, `"name": "cat"`)
 	req = httptest.NewRequest(
 		"PUT", "/schema/category",
@@ -129,24 +146,20 @@ func TestSchemaServiceUpdateSuccess(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.Contains(t, response, `"name":"cat"`)
+	assert.Equal(t, "cat", utils.Must(testApp.SchemaBuilder().Schema("cat")).Name)
 
-	catSchema := utils.Must(testApp.SchemaBuilder().Schema("cat"))
-	assert.Equal(t, "cat", catSchema.Name)
-
-	// // Case 2: update schema namespace
-	// newJSON = strings.ReplaceAll(newJSON, `"namespace": "categories"`, `"namespace": "cats"`)
-	// req = httptest.NewRequest(
-	// 	"PUT", "/schema/category",
-	// 	bytes.NewReader([]byte(
-	// 		fmt.Sprintf(`{"schema":%s}`, newJSON),
-	// 	)),
-	// )
-	// resp = utils.Must(server.Test(req))
-	// defer func() { assert.NoError(t, resp.Body.Close()) }()
-	// assert.Equal(t, 200, resp.StatusCode)
-	// response = utils.Must(utils.ReadCloserToString(resp.Body))
-	// assert.Contains(t, response, `"namespace":"cats"`)
-
-	// catSchema = utils.Must(testApp.SchemaBuilder().Schema("cat"))
-	// assert.Equal(t, "cat", catSchema.Name)
+	// Case 4: update schema namespace
+	newJSON = strings.ReplaceAll(newJSON, `"namespace": "categories"`, `"namespace": "cats"`)
+	req = httptest.NewRequest(
+		"PUT", "/schema/cat",
+		bytes.NewReader([]byte(
+			fmt.Sprintf(`{"schema":%s}`, newJSON),
+		)),
+	)
+	resp = utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 200, resp.StatusCode)
+	response = utils.Must(utils.ReadCloserToString(resp.Body))
+	assert.Contains(t, response, `"namespace":"cats"`)
+	assert.Equal(t, "cats", utils.Must(testApp.SchemaBuilder().Schema("cat")).Namespace)
 }

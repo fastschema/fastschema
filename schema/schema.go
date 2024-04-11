@@ -166,9 +166,9 @@ func (s *Schema) SaveToFile(filename string) error {
 }
 
 // HasField checks if the schema has a field.
-func (s *Schema) HasField(field *Field) bool {
-	existedFields := utils.Filter(s.Fields, func(oldField *Field) bool {
-		return oldField.Name == field.Name
+func (s *Schema) HasField(fieldName string) bool {
+	existedFields := utils.Filter(s.Fields, func(f *Field) bool {
+		return f.Name == fieldName
 	})
 
 	return len(existedFields) > 0

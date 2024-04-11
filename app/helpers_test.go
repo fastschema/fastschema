@@ -198,7 +198,9 @@ func TestEntityToUser(t *testing.T) {
 // MockDisk is a mock implementation of the app.Disk interface.
 type MockDisk struct{}
 
-func (d *MockDisk) Name() string { return "mock" }
+func (d *MockDisk) Name() string            { return "mock" }
+func (d *MockDisk) LocalPublicPath() string { return "" }
+func (d *MockDisk) Root() string            { return "" }
 func (d *MockDisk) URL(filepath string) string {
 	return fmt.Sprintf("http://example.com%s", filepath)
 }

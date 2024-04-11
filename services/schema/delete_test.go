@@ -3,6 +3,7 @@ package schemaservice_test
 import (
 	"bytes"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -21,28 +22,14 @@ func TestSchemaServiceDelete(t *testing.T) {
 	assert.Contains(t, response, `schema product not found`)
 
 	// Case 2: schema has no relation
-	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(`{
-		"name": "category",
-		"namespace": "categories",
-		"label_field": "name",
-		"disable_timestamp": false,
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"unique": true,
-				"sortable": true
-			}
-		]
-	}`)))
+	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(testBlogJSON)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
 
-	req = httptest.NewRequest("DELETE", "/schema/category", nil)
+	req = httptest.NewRequest("DELETE", "/schema/blog", nil)
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
@@ -50,40 +37,30 @@ func TestSchemaServiceDelete(t *testing.T) {
 	assert.Contains(t, response, `Schema deleted`)
 
 	// Case 3: schema has relation
-	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(`{
-		"name": "category",
-		"namespace": "categories",
-		"label_field": "name",
-		"disable_timestamp": false,
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"unique": true,
-				"sortable": true
-			},
-			{
-				"type": "relation",
-				"name": "blogs",
-				"label": "Blogs",
-				"relation": {
-					"schema": "blog",
-					"field": "categories",
-					"type": "m2m",
-					"owner": true,
-					"optional": false
-				}
+	newBlogJSON := strings.ReplaceAll(
+		testBlogJSON,
+		`"fields": [`,
+		`"fields": [{
+			"type": "relation",
+			"name": "categories",
+			"label": "Categories",
+			"relation": {
+				"schema": "category",
+				"field": "blogs",
+				"type": "m2m",
+				"owner": true,
+				"optional": false
 			}
-		]
-	}`)))
+		},`,
+	)
+	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(newBlogJSON)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
 
-	req = httptest.NewRequest("DELETE", "/schema/category", nil)
+	req = httptest.NewRequest("DELETE", "/schema/blog", nil)
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)

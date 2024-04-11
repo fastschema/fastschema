@@ -263,17 +263,29 @@ func (a *App) Start() {
 		))
 	}
 
-	restResolver := restresolver.NewRestResolver(
-		a.resources,
-		[]*app.StaticFs{{
-			BasePath: "/files",
-			Root:     http.Dir(a.publicDir),
-		}, {
-			BasePath:   "/" + a.config.DashBaseName,
-			Root:       http.FS(embedDashStatic),
-			PathPrefix: "dash",
-		}}...,
-	)
+	statics := []*app.StaticFs{{
+		BasePath:   "/" + a.config.DashBaseName,
+		Root:       http.FS(embedDashStatic),
+		PathPrefix: "dash",
+	}}
+
+	// if a local disk has a public path, then add it to the statics
+	for _, disk := range a.disks {
+		publicPath := disk.LocalPublicPath()
+
+		if publicPath != "" {
+			a.startupMessages = append(
+				a.startupMessages,
+				fmt.Sprintf("Serving files from disk [%s:%s] at %s", disk.Name(), publicPath, disk.Root()),
+			)
+			statics = append(statics, &app.StaticFs{
+				BasePath: publicPath,
+				Root:     http.Dir(disk.Root()),
+			})
+		}
+	}
+
+	restResolver := restresolver.NewRestResolver(a.resources, statics...)
 
 	fmt.Printf("\n")
 	for _, msg := range a.startupMessages {
@@ -418,7 +430,7 @@ func (a *App) getDefaultDBClient() (err error) {
 		dbConfig.Name = path.Join(a.dataDir, "fastschema.db")
 		a.startupMessages = append(
 			a.startupMessages,
-			fmt.Sprintf("Using the default sqlite db file path: %s", dbConfig.Name),
+			fmt.Sprintf("Using default sqlite db file: %s", dbConfig.Name),
 		)
 	}
 
@@ -461,13 +473,19 @@ func (a *App) getDefaultDisk() (err error) {
 		}
 	}
 
-	if a.disks, err = rclonefs.NewFromConfig(storageDisksConfig, a.dir); err != nil {
-		return err
+	// if threre is no disk config, add a default disk
+	if storageDisksConfig == nil {
+		storageDisksConfig = []*app.DiskConfig{{
+			Name:       "local_public",
+			Driver:     "local",
+			PublicPath: "/files",
+			BaseURL:    fmt.Sprintf("%s/files", a.config.BaseURL),
+			Root:       a.publicDir,
+		}}
 	}
 
-	if defaultDiskName == "" && len(a.disks) > 0 {
-		a.defaultDisk = a.disks[0]
-		return nil
+	if a.disks, err = rclonefs.NewFromConfig(storageDisksConfig, a.dataDir); err != nil {
+		return err
 	}
 
 	for _, disk := range a.disks {
@@ -475,6 +493,10 @@ func (a *App) getDefaultDisk() (err error) {
 			a.defaultDisk = disk
 			break
 		}
+	}
+
+	if a.defaultDisk == nil && len(a.disks) > 0 {
+		a.defaultDisk = a.disks[0]
 	}
 
 	return nil

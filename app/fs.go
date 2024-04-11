@@ -10,11 +10,13 @@ import (
 // Disk is the interface that defines the methods that a disk must implement
 type Disk interface {
 	Name() string
+	Root() string
 	URL(filepath string) string
 	Delete(c context.Context, filepath string) error
 	Put(c context.Context, file *File) (*File, error)
 	PutReader(c context.Context, in io.Reader, size uint64, mime, dst string) (*File, error)
 	PutMultipart(c context.Context, m *multipart.FileHeader, dsts ...string) (*File, error)
+	LocalPublicPath() string
 }
 
 // File holds the file data
@@ -40,6 +42,7 @@ type DiskConfig struct {
 	Driver          string        `json:"driver"`
 	Root            string        `json:"root"`
 	BaseURL         string        `json:"base_url"`
+	PublicPath      string        `json:"public_path"`
 	GetBaseURL      func() string `json:"-"`
 	Provider        string        `json:"provider"`
 	Endpoint        string        `json:"endpoint"`

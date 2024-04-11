@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewS3(t *testing.T) {
-	cfg := &RcloneS3Config{
+	config := &RcloneS3Config{
 		Name:            "s3",
 		Root:            "/path/to/root",
 		Provider:        "DigitalOcean",
@@ -20,24 +20,24 @@ func TestNewS3(t *testing.T) {
 		ACL:             "acl",
 	}
 
-	disk, err := NewS3(cfg)
+	disk, err := NewS3(config)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, disk)
 
 	rs3, ok := disk.(*RcloneS3)
 	assert.True(t, ok)
-	assert.Equal(t, cfg.Name, rs3.DiskName)
-	assert.Equal(t, cfg.Root, rs3.Root)
-	assert.Equal(t, cfg.Root, rs3.BaseRcloneDisk.Root)
-	assert.Equal(t, cfg.Provider, rs3.Provider)
-	assert.Equal(t, cfg.Region, rs3.Region)
-	assert.Equal(t, cfg.Endpoint, rs3.Endpoint)
-	assert.Equal(t, cfg.ChunkSize, rs3.ChunkSize)
-	assert.Equal(t, cfg.AccessKeyID, rs3.AccessKeyID)
-	assert.Equal(t, cfg.SecretAccessKey, rs3.SecretAccessKey)
-	assert.Equal(t, cfg.BaseURL, rs3.BaseURL)
-	assert.Equal(t, cfg.ACL, rs3.ACL)
+	assert.Equal(t, config.Name, rs3.DiskName)
+	assert.Equal(t, config.Root, rs3.Root())
+	assert.Equal(t, config.Root, rs3.BaseRcloneDisk.Root)
+	assert.Equal(t, config.Provider, rs3.config.Provider)
+	assert.Equal(t, config.Region, rs3.config.Region)
+	assert.Equal(t, config.Endpoint, rs3.config.Endpoint)
+	assert.Equal(t, config.ChunkSize, rs3.config.ChunkSize)
+	assert.Equal(t, config.AccessKeyID, rs3.config.AccessKeyID)
+	assert.Equal(t, config.SecretAccessKey, rs3.config.SecretAccessKey)
+	assert.Equal(t, config.BaseURL, rs3.config.BaseURL)
+	assert.Equal(t, config.ACL, rs3.config.ACL)
 }
 
 func TestRcloneS3URL(t *testing.T) {

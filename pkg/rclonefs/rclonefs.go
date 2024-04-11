@@ -1,6 +1,7 @@
 package rclonefs
 
 import (
+	"errors"
 	"path"
 
 	"github.com/fastschema/fastschema/app"
@@ -31,9 +32,20 @@ func NewFromConfig(diskConfigs []*app.DiskConfig, localRoot string) ([]app.Disk,
 
 			disks = append(disks, s3Disk)
 		case "local":
+			if diskConfig.Root == "" {
+				return nil, errors.New("root is required for local disk")
+			}
+
+			// if diskConfig.Root is not start with "/", then it is a relative path
+			// we need to join it with localRoot
+			if diskConfig.Root[0] != '/' {
+				diskConfig.Root = path.Join(localRoot, diskConfig.Root)
+			}
+
 			localDisk, err := NewLocal(&RcloneLocalConfig{
 				Name:       diskConfig.Name,
-				Root:       path.Join(localRoot, diskConfig.Root),
+				Root:       diskConfig.Root,
+				PublicPath: diskConfig.PublicPath,
 				BaseURL:    diskConfig.BaseURL,
 				GetBaseURL: diskConfig.GetBaseURL,
 			})

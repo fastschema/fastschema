@@ -15,14 +15,15 @@ func TestNewLocal(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create a test configuration
-	cfg := &RcloneLocalConfig{
-		Name:    "test",
-		Root:    tmpDir,
-		BaseURL: "http://example.com",
+	config := &RcloneLocalConfig{
+		Name:       "test",
+		Root:       tmpDir,
+		BaseURL:    "http://example.com",
+		PublicPath: "/public",
 	}
 
 	// Call the NewLocal function
-	disk, err := NewLocal(cfg)
+	disk, err := NewLocal(config)
 	assert.NoError(t, err)
 
 	// Assert that the returned disk is of type *RcloneLocal
@@ -30,21 +31,23 @@ func TestNewLocal(t *testing.T) {
 	assert.True(t, ok)
 
 	// Assert that the disk name is set correctly
-	assert.Equal(t, cfg.Name, rl.DiskName)
+	assert.Equal(t, config.Name, rl.DiskName)
 
 	// Assert that the root directory is created
-	_, err = os.Stat(cfg.Root)
+	_, err = os.Stat(config.Root)
 	assert.NoError(t, err)
 
 	// Assert that the base URL is set correctly
-	assert.Equal(t, cfg.BaseURL, rl.BaseURL)
+	assert.Equal(t, config.BaseURL, rl.config.BaseURL)
 
 	// Assert that the file system driver is created correctly
 	fs, ok := rl.Fs.(*local.Fs)
 	assert.True(t, ok)
 	assert.Equal(t, rl.DiskName, fs.Name())
-	assert.Equal(t, rl.Root, fs.Root())
+	assert.Equal(t, rl.Root(), fs.Root())
+	assert.Equal(t, "/public", rl.LocalPublicPath())
 }
+
 func TestRcloneLocalURL(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir, err := os.MkdirTemp("", "rclonefs")
@@ -77,7 +80,7 @@ func TestRcloneLocalURL(t *testing.T) {
 	localDisk, ok := rl.(*RcloneLocal)
 	assert.True(t, ok)
 
-	localDisk.GetBaseURL = func() string {
+	localDisk.config.GetBaseURL = func() string {
 		return "http://custom-url.com"
 	}
 

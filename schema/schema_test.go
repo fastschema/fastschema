@@ -187,7 +187,7 @@ func TestSchemaHasField(t *testing.T) {
 		Label: "label1",
 	}
 
-	exists := s.HasField(field)
+	exists := s.HasField(field.Name)
 	assert.True(t, exists)
 
 	field = &Field{
@@ -196,7 +196,7 @@ func TestSchemaHasField(t *testing.T) {
 		Label: "label3",
 	}
 
-	exists = s.HasField(field)
+	exists = s.HasField(field.Name)
 	assert.False(t, exists)
 }
 

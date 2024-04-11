@@ -14,7 +14,7 @@ import (
 	"golang.org/x/text/language"
 )
 
-func (su *SchemaUpdate) prepare() (err error) {
+func (su *SchemaUpdate2) prepare() (err error) {
 	oldSchemasDir := su.DB().SchemaBuilder().Dir()
 
 	// Create the new schema update dir
@@ -54,7 +54,7 @@ func (su *SchemaUpdate) prepare() (err error) {
 }
 
 // updateBasicData update the data that only exist in the schema json files
-func (su *SchemaUpdate) updateBasicData(oldSchemasDir string) (err error) {
+func (su *SchemaUpdate2) updateBasicData(oldSchemasDir string) (err error) {
 	if su.updateSchemas, err = schema.GetSchemasFromDir(oldSchemasDir); err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (su *SchemaUpdate) updateBasicData(oldSchemasDir string) (err error) {
 
 // applyRenameSchema check if the schema name is renamed,
 // if so, rename the schema name in the relation fields.
-func (su *SchemaUpdate) applyRenameSchema() (err error) {
+func (su *SchemaUpdate2) applyRenameSchema() (err error) {
 	newSchemaName := ""
 	if su.oldSchema.Name != su.updateData.Schema.Name {
 		newSchemaName = su.updateData.Schema.Name
@@ -136,7 +136,7 @@ func (su *SchemaUpdate) applyRenameSchema() (err error) {
 
 // applyRenameSchemaNamespace check if the schema namespace is renamed,
 // if so, rename the schema namespace in the relation fields.
-func (su *SchemaUpdate) applyRenameSchemaNamespace() (err error) {
+func (su *SchemaUpdate2) applyRenameSchemaNamespace() (err error) {
 	newSchemaNamespace := ""
 	if su.oldSchema.Namespace != su.updateData.Schema.Namespace {
 		newSchemaNamespace = su.updateData.Schema.Namespace
@@ -156,7 +156,7 @@ func (su *SchemaUpdate) applyRenameSchemaNamespace() (err error) {
 }
 
 // updateRelationsData update the data that related to the relation fields
-func (su *SchemaUpdate) updateRelationsData() (err error) {
+func (su *SchemaUpdate2) updateRelationsData() (err error) {
 	// add the back reference field to the related schema
 	for _, field := range su.updateData.Schema.Fields {
 		if !field.Type.IsRelationType() {
@@ -166,7 +166,7 @@ func (su *SchemaUpdate) updateRelationsData() (err error) {
 		// if field exist in su.oldSchema,
 		// then the field is not added, no need to add the back reference field.
 		// otherwise, add the back reference field
-		if su.oldSchema.HasField(field) {
+		if su.oldSchema.HasField(field.Name) {
 			continue
 		}
 
@@ -178,7 +178,7 @@ func (su *SchemaUpdate) updateRelationsData() (err error) {
 	return nil
 }
 
-func (su *SchemaUpdate) updateRelatedSchemas() error {
+func (su *SchemaUpdate2) updateRelatedSchemas() error {
 	// remove the back reference field from the related schema
 	for _, field := range su.oldSchema.Fields {
 		if !field.Type.IsRelationType() {
@@ -188,7 +188,7 @@ func (su *SchemaUpdate) updateRelatedSchemas() error {
 		// if field exist in su.updateData.Schema,
 		// then the field is not removed, no need to remove the back reference field.
 		// otherwise, remove the back reference field
-		if su.updateData.Schema.HasField(field) {
+		if su.updateData.Schema.HasField(field.Name) {
 			continue
 		}
 
@@ -216,7 +216,7 @@ func (su *SchemaUpdate) updateRelatedSchemas() error {
 		// if field exist in su.oldSchema,
 		// then the field is not added, no need to add the back reference field.
 		// otherwise, add the back reference field
-		if su.oldSchema.HasField(field) {
+		if su.oldSchema.HasField(field.Name) {
 			continue
 		}
 
@@ -242,7 +242,7 @@ func (su *SchemaUpdate) updateRelatedSchemas() error {
 				Optional:         isTargetRelationOwner,
 			},
 		}
-		if targetSchema.HasField(targetRelationField) {
+		if targetSchema.HasField(targetRelationField.Name) {
 			return errors.New(
 				fmt.Sprintf(
 					"Invalid field '%s.%s'. Target relation field '%s' already exist in schema '%s'",
@@ -264,7 +264,7 @@ func (su *SchemaUpdate) updateRelatedSchemas() error {
 // renameRelations check for the newly added relation fields,
 // to find out if the relation field was renamed, if so,
 // add the rename columns for the foreign key columns
-func (su *SchemaUpdate) renameRelations(newField *schema.Field) (err error) {
+func (su *SchemaUpdate2) renameRelations(newField *schema.Field) (err error) {
 	// filter from RenameFields to find the original field name (old field name)
 	matchedFields := utils.Filter(su.updateData.RenameFields, func(f *app.RenameItem) bool {
 		return f.To == newField.Name
@@ -363,7 +363,7 @@ func (su *SchemaUpdate) renameRelations(newField *schema.Field) (err error) {
 	return nil
 }
 
-func (su *SchemaUpdate) renameDir(oldSchemasDir string) error {
+func (su *SchemaUpdate2) renameDir(oldSchemasDir string) error {
 	backupDir := su.updateDir + "_backup"
 
 	if err := os.Rename(oldSchemasDir, backupDir); err != nil {

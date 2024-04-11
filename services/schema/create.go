@@ -58,7 +58,7 @@ func (ss *SchemaService) Create(c app.Context, newSchemaData *schema.Schema) (*s
 				Optional:         isTargetRelationOwner,
 			},
 		}
-		if targetSchema.HasField(targetRelationField) {
+		if targetSchema.HasField(targetRelationField.Name) {
 			return nil, errors.BadRequest(
 				"Invalid field '%s.%s'. Target schema '%s' already has field '%s'",
 				newSchemaData.Name,
