@@ -9,7 +9,7 @@ require (
 	entgo.io/ent v0.13.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/buger/jsonparser v1.1.1
-	github.com/docker/docker v26.0.0+incompatible
+	github.com/docker/docker v26.0.1+incompatible
 	github.com/fatih/color v1.16.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gofiber/fiber/v2 v2.52.4
