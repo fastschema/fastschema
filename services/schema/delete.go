@@ -16,9 +16,10 @@ func (ss *SchemaService) Delete(c app.Context, _ *any) (app.Map, error) {
 
 	// check if the schema has any relation
 	// if it has, then we can't delete it
+	// skip relation type check if the relation type is bi-directional
 	hasRelation := false
 	for _, field := range s.Fields {
-		if field.Type.IsRelationType() {
+		if field.Type.IsRelationType() && field.Relation.TargetSchemaName != schemaName {
 			hasRelation = true
 			break
 		}

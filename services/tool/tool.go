@@ -2,6 +2,7 @@ package toolservice
 
 import (
 	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 type AppLike interface {
@@ -31,18 +32,11 @@ func (s *ToolService) Stats(c app.Context, _ *any) (_ *StatsData, err error) {
 	totalRoles := 0
 	totalMedias := 0
 
-	userModel, err := s.DB().Model("user")
-	if err != nil {
-		return nil, err
-	}
+	userModel, userModelErr := s.DB().Model("user")
+	roleModel, roleModelErr := s.DB().Model("role")
+	mediaModel, modelModelErr := s.DB().Model("media")
 
-	roleModel, err := s.DB().Model("role")
-	if err != nil {
-		return nil, err
-	}
-
-	mediaModel, err := s.DB().Model("media")
-	if err != nil {
+	if err = utils.MergeErrorMessages(userModelErr, roleModelErr, modelModelErr); err != nil {
 		return nil, err
 	}
 

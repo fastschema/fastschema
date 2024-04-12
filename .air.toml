@@ -4,7 +4,7 @@ tmp_dir = "data/tmp"
 
 [build]
   args_bin = []
-  cmd = "go build -o ./data/tmp/fastschema.exe ./default/main.go"
+  cmd = "go build -o ./data/tmp/fastschema.exe ./cmd/main.go"
   bin = "./data/tmp/fastschema.exe"
   full_bin = ""
   delay = 1

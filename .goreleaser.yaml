@@ -8,8 +8,8 @@ before:
     - go mod tidy
 
 builds:
-  - id: build_default
-    main: ./default
+  - id: build_main
+    main: ./main
     binary: fastschema
     flags:
       - -trimpath
@@ -34,7 +34,7 @@ builds:
         goarch: arm
 
 archives:
-  - id: build_default
+  - id: build_main
     format: zip
 
 snapshot:

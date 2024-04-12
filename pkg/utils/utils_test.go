@@ -860,3 +860,31 @@ func (er errorReader) Read(p []byte) (n int, err error) {
 func (er errorReader) Close() error {
 	return nil
 }
+func TestMergeErrorMessages(t *testing.T) {
+	// Test case 1: No errors
+	err1 := MergeErrorMessages()
+	assert.Nil(t, err1)
+
+	// Test case 2: Single error
+	err2 := errors.New("error 1")
+	result2 := MergeErrorMessages(err2)
+	assert.EqualError(t, result2, "error 1")
+
+	// Test case 3: Multiple errors
+	err3 := errors.New("error 1")
+	err4 := errors.New("error 2")
+	err5 := errors.New("error 3")
+	result3 := MergeErrorMessages(err3, err4, err5)
+	expected3 := "error 1, error 2, error 3"
+	assert.EqualError(t, result3, expected3)
+
+	// Test case 4: Mixed errors and nil values
+	var err6 = errors.New("error 1")
+	var err7 error = nil
+	var err8 = errors.New("error 2")
+	var err9 error = nil
+	err10 := errors.New("error 3")
+	result4 := MergeErrorMessages(err6, err7, err8, err9, err10)
+	expected4 := "error 1, error 2, error 3"
+	assert.EqualError(t, result4, expected4)
+}
