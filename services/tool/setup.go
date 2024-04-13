@@ -1,4 +1,4 @@
-package cmd
+package toolservice
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-func createRole(db app.DBClient, roleData *app.Role) (uint64, error) {
+func CreateRole(db app.DBClient, roleData *app.Role) (uint64, error) {
 	roleModel, err := db.Model("role")
 	if err != nil {
 		return 0, err
@@ -27,8 +27,23 @@ func Setup(
 	dbClient app.DBClient,
 	logger app.Logger,
 	username, email, password string,
-) error {
+) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
+
 	tx := utils.Must(dbClient.Tx(context.Background()))
+
+	defer func() {
+		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				logger.Error("rollback error: %v", err)
+			}
+		}
+	}()
+
 	userModel := utils.Must(tx.Model("user"))
 	adminUser, err := userModel.Query(app.EQ("username", username)).First()
 	if err != nil && !app.IsNotFound(err) {
@@ -39,9 +54,9 @@ func Setup(
 		return fmt.Errorf("user %s already exists", username)
 	}
 
-	adminRoleID := utils.Must(createRole(tx, app.RoleAdmin))
-	utils.Must(createRole(tx, app.RoleUser))
-	utils.Must(createRole(tx, app.RoleGuest))
+	adminRoleID := utils.Must(CreateRole(tx, app.RoleAdmin))
+	utils.Must(CreateRole(tx, app.RoleUser))
+	utils.Must(CreateRole(tx, app.RoleGuest))
 	adminPassword, err := utils.GenerateHash(password)
 	if err != nil {
 		return err

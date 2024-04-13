@@ -2,6 +2,7 @@ package schemaservice_test
 
 import (
 	"bytes"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -103,6 +104,7 @@ func TestSchemaServiceCreate(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
+	fmt.Println(response)
 
 	blogSchema := utils.Must(testApp.SchemaBuilder().Schema("blog"))
 	blogCategoriesField, err := blogSchema.Field("categories")

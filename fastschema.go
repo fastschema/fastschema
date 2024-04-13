@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/cmd"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/rclonefs"
@@ -225,7 +224,7 @@ func (a *App) Start() {
 				return false, errors.Forbidden("Invalid setup token")
 			}
 
-			if err := cmd.Setup(
+			if err := ts.Setup(
 				a.DB(),
 				a.Logger(),
 				setupData.Username, setupData.Email, setupData.Password,

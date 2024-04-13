@@ -6,8 +6,8 @@ import (
 
 	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/cmd"
 	"github.com/fastschema/fastschema/pkg/utils"
+	toolservice "github.com/fastschema/fastschema/services/tool"
 	"github.com/urfave/cli/v2"
 )
 
@@ -44,7 +44,7 @@ func main() {
 						Dir: c.Args().Get(0),
 					}))
 
-					return cmd.Setup(
+					return toolservice.Setup(
 						fsApp.DB(),
 						fsApp.Logger(),
 						c.String("username"), c.String("email"), c.String("password"),

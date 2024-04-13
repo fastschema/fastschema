@@ -31,6 +31,13 @@ func (ss *SchemaService) Create(c app.Context, newSchemaData *schema.Schema) (*s
 
 		field.Init(newSchemaData.Name)
 		relation := field.Relation
+
+		// check if target schema exists
+		// skip check if the relation type is bi-directional
+		if relation.TargetSchemaName == newSchemaData.Name {
+			continue
+		}
+
 		targetSchema, err := ss.app.SchemaBuilder().Schema(relation.TargetSchemaName)
 		// targetSchema, ok := su.updateSchemas[relation.TargetSchemaName]
 		if err != nil {

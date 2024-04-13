@@ -423,3 +423,18 @@ func ReadCloserToString(rc io.ReadCloser) (string, error) {
 
 	return string(data), nil
 }
+
+func MergeErrorMessages(errs ...error) error {
+	messages := make([]string, 0)
+	for _, err := range errs {
+		if err != nil {
+			messages = append(messages, err.Error())
+		}
+	}
+
+	if len(messages) == 0 {
+		return nil
+	}
+
+	return errors.New(strings.Join(messages, ", "))
+}

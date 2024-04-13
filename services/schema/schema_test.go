@@ -38,6 +38,19 @@ var (
 				"name": "name",
 				"label": "Name",
 				"sortable": true
+			},
+			{
+				"type": "relation",
+				"name": "pair",
+				"label": "Pair",
+				"optional": true,
+				"relation": {
+					"schema": "blog",
+					"field": "pair",
+					"type": "o2o",
+					"owner": true,
+					"optional": true
+				}
 			}
 		]
 	}`
@@ -55,12 +68,54 @@ var (
 			}
 		]
 	}`
+
+	testBlogJSONFields = map[string]string{
+		"description": `{"type": "string","name": "description","label": "Description","sortable": true}`,
+		"categories": `{
+			"type": "relation",
+			"name": "categories",
+			"label": "Categories",
+			"relation": {
+				"schema": "category",
+				"field": "blogs",
+				"type": "m2m",
+				"owner": false,
+				"optional": false
+			}
+		}`,
+		"category": `{
+			"type": "relation",
+			"name": "category",
+			"label": "Category",
+			"relation": {
+				"schema": "category",
+				"field": "blogs",
+				"type": "o2m",
+				"owner": false,
+				"optional": false
+			}
+		}`,
+		"note": `{"type": "string","name": "note","label": "Note","sortable": true}`,
+		"tags": `{
+			"type": "relation",
+			"name": "tags",
+			"label": "Tags",
+			"relation": {
+				"schema": "tag",
+				"field": "blogs",
+				"type": "m2m",
+				"owner": false,
+				"optional": false
+			}
+		}`,
+	}
 )
 
 type testApp struct {
 	sb        *schema.Builder
 	db        app.DBClient
 	schemaDir string
+	reloadFn  func(*app.Migration) error
 }
 
 func (s *testApp) Schema(name string) *schema.Schema {
@@ -79,12 +134,17 @@ func (s *testApp) Reload(migration *app.Migration) error {
 	s.sb = utils.Must(schema.NewBuilderFromDir(s.schemaDir))
 	s.db = utils.Must(entdbadapter.NewTestClient(os.TempDir(), s.sb))
 
+	if s.reloadFn != nil {
+		return s.reloadFn(migration)
+	}
+
 	return nil
 }
 
 type testSchemaSeviceConfig struct {
 	extraSchemas map[string]string
 	schemaDir    string
+	reloadFn     func(*app.Migration) error
 }
 
 func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
@@ -92,6 +152,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	*schemaservice.SchemaService,
 	*restresolver.Server,
 ) {
+	var reloadFn func(*app.Migration) error
 	schemaDir := t.TempDir()
 	schemas := map[string]string{
 		"category": testCategoryJSON,
@@ -109,6 +170,8 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 		for k, v := range config.extraSchemas {
 			schemas[k] = v
 		}
+
+		reloadFn = config.reloadFn
 	}
 
 	for name, content := range schemas {
@@ -116,7 +179,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	}
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
 	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
-	testApp := &testApp{sb: sb, db: db, schemaDir: schemaDir}
+	testApp := &testApp{sb: sb, db: db, schemaDir: schemaDir, reloadFn: reloadFn}
 	schemaService := schemaservice.New(testApp)
 
 	resources := app.NewResourcesManager()

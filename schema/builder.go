@@ -58,17 +58,12 @@ func GetSchemasFromDir(dir string) (map[string]*Schema, error) {
 	return schemas, nil
 }
 
-// NewBuilderFromDir creates a new schema from a directory.
-func NewBuilderFromDir(dir string) (*Builder, error) {
-	schemas, err := GetSchemasFromDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
+// NewBuilderFromSchemas creates a new schema from a map of schemas.
+func NewBuilderFromSchemas(dir string, schemas map[string]*Schema) (*Builder, error) {
 	b := &Builder{dir: dir, schemas: map[string]*Schema{}}
 
 	for _, schema := range schemas {
-		if err = schema.Init(false); err != nil {
+		if err := schema.Init(false); err != nil {
 			return nil, err
 		}
 
@@ -76,6 +71,16 @@ func NewBuilderFromDir(dir string) (*Builder, error) {
 	}
 
 	return b, b.Init()
+}
+
+// NewBuilderFromDir creates a new schema builder from a directory.
+func NewBuilderFromDir(dir string) (*Builder, error) {
+	schemas, err := GetSchemasFromDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewBuilderFromSchemas(dir, schemas)
 }
 
 // Clone clones the builder.

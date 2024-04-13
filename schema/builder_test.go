@@ -10,6 +10,51 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewBuilderFromSchemasError(t *testing.T) {
+	dir := t.TempDir()
+	schemas := map[string]*Schema{
+		"post": {
+			Name:      "post",
+			Namespace: "posts",
+			Fields: []*Field{
+				{
+					Name: "name",
+					Type: TypeString,
+				},
+			},
+		},
+	}
+
+	builder, err := NewBuilderFromSchemas(dir, schemas)
+	assert.Nil(t, builder)
+	assert.Error(t, err)
+}
+
+func TestNewBuilderFromSchemas(t *testing.T) {
+	dir := t.TempDir()
+	schemas := map[string]*Schema{
+		"post": {
+			Name:           "post",
+			Namespace:      "posts",
+			LabelFieldName: "name",
+			Fields: []*Field{
+				{
+					Name: "name",
+					Type: TypeString,
+				},
+			},
+		},
+	}
+
+	builder := utils.Must(NewBuilderFromSchemas(dir, schemas))
+
+	assert.Equal(t, dir, builder.dir)
+	assert.Equal(t, len(schemas), len(builder.schemas))
+	for name, schema := range schemas {
+		assert.Equal(t, schema, builder.schemas[name])
+	}
+}
+
 func TestNewBuilderFromDir(t *testing.T) {
 	_, err := NewBuilderFromDir("../tests/invalid")
 	assert.Error(t, err)

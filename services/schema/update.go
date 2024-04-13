@@ -48,7 +48,7 @@ func (ss *SchemaService) Update(c app.Context, updateData *SchemaUpdateData) (_ 
 	}
 
 	if err := su.update(); err != nil {
-		return nil, errors.InternalServerError(err.Error())
+		return nil, err
 	}
 
 	// catJSON := string(utils.Must(os.ReadFile(oldSchemaDir + "/category.json")))
@@ -60,8 +60,7 @@ func (ss *SchemaService) Update(c app.Context, updateData *SchemaUpdateData) (_ 
 			RenameFields: su.updateData.RenameFields,
 		},
 	); err != nil {
-		// rollback schema files
-
+		// rollback
 		// remove the current schema dir that contains the new schema files
 		if e := os.RemoveAll(currentSchemaBuilderDir); e != nil {
 			return nil, errors.InternalServerError(e.Error())
@@ -80,7 +79,7 @@ func (ss *SchemaService) Update(c app.Context, updateData *SchemaUpdateData) (_ 
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	return su.updateData.Data, nil
+	return ss.app.SchemaBuilder().Schema(updateData.Data.Name)
 }
 
 func (su *SchemaUpdate) update() (err error) {
@@ -117,55 +116,67 @@ func (su *SchemaUpdate) update() (err error) {
 		return err
 	}
 
-	return su.renameDir()
-}
-
-// When updating relation fields, there are two cases:
-//   - Add new relation fields: need to add the back reference fields to the relation target schemas
-//   - Remove relation fields: need toremove the back reference fields from the relation target schemas
-func (su *SchemaUpdate) updateRelatedSchemasBackRefs() error {
-	var setUpdateRelationSchema = func(relation *schema.Relation) error {
-		// if the target schema is not existed in updateSchemas, add it
-		if _, ok := su.updateSchemas[relation.TargetSchemaName]; !ok {
-			targetSchema, err := su.currentSchemaBuilder.Schema(relation.TargetSchemaName)
-			if err != nil {
-				return fmt.Errorf("relation target schema '%s' not found", relation.TargetSchemaName)
-			}
-
-			su.updateSchemas[relation.TargetSchemaName] = targetSchema.Clone() // clone the schema to avoid changing the original schema
-		}
-
-		return nil
-	}
-
-	// loop through all the fields in the current schema
-	// and check if the relation field is removed
-	for _, f := range su.currentSchema.Fields {
-		// if relation field exist in su.updateData.Data,
-		// then the current relation field is not removed, no need to remove the back reference field.
-		// otherwise, remove the back reference field
-		if !f.Type.IsRelationType() || su.updateData.Data.HasField(f.Name) {
+	// Check rename relation fields
+	for _, f := range su.updateData.Data.Fields {
+		// if field exist in su.currentSchema,
+		// then the current relation field is not a new relation field, no need to check for field rename.
+		// otherwise, add the back reference field
+		if !f.Type.IsRelationType() || su.currentSchema.HasField(f.Name) {
 			continue
 		}
 
-		if err := setUpdateRelationSchema(f.Relation); err != nil {
+		if err := su.applyRenameRelationField(f); err != nil {
 			return err
 		}
-
-		// remove the back reference field from the relation target schema
-		su.updateSchemas[f.Relation.TargetSchemaName].Fields = utils.Filter(
-			su.updateSchemas[f.Relation.TargetSchemaName].Fields,
-			func(f *schema.Field) bool {
-				return f.Name != f.Relation.TargetFieldName
-			},
-		)
 	}
 
+	su.updateData.RenameFields = utils.Filter(su.updateData.RenameFields, func(rf *app.RenameItem) bool {
+		return rf.From != rf.To
+	})
+
+	return su.renameDir()
+}
+
+// if the target schema is not existed in updateSchemas, add it
+func (su *SchemaUpdate) setUpdateRelationSchema(relation *schema.Relation) error {
+	if _, ok := su.updateSchemas[relation.TargetSchemaName]; !ok {
+		targetSchema, err := su.currentSchemaBuilder.Schema(relation.TargetSchemaName)
+		if err != nil {
+			return errors.BadRequest("relation target schema '%s' not found", relation.TargetSchemaName)
+		}
+
+		su.updateSchemas[relation.TargetSchemaName] = targetSchema.Clone() // clone the schema to avoid changing the original schema
+	}
+
+	return nil
+}
+
+// func (su *SchemaUpdate) applyRenameRelations() (err error) {
+// 	// add the back reference field to the related schema
+// 	for _, field := range su.updateData.Data.Fields {
+// 		if !field.Type.IsRelationType() {
+// 			continue
+// 		}
+
+// 		// if field exist in su.currentSchema,
+// 		// then the relation field is not a new relation field, no need to check for field rename.
+// 		if su.currentSchema.HasField(field.Name) {
+// 			continue
+// 		}
+
+// 		if err = su.renameRelations(field); err != nil {
+// 			return err
+// 		}
+// 	}
+
+// 	return nil
+// }
+
+// Add the back reference fields to the relation target schemas
+func (su *SchemaUpdate) applyAddNewRelationFields() error {
 	// loop through all the fields in the new schema data
 	// and check if the relation field is added
 	for _, f := range su.updateData.Data.Fields {
-		f.Init(su.updateData.Data.Name)
-
 		// if field exist in su.currentSchema,
 		// then the current relation field is not a new relation field, no need to add the back reference field.
 		// otherwise, add the back reference field
@@ -173,28 +184,28 @@ func (su *SchemaUpdate) updateRelatedSchemasBackRefs() error {
 			continue
 		}
 
-		if err := setUpdateRelationSchema(f.Relation); err != nil {
+		// new relation field may be a media field
+		// need to init the field so the relation will be initialized
+		f.Init(su.updateData.Data.Name)
+		if err := su.setUpdateRelationSchema(f.Relation); err != nil {
 			return err
 		}
 
 		// check if target schema already has the back reference field
 		if su.updateSchemas[f.Relation.TargetSchemaName].HasField(f.Relation.TargetFieldName) {
-			return errors.New(
-				fmt.Sprintf(
-					"Invalid field '%s.%s'. Target relation field '%s' already exist in schema '%s'",
-					su.currentSchema.Name,
-					f.Name,
-					f.Relation.TargetFieldName,
-					su.updateSchemas[f.Relation.TargetSchemaName].Name,
-				),
-			)
+			return errors.BadRequest(fmt.Sprintf(
+				"Invalid field '%s.%s'. Target relation field '%s' already exist in schema '%s'",
+				su.currentSchema.Name,
+				f.Name,
+				f.Relation.TargetFieldName,
+				su.updateSchemas[f.Relation.TargetSchemaName].Name,
+			))
 		}
 
 		// add the back reference field to the related schema in the new schema builder
 		// if the f.Relation.Owner == false, then the back reference field will be the owner and be optional
 		// otherwise, the back reference will be optional if the f.Relation.Optional == true
 		backRefOptional := f.Relation.Optional
-
 		if !f.Relation.Owner {
 			backRefOptional = true
 		}
@@ -221,6 +232,148 @@ func (su *SchemaUpdate) updateRelatedSchemasBackRefs() error {
 	return nil
 }
 
+func (su *SchemaUpdate) applyRenameRelationField(newField *schema.Field) (err error) {
+	// filter from RenameFields to find the original field name (old field name)
+	matchedFields := utils.Filter(su.updateData.RenameFields, func(f *app.RenameItem) bool {
+		return f.To == newField.Name
+	})
+
+	// if the field is not renamed, then we don't need to rename the foreign key column
+	if len(matchedFields) == 0 {
+		return nil
+	}
+
+	originalField, err := su.currentSchema.Field(matchedFields[0].From)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		// RenameFields will be used to rename the db table columns,
+		// remove the current relation field from the RenameFields because these fields are not exist in table,
+		// we use the FK columns instead of these fields.
+		su.updateData.RenameFields = utils.Filter(su.updateData.RenameFields, func(rf *app.RenameItem) bool {
+			// with m2m relations, we have added a rename for two columns of the junction table,
+			// the two columns of the junction table have the same name with the two fields of the two relation schemas.
+			// so there will be two rename fields with the same From and To:
+			// - 1st: The rename that was sent from the client,
+			// 				this is the renaming for the relation field of the current editting schema,
+			// 				this rename will have the SchemaName equal to the original schema name and must be removed.
+			// - 2nd: The rename that was added for the junction table columns,
+			// 				this rename will have the SchemaName equal to the junction table name and must be kept.
+			// we have to remove the 1st rename because the relation field is not exist in the current editting schema table,
+			isFiltered := (rf.SchemaName == su.currentSchema.Name && // check the 1st rename
+				rf.From == originalField.Name && rf.To == newField.Name) // check From and To
+			return !isFiltered
+		})
+	}()
+
+	relationSchema, err := su.newSchemaBuilder.Schema(newField.Relation.TargetSchemaName)
+	if err != nil {
+		return err
+	}
+
+	newFieldRelation := newField.Relation.Clone()
+	newFieldRelation.Init(su.currentSchema, relationSchema, newField)
+	originalFieldRelation := originalField.Relation
+
+	// process the m2m relation
+	if newFieldRelation.Type == schema.M2M {
+		originalJunctionSchema := originalFieldRelation.JunctionSchema
+		newJunctionSchema, _, err := su.newSchemaBuilder.CreateM2mJunctionSchema(su.currentSchema, newFieldRelation)
+		if err != nil {
+			return err
+		}
+
+		// Ent do not perform the rename table operation, so we have to do it manually.
+		// - Rename the junction table columns: Add the rename columns to the RenameFields so DiffHook can rename the columns.
+		// - Rename the junction table: Add the rename table to the RenameTables and manually rename the table in ApplyHook.
+		su.updateData.RenameTables = append(su.updateData.RenameTables, &app.RenameItem{
+			Type:            "table",
+			From:            originalJunctionSchema.Namespace,
+			To:              newJunctionSchema.Namespace,
+			IsJunctionTable: true,
+		})
+
+		su.updateData.RenameFields = append(su.updateData.RenameFields, &app.RenameItem{
+			Type:            "column",
+			From:            originalFieldRelation.FKColumns.CurrentColumn,
+			To:              newFieldRelation.FKColumns.CurrentColumn,
+			SchemaName:      originalJunctionSchema.Name,      // newJunctionSchema.Name
+			SchemaNamespace: originalJunctionSchema.Namespace, // newJunctionSchema.Namespace
+		})
+
+		su.updateData.RenameFields = append(su.updateData.RenameFields, &app.RenameItem{
+			Type:            "column",
+			From:            originalFieldRelation.FKColumns.TargetColumn,
+			To:              newFieldRelation.FKColumns.TargetColumn,
+			SchemaName:      originalJunctionSchema.Name,      // newJunctionSchema.Name
+			SchemaNamespace: originalJunctionSchema.Namespace, // newJunctionSchema.Namespace
+		})
+
+		return nil
+	}
+
+	// Other relation types
+	// if the fields don't has foreign key, then we don't need to rename the foreign key column
+	if !originalFieldRelation.HasFKs() || !newFieldRelation.HasFKs() {
+		return nil
+	}
+
+	su.updateData.RenameFields = append(su.updateData.RenameFields, &app.RenameItem{
+		Type:            "column",
+		From:            originalFieldRelation.GetTargetFKColumn(),
+		To:              newFieldRelation.GetTargetFKColumn(),
+		SchemaName:      su.currentSchema.Name,
+		SchemaNamespace: su.currentSchema.Namespace,
+	})
+
+	return nil
+}
+
+// Remove the back reference field from the relation target schema
+func (su *SchemaUpdate) applyRemoveRelationFields() error {
+	// loop through all the fields in the current schema
+	// and check if the relation field is removed
+	for _, f := range su.currentSchema.Fields {
+		// if relation field exist in su.updateData.Data,
+		// then the current relation field is not removed, no need to remove the back reference field.
+		// otherwise, remove the back reference field
+		if !f.Type.IsRelationType() || su.updateData.Data.HasField(f.Name) {
+			continue
+		}
+
+		if err := su.setUpdateRelationSchema(f.Relation); err != nil {
+			return err
+		}
+
+		// remove the back reference field from the relation target schema
+		su.updateSchemas[f.Relation.TargetSchemaName].Fields = utils.Filter(
+			su.updateSchemas[f.Relation.TargetSchemaName].Fields,
+			func(targetField *schema.Field) bool {
+				return targetField.Name != f.Relation.TargetFieldName
+			},
+		)
+	}
+
+	return nil
+}
+
+// When updating relation fields, there are two cases:
+//   - Add new relation fields: need to add the back reference fields to the relation target schemas
+//   - Remove relation fields: need to remove the back reference fields from the relation target schemas
+func (su *SchemaUpdate) updateRelatedSchemasBackRefs() (err error) {
+	if err := su.applyRemoveRelationFields(); err != nil {
+		return err
+	}
+
+	if err := su.applyAddNewRelationFields(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // updateBasicData update the data that only exist in the schema json files
 func (su *SchemaUpdate) updateBasicData() (err error) {
 	// overwrite the current schema with the new schema
@@ -232,14 +385,6 @@ func (su *SchemaUpdate) updateBasicData() (err error) {
 		return err
 	}
 
-	// if err = su.applyRenameSchemaNamespace(); err != nil {
-	// 	return err
-	// }
-
-	// if err = su.updateRelatedSchemas(); err != nil {
-	// 	return err
-	// }
-
 	return nil
 }
 
@@ -249,12 +394,13 @@ func (su *SchemaUpdate) applyRenameSchema() (err error) {
 	newSchemaName := ""
 	if su.currentSchema.Name != su.updateData.Data.Name {
 		newSchemaName = su.updateData.Data.Name
+		currentSchemaFile := path.Join(su.newSchemaBuilderDir, fmt.Sprintf("%s.json", su.currentSchema.Name))
 
 		// if the name is changed:
 		// 	- remove the current schema from the update schemas
 		//	- delete the current schema json file
 		delete(su.updateSchemas, su.currentSchema.Name)
-		if err = os.Remove(path.Join(su.newSchemaBuilderDir, fmt.Sprintf("%s.json", su.currentSchema.Name))); err != nil {
+		if err = os.Remove(currentSchemaFile); err != nil {
 			return err
 		}
 	}
@@ -279,7 +425,12 @@ func (su *SchemaUpdate) applyRenameSchema() (err error) {
 	// loop through all the schemas and check:
 	// if schema contains fields that have relation to the current schema,
 	// then rename the relation target schema name to the new schema name
+	// skip checking current schema
 	for _, s := range su.currentSchemaBuilder.Schemas() {
+		if s.Name == su.currentSchema.Name {
+			continue
+		}
+
 		for i, field := range s.Fields {
 			if !field.Type.IsRelationType() {
 				continue
