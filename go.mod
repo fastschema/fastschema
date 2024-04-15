@@ -1,8 +1,6 @@
 module github.com/fastschema/fastschema
 
-go 1.22
-
-toolchain go1.22.0
+go 1.22.0
 
 require (
 	ariga.io/atlas v0.21.1
