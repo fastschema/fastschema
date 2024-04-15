@@ -14,7 +14,7 @@ type Logger interface {
 	Warn(...any)
 	Panic(...any)
 	DPanic(...any)
-	WithContext(context LogContext) Logger
+	WithContext(context LogContext, callerSkips ...int) Logger
 }
 
 type MockLoggerMessage struct {
@@ -40,7 +40,7 @@ func CreateMockLogger(silences ...bool) *MockLogger {
 	return mockLogger
 }
 
-func (l *MockLogger) WithContext(context LogContext) Logger {
+func (l *MockLogger) WithContext(context LogContext, callerSkips ...int) Logger {
 	return l
 }
 

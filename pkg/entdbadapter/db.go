@@ -138,7 +138,7 @@ func (d *Adapter) Reload(
 	renamedEntTables := make([]*entSchema.Table, 0)
 	newConfig := d.config.Clone()
 	newConfig.IgnoreMigration = true
-	adapter, err := NewClient(newConfig, newSchemaBuilder)
+	newAdapter, err := NewClient(newConfig, newSchemaBuilder)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (d *Adapter) Reload(
 				return nil, err
 			}
 
-			newJunctionModel, err := adapter.Model(renameTable.To)
+			newJunctionModel, err := newAdapter.Model(renameTable.To)
 			if err != nil {
 				return nil, err
 			}
@@ -205,16 +205,16 @@ func (d *Adapter) Reload(
 		return nil, err
 	}
 
-	entAdapter, ok := adapter.(EntAdapter)
+	newEntAdapter, ok := newAdapter.(EntAdapter)
 	if !ok {
 		return nil, fmt.Errorf("invalid adapter")
 	}
 
-	if err = entAdapter.Migrate(migration, renamedEntTables...); err != nil {
+	if err = newEntAdapter.Migrate(migration, renamedEntTables...); err != nil {
 		return nil, err
 	}
 
-	return adapter, nil
+	return newAdapter, nil
 }
 
 func NewDBAdapter(

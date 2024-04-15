@@ -31,7 +31,7 @@ func (m *MediaService) MediaListHook(query *app.QueryOption, entities []*schema.
 		path := entity.GetString("path")
 		disk := entity.GetString("disk")
 		if path != "" {
-			entity.Set("url", m.Disk(disk).URL(entity.GetString("path")))
+			entity.Set("url", m.Disk(disk).URL(path))
 		}
 	}
 

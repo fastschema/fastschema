@@ -142,7 +142,7 @@ func (c *Context) Value(key string, value ...any) (val any) {
 }
 
 func (c *Context) Logger() app.Logger {
-	return c.logger.WithContext(app.LogContext{requestID: c.ID()})
+	return c.logger.WithContext(app.LogContext{requestID: c.ID()}, 0)
 }
 
 func (c *Context) User() *app.User {

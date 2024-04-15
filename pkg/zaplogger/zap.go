@@ -92,9 +92,10 @@ func NewZapLogger(config *ZapConfig) (_ *ZapLogger, err error) {
 	}, nil
 }
 
-func (l *ZapLogger) WithContext(context app.LogContext) app.Logger {
+func (l *ZapLogger) WithContext(context app.LogContext, callerSkips ...int) app.Logger {
+	callerSkips = append(callerSkips, 1)
 	return &ZapLogger{
-		Logger:     l.Logger.WithOptions(zap.AddCallerSkip(1)),
+		Logger:     l.Logger.WithOptions(zap.AddCallerSkip(callerSkips[0])),
 		LogContext: context,
 		config:     l.config,
 	}

@@ -131,6 +131,23 @@ func (a *App) init() (err error) {
 		return err
 	}
 
+	// if a local disk has a public path, then add it to the statics
+	for _, disk := range a.disks {
+		publicPath := disk.LocalPublicPath()
+
+		if publicPath != "" {
+			a.startupMessages = append(
+				a.startupMessages,
+				fmt.Sprintf("Serving files from disk [%s:%s] at %s", disk.Name(), publicPath, disk.Root()),
+			)
+
+			a.statics = append(a.statics, &app.StaticFs{
+				BasePath: publicPath,
+				Root:     http.Dir(disk.Root()),
+			})
+		}
+	}
+
 	setupToken, err := a.SetupToken()
 	if err != nil {
 		return err
@@ -173,9 +190,7 @@ func (a *App) init() (err error) {
 
 			return true, nil
 		}, app.Meta{app.POST: "/setup"}, true))
-	}
 
-	if setupToken != "" {
 		setupURL := fmt.Sprintf(
 			"%s/setup/?token=%s\033[0m",
 			a.config.DashURL,
@@ -188,27 +203,11 @@ func (a *App) init() (err error) {
 		))
 	}
 
-	a.statics = []*app.StaticFs{{
+	a.statics = append(a.statics, &app.StaticFs{
 		BasePath:   "/" + a.config.DashBaseName,
 		Root:       http.FS(embedDashStatic),
 		PathPrefix: "dash",
-	}}
-
-	// if a local disk has a public path, then add it to the statics
-	for _, disk := range a.disks {
-		publicPath := disk.LocalPublicPath()
-
-		if publicPath != "" {
-			a.startupMessages = append(
-				a.startupMessages,
-				fmt.Sprintf("Serving files from disk [%s:%s] at %s", disk.Name(), publicPath, disk.Root()),
-			)
-			a.statics = append(a.statics, &app.StaticFs{
-				BasePath: publicPath,
-				Root:     http.Dir(disk.Root()),
-			})
-		}
-	}
+	})
 
 	return nil
 }
@@ -588,7 +587,7 @@ func (a *App) createResources() error {
 
 func (a *App) getAppDir() {
 	defer func() {
-		a.startupMessages = append(a.startupMessages, fmt.Sprintf("> Using app directory: %s", a.dir))
+		a.startupMessages = append(a.startupMessages, fmt.Sprintf("Using app directory: %s", a.dir))
 	}()
 
 	if a.config.Dir == "" {

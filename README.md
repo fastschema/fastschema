@@ -313,6 +313,18 @@ You can skip the integration tests by running tests for packages only.
 ./tests/test.sh ./schema
 ```
 
+
+## Known Issues
+
+### Rename M2M field
+
+Rename M2M field is depend on the column rename. Fastschema migrations is built on top of the Ent migrations.
+Ent use ariga.io/atlast and it cause error with sqlite (ariga.io/atlas@v0.21.1/sql/sqlite/migrate.go.modifyTable).
+
+Currently, Atlas sqlite driver need to perform copyRows to a temporary table. But it use the `new` column name to copy the rows. This column is not existed in the table, because it's not renamed yet. This will cause the error: `SQL logic error: no such column:`.
+
+The problem seem to be fixed in this PR: https://github.com/ariga/atlas/pull/2672
+
 ## Dependencies
 
 FastSchema is built using the Go programming language and leverages a number of open-source libraries to provide its core functionality. Some of the key dependencies include:
