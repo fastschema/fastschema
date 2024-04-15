@@ -9,7 +9,7 @@ before:
 
 builds:
   - id: build_main
-    main: ./main
+    main: ./cmd
     binary: fastschema
     flags:
       - -trimpath
