@@ -46,8 +46,7 @@ func TestNewRestResolver(t *testing.T) {
 			return nil, errors.BadRequest("test error")
 		}, app.Meta{app.POST: "/profileerror"}))
 
-	restResolver := restresolver.NewRestResolver(resourceManager, staticFSs...)
-	restResolver.Init(app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true), staticFSs...)
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/static/test.txt", nil)
@@ -82,8 +81,7 @@ func TestNewRestResolverErrorMiddleware(t *testing.T) {
 		},
 	}
 
-	restResolver := restresolver.NewRestResolver(resourceManager)
-	restResolver.Init(app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -93,13 +91,14 @@ func TestNewRestResolverErrorMiddleware(t *testing.T) {
 	assert.Equal(t, 502, resp.StatusCode)
 	assert.Equal(t, `{"error":{"code":"502","message":"test bad gateway"}}`, utils.Must(utils.ReadCloserToString(resp.Body)))
 
+	resourceManager = app.NewResourcesManager()
 	resourceManager.Middlewares = []app.Middleware{
 		func(c app.Context) error {
 			return fiber.ErrBadRequest
 		},
 	}
 
-	restResolver.Init(app.CreateMockLogger(true))
+	restResolver = restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req2 := httptest.NewRequest("GET", "/test", nil)
@@ -114,14 +113,17 @@ func TestNewRestResolverWithBeforeResolverHookError(t *testing.T) {
 	resourceManager.Add(app.NewResource("test", func(c app.Context, _ *any) (any, error) {
 		return nil, nil
 	}))
-	resourceManager.BeforeResolveHooks = []app.Middleware{
-		func(c app.Context) error {
-			return errors.BadRequest("test before hook error")
-		},
+	resourceManager.Hooks = func() *app.Hooks {
+		return &app.Hooks{
+			PreResolve: []app.Middleware{
+				func(c app.Context) error {
+					return errors.BadRequest("test before hook error")
+				},
+			},
+		}
 	}
 
-	restResolver := restresolver.NewRestResolver(resourceManager)
-	restResolver.Init(app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -137,14 +139,17 @@ func TestNewRestResolverWithAfterResolverHookError(t *testing.T) {
 	resourceManager.Add(app.NewResource("test", func(c app.Context, _ *any) (any, error) {
 		return nil, nil
 	}))
-	resourceManager.AfterResolveHooks = []app.Middleware{
-		func(c app.Context) error {
-			return errors.BadRequest("test after hook error")
-		},
+	resourceManager.Hooks = func() *app.Hooks {
+		return &app.Hooks{
+			PostResolve: []app.Middleware{
+				func(c app.Context) error {
+					return errors.BadRequest("test after hook error")
+				},
+			},
+		}
 	}
 
-	restResolver := restresolver.NewRestResolver(resourceManager)
-	restResolver.Init(app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -161,7 +166,7 @@ func TestNewRestResolverStart(t *testing.T) {
 		return nil, nil
 	}))
 
-	restResolver := restresolver.NewRestResolver(resourceManager)
+	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
@@ -171,6 +176,6 @@ func TestNewRestResolverStart(t *testing.T) {
 		assert.NoError(t, restResolver.Shutdown())
 	}()
 
-	err := restResolver.Start(":8080", app.CreateMockLogger(true))
+	err := restResolver.Start(":8080")
 	assert.NoError(t, err)
 }

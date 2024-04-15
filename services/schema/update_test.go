@@ -32,7 +32,6 @@ var categorySchemaJSON = `{
 
 func TestSchemaServiceUpdateError(t *testing.T) {
 	_, _, server := createSchemaService(t, &testSchemaSeviceConfig{
-		schemaDir: "/home/phuong/projects/fastschema/fastschema/data/schemas",
 		extraSchemas: map[string]string{
 			"category": categorySchemaJSON,
 		},
@@ -65,7 +64,6 @@ func TestSchemaServiceUpdateError(t *testing.T) {
 
 func createUpdateTest(t *testing.T) (*testApp, *schemaservice.SchemaService, *restresolver.Server) {
 	return createSchemaService(t, &testSchemaSeviceConfig{
-		schemaDir: "/home/phuong/projects/fastschema/fastschema/data/schemas",
 		extraSchemas: map[string]string{
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,
@@ -342,7 +340,6 @@ func TestSchemaServiceUpdate(t *testing.T) {
 func TestSchemaServiceUpdateRenameNormalField(t *testing.T) {
 	checkMigration := false
 	testApp, _, server := createSchemaService(t, &testSchemaSeviceConfig{
-		schemaDir: "/home/phuong/projects/fastschema/fastschema/data/schemas",
 		extraSchemas: map[string]string{
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,
@@ -391,7 +388,6 @@ func TestSchemaServiceUpdateRenameNormalField(t *testing.T) {
 func TestSchemaServiceUpdateRenameO2MRelationField(t *testing.T) {
 	checkMigration := false
 	testApp, _, server := createSchemaService(t, &testSchemaSeviceConfig{
-		schemaDir: "/home/phuong/projects/fastschema/fastschema/data/schemas",
 		extraSchemas: map[string]string{
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,
@@ -441,7 +437,6 @@ func TestSchemaServiceUpdateRenameO2MRelationField(t *testing.T) {
 func TestSchemaServiceUpdateRenameM2MRelationField(t *testing.T) {
 	checkMigration := false
 	testApp, _, server := createSchemaService(t, &testSchemaSeviceConfig{
-		schemaDir: "/home/phuong/projects/fastschema/fastschema/data/schemas",
 		extraSchemas: map[string]string{
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,

@@ -60,14 +60,17 @@ func NewClient(config *app.DBConfig, schemaBuilder *schema.Builder) (_ app.DBCli
 func NewTestClient(
 	migrationDir string,
 	schemaBuilder *schema.Builder,
-	hooks ...*app.Hooks,
+	hookFns ...func() *app.Hooks,
 ) (_ app.DBClient, err error) {
+	hookFns = append(hookFns, func() *app.Hooks {
+		return &app.Hooks{}
+	})
 	return NewClient(&app.DBConfig{
 		Driver:       "sqlite",
 		Name:         ":memory:",
 		MigrationDir: migrationDir,
 		LogQueries:   false,
-		Hooks:        append(hooks, &app.Hooks{})[0],
+		Hooks:        hookFns[0],
 	}, schemaBuilder)
 }
 
@@ -227,7 +230,6 @@ func NewDBAdapter(
 		models:        make([]*Model, 0),
 		tables:        make([]*entSchema.Table, 0),
 		edgeSpec:      make(map[string]sqlgraph.EdgeSpec),
-		hooks:         config.Hooks,
 	}
 
 	if err := a.init(); err != nil {

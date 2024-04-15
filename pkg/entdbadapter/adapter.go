@@ -27,7 +27,6 @@ type Adapter struct {
 	models        []*Model
 	tables        []*entSchema.Table
 	edgeSpec      map[string]sqlgraph.EdgeSpec
-	hooks         *app.Hooks
 }
 
 func (d *Adapter) SetSQLDB(db *sql.DB) {
@@ -43,7 +42,11 @@ func (d *Adapter) DB() *sql.DB {
 }
 
 func (d *Adapter) Hooks() *app.Hooks {
-	return d.hooks
+	if d.config.Hooks != nil {
+		return d.config.Hooks()
+	}
+
+	return &app.Hooks{}
 }
 
 func (d *Adapter) Config() *app.DBConfig {

@@ -1,6 +1,7 @@
 package toolservice_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
@@ -13,7 +14,7 @@ import (
 
 func TestCreateRoleError(t *testing.T) {
 	sb := &schema.Builder{}
-	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	_, err := toolservice.CreateRole(db, &app.Role{
 		Name:        "admin",
 		Description: "admin",
@@ -27,7 +28,7 @@ func TestSetup(t *testing.T) {
 	logger := app.CreateMockLogger(true)
 	// Case 1: Error when model user not found
 	sb := &schema.Builder{}
-	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	err := toolservice.Setup(
 		db,
 		logger,
@@ -39,7 +40,7 @@ func TestSetup(t *testing.T) {
 	assert.Contains(t, err.Error(), `model user not found`)
 
 	sb = utils.Must(schema.NewBuilderFromDir(t.TempDir()))
-	db = utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+	db = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 
 	// Case 2: Invalid password
 	err = toolservice.Setup(

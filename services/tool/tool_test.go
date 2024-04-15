@@ -2,6 +2,7 @@ package toolservice_test
 
 import (
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
@@ -24,7 +25,7 @@ func (s testApp) DB() app.DBClient {
 
 func TestToolServiceError(t *testing.T) {
 	sb := &schema.Builder{}
-	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	toolService := toolservice.New(&testApp{sb: sb, db: db})
 
 	resources := app.NewResourcesManager()
@@ -32,7 +33,7 @@ func TestToolServiceError(t *testing.T) {
 		Add(app.NewResource("stats", toolService.Stats, app.Meta{app.GET: "/stats"}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := restresolver.NewRestResolver(resources).Init(app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resources, app.CreateMockLogger(true))
 	server := restResolver.Server()
 
 	req := httptest.NewRequest("GET", "/tool/stats", nil)
@@ -47,7 +48,7 @@ func TestToolServiceError(t *testing.T) {
 
 func TestToolService(t *testing.T) {
 	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
-	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	toolService := toolservice.New(&testApp{sb: sb, db: db})
 
 	resources := app.NewResourcesManager()
@@ -55,7 +56,7 @@ func TestToolService(t *testing.T) {
 		Add(app.NewResource("stats", toolService.Stats, app.Meta{app.GET: "/stats"}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := restresolver.NewRestResolver(resources).Init(app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resources, app.CreateMockLogger(true))
 	server := restResolver.Server()
 
 	req := httptest.NewRequest("GET", "/tool/stats", nil)

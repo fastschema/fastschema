@@ -69,7 +69,7 @@ type Mutation interface {
 	Delete() (affected int, err error)
 }
 
-type AfterDBContentListHook = func(query *QueryOption, entities []*schema.Entity) ([]*schema.Entity, error)
+type PostDBGetHook = func(query *QueryOption, entities []*schema.Entity) ([]*schema.Entity, error)
 
 type DBConfig struct {
 	Driver          string
@@ -82,7 +82,7 @@ type DBConfig struct {
 	LogQueries      bool
 	MigrationDir    string
 	IgnoreMigration bool
-	Hooks           *Hooks
+	Hooks           func() *Hooks
 }
 
 type RenameItem struct {

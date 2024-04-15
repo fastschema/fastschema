@@ -26,7 +26,6 @@ type Query struct {
 	client          app.DBClient
 	model           *Model
 	querySpec       *sqlgraph.QuerySpec
-	hooks           *app.Hooks
 }
 
 func (q *Query) Options() *app.QueryOption {
@@ -185,9 +184,6 @@ func (q *Query) Get(ctxs ...context.Context) ([]*schema.Entity, error) {
 
 	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
-		// print type of q.client
-		fmt.Printf("%T\n", q.client)
-
 		return nil, fmt.Errorf("client is not an ent adapter")
 	}
 
@@ -258,12 +254,16 @@ func (q *Query) Get(ctxs ...context.Context) ([]*schema.Entity, error) {
 		return nil, err
 	}
 
-	if q.hooks != nil && q.hooks.AfterDBContentList != nil {
+	var hooks = &app.Hooks{}
+	if q.client != nil {
+		hooks = q.client.Hooks()
+	}
+
+	if len(hooks.PostDBGet) > 0 {
 		queryOptions := q.Options()
-		for _, hook := range q.hooks.AfterDBContentList {
+		for _, hook := range hooks.PostDBGet {
 			var err error
-			q.entities, err = hook(queryOptions, q.entities)
-			if err != nil {
+			if q.entities, err = hook(queryOptions, q.entities); err != nil {
 				return nil, err
 			}
 		}

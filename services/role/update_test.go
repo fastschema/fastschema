@@ -11,24 +11,25 @@ import (
 )
 
 func TestRoleServiceUpdate(t *testing.T) {
+	testApp := createRoleTest()
 	// Case 1: Invalid Payload
 	req := httptest.NewRequest("PUT", "/role/2", nil)
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	resp := utils.Must(server.Test(req))
+	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	resp := utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
 
 	// Case 2: Invalid ID
 	req = httptest.NewRequest("PUT", "/role/9999", bytes.NewReader([]byte(`{"name": "user role"}`)))
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	resp = utils.Must(server.Test(req))
+	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 404, resp.StatusCode)
 
 	// Case 3: Valid Payload, update role only
 	req = httptest.NewRequest("PUT", "/role/2", bytes.NewReader([]byte(`{"name": "user role"}`)))
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	resp = utils.Must(server.Test(req))
+	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
@@ -47,12 +48,12 @@ func TestRoleServiceUpdate(t *testing.T) {
 			"content.view"
 		]
 	}`)))
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	resp = utils.Must(server.Test(req))
+	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 
-	userRole := app.EntityToRole(utils.Must(roleModel.Query(app.EQ("id", 2)).
+	userRole := app.EntityToRole(utils.Must(testApp.roleModel.Query(app.EQ("id", 2)).
 		Select("name", "permissions.resource", "permissions.value").
 		First()))
 

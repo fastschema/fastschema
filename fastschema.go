@@ -31,32 +31,42 @@ import (
 
 //go:embed all:dash/*
 var embedDashStatic embed.FS
+var CWD string
+
+func init() {
+	var err error
+	if CWD, err = os.Getwd(); err != nil {
+		log.Fatal(err)
+	}
+}
 
 type AppConfig struct {
-	Dir           string
-	AppKey        string
-	Port          string
-	BaseURL       string
-	DashURL       string
-	APIBaseName   string
-	DashBaseName  string
-	Logger        app.Logger
-	DB            app.DBClient
-	StorageConfig *app.StorageConfig
+	Dir               string
+	AppKey            string
+	Port              string
+	BaseURL           string
+	DashURL           string
+	APIBaseName       string
+	DashBaseName      string
+	Logger            app.Logger
+	DB                app.DBClient
+	StorageConfig     *app.StorageConfig
+	HideResourcesInfo bool
 }
 
 func (ac *AppConfig) Clone() *AppConfig {
 	return &AppConfig{
-		Dir:           ac.Dir,
-		AppKey:        ac.AppKey,
-		Port:          ac.Port,
-		BaseURL:       ac.BaseURL,
-		DashURL:       ac.DashURL,
-		APIBaseName:   ac.APIBaseName,
-		DashBaseName:  ac.DashBaseName,
-		Logger:        ac.Logger,
-		DB:            ac.DB,
-		StorageConfig: ac.StorageConfig.Clone(),
+		Dir:               ac.Dir,
+		AppKey:            ac.AppKey,
+		Port:              ac.Port,
+		BaseURL:           ac.BaseURL,
+		DashURL:           ac.DashURL,
+		APIBaseName:       ac.APIBaseName,
+		DashBaseName:      ac.DashBaseName,
+		Logger:            ac.Logger,
+		DB:                ac.DB,
+		StorageConfig:     ac.StorageConfig.Clone(),
+		HideResourcesInfo: ac.HideResourcesInfo,
 	}
 }
 
@@ -78,6 +88,7 @@ type App struct {
 	defaultDisk     app.Disk
 	setupToken      string
 	startupMessages []string
+	statics         []*app.StaticFs
 }
 
 func New(config *AppConfig) (_ *App, err error) {
@@ -85,15 +96,7 @@ func New(config *AppConfig) (_ *App, err error) {
 		config: config.Clone(),
 		disks:  []app.Disk{},
 		roles:  []*app.Role{},
-		hooks: &app.Hooks{
-			BeforeResolve:      []app.ResolveHook{},
-			AfterResolve:       []app.ResolveHook{},
-			AfterDBContentList: []app.AfterDBContentListHook{},
-		},
-	}
-
-	if err := a.getAppDir(); err != nil {
-		return nil, err
+		hooks:  &app.Hooks{},
 	}
 
 	if err := a.prepareConfig(); err != nil {
@@ -108,15 +111,6 @@ func New(config *AppConfig) (_ *App, err error) {
 }
 
 func (a *App) init() (err error) {
-	if err = utils.MkDirs(
-		a.logDir,
-		a.publicDir,
-		a.schemasDir,
-		a.migrationDir,
-	); err != nil {
-		return err
-	}
-
 	if err = a.getDefaultDisk(); err != nil {
 		return err
 	}
@@ -137,11 +131,98 @@ func (a *App) init() (err error) {
 		return err
 	}
 
+	setupToken, err := a.SetupToken()
+	if err != nil {
+		return err
+	}
+
+	if setupToken != "" {
+		type setupData struct {
+			Token    string `json:"token"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		a.api.Add(app.NewResource("setup", func(c app.Context, setupData *setupData) (bool, error) {
+			if setupToken == "" {
+				return false, errors.BadRequest("Setup token is not available")
+			}
+
+			if setupData == nil {
+				return false, errors.BadRequest("Invalid setup data")
+			}
+
+			if setupData.Token != setupToken {
+				return false, errors.Forbidden("Invalid setup token")
+			}
+
+			if err := ts.Setup(
+				a.DB(),
+				a.Logger(),
+				setupData.Username, setupData.Email, setupData.Password,
+			); err != nil {
+				return false, err
+			}
+
+			if err := a.UpdateCache(); err != nil {
+				return false, err
+			}
+
+			setupToken = ""
+			a.setupToken = ""
+
+			return true, nil
+		}, app.Meta{app.POST: "/setup"}, true))
+	}
+
+	if setupToken != "" {
+		setupURL := fmt.Sprintf(
+			"%s/setup/?token=%s\033[0m",
+			a.config.DashURL,
+			setupToken,
+		)
+
+		a.startupMessages = append(a.startupMessages, fmt.Sprintf(
+			"Visit the following URL to setup the app: %s",
+			setupURL,
+		))
+	}
+
+	a.statics = []*app.StaticFs{{
+		BasePath:   "/" + a.config.DashBaseName,
+		Root:       http.FS(embedDashStatic),
+		PathPrefix: "dash",
+	}}
+
+	// if a local disk has a public path, then add it to the statics
+	for _, disk := range a.disks {
+		publicPath := disk.LocalPublicPath()
+
+		if publicPath != "" {
+			a.startupMessages = append(
+				a.startupMessages,
+				fmt.Sprintf("Serving files from disk [%s:%s] at %s", disk.Name(), publicPath, disk.Root()),
+			)
+			a.statics = append(a.statics, &app.StaticFs{
+				BasePath: publicPath,
+				Root:     http.Dir(disk.Root()),
+			})
+		}
+	}
+
 	return nil
+}
+
+func (a *App) Config() *AppConfig {
+	return a.config
 }
 
 func (a *App) Key() string {
 	return a.config.AppKey
+}
+
+func (a *App) Dir() string {
+	return a.dir
 }
 
 func (a *App) Reload(migration *app.Migration) (err error) {
@@ -197,101 +278,24 @@ func (a *App) UpdateCache() error {
 	return nil
 }
 
-func (a *App) Start() {
+func (a *App) Start() error {
 	addr := fmt.Sprintf(":%s", a.config.Port)
-	setupToken, err := a.SetupToken()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if setupToken != "" {
-		type setupData struct {
-			Token    string `json:"token"`
-			Username string `json:"username"`
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}
-		a.api.Add(app.NewResource("setup", func(c app.Context, setupData *setupData) (bool, error) {
-			if setupToken == "" {
-				return false, errors.BadRequest("Setup token is not available")
-			}
-
-			if setupData == nil {
-				return false, errors.BadRequest("Invalid setup data")
-			}
-
-			if setupData.Token != setupToken {
-				return false, errors.Forbidden("Invalid setup token")
-			}
-
-			if err := ts.Setup(
-				a.DB(),
-				a.Logger(),
-				setupData.Username, setupData.Email, setupData.Password,
-			); err != nil {
-				return false, err
-			}
-
-			if err := a.UpdateCache(); err != nil {
-				return false, err
-			}
-
-			setupToken = ""
-			a.setupToken = ""
-
-			return true, nil
-		}, app.Meta{app.POST: "/setup"}, true))
-	}
-
 	if err := a.resources.Init(); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	a.resources.Print()
-
-	if setupToken != "" {
-		setupURL := fmt.Sprintf(
-			"%s/setup/?token=%s\033[0m",
-			a.config.DashURL,
-			setupToken,
-		)
-
-		a.startupMessages = append(a.startupMessages, fmt.Sprintf(
-			"Visit the following URL to setup the app: %s",
-			setupURL,
-		))
+	if !a.config.HideResourcesInfo {
+		a.resources.Print()
 	}
-
-	statics := []*app.StaticFs{{
-		BasePath:   "/" + a.config.DashBaseName,
-		Root:       http.FS(embedDashStatic),
-		PathPrefix: "dash",
-	}}
-
-	// if a local disk has a public path, then add it to the statics
-	for _, disk := range a.disks {
-		publicPath := disk.LocalPublicPath()
-
-		if publicPath != "" {
-			a.startupMessages = append(
-				a.startupMessages,
-				fmt.Sprintf("Serving files from disk [%s:%s] at %s", disk.Name(), publicPath, disk.Root()),
-			)
-			statics = append(statics, &app.StaticFs{
-				BasePath: publicPath,
-				Root:     http.Dir(disk.Root()),
-			})
-		}
-	}
-
-	restResolver := restresolver.NewRestResolver(a.resources, statics...)
+	restResolver := restresolver.NewRestResolver(a.resources, a.Logger(), a.statics...)
 
 	fmt.Printf("\n")
 	for _, msg := range a.startupMessages {
 		color.Green("> %s", msg)
 	}
 	fmt.Printf("\n")
-	log.Fatal(restResolver.Start(addr, a.Logger()))
+
+	return restResolver.Start(addr)
 }
 
 func (a *App) SchemaBuilder() *schema.Builder {
@@ -300,6 +304,10 @@ func (a *App) SchemaBuilder() *schema.Builder {
 
 func (a *App) DB() app.DBClient {
 	return a.config.DB
+}
+
+func (a *App) API() *app.Resource {
+	return a.api
 }
 
 func (a *App) Logger() app.Logger {
@@ -316,6 +324,10 @@ func (a *App) Roles() []*app.Role {
 
 func (a *App) Hooks() *app.Hooks {
 	return a.hooks
+}
+
+func (a *App) Disks() []app.Disk {
+	return a.disks
 }
 
 func (a *App) Disk(names ...string) app.Disk {
@@ -340,16 +352,16 @@ func (a *App) AddMiddlewares(middlewares ...app.Middleware) {
 	a.resources.Middlewares = append(a.resources.Middlewares, middlewares...)
 }
 
-func (a *App) OnBeforeResolve(middlewares ...app.Middleware) {
-	a.hooks.BeforeResolve = append(a.hooks.BeforeResolve, middlewares...)
+func (a *App) OnPreResolve(middlewares ...app.Middleware) {
+	a.hooks.PreResolve = append(a.hooks.PreResolve, middlewares...)
 }
 
-func (a *App) OnAfterResolve(middlewares ...app.Middleware) {
-	a.hooks.AfterResolve = append(a.hooks.AfterResolve, middlewares...)
+func (a *App) OnPostResolve(middlewares ...app.Middleware) {
+	a.hooks.PostResolve = append(a.hooks.PostResolve, middlewares...)
 }
 
-func (a *App) OnAfterDBContentList(hook app.AfterDBContentListHook) {
-	a.hooks.AfterDBContentList = append(a.hooks.AfterDBContentList, hook)
+func (a *App) OnPostDBGet(hooks ...app.PostDBGetHook) {
+	a.hooks.PostDBGet = append(a.hooks.PostDBGet, hooks...)
 }
 
 func (a *App) SetupToken() (string, error) {
@@ -363,7 +375,11 @@ func (a *App) SetupToken() (string, error) {
 		return "", err
 	}
 
-	if a.setupToken == "" && needSetup {
+	if !needSetup {
+		return "", nil
+	}
+
+	if a.setupToken == "" {
 		a.setupToken = utils.RandomString(32)
 	}
 
@@ -418,8 +434,8 @@ func (a *App) getDefaultDBClient() (err error) {
 		LogQueries:   utils.Env("DB_LOGGING", "false") == "true",
 		Logger:       a.Logger(),
 		MigrationDir: a.migrationDir,
-		Hooks: &app.Hooks{
-			AfterDBContentList: a.hooks.AfterDBContentList,
+		Hooks: func() *app.Hooks {
+			return a.hooks
 		},
 	}
 
@@ -487,11 +503,17 @@ func (a *App) getDefaultDisk() (err error) {
 		return err
 	}
 
+	foundDefaultDisk := false
 	for _, disk := range a.disks {
 		if disk.Name() == defaultDiskName {
 			a.defaultDisk = disk
+			foundDefaultDisk = true
 			break
 		}
+	}
+
+	if defaultDiskName != "" && !foundDefaultDisk {
+		return fmt.Errorf("default disk [%s] not found", defaultDiskName)
 	}
 
 	if a.defaultDisk == nil && len(a.disks) > 0 {
@@ -517,13 +539,14 @@ func (a *App) createResources() error {
 	contentService := cs.New(a)
 	toolService := ts.New(a)
 
+	a.hooks.PostDBGet = append(a.hooks.PostDBGet, mediaService.MediaListHook)
+	a.hooks.PreResolve = append(a.hooks.PreResolve, roleService.Authorize)
+
 	a.resources = app.NewResourcesManager()
 	a.resources.Middlewares = append(a.resources.Middlewares, roleService.ParseUser)
-	a.resources.BeforeResolveHooks = append(a.resources.BeforeResolveHooks, roleService.Authorize)
-	a.resources.BeforeResolveHooks = append(a.resources.BeforeResolveHooks, a.hooks.BeforeResolve...)
-	a.resources.AfterResolveHooks = append(a.resources.AfterResolveHooks, a.hooks.AfterResolve...)
-
-	a.OnAfterDBContentList(mediaService.MediaListHook)
+	a.resources.Hooks = func() *app.Hooks {
+		return a.hooks
+	}
 
 	a.api = a.resources.Group(a.config.APIBaseName)
 	a.api.Group("user").
@@ -563,40 +586,41 @@ func (a *App) createResources() error {
 	return nil
 }
 
-func (a *App) getAppDir() (err error) {
+func (a *App) getAppDir() {
 	defer func() {
-		if err == nil {
-			fmt.Println("> Using app directory:", a.dir)
-		}
+		a.startupMessages = append(a.startupMessages, fmt.Sprintf("> Using app directory: %s", a.dir))
 	}()
 
-	cwd, err := os.Getwd()
-
-	if err != nil {
-		return err
-	}
-
 	if a.config.Dir == "" {
-		a.dir = cwd
-		return nil
+		a.dir = CWD
+		return
 	}
 
 	if strings.HasPrefix(a.config.Dir, "/") {
 		a.dir = a.config.Dir
-		return nil
+		return
 	}
 
-	a.dir = path.Join(cwd, a.config.Dir)
-	return nil
+	a.dir = path.Join(CWD, a.config.Dir)
 }
 
-func (a *App) prepareConfig() error {
+func (a *App) prepareConfig() (err error) {
+	a.getAppDir()
 	a.dataDir = path.Join(a.dir, "data")
 	a.logDir = path.Join(a.dataDir, "logs")
 	a.publicDir = path.Join(a.dataDir, "public")
 	a.schemasDir = path.Join(a.dataDir, "schemas")
 	a.migrationDir = path.Join(a.dataDir, "migrations")
 	envFile := path.Join(a.dataDir, ".env")
+
+	if err = utils.MkDirs(
+		a.logDir,
+		a.publicDir,
+		a.schemasDir,
+		a.migrationDir,
+	); err != nil {
+		return err
+	}
 
 	if utils.IsFileExists(envFile) {
 		a.envFile = envFile

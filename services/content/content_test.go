@@ -1,6 +1,7 @@
 package contentservice_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
@@ -37,7 +38,7 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 		]
 	}`)
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
-	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	contentService := cs.New(&testApp{sb: sb, db: db})
 	resources := app.NewResourcesManager()
 	resources.Group("content").
@@ -48,7 +49,7 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 		Add(app.NewResource("delete", contentService.Delete, app.Meta{app.DELETE: "/:schema/:id"}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := rr.NewRestResolver(resources).Init(app.CreateMockLogger(true))
+	restResolver := rr.NewRestResolver(resources, app.CreateMockLogger(true))
 
 	return contentService, restResolver.Server()
 }

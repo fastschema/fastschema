@@ -1,6 +1,7 @@
 package mediaservice_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
@@ -38,8 +39,10 @@ func createMediaService(t *testing.T) (*ms.MediaService, *rr.Server) {
 
 	testApp := &testApp{sb: sb, disks: disks}
 	mediaService := ms.New(testApp)
-	testApp.db = utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb, &app.Hooks{
-		AfterDBContentList: []app.AfterDBContentListHook{mediaService.MediaListHook},
+	testApp.db = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb, func() *app.Hooks {
+		return &app.Hooks{
+			PostDBGet: []app.PostDBGetHook{mediaService.MediaListHook},
+		}
 	}))
 	resources := app.NewResourcesManager()
 	resources.Middlewares = append(resources.Middlewares, func(c app.Context) error {
@@ -50,7 +53,7 @@ func createMediaService(t *testing.T) (*ms.MediaService, *rr.Server) {
 		Add(app.NewResource("upload", mediaService.Upload, app.Meta{app.POST: "/upload"})).
 		Add(app.NewResource("delete", mediaService.Delete, app.Meta{app.DELETE: ""}))
 	assert.NoError(t, resources.Init())
-	restResolver := rr.NewRestResolver(resources).Init(app.CreateMockLogger(true))
+	restResolver := rr.NewRestResolver(resources, app.CreateMockLogger(true))
 
 	return mediaService, restResolver.Server()
 }
