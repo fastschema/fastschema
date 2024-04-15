@@ -1,5 +1,11 @@
 # Introduction
 
+[![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/fastschema/fastschema#section-readme)
+[![go report card](https://goreportcard.com/badge/github.com/fastschema/fastschema "go report card")](https://goreportcard.com/report/github.com/fastschema/fastschema)
+[![codecov](https://codecov.io/gh/fastschema/fastschema/graph/badge.svg?token=TPU5QN6E4Z)](https://codecov.io/gh/fastschema/fastschema)
+[![test status](https://github.com/fastschema/fastschema/actions/workflows/ci.yml/badge.svg "test status")](https://github.com/fastschema/fastschema/actions)
+[![MIT license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+
 FastSchema is an open-source headless Content Management System (CMS) designed to simplify the creation and management of structured content. By leveraging schema definitions, FastSchema automates the generation of databases and provides CRUD (Create, Read, Update, Delete) APIs effortlessly.
 
 ## Try it out
