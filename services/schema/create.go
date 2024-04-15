@@ -19,6 +19,10 @@ func (ss *SchemaService) Create(c app.Context, newSchemaData *schema.Schema) (*s
 		return nil, errors.BadRequest("schema already exists")
 	}
 
+	if err := newSchemaData.Validate(); err != nil {
+		return nil, errors.UnprocessableEntity(err.Error())
+	}
+
 	// add the back reference field to the related schema
 	for _, field := range newSchemaData.Fields {
 		if !field.Type.IsRelationType() {
@@ -27,6 +31,13 @@ func (ss *SchemaService) Create(c app.Context, newSchemaData *schema.Schema) (*s
 
 		field.Init(newSchemaData.Name)
 		relation := field.Relation
+
+		// check if target schema exists
+		// skip check if the relation type is bi-directional
+		if relation.TargetSchemaName == newSchemaData.Name {
+			continue
+		}
+
 		targetSchema, err := ss.app.SchemaBuilder().Schema(relation.TargetSchemaName)
 		// targetSchema, ok := su.updateSchemas[relation.TargetSchemaName]
 		if err != nil {
@@ -54,7 +65,7 @@ func (ss *SchemaService) Create(c app.Context, newSchemaData *schema.Schema) (*s
 				Optional:         isTargetRelationOwner,
 			},
 		}
-		if targetSchema.HasField(targetRelationField) {
+		if targetSchema.HasField(targetRelationField.Name) {
 			return nil, errors.BadRequest(
 				"Invalid field '%s.%s'. Target schema '%s' already has field '%s'",
 				newSchemaData.Name,

@@ -4,11 +4,9 @@ import (
 	"time"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
-	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 type LoginData struct {
@@ -21,46 +19,32 @@ type LoginResponse struct {
 	Expires time.Time `json:"expires"`
 }
 
+type AppLike interface {
+	DB() app.DBClient
+	Key() string
+}
+
 type UserService struct {
-	// DB  func() db.Client
-	app app.App
+	DB     func() app.DBClient
+	AppKey func() string
 }
 
-func NewUserService(app app.App) *UserService {
-	return &UserService{app: app}
-}
-
-func (u *UserService) ParseUserToken(clientToken string) (*app.User, error) {
-	jwtToken, err := jwt.ParseWithClaims(
-		clientToken,
-		&app.UserJwtClaims{},
-		func(token *jwt.Token) (any, error) {
-			return []byte(u.app.Key()), nil
-		},
-	)
-
-	if err != nil {
-		return nil, err
+func New(app AppLike) *UserService {
+	return &UserService{
+		DB:     app.DB,
+		AppKey: app.Key,
 	}
-
-	if claims, ok := jwtToken.Claims.(*app.UserJwtClaims); ok && jwtToken.Valid {
-		user := claims.User
-		user.Roles = u.app.GetRolesFromIDs(user.RoleIDs)
-		return user, nil
-	}
-
-	return nil, errors.New("invalid token")
 }
 
 func (u *UserService) Login(c app.Context, loginData *LoginData) (*LoginResponse, error) {
-	userModel, err := u.app.DB().Model("user")
+	userModel, err := u.DB().Model("user")
 	if err != nil {
 		return nil, err
 	}
 
-	userEntity, err := userModel.Query(db.Or(
-		db.EQ("username", loginData.Login),
-		db.EQ("email", loginData.Login),
+	userEntity, err := userModel.Query(app.Or(
+		app.EQ("username", loginData.Login),
+		app.EQ("email", loginData.Login),
 	)).Select(
 		"id",
 		"username",
@@ -75,7 +59,7 @@ func (u *UserService) Login(c app.Context, loginData *LoginData) (*LoginResponse
 		schema.FieldUpdatedAt,
 		schema.FieldDeletedAt,
 	).First()
-	if err != nil && !db.IsNotFound(err) {
+	if err != nil && !app.IsNotFound(err) {
 		return nil, err
 	}
 
@@ -83,28 +67,21 @@ func (u *UserService) Login(c app.Context, loginData *LoginData) (*LoginResponse
 		return nil, errors.Unauthorized("invalid login or password")
 	}
 
-	if err := utils.CheckHash(loginData.Password, userEntity.Get("password").(string)); err != nil {
+	if err := utils.CheckHash(loginData.Password, userEntity.GetString("password", "")); err != nil {
 		return nil, errors.Unauthorized("invalid login or password")
 	}
 
 	user := app.EntityToUser(userEntity)
-
 	if !user.Active {
 		return nil, errors.Unauthorized("user is not active")
 	}
 
-	exp := time.Now().Add(time.Hour * 100 * 365 * 24)
-	jwtHeader := map[string]any{}
-	jwtToken, err := user.JwtClaim(exp, u.app.Key(), jwtHeader)
-
+	jwtToken, exp, err := user.JwtClaim(u.AppKey())
 	if err != nil {
 		return nil, err
 	}
 
-	return &LoginResponse{
-		Token:   jwtToken,
-		Expires: exp,
-	}, nil
+	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
 }
 
 func (u *UserService) Logout(c app.Context, _ *any) (*any, error) {

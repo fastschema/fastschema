@@ -29,6 +29,11 @@ func (m *Mutation) Create(e *schema.Entity) (_ uint64, err error) {
 		Edges:  []*sqlgraph.EdgeSpec{},
 	}
 
+	entAdapter, ok := m.client.(EntAdapter)
+	if !ok {
+		return 0, fmt.Errorf("client is not an ent adapter")
+	}
+
 	var c *Column
 	for pair := e.First(); pair != nil; pair = pair.Next() {
 		fieldName := pair.Key
@@ -56,7 +61,7 @@ func (m *Mutation) Create(e *schema.Entity) (_ uint64, err error) {
 		}
 
 		if len(relationEntityIDs) > 0 {
-			edge, err := m.client.NewEdgeSpec(c.field.Relation, relationEntityIDs)
+			edge, err := entAdapter.NewEdgeSpec(c.field.Relation, relationEntityIDs)
 			if err != nil {
 				return 0, fmt.Errorf("edge error %s.%s: %w", m.model.name, fieldName, err)
 			}
@@ -65,13 +70,11 @@ func (m *Mutation) Create(e *schema.Entity) (_ uint64, err error) {
 		}
 	}
 
-	if err = sqlgraph.CreateNode(m.ctx, m.client.Driver(), createSpec); err != nil {
+	if err = sqlgraph.CreateNode(m.ctx, entAdapter.Driver(), createSpec); err != nil {
 		return 0, err
 	}
 
-	if err := e.SetID(createSpec.ID.Value); err != nil {
-		return 0, err
-	}
+	e.SetID(createSpec.ID.Value)
 
 	if !m.skipTx {
 		if err = m.client.Commit(); err != nil {

@@ -3,12 +3,10 @@ package restresolver
 import (
 	"context"
 	"fmt"
-	"mime/multipart"
 	"net/http"
 	"strconv"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
 
 	// "github.com/fastschema/fastschema/app/server"
@@ -34,7 +32,7 @@ type Context struct {
 	resource *app.Resource
 	result   *app.Result
 	entity   *schema.Entity
-	logger   logger.Logger
+	logger   app.Logger
 }
 
 func (c *Context) Result(results ...*app.Result) *app.Result {
@@ -110,20 +108,41 @@ func (c *Context) Base() string {
 	return c.Ctx.Protocol() + "://" + c.Ctx.Hostname()
 }
 
+func (c *Context) Method() string {
+	return c.Ctx.Method()
+}
+
 func (c *Context) RouteName() string {
 	return c.Ctx.Route().Name
+}
+
+func (c *Context) OriginalURL() string {
+	return c.Ctx.OriginalURL()
+}
+
+func (c *Context) Path() string {
+	return c.Ctx.Path()
+}
+
+func (c *Context) Response() *Response {
+	return &Response{c.Ctx.Response()}
 }
 
 func (c *Context) Context() context.Context {
 	return context.WithValue(c.Ctx.Context(), ContextKeyRequestID, c.ID())
 }
 
-func (c *Context) File(name string) (*multipart.FileHeader, error) {
-	return c.Ctx.FormFile(name)
+func (c *Context) Status(v int) *Context {
+	c.Ctx.Status(v)
+	return c
 }
 
-func (c *Context) Logger() logger.Logger {
-	return c.logger.WithContext(logger.Context{requestID: c.ID()})
+func (c *Context) Value(key string, value ...any) (val any) {
+	return c.Ctx.Locals(key, value...)
+}
+
+func (c *Context) Logger() app.Logger {
+	return c.logger.WithContext(app.LogContext{requestID: c.ID()}, 0)
 }
 
 func (c *Context) User() *app.User {
@@ -136,6 +155,15 @@ func (c *Context) User() *app.User {
 
 func (c *Context) JSON(v any) error {
 	return c.Ctx.JSON(v)
+}
+
+func (c *Context) Header(key string, vals ...string) string {
+	if len(vals) > 0 {
+		c.Ctx.Set(key, vals[0])
+		return vals[0]
+	}
+
+	return c.Ctx.Get(key)
 }
 
 func (c *Context) Cookie(name string, values ...*Cookie) string {
@@ -159,96 +187,25 @@ func (c *Context) Cookie(name string, values ...*Cookie) string {
 	return cookieValue
 }
 
-func (c *Context) Status(v int) *Context {
-	c.Ctx.Status(v)
-	return c
-}
 func (c *Context) Next() error {
 	return c.Ctx.Next()
-}
-
-func (c *Context) Value(key string, value ...any) (val any) {
-	return c.Ctx.Locals(key, value...)
-}
-
-func (c *Context) Params() map[string]string {
-	return c.AllParams()
-}
-
-func (c *Context) Param(key string) string {
-	return c.Ctx.Params(key)
-}
-
-func (c *Context) ParamInt(key string, values ...int) int {
-	if p, err := strconv.Atoi(c.Ctx.Params(key)); err == nil {
-		return p
-	}
-
-	if len(values) > 0 {
-		return values[0]
-	}
-
-	return 0
-}
-
-func (c *Context) Query(key string, values ...string) string {
-	if value := c.Ctx.Query(key); value != "" {
-		return value
-	}
-
-	if len(values) > 0 {
-		return values[0]
-	}
-
-	return ""
-}
-
-func (c *Context) QueryInt(key string, values ...int) int {
-	if p, err := strconv.Atoi(c.Ctx.Query(key)); err == nil {
-		return p
-	}
-
-	if len(values) > 0 {
-		return values[0]
-	}
-
-	return 0
-}
-
-func (c *Context) Response() *Response {
-	return &Response{c.Ctx.Response()}
-}
-
-func (c *Context) Method() string {
-	return c.Ctx.Method()
 }
 
 func (c *Context) Send(data []byte) error {
 	return c.Ctx.Send(data)
 }
 
-func (c *Context) OriginalURL() string {
-	return c.Ctx.OriginalURL()
-}
-
-func (c *Context) Path() string {
-	return c.Ctx.Path()
-}
-
 func (c *Context) Redirect(path string) error {
 	return c.Ctx.Redirect(path)
 }
 
-func (c *Context) Header(key string, vals ...string) string {
-	if len(vals) > 0 {
-		c.Ctx.Set(key, vals[0])
-		return vals[0]
+func (c *Context) Parse(v any) error {
+	// if there is no content type header, we assume it's JSON
+	if c.Ctx.Get("Content-Type") == "" {
+		c.Ctx.Set("Content-Type", "application/json")
+		c.Ctx.Request().Header.Set("Content-Type", "application/json")
 	}
 
-	return c.Ctx.Get(key)
-}
-
-func (c *Context) Parse(v any) error {
 	return c.Ctx.BodyParser(v)
 }
 

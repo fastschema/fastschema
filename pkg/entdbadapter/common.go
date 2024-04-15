@@ -16,7 +16,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -60,8 +60,8 @@ var entFieldTypesMapper = map[schema.FieldType]field.Type{
 	schema.TypeFloat64: field.TypeFloat64,
 }
 
-// CreateEntColumn convert a field to ent column
-func CreateEntColumn(f *schema.Field) *entSchema.Column {
+// createEntColumn convert a field to ent column
+func createEntColumn(f *schema.Field) *entSchema.Column {
 	entColumn := &entSchema.Column{
 		Name: f.Name,
 		Type: entFieldTypesMapper[f.Type],
@@ -99,7 +99,8 @@ func CreateEntColumn(f *schema.Field) *entSchema.Column {
 	return entColumn
 }
 
-func CreateDBDSN(config *db.DBConfig) string {
+// CreateDBDSN create a DSN string for the database connection
+func CreateDBDSN(config *app.DBConfig) string {
 	dsn := ""
 
 	if config.Driver == "mysql" {
@@ -125,6 +126,10 @@ func CreateDBDSN(config *db.DBConfig) string {
 	}
 
 	if config.Driver == "sqlite" {
+		if config.Name == ":memory:" {
+			return ":memory:?cache=shared&_fk=1&_pragma=foreign_keys(1)"
+		}
+
 		dsn = fmt.Sprintf(
 			"file:%s?cache=shared&_fk=1&_pragma=foreign_keys(1)",
 			config.Name,
@@ -134,7 +139,7 @@ func CreateDBDSN(config *db.DBConfig) string {
 	return dsn
 }
 
-func CreateDebugFN(config *db.DBConfig) func(ctx context.Context, i ...any) {
+func CreateDebugFN(config *app.DBConfig) func(ctx context.Context, i ...any) {
 	return func(ctx context.Context, i ...any) {
 		if !config.LogQueries {
 			return
@@ -151,7 +156,7 @@ func CreateDebugFN(config *db.DBConfig) func(ctx context.Context, i ...any) {
 	}
 }
 
-func GetEntDialect(config *db.DBConfig) (string, error) {
+func GetEntDialect(config *app.DBConfig) (string, error) {
 	entDialect, ok := dialectMap[config.Driver]
 	if !ok {
 		return "", fmt.Errorf("unsupported driver: %v", config.Driver)
@@ -161,8 +166,8 @@ func GetEntDialect(config *db.DBConfig) (string, error) {
 }
 
 func createRenameColumnsHook(
-	renameTables []*db.RenameItem,
-	renameColumns []*db.RenameItem,
+	renameTables []*app.RenameItem,
+	renameColumns []*app.RenameItem,
 ) entSchema.DiffHook {
 	return func(next entSchema.Differ) entSchema.Differ {
 		return entSchema.DiffFunc(func(current, desired *atlasSchema.Schema) ([]atlasSchema.Change, error) {
@@ -182,7 +187,7 @@ func createRenameColumnsHook(
 				}
 
 				// check if the new table is renamed from another table
-				matchedRenameTables := utils.Filter(renameTables, func(rt *db.RenameItem) bool {
+				matchedRenameTables := utils.Filter(renameTables, func(rt *app.RenameItem) bool {
 					return addTable.T.Name == rt.To
 				})
 
@@ -209,7 +214,7 @@ func createRenameColumnsHook(
 				for _, change := range changes {
 					if addColumn, ok := change.(*atlasSchema.AddColumn); ok {
 						// check if the new column is renamed from another column
-						matchedRenameFields := utils.Filter(renameColumns, func(rf *db.RenameItem) bool {
+						matchedRenameFields := utils.Filter(renameColumns, func(rf *app.RenameItem) bool {
 							return addColumn.C.Name == rf.To
 						})
 
@@ -249,7 +254,7 @@ func createRenameColumnsHook(
 	}
 }
 
-func getPlanForRenameTables(migrateDriver atlasMigrate.Driver, renameTables []*db.RenameItem) (*atlasMigrate.Plan, error) {
+func getPlanForRenameTables(migrateDriver atlasMigrate.Driver, renameTables []*app.RenameItem) (*atlasMigrate.Plan, error) {
 	if len(renameTables) == 0 {
 		return nil, nil
 	}

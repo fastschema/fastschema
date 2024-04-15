@@ -4,20 +4,19 @@ import (
 	"strings"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/errors"
 )
 
 func (cs *ContentService) List(c app.Context, _ *any) (*app.Pagination, error) {
 	schemaName := c.Arg("schema")
-	model, err := cs.app.DB().Model(schemaName)
+	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
 	filter := c.Arg("filter")
-	predicates, err := db.CreatePredicatesFromFilterObject(
-		cs.app.DB().SchemaBuilder(),
+	predicates, err := app.CreatePredicatesFromFilterObject(
+		cs.DB().SchemaBuilder(),
 		model.Schema(),
 		filter,
 	)
@@ -31,7 +30,7 @@ func (cs *ContentService) List(c app.Context, _ *any) (*app.Pagination, error) {
 	page := uint(c.ArgInt("page", 1))
 	limit := uint(c.ArgInt("limit", 10))
 	offset := (page - 1) * limit
-	total, err := model.Query(predicates...).Count(&db.CountOption{})
+	total, err := model.Query(predicates...).Count(&app.CountOption{})
 
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())

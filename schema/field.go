@@ -46,6 +46,7 @@ func (f *Field) Init(schemaNames ...string) {
 	}
 }
 
+// Clone returns a copy of the field.
 func (f *Field) Clone() *Field {
 	newField := &Field{
 		Type:          f.Type,
@@ -138,9 +139,6 @@ func (f *Field) IsValidValue(value any) bool {
 	case TypeFloat32, TypeFloat64:
 		_, ok := value.(float64)
 		return ok
-
-	default:
-		return false
 	}
 
 	return false

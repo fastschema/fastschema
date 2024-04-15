@@ -9,7 +9,7 @@ import (
 
 func (cs *ContentService) Create(c app.Context, _ *any) (*schema.Entity, error) {
 	schemaName := c.Arg("schema")
-	model, err := cs.app.DB().Model(schemaName)
+	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
@@ -21,10 +21,6 @@ func (cs *ContentService) Create(c app.Context, _ *any) (*schema.Entity, error) 
 
 	if schemaName == "user" {
 		password := entity.GetString("password")
-		if password == "" {
-			return nil, errors.BadRequest("password is required")
-		}
-
 		hash, err := utils.GenerateHash(password)
 		if err != nil {
 			return nil, errors.BadRequest(err.Error())
@@ -37,5 +33,5 @@ func (cs *ContentService) Create(c app.Context, _ *any) (*schema.Entity, error) 
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	return entity, nil
+	return entity.Delete("password"), nil
 }

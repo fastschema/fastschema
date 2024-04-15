@@ -12,9 +12,6 @@ import (
 	"strings"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/cmd"
-	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/rclonefs"
@@ -34,32 +31,42 @@ import (
 
 //go:embed all:dash/*
 var embedDashStatic embed.FS
+var CWD string
+
+func init() {
+	var err error
+	if CWD, err = os.Getwd(); err != nil {
+		log.Fatal(err)
+	}
+}
 
 type AppConfig struct {
-	Dir           string
-	AppKey        string
-	Port          string
-	BaseURL       string
-	DashURL       string
-	APIBaseName   string
-	DashBaseName  string
-	Logger        logger.Logger
-	DB            db.Client
-	StorageConfig *app.StorageConfig
+	Dir               string
+	AppKey            string
+	Port              string
+	BaseURL           string
+	DashURL           string
+	APIBaseName       string
+	DashBaseName      string
+	Logger            app.Logger
+	DB                app.DBClient
+	StorageConfig     *app.StorageConfig
+	HideResourcesInfo bool
 }
 
 func (ac *AppConfig) Clone() *AppConfig {
 	return &AppConfig{
-		Dir:           ac.Dir,
-		AppKey:        ac.AppKey,
-		Port:          ac.Port,
-		BaseURL:       ac.BaseURL,
-		DashURL:       ac.DashURL,
-		APIBaseName:   ac.APIBaseName,
-		DashBaseName:  ac.DashBaseName,
-		Logger:        ac.Logger,
-		DB:            ac.DB,
-		StorageConfig: ac.StorageConfig.Clone(),
+		Dir:               ac.Dir,
+		AppKey:            ac.AppKey,
+		Port:              ac.Port,
+		BaseURL:           ac.BaseURL,
+		DashURL:           ac.DashURL,
+		APIBaseName:       ac.APIBaseName,
+		DashBaseName:      ac.DashBaseName,
+		Logger:            ac.Logger,
+		DB:                ac.DB,
+		StorageConfig:     ac.StorageConfig.Clone(),
+		HideResourcesInfo: ac.HideResourcesInfo,
 	}
 }
 
@@ -81,6 +88,7 @@ type App struct {
 	defaultDisk     app.Disk
 	setupToken      string
 	startupMessages []string
+	statics         []*app.StaticFs
 }
 
 func New(config *AppConfig) (_ *App, err error) {
@@ -88,15 +96,7 @@ func New(config *AppConfig) (_ *App, err error) {
 		config: config.Clone(),
 		disks:  []app.Disk{},
 		roles:  []*app.Role{},
-		hooks: &app.Hooks{
-			BeforeResolve: []app.ResolveHook{},
-			AfterResolve:  []app.ResolveHook{},
-			ContentList:   []db.AfterDBContentListHook{},
-		},
-	}
-
-	if err := a.getAppDir(); err != nil {
-		return nil, err
+		hooks:  &app.Hooks{},
 	}
 
 	if err := a.prepareConfig(); err != nil {
@@ -111,15 +111,6 @@ func New(config *AppConfig) (_ *App, err error) {
 }
 
 func (a *App) init() (err error) {
-	if err = utils.MkDirs(
-		a.logDir,
-		a.publicDir,
-		a.schemasDir,
-		a.migrationDir,
-	); err != nil {
-		return err
-	}
-
 	if err = a.getDefaultDisk(); err != nil {
 		return err
 	}
@@ -140,14 +131,100 @@ func (a *App) init() (err error) {
 		return err
 	}
 
+	// if a local disk has a public path, then add it to the statics
+	for _, disk := range a.disks {
+		publicPath := disk.LocalPublicPath()
+
+		if publicPath != "" {
+			a.startupMessages = append(
+				a.startupMessages,
+				fmt.Sprintf("Serving files from disk [%s:%s] at %s", disk.Name(), publicPath, disk.Root()),
+			)
+
+			a.statics = append(a.statics, &app.StaticFs{
+				BasePath: publicPath,
+				Root:     http.Dir(disk.Root()),
+			})
+		}
+	}
+
+	setupToken, err := a.SetupToken()
+	if err != nil {
+		return err
+	}
+
+	if setupToken != "" {
+		type setupData struct {
+			Token    string `json:"token"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		a.api.Add(app.NewResource("setup", func(c app.Context, setupData *setupData) (bool, error) {
+			if setupToken == "" {
+				return false, errors.BadRequest("Setup token is not available")
+			}
+
+			if setupData == nil {
+				return false, errors.BadRequest("Invalid setup data")
+			}
+
+			if setupData.Token != setupToken {
+				return false, errors.Forbidden("Invalid setup token")
+			}
+
+			if err := ts.Setup(
+				a.DB(),
+				a.Logger(),
+				setupData.Username, setupData.Email, setupData.Password,
+			); err != nil {
+				return false, err
+			}
+
+			if err := a.UpdateCache(); err != nil {
+				return false, err
+			}
+
+			setupToken = ""
+			a.setupToken = ""
+
+			return true, nil
+		}, app.Meta{app.POST: "/setup"}, true))
+
+		setupURL := fmt.Sprintf(
+			"%s/setup/?token=%s\033[0m",
+			a.config.DashURL,
+			setupToken,
+		)
+
+		a.startupMessages = append(a.startupMessages, fmt.Sprintf(
+			"Visit the following URL to setup the app: %s",
+			setupURL,
+		))
+	}
+
+	a.statics = append(a.statics, &app.StaticFs{
+		BasePath:   "/" + a.config.DashBaseName,
+		Root:       http.FS(embedDashStatic),
+		PathPrefix: "dash",
+	})
+
 	return nil
+}
+
+func (a *App) Config() *AppConfig {
+	return a.config
 }
 
 func (a *App) Key() string {
 	return a.config.AppKey
 }
 
-func (a *App) Reload(migration *db.Migration) (err error) {
+func (a *App) Dir() string {
+	return a.dir
+}
+
+func (a *App) Reload(migration *app.Migration) (err error) {
 	if a.DB() != nil {
 		if err = a.DB().Close(); err != nil {
 			return err
@@ -168,177 +245,8 @@ func (a *App) Reload(migration *db.Migration) (err error) {
 	return nil
 }
 
-func (a *App) Start() {
-	addr := fmt.Sprintf(":%s", a.config.Port)
-	setupToken, err := a.SetupToken()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if setupToken != "" {
-		type setupData struct {
-			Token    string `json:"token"`
-			Username string `json:"username"`
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}
-		a.api.Add(app.NewResource("setup", func(c app.Context, setupData *setupData) (bool, error) {
-			if setupToken == "" {
-				return false, errors.BadRequest("Setup token is not available")
-			}
-
-			if setupData == nil {
-				return false, errors.BadRequest("Invalid setup data")
-			}
-
-			if setupData.Token != setupToken {
-				return false, errors.Unauthorized("Invalid setup token")
-			}
-
-			if err := cmd.Setup(a, setupData.Username, setupData.Email, setupData.Password); err != nil {
-				return false, err
-			}
-
-			if err := a.UpdateCache(); err != nil {
-				return false, err
-			}
-
-			setupToken = ""
-			a.setupToken = ""
-
-			return true, nil
-		}, app.Meta{app.POST: "/setup"}, true))
-	}
-
-	if err := a.resources.Init(); err != nil {
-		log.Fatal(err)
-	}
-
-	a.resources.Print()
-
-	if setupToken != "" {
-		setupURL := fmt.Sprintf(
-			"%s/setup/?token=%s\033[0m",
-			a.config.DashURL,
-			setupToken,
-		)
-
-		a.startupMessages = append(a.startupMessages, fmt.Sprintf(
-			"Visit the following URL to setup the app: %s",
-			setupURL,
-		))
-	}
-
-	restResolver := restresolver.NewRestResolver(a.resources, []*restresolver.StaticPaths{{
-		BasePath: "/",
-		Root:     a.publicDir,
-	}})
-
-	fmt.Printf("\n")
-	for _, msg := range a.startupMessages {
-		color.Green("> %s", msg)
-	}
-	fmt.Printf("\n")
-	log.Fatal(restResolver.Start(addr, a.Logger()))
-}
-
-func (a *App) SchemaBuilder() *schema.Builder {
-	return a.schemaBuilder
-}
-
-func (a *App) DB() db.Client {
-	return a.config.DB
-}
-
-func (a *App) Logger() logger.Logger {
-	return a.config.Logger
-}
-
-func (a *App) Resources() *app.ResourcesManager {
-	return a.resources
-}
-
-func (a *App) Roles() []*app.Role {
-	return a.roles
-}
-
-func (a *App) Hooks() *app.Hooks {
-	return a.hooks
-}
-
-func (a *App) Disk(names ...string) app.Disk {
-	if len(names) == 0 {
-		return a.defaultDisk
-	}
-
-	for _, disk := range a.disks {
-		if disk.Name() == names[0] {
-			return disk
-		}
-	}
-
-	return nil
-}
-
-func (a *App) AddResource(resource *app.Resource) {
-	a.resources.Add(resource)
-}
-
-func (a *App) AddMiddlewares(middlewares ...app.Middleware) {
-	a.resources.Middlewares = append(a.resources.Middlewares, middlewares...)
-}
-
-func (a *App) OnBeforeResolve(middlewares ...app.Middleware) {
-	a.hooks.BeforeResolve = append(a.hooks.BeforeResolve, middlewares...)
-}
-
-func (a *App) OnAfterResolve(middlewares ...app.Middleware) {
-	a.hooks.AfterResolve = append(a.hooks.AfterResolve, middlewares...)
-}
-
-func (a *App) OnAfterDBContentList(hook db.AfterDBContentListHook) {
-	a.hooks.ContentList = append(a.hooks.ContentList, hook)
-}
-
-func (a *App) GetRolesFromIDs(ids []uint64) []*app.Role {
-	result := []*app.Role{}
-
-	for _, role := range a.Roles() {
-		for _, id := range ids {
-			if role.ID == id {
-				result = append(result, role)
-			}
-		}
-	}
-
-	return result
-}
-
-func (a *App) GetRoleDetail(roleID uint64) *app.Role {
-	for _, role := range a.Roles() {
-		if role.ID == roleID {
-			return role
-		}
-	}
-
-	return &app.Role{
-		ID:          roleID,
-		Permissions: []*app.Permission{},
-	}
-}
-
-func (a *App) GetRolePermission(roleID uint64, action string) *app.Permission {
-	rolePermissions := a.GetRoleDetail(roleID)
-
-	for _, permission := range rolePermissions.Permissions {
-		if permission.Resource == action {
-			return permission
-		}
-	}
-
-	return &app.Permission{}
-}
-
+// UpdateCache updates the application cache.
+// It fetches all roles from the database and stores them in the cache.
 func (a *App) UpdateCache() error {
 	a.roles = []*app.Role{}
 	roleModel, err := a.DB().Model("role")
@@ -369,6 +277,92 @@ func (a *App) UpdateCache() error {
 	return nil
 }
 
+func (a *App) Start() error {
+	addr := fmt.Sprintf(":%s", a.config.Port)
+	if err := a.resources.Init(); err != nil {
+		return err
+	}
+
+	if !a.config.HideResourcesInfo {
+		a.resources.Print()
+	}
+	restResolver := restresolver.NewRestResolver(a.resources, a.Logger(), a.statics...)
+
+	fmt.Printf("\n")
+	for _, msg := range a.startupMessages {
+		color.Green("> %s", msg)
+	}
+	fmt.Printf("\n")
+
+	return restResolver.Start(addr)
+}
+
+func (a *App) SchemaBuilder() *schema.Builder {
+	return a.schemaBuilder
+}
+
+func (a *App) DB() app.DBClient {
+	return a.config.DB
+}
+
+func (a *App) API() *app.Resource {
+	return a.api
+}
+
+func (a *App) Logger() app.Logger {
+	return a.config.Logger
+}
+
+func (a *App) Resources() *app.ResourcesManager {
+	return a.resources
+}
+
+func (a *App) Roles() []*app.Role {
+	return a.roles
+}
+
+func (a *App) Hooks() *app.Hooks {
+	return a.hooks
+}
+
+func (a *App) Disks() []app.Disk {
+	return a.disks
+}
+
+func (a *App) Disk(names ...string) app.Disk {
+	if len(names) == 0 {
+		return a.defaultDisk
+	}
+
+	for _, disk := range a.disks {
+		if disk.Name() == names[0] {
+			return disk
+		}
+	}
+
+	return nil
+}
+
+func (a *App) AddResource(resource *app.Resource) {
+	a.resources.Add(resource)
+}
+
+func (a *App) AddMiddlewares(middlewares ...app.Middleware) {
+	a.resources.Middlewares = append(a.resources.Middlewares, middlewares...)
+}
+
+func (a *App) OnPreResolve(middlewares ...app.Middleware) {
+	a.hooks.PreResolve = append(a.hooks.PreResolve, middlewares...)
+}
+
+func (a *App) OnPostResolve(middlewares ...app.Middleware) {
+	a.hooks.PostResolve = append(a.hooks.PostResolve, middlewares...)
+}
+
+func (a *App) OnPostDBGet(hooks ...app.PostDBGetHook) {
+	a.hooks.PostDBGet = append(a.hooks.PostDBGet, hooks...)
+}
+
 func (a *App) SetupToken() (string, error) {
 	// If there is no roles and users, then the app is not setup
 	// we need to setup the app.
@@ -380,7 +374,11 @@ func (a *App) SetupToken() (string, error) {
 		return "", err
 	}
 
-	if a.setupToken == "" && needSetup {
+	if !needSetup {
+		return "", nil
+	}
+
+	if a.setupToken == "" {
 		a.setupToken = utils.RandomString(32)
 	}
 
@@ -394,7 +392,7 @@ func (a *App) needSetup() (bool, error) {
 	var userCount int
 	var roleCount int
 	ctx := context.Background()
-	countOption := &db.CountOption{
+	countOption := &app.CountOption{
 		Column: "id",
 		Unique: true,
 	}
@@ -425,18 +423,18 @@ func (a *App) getDefaultDBClient() (err error) {
 		return nil
 	}
 
-	dbConfig := &db.DBConfig{
+	dbConfig := &app.DBConfig{
 		Driver:       utils.Env("DB_DRIVER", "sqlite"),
 		Name:         utils.Env("DB_NAME"),
 		User:         utils.Env("DB_USER"),
 		Pass:         utils.Env("DB_PASS"),
 		Host:         utils.Env("DB_HOST"),
 		Port:         utils.Env("DB_PORT"),
-		LogQueries:   utils.Env("DB_LOGGING", "true") == "true",
+		LogQueries:   utils.Env("DB_LOGGING", "false") == "true",
 		Logger:       a.Logger(),
 		MigrationDir: a.migrationDir,
-		Hooks: &db.Hooks{
-			AfterDBContentList: a.hooks.ContentList,
+		Hooks: func() *app.Hooks {
+			return a.hooks
 		},
 	}
 
@@ -446,7 +444,7 @@ func (a *App) getDefaultDBClient() (err error) {
 		dbConfig.Name = path.Join(a.dataDir, "fastschema.db")
 		a.startupMessages = append(
 			a.startupMessages,
-			fmt.Sprintf("Using the default sqlite db file path: %s", dbConfig.Name),
+			fmt.Sprintf("Using default sqlite db file: %s", dbConfig.Name),
 		)
 	}
 
@@ -472,7 +470,7 @@ func (a *App) getDefaultLogger() (err error) {
 	return err
 }
 
-func (a *App) getDefaultDisk() error {
+func (a *App) getDefaultDisk() (err error) {
 	if a.config.StorageConfig == nil {
 		a.config.StorageConfig = &app.StorageConfig{}
 	}
@@ -489,18 +487,36 @@ func (a *App) getDefaultDisk() error {
 		}
 	}
 
-	a.disks = rclonefs.NewFromConfig(storageDisksConfig, a.dir)
-
-	if defaultDiskName == "" && len(a.disks) > 0 {
-		a.defaultDisk = a.disks[0]
-		return nil
+	// if threre is no disk config, add a default disk
+	if storageDisksConfig == nil {
+		storageDisksConfig = []*app.DiskConfig{{
+			Name:       "local_public",
+			Driver:     "local",
+			PublicPath: "/files",
+			BaseURL:    fmt.Sprintf("%s/files", a.config.BaseURL),
+			Root:       a.publicDir,
+		}}
 	}
 
+	if a.disks, err = rclonefs.NewFromConfig(storageDisksConfig, a.dataDir); err != nil {
+		return err
+	}
+
+	foundDefaultDisk := false
 	for _, disk := range a.disks {
 		if disk.Name() == defaultDiskName {
 			a.defaultDisk = disk
+			foundDefaultDisk = true
 			break
 		}
+	}
+
+	if defaultDiskName != "" && !foundDefaultDisk {
+		return fmt.Errorf("default disk [%s] not found", defaultDiskName)
+	}
+
+	if a.defaultDisk == nil && len(a.disks) > 0 {
+		a.defaultDisk = a.disks[0]
 	}
 
 	return nil
@@ -515,25 +531,21 @@ func (a *App) createSchemaBuilder() (err error) {
 }
 
 func (a *App) createResources() error {
-	userService := us.NewUserService(a)
-	roleService := rs.NewRoleService(a)
-	mediaService := ms.NewMediaService(a)
-	schemaService := ss.NewSchemaService(a)
-	contentService := cs.NewContentService(a)
-	toolService := ts.NewToolService(a)
+	userService := us.New(a)
+	roleService := rs.New(a)
+	mediaService := ms.New(a)
+	schemaService := ss.New(a)
+	contentService := cs.New(a)
+	toolService := ts.New(a)
+
+	a.hooks.PostDBGet = append(a.hooks.PostDBGet, mediaService.MediaListHook)
+	a.hooks.PreResolve = append(a.hooks.PreResolve, roleService.Authorize)
 
 	a.resources = app.NewResourcesManager()
-	a.resources.RegisterStaticResources(&app.StaticResourceConfig{
-		Root:       http.FS(embedDashStatic),
-		BasePath:   "/" + a.config.DashBaseName,
-		PathPrefix: "dash",
-	})
 	a.resources.Middlewares = append(a.resources.Middlewares, roleService.ParseUser)
-	a.resources.BeforeResolveHooks = append(a.resources.BeforeResolveHooks, roleService.Authorize)
-	a.resources.BeforeResolveHooks = append(a.resources.BeforeResolveHooks, a.hooks.BeforeResolve...)
-	a.resources.AfterResolveHooks = append(a.resources.AfterResolveHooks, a.hooks.AfterResolve...)
-
-	a.OnAfterDBContentList(mediaService.MediaListHook)
+	a.resources.Hooks = func() *app.Hooks {
+		return a.hooks
+	}
 
 	a.api = a.resources.Group(a.config.APIBaseName)
 	a.api.Group("user").
@@ -557,7 +569,7 @@ func (a *App) createResources() error {
 
 	a.api.Group("role").
 		Add(app.NewResource("list", roleService.List, app.Meta{app.GET: ""})).
-		Add(app.NewResource("resources", roleService.Resources, app.Meta{app.GET: "/resources"})).
+		Add(app.NewResource("resources", roleService.ResourcesList, app.Meta{app.GET: "/resources"})).
 		Add(app.NewResource("detail", roleService.Detail, app.Meta{app.GET: "/:id"})).
 		Add(app.NewResource("create", roleService.Create, app.Meta{app.POST: ""})).
 		Add(app.NewResource("update", roleService.Update, app.Meta{app.PUT: "/:id"})).
@@ -568,45 +580,46 @@ func (a *App) createResources() error {
 		Add(app.NewResource("delete", mediaService.Delete, app.Meta{app.DELETE: ""}))
 
 	a.api.Group("tool").
-		Add(app.NewResource("stats", toolService.Stats, app.Meta{app.GET: "/stats"}))
+		Add(app.NewResource("stats", toolService.Stats, app.Meta{app.GET: "/stats"}, true))
 
 	return nil
 }
 
-func (a *App) getAppDir() (err error) {
+func (a *App) getAppDir() {
 	defer func() {
-		if err == nil {
-			fmt.Println("> Using app directory:", a.dir)
-		}
+		a.startupMessages = append(a.startupMessages, fmt.Sprintf("Using app directory: %s", a.dir))
 	}()
 
-	cwd, err := os.Getwd()
-
-	if err != nil {
-		return err
-	}
-
 	if a.config.Dir == "" {
-		a.dir = cwd
-		return nil
+		a.dir = CWD
+		return
 	}
 
 	if strings.HasPrefix(a.config.Dir, "/") {
 		a.dir = a.config.Dir
-		return nil
+		return
 	}
 
-	a.dir = path.Join(cwd, a.config.Dir)
-	return nil
+	a.dir = path.Join(CWD, a.config.Dir)
 }
 
-func (a *App) prepareConfig() error {
+func (a *App) prepareConfig() (err error) {
+	a.getAppDir()
 	a.dataDir = path.Join(a.dir, "data")
 	a.logDir = path.Join(a.dataDir, "logs")
 	a.publicDir = path.Join(a.dataDir, "public")
 	a.schemasDir = path.Join(a.dataDir, "schemas")
 	a.migrationDir = path.Join(a.dataDir, "migrations")
 	envFile := path.Join(a.dataDir, ".env")
+
+	if err = utils.MkDirs(
+		a.logDir,
+		a.publicDir,
+		a.schemasDir,
+		a.migrationDir,
+	); err != nil {
+		return err
+	}
 
 	if utils.IsFileExists(envFile) {
 		a.envFile = envFile

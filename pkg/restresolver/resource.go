@@ -2,50 +2,46 @@ package restresolver
 
 import (
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
 
-type StaticPaths struct {
-	BasePath string
-	Root     string
-}
-
 type RestSolver struct {
 	resourceManager *app.ResourcesManager
-	statics         []*StaticPaths
+	staticFSs       []*app.StaticFs
+	server          *Server
 }
 
-func NewRestResolver(resourceManager *app.ResourcesManager, statics []*StaticPaths) *RestSolver {
-	return &RestSolver{
+func NewRestResolver(
+	resourceManager *app.ResourcesManager,
+	logger app.Logger,
+	staticFSs ...*app.StaticFs,
+) *RestSolver {
+	rs := &RestSolver{
 		resourceManager: resourceManager,
-		statics:         statics,
+		staticFSs:       staticFSs,
 	}
+
+	return rs.init(logger)
 }
 
-func (r RestSolver) Resource(routeName string) *app.Resource {
-	return r.resourceManager.Find(routeName)
-}
-
-func (r *RestSolver) Start(address string, logger logger.Logger) error {
+func (r *RestSolver) init(logger app.Logger) *RestSolver {
 	middlewares := []Handler{
 		MiddlewareCors,
 		MiddlewareRecover,
 		MiddlewareRequestID,
 		MiddlewareRequestLog,
 	}
-	s := New(Config{
+	r.server = New(Config{
 		AppName: "fastschema",
 		Logger:  logger,
 	})
 
-	for _, staticResource := range r.resourceManager.StaticResources {
-		s.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
+	for _, staticResource := range r.staticFSs {
+		r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
 			Root:       staticResource.Root,
 			PathPrefix: staticResource.PathPrefix,
-			Browse:     true,
 		}))
 	}
 
@@ -70,33 +66,39 @@ func (r *RestSolver) Start(address string, logger logger.Logger) error {
 		})
 	}
 
-	for _, static := range r.statics {
-		s.Static(static.BasePath, static.Root)
+	r.server.Use(middlewares...)
+	manager := r.server.Group(r.resourceManager.Name(), nil)
+
+	var getHooks = func() *app.Hooks {
+		return &app.Hooks{}
 	}
 
-	s.Use(middlewares...)
-	api := s.Group(r.resourceManager.Name(), nil)
-
-	if err := registerResourceRoutes(
-		r.resourceManager.Resources(),
-		api,
-		r.resourceManager.BeforeResolveHooks,
-		r.resourceManager.AfterResolveHooks,
-	); err != nil {
-		panic(err)
+	if r.resourceManager.Hooks != nil {
+		getHooks = r.resourceManager.Hooks
 	}
 
-	s.Listen(address)
+	registerResourceRoutes(r.resourceManager.Resources(), manager, getHooks)
 
-	return nil
+	return r
+}
+
+func (r *RestSolver) Server() *Server {
+	return r.server
+}
+
+func (r *RestSolver) Start(address string) error {
+	return r.server.Listen(address)
+}
+
+func (r *RestSolver) Shutdown() error {
+	return r.server.App.Shutdown()
 }
 
 func registerResourceRoutes(
 	resources []*app.Resource,
 	router *Router,
-	beforeHandlerHooks []app.Middleware,
-	afterHandlerHooks []app.Middleware,
-) error {
+	getHooks func() *app.Hooks,
+) {
 	methodMapper := map[string]func(string, Handler, ...*app.Resource){
 		app.GET:     router.Get,
 		app.POST:    router.Post,
@@ -109,14 +111,7 @@ func registerResourceRoutes(
 	for _, r := range resources {
 		if r.IsGroup() {
 			group := router.Group(r.Name(), r)
-			if err := registerResourceRoutes(
-				r.Resources(),
-				group,
-				beforeHandlerHooks,
-				afterHandlerHooks,
-			); err != nil {
-				return err
-			}
+			registerResourceRoutes(r.Resources(), group, getHooks)
 
 			continue
 		}
@@ -132,9 +127,11 @@ func registerResourceRoutes(
 			}
 		}
 
+		hooks := getHooks()
+
 		func(r *app.Resource) {
 			handler(path, func(c *Context) error {
-				for _, hook := range beforeHandlerHooks {
+				for _, hook := range hooks.PreResolve {
 					if err := hook(c); err != nil {
 						result := app.NewResult(nil, err)
 						if result.Error != nil && result.Error.Status != 0 {
@@ -152,9 +149,10 @@ func registerResourceRoutes(
 
 				c.Result(result)
 
-				for _, hook := range afterHandlerHooks {
+				for _, hook := range hooks.PostResolve {
 					if err := hook(c); err != nil {
 						result := app.NewResult(nil, err)
+
 						if result.Error != nil && result.Error.Status != 0 {
 							c.Status(result.Error.Status)
 						}
@@ -167,6 +165,4 @@ func registerResourceRoutes(
 			}, r)
 		}(r)
 	}
-
-	return nil
 }

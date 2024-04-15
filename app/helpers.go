@@ -7,14 +7,21 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
+// EntityToRole converts an entity to a role
 func EntityToRole(e *schema.Entity) *Role {
 	role := &Role{
 		ID:          e.ID(),
-		Name:        e.Get("name").(string),
-		Description: e.Get("description").(string),
 		Root:        false,
 		Users:       []*User{},
 		Permissions: []*Permission{},
+	}
+
+	if name, ok := e.Get("name").(string); ok {
+		role.Name = name
+	}
+
+	if description, ok := e.Get("description").(string); ok {
+		role.Description = description
 	}
 
 	if root, ok := e.Get("root").(bool); ok {
@@ -34,8 +41,8 @@ func EntityToRole(e *schema.Entity) *Role {
 	if ok {
 		for _, p := range permissions {
 			role.Permissions = append(role.Permissions, &Permission{
-				Resource: p.Get("resource").(string),
-				Value:    p.Get("value").(string),
+				Resource: p.GetString("resource", ""),
+				Value:    p.GetString("value", ""),
 			})
 		}
 	}
@@ -43,6 +50,16 @@ func EntityToRole(e *schema.Entity) *Role {
 	return role
 }
 
+// EntitiesToRoles converts entities to roles
+func EntitiesToRoles(entities []*schema.Entity) []*Role {
+	roles := make([]*Role, 0, len(entities))
+	for _, e := range entities {
+		roles = append(roles, EntityToRole(e))
+	}
+	return roles
+}
+
+// EntityToUser converts an entity to a user
 func EntityToUser(e *schema.Entity) *User {
 	if e == nil {
 		return nil
@@ -50,7 +67,6 @@ func EntityToUser(e *schema.Entity) *User {
 
 	user := &User{
 		ID:               e.ID(),
-		Entity:           e,
 		Username:         e.GetString("username"),
 		Email:            e.GetString("email"),
 		Password:         e.GetString("password"),
@@ -86,6 +102,7 @@ func EntityToUser(e *schema.Entity) *User {
 	return user
 }
 
+// EntityToFile converts an entity to a file
 func EntityToFile(e *schema.Entity, disks ...Disk) *File {
 	if e == nil {
 		return nil
@@ -118,6 +135,7 @@ func EntityToFile(e *schema.Entity, disks ...Disk) *File {
 	return file
 }
 
+// EntitiesToFiles converts entities to files
 func EntitiesToFiles(entities []*schema.Entity, disks ...Disk) []*File {
 	files := make([]*File, 0, len(entities))
 	for _, e := range entities {

@@ -13,26 +13,23 @@ import (
 
 var resourceNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_:/]+$`)
 
-type StaticResourceConfig struct {
+type StaticFs struct {
 	Root       http.FileSystem
 	BasePath   string
 	PathPrefix string
 }
 
+// ResolverGenerator is a function that generates a resolver function
 type ResolverGenerator[Input, Output any] func(c Context, input *Input) (Output, error)
 
+// Middleware is a function that can be used to add middleware to a resource
 type Middleware func(c Context) error
 
+// ResourcesManager is a resource manager that can be used to manage resources
 type ResourcesManager struct {
 	*Resource
-	BeforeResolveHooks []Middleware
-	AfterResolveHooks  []Middleware
-	Middlewares        []Middleware
-	StaticResources    []*StaticResourceConfig
-}
-
-func (rs *ResourcesManager) RegisterStaticResources(configs ...*StaticResourceConfig) {
-	rs.StaticResources = append(rs.StaticResources, configs...)
+	Middlewares []Middleware
+	Hooks       func() *Hooks
 }
 
 // Init validates the resource and all sub resources
@@ -56,6 +53,7 @@ func (rs *ResourcesManager) Init() error {
 	return nil
 }
 
+// Resource is a resource that can be used to define a resource tree
 type Resource struct {
 	id          string
 	group       bool
@@ -67,6 +65,7 @@ type Resource struct {
 	isWhiteList bool
 }
 
+// NewResourcesManager creates a new resources manager
 func NewResourcesManager() *ResourcesManager {
 	return &ResourcesManager{
 		Resource: &Resource{
@@ -74,12 +73,11 @@ func NewResourcesManager() *ResourcesManager {
 			group:     true,
 			resources: make([]*Resource, 0),
 		},
-		BeforeResolveHooks: make([]Middleware, 0),
-		AfterResolveHooks:  make([]Middleware, 0),
-		Middlewares:        make([]Middleware, 0),
+		Middlewares: make([]Middleware, 0),
 	}
 }
 
+// NewResource creates a new resource
 func NewResource[Input, Output any](
 	name string,
 	resolverGenerator ResolverGenerator[Input, Output],
@@ -93,6 +91,7 @@ func NewResource[Input, Output any](
 		name:      name,
 		meta:      Meta{},
 		signature: [2]any{inputType, outputType},
+		resources: make([]*Resource, 0),
 		resolver: func(ctx Context) (any, error) {
 			var input Input
 			if hasInput {
@@ -144,6 +143,7 @@ func (r *Resource) Remove(resource *Resource) (self *Resource) {
 	return r
 }
 
+// Clone clones the resource and all sub resources
 func (r *Resource) Clone() *Resource {
 	clone := &Resource{
 		id:          r.id,
@@ -189,6 +189,7 @@ func (r *Resource) AddResource(name string, resolver Resolver, extras ...any) (s
 	return r.add(resource)
 }
 
+// Add adds a new resource to the current resource as a child and returns the current resource
 func (r *Resource) Add(resource *Resource) (self *Resource) {
 	return r.add(resource)
 }
@@ -214,29 +215,37 @@ func (r *Resource) Find(resourceID string) *Resource {
 	return matchedResource
 }
 
+// ID returns the id of the resource
 func (r *Resource) ID() string {
 	return r.id
 }
 
+// Name returns the name of the resource
 func (r *Resource) Name() string {
 	return r.name
 }
+
+// Resolver returns the resolver of the resource
 func (r *Resource) Resolver() Resolver {
 	return r.resolver
 }
 
+// Meta returns the meta of the resource
 func (r *Resource) Meta() Meta {
 	return r.meta
 }
 
+// Resources returns the sub resources of the resource
 func (r *Resource) Resources() []*Resource {
 	return r.resources
 }
 
+// IsGroup returns true if the resource is a group
 func (r *Resource) IsGroup() bool {
 	return r.group
 }
 
+// WhiteListed returns true if the resource is white listed
 func (r *Resource) WhiteListed() bool {
 	return r.isWhiteList
 }
@@ -264,8 +273,8 @@ func (r *Resource) String() string {
 		return fmt.Sprintf("[%s]", r.name)
 	}
 
-	printFormat := "[%s] %s"
-	printArgs := []any{r.name, r.id}
+	printFormat := "[%s]"
+	printArgs := []any{r.name}
 	if len(r.meta) > 0 {
 		printArgs = append(printArgs, r.meta)
 		printFormat += " - %v"
@@ -333,6 +342,7 @@ func (r *Resource) Init() error {
 	return nil
 }
 
+// MarshalJSON marshals the resource to json
 func (r *Resource) MarshalJSON() ([]byte, error) {
 	entity := schema.NewEntity().
 		Set("id", r.id).

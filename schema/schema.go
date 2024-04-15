@@ -131,13 +131,13 @@ func (s *Schema) Init(disableIDColumn bool) error {
 	return nil
 }
 
+// Clone returns a copy of the schema.
 func (s *Schema) Clone() *Schema {
 	clone := &Schema{
 		Name:             s.Name,
 		Namespace:        s.Namespace,
 		LabelFieldName:   s.LabelFieldName,
 		DisableTimestamp: s.DisableTimestamp,
-		// RelationsFKColumns: s.RelationsFKColumns,
 		DBColumns:        s.DBColumns,
 		IsSystemSchema:   s.IsSystemSchema,
 		IsJunctionSchema: s.IsJunctionSchema,
@@ -150,15 +150,12 @@ func (s *Schema) Clone() *Schema {
 	return clone
 }
 
+// SaveToFile saves the schema to a file.
 func (s *Schema) SaveToFile(filename string) error {
 	filteredSchema := s.Clone()
 	filteredSchema.Fields = utils.Filter(filteredSchema.Fields, func(field *Field) bool {
 		return !field.IsSystemField
 	})
-
-	// if s.IsSystemSchema && s.Name != "user" {
-	// 	return nil
-	// }
 
 	fileData, err := json.MarshalIndent(filteredSchema, "", "  ")
 	if err != nil {
@@ -168,9 +165,10 @@ func (s *Schema) SaveToFile(filename string) error {
 	return os.WriteFile(filename, fileData, 0600)
 }
 
-func (s *Schema) HasField(field *Field) bool {
-	existedFields := utils.Filter(s.Fields, func(oldField *Field) bool {
-		return oldField.Name == field.Name
+// HasField checks if the schema has a field.
+func (s *Schema) HasField(fieldName string) bool {
+	existedFields := utils.Filter(s.Fields, func(f *Field) bool {
+		return f.Name == fieldName
 	})
 
 	return len(existedFields) > 0

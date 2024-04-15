@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
+	"io"
 	"math"
 	"os"
 	"regexp"
@@ -30,7 +30,7 @@ func RandomString(length int) string {
 	bufferSize := int(float64(length) * 1.3)
 	for i, j, randomBytes := 0, 0, []byte{}; i < length; j++ {
 		if j%bufferSize == 0 {
-			randomBytes = SecureRandomBytes(bufferSize)
+			randomBytes, _ = SecureRandomBytes(bufferSize)
 		}
 		if idx := int(randomBytes[j%length] & letterIdxMask); idx < len(letterBytes) {
 			result[i] = letterBytes[idx]
@@ -42,13 +42,13 @@ func RandomString(length int) string {
 }
 
 // SecureRandomBytes returns the requested number of bytes using crypto/rand
-func SecureRandomBytes(length int) []byte {
+func SecureRandomBytes(length int) ([]byte, error) {
 	var randomBytes = make([]byte, length)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
-		log.Fatal("Unable to generate random bytes")
+		return nil, err
 	}
-	return randomBytes
+	return randomBytes, nil
 }
 
 func Map[T any, R any](slice []T, mapper func(T) R) []R {
@@ -412,4 +412,29 @@ func Env(name string, defaultValues ...string) string {
 	}
 
 	return value
+}
+
+func ReadCloserToString(rc io.ReadCloser) (string, error) {
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
+func MergeErrorMessages(errs ...error) error {
+	messages := make([]string, 0)
+	for _, err := range errs {
+		if err != nil {
+			messages = append(messages, err.Error())
+		}
+	}
+
+	if len(messages) == 0 {
+		return nil
+	}
+
+	return errors.New(strings.Join(messages, ", "))
 }

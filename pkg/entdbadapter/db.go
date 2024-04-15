@@ -1,33 +1,94 @@
 package entdbadapter
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/schema"
 )
 
+type EntAdapter interface {
+	NewEdgeSpec(
+		r *schema.Relation,
+		nodeIDs []driver.Value,
+	) (*sqlgraph.EdgeSpec, error)
+	NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, error)
+	Reload(
+		newSchemaBuilder *schema.Builder,
+		migration *app.Migration,
+	) (_ app.DBClient, err error)
+	Driver() dialect.Driver
+	CreateDBModel(s *schema.Schema, relations ...*schema.Relation) app.Model
+	Close() error
+	Commit() error
+	Rollback() error
+	Config() *app.DBConfig
+	DB() *sql.DB
+	Dialect() string
+	Exec(
+		ctx context.Context,
+		query string,
+		args,
+		bindValue any,
+	) error
+	Hooks() *app.Hooks
+	IsTx() bool
+	Model(name string) (app.Model, error)
+	SchemaBuilder() *schema.Builder
+	Tx(ctx context.Context) (app.DBClient, error)
+	Migrate(
+		migration *app.Migration,
+		appendEntTables ...*entSchema.Table,
+	) (err error)
+	SetSQLDB(db *sql.DB)
+	SetDriver(driver dialect.Driver)
+}
+
 // NewClient creates a new ent client
-func NewClient(config *db.DBConfig, schemaBuilder *schema.Builder) (_ db.Client, err error) {
+func NewClient(config *app.DBConfig, schemaBuilder *schema.Builder) (_ app.DBClient, err error) {
 	return NewEntClient(config, schemaBuilder)
+}
+
+// NewTestClient creates a new ent client with sqlite memory
+func NewTestClient(
+	migrationDir string,
+	schemaBuilder *schema.Builder,
+	hookFns ...func() *app.Hooks,
+) (_ app.DBClient, err error) {
+	hookFns = append(hookFns, func() *app.Hooks {
+		return &app.Hooks{}
+	})
+	return NewClient(&app.DBConfig{
+		Driver:       "sqlite",
+		Name:         ":memory:",
+		MigrationDir: migrationDir,
+		LogQueries:   false,
+		Hooks:        hookFns[0],
+	}, schemaBuilder)
 }
 
 // NewEntClient creates a new ent client
 func NewEntClient(
-	config *db.DBConfig,
+	config *app.DBConfig,
 	schemaBuilder *schema.Builder,
 	useEntDrivers ...*dialectSql.Driver,
-) (_ db.Client, err error) {
+) (_ app.DBClient, err error) {
 	var (
 		db         *sql.DB
 		entDialect string
 		sqlDriver  *dialectSql.Driver
 	)
+
+	if schemaBuilder == nil {
+		return nil, fmt.Errorf("schema builder is required")
+	}
 
 	if db, err = sql.Open(config.Driver, CreateDBDSN(config)); err != nil {
 		return nil, err
@@ -49,13 +110,13 @@ func NewEntClient(
 		return nil, err
 	}
 
-	entAdapter, ok := adapter.(*Adapter)
+	entAdapter, ok := adapter.(EntAdapter)
 	if !ok {
 		return nil, fmt.Errorf("invalid adapter")
 	}
 
-	entAdapter.sqldb = db
-	entAdapter.driver = dialect.DebugWithContext(sqlDriver, CreateDebugFN(config))
+	entAdapter.SetSQLDB(db)
+	entAdapter.SetDriver(dialect.DebugWithContext(sqlDriver, CreateDebugFN(config)))
 
 	if config.Driver == "sqlmock" {
 		return adapter, nil
@@ -72,12 +133,12 @@ func NewEntClient(
 
 func (d *Adapter) Reload(
 	newSchemaBuilder *schema.Builder,
-	migration *db.Migration,
-) (_ db.Client, err error) {
+	migration *app.Migration,
+) (_ app.DBClient, err error) {
 	renamedEntTables := make([]*entSchema.Table, 0)
 	newConfig := d.config.Clone()
 	newConfig.IgnoreMigration = true
-	adapter, err := NewClient(newConfig, newSchemaBuilder)
+	newAdapter, err := NewClient(newConfig, newSchemaBuilder)
 	if err != nil {
 		return nil, err
 	}
@@ -111,16 +172,26 @@ func (d *Adapter) Reload(
 				return nil, err
 			}
 
-			newJunctionModel, err := adapter.Model(renameTable.To)
+			newJunctionModel, err := newAdapter.Model(renameTable.To)
 			if err != nil {
 				return nil, err
 			}
 
-			newJunctionTable := newJunctionModel.GetEntTable()
+			oldEntJunctionModel, ok := oldJunctionModel.(*Model)
+			if !ok {
+				return nil, fmt.Errorf("model is not an ent model")
+			}
+
+			newEntJunctionModel, ok := newJunctionModel.(*Model)
+			if !ok {
+				return nil, fmt.Errorf("model is not an ent model")
+			}
+
+			newJunctionTable := newEntJunctionModel.GetEntTable()
 			renamedEntTables = append(renamedEntTables, &entSchema.Table{
 				// Override the new junction table name with the old name
 				// to help Ent know about the old junction table columns changes
-				Name:        oldJunctionModel.GetEntTable().Name,
+				Name:        oldEntJunctionModel.GetEntTable().Name,
 				Columns:     newJunctionTable.Columns,
 				PrimaryKey:  newJunctionTable.PrimaryKey,
 				ForeignKeys: newJunctionTable.ForeignKeys,
@@ -134,22 +205,22 @@ func (d *Adapter) Reload(
 		return nil, err
 	}
 
-	entAdapter, ok := adapter.(*Adapter)
+	newEntAdapter, ok := newAdapter.(EntAdapter)
 	if !ok {
 		return nil, fmt.Errorf("invalid adapter")
 	}
 
-	if err = entAdapter.Migrate(migration, renamedEntTables...); err != nil {
+	if err = newEntAdapter.Migrate(migration, renamedEntTables...); err != nil {
 		return nil, err
 	}
 
-	return adapter, nil
+	return newAdapter, nil
 }
 
 func NewDBAdapter(
-	config *db.DBConfig,
+	config *app.DBConfig,
 	schemaBuilder *schema.Builder,
-) (db.Client, error) {
+) (app.DBClient, error) {
 	a := &Adapter{
 		driver:        nil,
 		sqldb:         nil,
@@ -159,7 +230,6 @@ func NewDBAdapter(
 		models:        make([]*Model, 0),
 		tables:        make([]*entSchema.Table, 0),
 		edgeSpec:      make(map[string]sqlgraph.EdgeSpec),
-		hooks:         config.Hooks,
 	}
 
 	if err := a.init(); err != nil {

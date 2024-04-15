@@ -7,15 +7,19 @@ import (
 	"time"
 )
 
+// Disk is the interface that defines the methods that a disk must implement
 type Disk interface {
 	Name() string
+	Root() string
 	URL(filepath string) string
 	Delete(c context.Context, filepath string) error
 	Put(c context.Context, file *File) (*File, error)
 	PutReader(c context.Context, in io.Reader, size uint64, mime, dst string) (*File, error)
 	PutMultipart(c context.Context, m *multipart.FileHeader, dsts ...string) (*File, error)
+	LocalPublicPath() string
 }
 
+// File holds the file data
 type File struct {
 	ID        uint64     `json:"id,omitempty"`
 	Disk      string     `json:"disk,omitempty"`
@@ -32,11 +36,13 @@ type File struct {
 	Reader    io.Reader  `json:"-"`
 }
 
+// DiskConfig holds the disk configuration
 type DiskConfig struct {
 	Name            string        `json:"name"`
 	Driver          string        `json:"driver"`
 	Root            string        `json:"root"`
 	BaseURL         string        `json:"base_url"`
+	PublicPath      string        `json:"public_path"`
 	GetBaseURL      func() string `json:"-"`
 	Provider        string        `json:"provider"`
 	Endpoint        string        `json:"endpoint"`
@@ -47,6 +53,7 @@ type DiskConfig struct {
 	ACL             string        `json:"acl"`
 }
 
+// Clone returns a clone of the disk configuration
 func (dc *DiskConfig) Clone() *DiskConfig {
 	return &DiskConfig{
 		Name:            dc.Name,
@@ -64,11 +71,13 @@ func (dc *DiskConfig) Clone() *DiskConfig {
 	}
 }
 
+// StorageConfig holds the storage configuration
 type StorageConfig struct {
 	DefaultDisk string        `json:"default_disk"`
 	DisksConfig []*DiskConfig `json:"disks"`
 }
 
+// Clone returns a clone of the storage configuration
 func (sc *StorageConfig) Clone() *StorageConfig {
 	if sc == nil {
 		return nil
@@ -86,6 +95,7 @@ func (sc *StorageConfig) Clone() *StorageConfig {
 	return clone
 }
 
+// AllowedFileTypes is a list of allowed file types
 var AllowedFileTypes = []string{
 	"text/xml",
 	"text/xml; charset=utf-8",

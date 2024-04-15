@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -13,7 +12,7 @@ import (
 func (cs *ContentService) Detail(c app.Context, _ *any) (*schema.Entity, error) {
 	id := c.ArgInt("id")
 	schemaName := c.Arg("schema")
-	model, err := cs.app.DB().Model(schemaName)
+	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
@@ -23,11 +22,11 @@ func (cs *ContentService) Detail(c app.Context, _ *any) (*schema.Entity, error) 
 		columns = strings.Split(fields, ",")
 	}
 
-	entity, err := model.Query(db.EQ("id", id)).
+	entity, err := model.Query(app.EQ("id", id)).
 		Select(columns...).
 		First(c.Context())
 	if err != nil {
-		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
+		e := utils.If(app.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())
 	}
 

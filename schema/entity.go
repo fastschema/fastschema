@@ -2,7 +2,6 @@ package schema
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -103,21 +102,21 @@ func (e *Entity) ID() uint64 {
 }
 
 // SetID sets the ID of the entity.
-func (e *Entity) SetID(value any) error {
+// value can be uint64, float64, or a string that can be converted to uint64.
+// if the value is not a valid ID, do nothing.
+// returns the entity.
+func (e *Entity) SetID(value any) *Entity {
 	if uint64ID, ok := value.(uint64); ok {
 		e.data.Set(FieldID, uint64ID)
-		return nil
 	} else if float64ID, ok := value.(float64); ok {
 		e.data.Set(FieldID, uint64(float64ID))
-		return nil
 	}
 
-	valueUint64, err := strconv.ParseUint(fmt.Sprintf("%v", value), 10, 64)
-	if err != nil {
-		return fmt.Errorf("cannot convert ID value %v to uint64", value)
+	if uint64Value, err := strconv.ParseUint(fmt.Sprintf("%v", value), 10, 64); err == nil {
+		e.data.Set(FieldID, uint64Value)
 	}
-	e.data.Set(FieldID, valueUint64)
-	return nil
+
+	return e
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -127,19 +126,6 @@ func (e *Entity) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (e *Entity) UnmarshalJSON(data []byte) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			switch x := r.(type) {
-			case string:
-				err = errors.New(x)
-			case error:
-				err = x
-			default:
-				err = fmt.Errorf("unknown panic: %v", r)
-			}
-		}
-	}()
-
 	return jsonparser.ObjectEach(
 		data,
 		func(keyData []byte, valueData []byte, dataType jsonparser.ValueType, offset int) error {
@@ -217,6 +203,7 @@ func UnmarshalJSONValue(data []byte, valueData []byte, dataType jsonparser.Value
 	return value, nil
 }
 
+// ToJSON converts the entity to a JSON string.
 func (e *Entity) ToJSON() (string, error) {
 	jsonData, err := e.MarshalJSON()
 	if err != nil {
@@ -226,18 +213,19 @@ func (e *Entity) ToJSON() (string, error) {
 	return string(jsonData), nil
 }
 
-func (e *Entity) ToMap() (map[string]any, error) {
-	jsonData, err := e.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-
+// ToMap converts the entity to a map.
+func (e *Entity) ToMap() map[string]any {
 	data := map[string]any{}
-	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return nil, err
+	for pair := e.data.Oldest(); pair != nil; pair = pair.Next() {
+		if entityValue, ok := pair.Value.(*Entity); ok {
+			data[pair.Key] = entityValue.ToMap()
+			continue
+		}
+
+		data[pair.Key] = pair.Value
 	}
 
-	return data, nil
+	return data
 }
 
 // NewEntity creates a new entity.
@@ -268,6 +256,11 @@ func NewEntityFromMap(data map[string]any) *Entity {
 	entity := NewEntity()
 
 	for key, value := range data {
+		if valueMap, ok := value.(map[string]any); ok {
+			entity.Set(key, NewEntityFromMap(valueMap))
+			continue
+		}
+
 		entity.Set(key, value)
 	}
 

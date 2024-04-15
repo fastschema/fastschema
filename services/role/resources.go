@@ -2,11 +2,11 @@ package roleservice
 
 import "github.com/fastschema/fastschema/app"
 
-func (rs *RoleService) Resources(c app.Context, _ *any) ([]*app.Resource, error) {
+func (rs *RoleService) ResourcesList(c app.Context, _ *any) ([]*app.Resource, error) {
 	// Override the resources to remove the content resource
 	// Add the content resource with the schemas
-	resources := rs.app.Resources().Clone()
-	schemas := rs.app.SchemaBuilder().Schemas()
+	resources := rs.Resources().Clone()
+	schemas := rs.DB().SchemaBuilder().Schemas()
 	for _, r := range resources.Resources() {
 		if r.Name() == "content" {
 			resources.Remove(r)

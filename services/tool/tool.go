@@ -2,18 +2,20 @@ package toolservice
 
 import (
 	"github.com/fastschema/fastschema/app"
-	"golang.org/x/sync/errgroup"
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
-type ToolService struct {
-	app app.App
+type AppLike interface {
+	DB() app.DBClient
 }
 
-func NewToolService(
-	app app.App,
-) *ToolService {
+type ToolService struct {
+	DB func() app.DBClient
+}
+
+func New(app AppLike) *ToolService {
 	return &ToolService{
-		app: app,
+		DB: app.DB,
 	}
 }
 
@@ -25,43 +27,28 @@ type StatsData struct {
 }
 
 func (s *ToolService) Stats(c app.Context, _ *any) (_ *StatsData, err error) {
-	var errGroup errgroup.Group
-	totalSchemas := len(s.app.SchemaBuilder().Schemas())
+	totalSchemas := len(s.DB().SchemaBuilder().Schemas())
 	totalUsers := 0
 	totalRoles := 0
 	totalMedias := 0
 
-	errGroup.Go(func() error {
-		userModel, err := s.app.DB().Model("user")
-		if err != nil {
-			return err
-		}
+	userModel, userModelErr := s.DB().Model("user")
+	roleModel, roleModelErr := s.DB().Model("role")
+	mediaModel, modelModelErr := s.DB().Model("media")
 
-		totalUsers, err = userModel.Query().Count(nil)
-		return err
-	})
+	if err = utils.MergeErrorMessages(userModelErr, roleModelErr, modelModelErr); err != nil {
+		return nil, err
+	}
 
-	errGroup.Go(func() error {
-		roleModel, err := s.app.DB().Model("role")
-		if err != nil {
-			return err
-		}
+	if totalUsers, err = userModel.Query().Count(nil); err != nil {
+		return nil, err
+	}
 
-		totalRoles, err = roleModel.Query().Count(nil)
-		return err
-	})
+	if totalRoles, err = roleModel.Query().Count(nil); err != nil {
+		return nil, err
+	}
 
-	errGroup.Go(func() error {
-		mediaModel, err := s.app.DB().Model("media")
-		if err != nil {
-			return err
-		}
-
-		totalMedias, err = mediaModel.Query().Count(nil)
-		return err
-	})
-
-	if err := errGroup.Wait(); err != nil {
+	if totalMedias, err = mediaModel.Query().Count(nil); err != nil {
 		return nil, err
 	}
 

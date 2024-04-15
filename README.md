@@ -1,6 +1,41 @@
 # Introduction
 
+[![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/fastschema/fastschema#section-readme)
+[![go report card](https://goreportcard.com/badge/github.com/fastschema/fastschema "go report card")](https://goreportcard.com/report/github.com/fastschema/fastschema)
+[![codecov](https://codecov.io/gh/fastschema/fastschema/graph/badge.svg?token=TPU5QN6E4Z)](https://codecov.io/gh/fastschema/fastschema)
+[![test status](https://github.com/fastschema/fastschema/actions/workflows/ci.yml/badge.svg "test status")](https://github.com/fastschema/fastschema/actions)
+[![MIT license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+
 FastSchema is an open-source headless Content Management System (CMS) designed to simplify the creation and management of structured content. By leveraging schema definitions, FastSchema automates the generation of databases and provides CRUD (Create, Read, Update, Delete) APIs effortlessly.
+
+## Try it out
+
+You can try out FastSchema by running FastSchema in a Docker container.
+
+### Pull the Docker Image:
+
+```bash
+docker pull ghcr.io/fastschema/fastschema:latest
+```
+
+### Run the Docker Container:
+
+```bash
+docker run \
+  -p 8000:8000 \
+  -v ./data:/fastschema/data \
+  ghcr.io/fastschema/fastschema:latest
+```
+
+**Example output:**
+
+```
+> APP_KEY is not set. A new key is generated and saved to /fastschema/data/.env
+> Using the default sqlite db file path: /fastschema/data/fastschema.db
+> Visit the following URL to setup the app: http://localhost:8000/dash/setup/?token=lUDRgoTUUNDsjCcitgGFTqwMZQPmYvlU
+```
+
+Now you can access to the FastSchema setup page by visiting [http://localhost:8000/setup?token=\{token\}](http://localhost:8000?token=\{token\}) (The setup token is displayed in the terminal).
 
 > **Note:** FastSchema is currently in beta and under active development. We welcome feedback, contributions, and suggestions from the community to help improve the platform and make it more robust and feature-rich.
 
@@ -208,7 +243,6 @@ package main
 import (
 	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -226,7 +260,7 @@ func main() {
 	)
 
 	newApp.OnAfterDBContentList(
-    func(query *db.QueryOptions, entities []*schema.Entity) ([]*schema.Entity, error) {
+    func(query *app.QueryOptions, entities []*schema.Entity) ([]*schema.Entity, error) {
       if query.Model.Schema().Name != "media" {
         return entities, nil
       }
@@ -278,6 +312,18 @@ You can skip the integration tests by running tests for packages only.
 ```bash
 ./tests/test.sh ./schema
 ```
+
+
+## Known Issues
+
+### Rename M2M field
+
+Rename M2M field is depend on the column rename. Fastschema migrations is built on top of the Ent migrations.
+Ent use ariga.io/atlast and it cause error with sqlite (ariga.io/atlas@v0.21.1/sql/sqlite/migrate.go.modifyTable).
+
+Currently, Atlas sqlite driver need to perform copyRows to a temporary table. But it use the `new` column name to copy the rows. This column is not existed in the table, because it's not renamed yet. This will cause the error: `SQL logic error: no such column:`.
+
+The problem seem to be fixed in this PR: https://github.com/ariga/atlas/pull/2672
 
 ## Dependencies
 

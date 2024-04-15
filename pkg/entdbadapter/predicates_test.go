@@ -12,8 +12,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/pkg/testutils"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -98,7 +97,7 @@ var carSchemaJSON = `{
 func TestCreateFieldPredicate(t *testing.T) {
 	type args struct {
 		name               string
-		predicate          *db.Predicate
+		predicate          *app.Predicate
 		expectSQLPredicate *dialectSql.Predicate
 		expectError        error
 	}
@@ -106,64 +105,64 @@ func TestCreateFieldPredicate(t *testing.T) {
 	tests := []args{
 		{
 			name:               "EQ",
-			predicate:          db.EQ("name", "John"),
+			predicate:          app.EQ("name", "John"),
 			expectSQLPredicate: dialectSql.EQ("name", "John"),
 		},
 		{
 			name:               "NEQ",
-			predicate:          db.NEQ("name", "John"),
+			predicate:          app.NEQ("name", "John"),
 			expectSQLPredicate: dialectSql.NEQ("name", "John"),
 		},
 		{
 			name:               "GT",
-			predicate:          db.GT("age", 5),
+			predicate:          app.GT("age", 5),
 			expectSQLPredicate: dialectSql.GT("age", 5),
 		},
 		{
 			name:               "GTE",
-			predicate:          db.GTE("age", 5),
+			predicate:          app.GTE("age", 5),
 			expectSQLPredicate: dialectSql.GTE("age", 5),
 		},
 		{
 			name:               "LT",
-			predicate:          db.LT("age", 5),
+			predicate:          app.LT("age", 5),
 			expectSQLPredicate: dialectSql.LT("age", 5),
 		},
 		{
 			name:               "LTE",
-			predicate:          db.LTE("age", 5),
+			predicate:          app.LTE("age", 5),
 			expectSQLPredicate: dialectSql.LTE("age", 5),
 		},
 		{
 			name:               "Like",
-			predicate:          db.Like("name", "%John%"),
+			predicate:          app.Like("name", "%John%"),
 			expectSQLPredicate: dialectSql.Like("name", "%John%"),
 		},
 		{
 			name:               "In",
-			predicate:          db.In("name", []any{"John", "Doe"}),
+			predicate:          app.In("name", []any{"John", "Doe"}),
 			expectSQLPredicate: dialectSql.In("name", []any{"John", "Doe"}...),
 		},
 		{
 			name:               "NotIn",
-			predicate:          db.NotIn("name", []any{"John", "Doe"}),
+			predicate:          app.NotIn("name", []any{"John", "Doe"}),
 			expectSQLPredicate: dialectSql.NotIn("name", []any{"John", "Doe"}...),
 		},
 		{
 			name:               "Null",
-			predicate:          db.Null("name", true),
+			predicate:          app.Null("name", true),
 			expectSQLPredicate: dialectSql.IsNull("name"),
 		},
 		{
 			name:               "NotNull",
-			predicate:          db.Null("name", false),
+			predicate:          app.Null("name", false),
 			expectSQLPredicate: dialectSql.NotNull("name"),
 		},
 		{
 			name: "Invalid",
-			predicate: &db.Predicate{
+			predicate: &app.Predicate{
 				Field:    "name",
-				Operator: db.OpInvalid,
+				Operator: app.OpInvalid,
 			},
 			expectError: errors.New("operator invalid not supported"),
 		},
@@ -171,7 +170,7 @@ func TestCreateFieldPredicate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotFn, err := createFieldPredicate(tt.predicate)
+			gotFn, err := CreateFieldPredicate(tt.predicate)
 			assert.Equal(t, tt.expectError, err)
 
 			if tt.expectError == nil {
@@ -207,8 +206,8 @@ func TestCreateEntPredicates(t *testing.T) {
 	sb.AddSchema(carSchema)
 	assert.NoError(t, sb.Init())
 
-	client, err := testutils.NewMockClient(func(d *sql.DB) db.Client {
-		driver := utils.Must(NewEntClient(&db.DBConfig{
+	client, err := NewMockExpectClient(func(d *sql.DB) app.DBClient {
+		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
@@ -219,8 +218,11 @@ func TestCreateEntPredicates(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, client)
 
+	entAdapter, ok := client.(EntAdapter)
+	require.True(t, ok)
+
 	carModel := &Model{
-		client:  client.(*Adapter),
+		client:  entAdapter,
 		columns: []*Column{},
 		schema:  carSchema,
 		entIDColumn: &entSchema.Column{
@@ -243,7 +245,7 @@ func TestCreateEntPredicates(t *testing.T) {
 
 	type args struct {
 		name        string
-		predicates  []*db.Predicate
+		predicates  []*app.Predicate
 		expectQuery string
 		expectArgs  []any
 	}
@@ -251,19 +253,19 @@ func TestCreateEntPredicates(t *testing.T) {
 	tests := []args{
 		{
 			name: "And",
-			predicates: []*db.Predicate{
-				db.Like("name", "%car%"),
-				db.GT("year", 2000),
+			predicates: []*app.Predicate{
+				app.Like("name", "%car%"),
+				app.GT("year", 2000),
 			},
 			expectQuery: "`name` LIKE ? AND `year` > ?",
 			expectArgs:  []any{"%car%", 2000},
 		},
 		{
 			name: "Or",
-			predicates: []*db.Predicate{
-				db.Or(
-					db.Like("name", "%car%"),
-					db.GT("year", 2000),
+			predicates: []*app.Predicate{
+				app.Or(
+					app.Like("name", "%car%"),
+					app.GT("year", 2000),
 				),
 			},
 			expectQuery: "`name` LIKE ? OR `year` > ?",
@@ -271,11 +273,11 @@ func TestCreateEntPredicates(t *testing.T) {
 		},
 		{
 			name: "Relation",
-			predicates: []*db.Predicate{
-				db.GT("year", 2000),
+			predicates: []*app.Predicate{
+				app.GT("year", 2000),
 				{
 					Field:              "name",
-					Operator:           db.OpLIKE,
+					Operator:           app.OpLIKE,
 					Value:              "%group%",
 					RelationFieldNames: []string{"group", "parent"},
 				},
@@ -288,7 +290,7 @@ func TestCreateEntPredicates(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			selector := dialectSql.Select("*").From(dialectSql.Table("cars"))
-			gotFn, err := createEntPredicates(carModel, tt.predicates)
+			gotFn, err := createEntPredicates(entAdapter, carModel, tt.predicates)
 			assert.NoError(t, err)
 			got := gotFn(selector)
 

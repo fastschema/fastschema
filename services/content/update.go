@@ -2,7 +2,6 @@ package contentservice
 
 import (
 	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -11,7 +10,7 @@ import (
 func (cs *ContentService) Update(c app.Context, _ *any) (*schema.Entity, error) {
 	schemaName := c.Arg("schema")
 	id := c.ArgInt("id")
-	model, err := cs.app.DB().Model(schemaName)
+	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
@@ -35,18 +34,9 @@ func (cs *ContentService) Update(c app.Context, _ *any) (*schema.Entity, error) 
 		}
 	}
 
-	mutation, err := model.Mutation()
-	if err != nil {
+	if _, err := model.Mutation().Where(app.EQ("id", id)).Update(entity); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	if _, err := mutation.Where(db.EQ("id", id)).Update(entity); err != nil {
-		return nil, errors.InternalServerError(err.Error())
-	}
-
-	if err := entity.SetID(id); err != nil {
-		return nil, errors.BadRequest(err.Error())
-	}
-
-	return entity, nil
+	return entity.SetID(id).Delete("password"), nil
 }

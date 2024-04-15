@@ -2,22 +2,43 @@ package entdbadapter
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"testing"
 
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
+	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/pkg/testutils"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
-var sbu = testutils.CreateSchemaBuilder("../../tests/data/schemas")
+func TestUpdateError(t *testing.T) {
+	mut := &Mutation{
+		model: &Model{name: "user"},
+	}
+	_, err := mut.Update(nil)
+	assert.Equal(t, errors.New("model or schema user not found"), err)
+}
+
+func TestUpdateClientIsNotEntClient(t *testing.T) {
+	mut := &Mutation{
+		model: &Model{
+			name:        "user",
+			schema:      &schema.Schema{},
+			entIDColumn: &entSchema.Column{},
+		},
+		client: nil,
+	}
+	_, err := mut.Update(schema.NewEntity())
+	assert.Equal(t, errors.New("client is not an ent adapter"), err)
+}
 
 func TestUpdateNodes(t *testing.T) {
-	tests := []testutils.MockTestUpdateData{
+	tests := []MockTestUpdateData{
 		{
 			Name:   "fields/set",
 			Schema: "user",
@@ -25,7 +46,7 @@ func TestUpdateNodes(t *testing.T) {
 				"name": "User 1",
 				"age": 30
 			}`,
-			Predicates: []*db.Predicate{db.EQ("id", 1)},
+			Predicates: []*app.Predicate{app.EQ("id", 1)},
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `name` = ?, `age` = ?, `updated_at` = NOW() WHERE `id` = ?")).
 					WithArgs("User 1", float64(30), 1).
@@ -41,7 +62,7 @@ func TestUpdateNodes(t *testing.T) {
 					"bio": "LOWER(%s)"
 				}
 			}`, "`bio`"),
-			Predicates: []*db.Predicate{db.EQ("id", 1)},
+			Predicates: []*app.Predicate{app.EQ("id", 1)},
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `name` = ?, `bio` = LOWER(`bio`), `updated_at` = NOW() WHERE `id` = ?")).
 					WithArgs("User 1 name", 1).
@@ -58,9 +79,9 @@ func TestUpdateNodes(t *testing.T) {
 					"age": 3
 				}
 			}`,
-			Predicates: []*db.Predicate{
-				db.EQ("id", 1),
-				db.IsFalse("deleted"),
+			Predicates: []*app.Predicate{
+				app.EQ("id", 1),
+				app.IsFalse("deleted"),
 			},
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `name` = ?, `deleted` = ?, `age` = COALESCE(`users`.`age`, 0) + ?, `updated_at` = NOW() WHERE `id` = ? AND NOT `deleted`")).
@@ -79,10 +100,10 @@ func TestUpdateNodes(t *testing.T) {
 					"sub_groups": [ { "id": 4 }, { "id": 5 } ]
 				}
 			}`,
-			Predicates: []*db.Predicate{
-				db.EQ("id", 1),
-				db.IsFalse("deleted"),
-				db.LTE("age", 30),
+			Predicates: []*app.Predicate{
+				app.EQ("id", 1),
+				app.IsFalse("deleted"),
+				app.LTE("age", 30),
 			},
 			Transaction: true,
 			Expect: func(mock sqlmock.Sqlmock) {
@@ -111,9 +132,9 @@ func TestUpdateNodes(t *testing.T) {
 					"bio": true
 				}
 			}`,
-			Predicates: []*db.Predicate{
-				db.EQ("id", 1),
-				db.IsFalse("deleted"),
+			Predicates: []*app.Predicate{
+				app.EQ("id", 1),
+				app.IsFalse("deleted"),
 			},
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `bio` = NULL, `name` = ?, `deleted` = ?, `updated_at` = NOW() WHERE `id` = ? AND NOT `deleted`")).
@@ -135,7 +156,7 @@ func TestUpdateNodes(t *testing.T) {
 					"groups": [ { "id": 4 }, { "id": 5 } ]
 				}
 			}`,
-			Predicates:  []*db.Predicate{db.EQ("id", 1)},
+			Predicates:  []*app.Predicate{app.EQ("id", 1)},
 			Transaction: true,
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users` WHERE `id` = ?")).
@@ -174,7 +195,7 @@ func TestUpdateNodes(t *testing.T) {
 					"sub_groups": [ { "id": 4 }, { "id": 5 } ]
 				}
 			}`,
-			Predicates:  []*db.Predicate{db.EQ("id", 1)},
+			Predicates:  []*app.Predicate{app.EQ("id", 1)},
 			Transaction: true,
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users` WHERE `id` = ?")).
@@ -217,7 +238,7 @@ func TestUpdateNodes(t *testing.T) {
 					"parent": { "id": 2 }
 				}
 			}`,
-			Predicates:  []*db.Predicate{db.EQ("id", 1)},
+			Predicates:  []*app.Predicate{app.EQ("id", 1)},
 			Transaction: true,
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users` WHERE `id` = ?")).
@@ -244,7 +265,7 @@ func TestUpdateNodes(t *testing.T) {
 					"spouse": { "id": 3 }
 				}
 			}`,
-			Predicates:  []*db.Predicate{db.EQ("id", 1)},
+			Predicates:  []*app.Predicate{app.EQ("id", 1)},
 			Transaction: true,
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users` WHERE `id` = ?")).
@@ -286,7 +307,7 @@ func TestUpdateNodes(t *testing.T) {
 					"groups": [ { "id": 5 }, { "id": 6 }, { "id": 7 } ]
 				}
 			}`,
-			Predicates:  []*db.Predicate{db.EQ("id", 1)},
+			Predicates:  []*app.Predicate{app.EQ("id", 1)},
 			Transaction: true,
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users` WHERE `id` = ?")).
@@ -336,9 +357,9 @@ func TestUpdateNodes(t *testing.T) {
 					"bio": true
 				}
 			}`,
-			Predicates: []*db.Predicate{
-				db.EQ("id", 1),
-				db.IsFalse("deleted"),
+			Predicates: []*app.Predicate{
+				app.EQ("id", 1),
+				app.IsFalse("deleted"),
 			},
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `bio` = NULL, `name` = ?, `deleted` = ?, `age` = COALESCE(`users`.`age`, 0) + ?, `updated_at` = NOW() WHERE `id` = ? AND NOT `deleted`")).
@@ -358,9 +379,9 @@ func TestUpdateNodes(t *testing.T) {
 				},
 				"deleted": true
 			}`,
-			Predicates: []*db.Predicate{
-				db.EQ("id", 1),
-				db.IsFalse("deleted"),
+			Predicates: []*app.Predicate{
+				app.EQ("id", 1),
+				app.IsFalse("deleted"),
 			},
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `bio` = NULL, `deleted` = ?, `age` = COALESCE(`users`.`age`, 0) + ?, `updated_at` = NOW() WHERE `id` = ? AND NOT `deleted`")).
@@ -370,18 +391,19 @@ func TestUpdateNodes(t *testing.T) {
 		},
 	}
 
-	testutils.MockRunUpdateTests(func(d *sql.DB) db.Client {
-		driver := utils.Must(NewEntClient(&db.DBConfig{
+	sb := createSchemaBuilder()
+	MockRunUpdateTests(func(d *sql.DB) app.DBClient {
+		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
-			LogQueries: true,
-		}, sbu, dialectSql.OpenDB(dialect.MySQL, d)))
+			LogQueries: false,
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
-	}, sbu, t, tests)
+	}, sb, t, tests)
 }
 
 func TestUpdateNodesExtended(t *testing.T) {
 	assert.Equal(t, 1, 1)
-	tests := []testutils.MockTestUpdateData{
+	tests := []MockTestUpdateData{
 		{
 			Name:   "without_predicate",
 			Schema: "user",
@@ -404,7 +426,7 @@ func TestUpdateNodesExtended(t *testing.T) {
 				"name": null,
 				"age": null
 			}`,
-			Predicates: []*db.Predicate{db.EQ("name", "User 1")},
+			Predicates: []*app.Predicate{app.EQ("name", "User 1")},
 			Expect: func(mock sqlmock.Sqlmock) {
 				// Clear fields.
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `name` = NULL, `age` = NULL, `updated_at` = NOW() WHERE `name` = ?")).
@@ -581,11 +603,13 @@ func TestUpdateNodesExtended(t *testing.T) {
 			WantAffected: 2,
 		},
 	}
-	testutils.MockRunUpdateTests(func(d *sql.DB) db.Client {
-		driver := utils.Must(NewEntClient(&db.DBConfig{
+
+	sb := createSchemaBuilder()
+	MockRunUpdateTests(func(d *sql.DB) app.DBClient {
+		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
-			LogQueries: true,
-		}, sbu, dialectSql.OpenDB(dialect.MySQL, d)))
+			LogQueries: false,
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
-	}, sbu, t, tests, true)
+	}, sb, t, tests, true)
 }

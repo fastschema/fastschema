@@ -12,14 +12,14 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
 
-// Adapter is the ent adapter for db.Client
+// Adapter is the ent adapter for app.Client
 type Adapter struct {
-	config        *db.DBConfig
+	config        *app.DBConfig
 	sqldb         *sql.DB
 	migrationDir  string
 	driver        dialect.Driver
@@ -27,18 +27,29 @@ type Adapter struct {
 	models        []*Model
 	tables        []*entSchema.Table
 	edgeSpec      map[string]sqlgraph.EdgeSpec
-	hooks         *db.Hooks
+}
+
+func (d *Adapter) SetSQLDB(db *sql.DB) {
+	d.sqldb = db
+}
+
+func (d *Adapter) SetDriver(driver dialect.Driver) {
+	d.driver = driver
 }
 
 func (d *Adapter) DB() *sql.DB {
 	return d.sqldb
 }
 
-func (d *Adapter) Hooks() *db.Hooks {
-	return d.hooks
+func (d *Adapter) Hooks() *app.Hooks {
+	if d.config.Hooks != nil {
+		return d.config.Hooks()
+	}
+
+	return &app.Hooks{}
 }
 
-func (d *Adapter) Config() *db.DBConfig {
+func (d *Adapter) Config() *app.DBConfig {
 	return d.config
 }
 
@@ -83,7 +94,7 @@ func (d *Adapter) IsTx() bool {
 }
 
 // Tx creates a new transaction.
-func (d *Adapter) Tx(ctx context.Context) (db.Client, error) {
+func (d *Adapter) Tx(ctx context.Context) (app.DBClient, error) {
 	return NewTx(ctx, d)
 }
 
@@ -93,7 +104,7 @@ func (d *Adapter) SchemaBuilder() *schema.Builder {
 }
 
 // Model return the model object for query and mutation.
-func (d *Adapter) Model(name string) (db.Model, error) {
+func (d *Adapter) Model(name string) (app.Model, error) {
 	return d.model(name)
 }
 
@@ -143,7 +154,7 @@ func (d *Adapter) init() error {
 				currentModel.entTable.ForeignKeys,
 				&entSchema.ForeignKey{
 					Symbol:     fmt.Sprintf("%s_%s", targetSchema.Name, r.GetTargetFKColumn()),
-					Columns:    []*entSchema.Column{CreateEntColumn(r.FKFields[0])},
+					Columns:    []*entSchema.Column{createEntColumn(r.FKFields[0])},
 					RefColumns: []*entSchema.Column{targetModel.entIDColumn},
 					OnDelete:   onDelete,
 					RefTable:   targetModel.entTable,
@@ -266,7 +277,7 @@ func (d *Adapter) NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, er
 	), nil
 }
 
-func (d *Adapter) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.Model {
+func (d *Adapter) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) app.Model {
 	return d.CreateModel(s, relations...)
 }
 
@@ -307,7 +318,7 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 	for _, f := range s.Fields {
 		column := &Column{field: f}
 		if !f.Type.IsRelationType() {
-			entColumn := CreateEntColumn(f)
+			entColumn := createEntColumn(f)
 			m.entTable.Columns = append(m.entTable.Columns, entColumn)
 			column.entColumn = entColumn
 		}

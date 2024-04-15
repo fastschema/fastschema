@@ -58,17 +58,12 @@ func GetSchemasFromDir(dir string) (map[string]*Schema, error) {
 	return schemas, nil
 }
 
-// NewBuilderFromDir creates a new schema from a directory.
-func NewBuilderFromDir(dir string) (*Builder, error) {
-	schemas, err := GetSchemasFromDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
+// NewBuilderFromSchemas creates a new schema from a map of schemas.
+func NewBuilderFromSchemas(dir string, schemas map[string]*Schema) (*Builder, error) {
 	b := &Builder{dir: dir, schemas: map[string]*Schema{}}
 
 	for _, schema := range schemas {
-		if err = schema.Init(false); err != nil {
+		if err := schema.Init(false); err != nil {
 			return nil, err
 		}
 
@@ -76,6 +71,16 @@ func NewBuilderFromDir(dir string) (*Builder, error) {
 	}
 
 	return b, b.Init()
+}
+
+// NewBuilderFromDir creates a new schema builder from a directory.
+func NewBuilderFromDir(dir string) (*Builder, error) {
+	schemas, err := GetSchemasFromDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewBuilderFromSchemas(dir, schemas)
 }
 
 // Clone clones the builder.
@@ -233,9 +238,8 @@ func (b *Builder) CreateFKs() error {
 
 		// O2O and O2M relations
 		if relation.Type.IsO2O() || relation.Type.IsO2M() {
-			if err := relation.CreateFKFields(); err != nil {
-				return err
-			}
+			relation.CreateFKFields()
+
 			if relation.FKFields != nil {
 				schema.Fields = utils.SliceInsertBeforeElement(schema.Fields, relation.FKFields[0], func(f *Field) bool {
 					return f.Name == FieldCreatedAt
