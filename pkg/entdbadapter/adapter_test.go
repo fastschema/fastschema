@@ -12,7 +12,6 @@ import (
 )
 
 func TestAdapterInit(t *testing.T) {
-	// adapter := createMockAdapter(t)
 	config := &app.DBConfig{Driver: "sqlmock"}
 	adapter := &Adapter{
 		driver:        nil,
@@ -23,7 +22,6 @@ func TestAdapterInit(t *testing.T) {
 		models:        make([]*Model, 0),
 		tables:        make([]*entSchema.Table, 0),
 		edgeSpec:      make(map[string]sqlgraph.EdgeSpec),
-		hooks:         &app.Hooks{},
 	}
 
 	err := adapter.init()

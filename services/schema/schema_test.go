@@ -132,7 +132,7 @@ func (s *testApp) SchemaBuilder() *schema.Builder {
 
 func (s *testApp) Reload(migration *app.Migration) error {
 	s.sb = utils.Must(schema.NewBuilderFromDir(s.schemaDir))
-	s.db = utils.Must(entdbadapter.NewTestClient(os.TempDir(), s.sb))
+	s.db = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), s.sb))
 
 	if s.reloadFn != nil {
 		return s.reloadFn(migration)
@@ -162,7 +162,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 		if config.schemaDir != "" {
 			schemaDir = config.schemaDir
 
-			// remove all json file in schemaDir
+			// remove all files in schemaDir
 			assert.NoError(t, os.RemoveAll(schemaDir))
 			assert.NoError(t, os.MkdirAll(schemaDir, 0755))
 		}
@@ -177,8 +177,10 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	for name, content := range schemas {
 		utils.WriteFile(schemaDir+"/"+name+".json", content)
 	}
+
+	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
-	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+	db := utils.Must(entdbadapter.NewTestClient(migrationDir, sb))
 	testApp := &testApp{sb: sb, db: db, schemaDir: schemaDir, reloadFn: reloadFn}
 	schemaService := schemaservice.New(testApp)
 
@@ -191,7 +193,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 		Add(app.NewResource("delete", schemaService.Delete, app.Meta{app.DELETE: "/:name"}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := restresolver.NewRestResolver(resources).Init(app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resources, app.CreateMockLogger(true))
 
 	return testApp, schemaService, restResolver.Server()
 }

@@ -28,9 +28,8 @@ type Middleware func(c Context) error
 // ResourcesManager is a resource manager that can be used to manage resources
 type ResourcesManager struct {
 	*Resource
-	BeforeResolveHooks []Middleware
-	AfterResolveHooks  []Middleware
-	Middlewares        []Middleware
+	Middlewares []Middleware
+	Hooks       func() *Hooks
 }
 
 // Init validates the resource and all sub resources
@@ -74,9 +73,7 @@ func NewResourcesManager() *ResourcesManager {
 			group:     true,
 			resources: make([]*Resource, 0),
 		},
-		BeforeResolveHooks: make([]Middleware, 0),
-		AfterResolveHooks:  make([]Middleware, 0),
-		Middlewares:        make([]Middleware, 0),
+		Middlewares: make([]Middleware, 0),
 	}
 }
 

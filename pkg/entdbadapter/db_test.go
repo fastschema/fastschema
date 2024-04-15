@@ -3,6 +3,7 @@ package entdbadapter
 import (
 	"context"
 	"database/sql"
+	"os"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -75,7 +76,7 @@ func TestNewClient(t *testing.T) {
 
 func TestNewTestClient(t *testing.T) {
 	schemaBuilder := &schema.Builder{}
-	client, err := NewTestClient(t.TempDir(), schemaBuilder)
+	client, err := NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), schemaBuilder)
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
 }

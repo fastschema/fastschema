@@ -15,15 +15,18 @@ type RestSolver struct {
 
 func NewRestResolver(
 	resourceManager *app.ResourcesManager,
+	logger app.Logger,
 	staticFSs ...*app.StaticFs,
 ) *RestSolver {
-	return &RestSolver{
+	rs := &RestSolver{
 		resourceManager: resourceManager,
 		staticFSs:       staticFSs,
 	}
+
+	return rs.init(logger)
 }
 
-func (r *RestSolver) Init(logger app.Logger) *RestSolver {
+func (r *RestSolver) init(logger app.Logger) *RestSolver {
 	middlewares := []Handler{
 		MiddlewareCors,
 		MiddlewareRecover,
@@ -66,12 +69,15 @@ func (r *RestSolver) Init(logger app.Logger) *RestSolver {
 	r.server.Use(middlewares...)
 	manager := r.server.Group(r.resourceManager.Name(), nil)
 
-	registerResourceRoutes(
-		r.resourceManager.Resources(),
-		manager,
-		r.resourceManager.BeforeResolveHooks,
-		r.resourceManager.AfterResolveHooks,
-	)
+	var getHooks = func() *app.Hooks {
+		return &app.Hooks{}
+	}
+
+	if r.resourceManager.Hooks != nil {
+		getHooks = r.resourceManager.Hooks
+	}
+
+	registerResourceRoutes(r.resourceManager.Resources(), manager, getHooks)
 
 	return r
 }
@@ -80,8 +86,7 @@ func (r *RestSolver) Server() *Server {
 	return r.server
 }
 
-func (r *RestSolver) Start(address string, logger app.Logger) error {
-	r.Init(logger)
+func (r *RestSolver) Start(address string) error {
 	return r.server.Listen(address)
 }
 
@@ -92,8 +97,7 @@ func (r *RestSolver) Shutdown() error {
 func registerResourceRoutes(
 	resources []*app.Resource,
 	router *Router,
-	beforeHandlerHooks []app.Middleware,
-	afterHandlerHooks []app.Middleware,
+	getHooks func() *app.Hooks,
 ) {
 	methodMapper := map[string]func(string, Handler, ...*app.Resource){
 		app.GET:     router.Get,
@@ -107,12 +111,7 @@ func registerResourceRoutes(
 	for _, r := range resources {
 		if r.IsGroup() {
 			group := router.Group(r.Name(), r)
-			registerResourceRoutes(
-				r.Resources(),
-				group,
-				beforeHandlerHooks,
-				afterHandlerHooks,
-			)
+			registerResourceRoutes(r.Resources(), group, getHooks)
 
 			continue
 		}
@@ -128,9 +127,11 @@ func registerResourceRoutes(
 			}
 		}
 
+		hooks := getHooks()
+
 		func(r *app.Resource) {
 			handler(path, func(c *Context) error {
-				for _, hook := range beforeHandlerHooks {
+				for _, hook := range hooks.PreResolve {
 					if err := hook(c); err != nil {
 						result := app.NewResult(nil, err)
 						if result.Error != nil && result.Error.Status != 0 {
@@ -148,7 +149,7 @@ func registerResourceRoutes(
 
 				c.Result(result)
 
-				for _, hook := range afterHandlerHooks {
+				for _, hook := range hooks.PostResolve {
 					if err := hook(c); err != nil {
 						result := app.NewResult(nil, err)
 

@@ -65,8 +65,7 @@ func main() {
 						}, app.Meta{app.GET: ""}),
 					)
 
-					fsApp.Start()
-					return nil
+					return fsApp.Start()
 				},
 			},
 		},

@@ -10,17 +10,18 @@ import (
 )
 
 func TestRoleServiceCreate(t *testing.T) {
+	testApp := createRoleTest()
 	// Case 1: No payload
 	req := httptest.NewRequest("POST", "/role", nil)
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	resp := utils.Must(server.Test(req))
+	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	resp := utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
 
 	// Case 2: Invalid payload
 	req = httptest.NewRequest("POST", "/role", bytes.NewReader([]byte(`{"name": "New role", "invalid": "test"}`)))
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	resp = utils.Must(server.Test(req))
+	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
@@ -28,8 +29,8 @@ func TestRoleServiceCreate(t *testing.T) {
 
 	// Case 3: Success
 	req = httptest.NewRequest("POST", "/role", bytes.NewReader([]byte(`{"name": "New role"}`)))
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	resp = utils.Must(server.Test(req))
+	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))

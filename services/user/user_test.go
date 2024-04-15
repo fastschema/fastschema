@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/fastschema/fastschema/app"
@@ -32,7 +33,7 @@ func (s testApp) Key() string {
 
 func TestUserService(t *testing.T) {
 	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
-	db := utils.Must(entdbadapter.NewTestClient(t.TempDir(), sb))
+	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	testApp := &testApp{sb: sb, db: db}
 	userService := userservice.New(testApp)
 
@@ -86,7 +87,7 @@ func TestUserService(t *testing.T) {
 		Add(app.NewResource("login", userService.Login, app.Meta{app.POST: "/login"}, true))
 
 	assert.NoError(t, resources.Init())
-	server := restresolver.NewRestResolver(resources).Init(app.CreateMockLogger(true)).Server()
+	server := restresolver.NewRestResolver(resources, app.CreateMockLogger(true)).Server()
 
 	// Case 1: Login User not found
 	req := httptest.NewRequest("POST", "/user/login", bytes.NewReader([]byte(`{"login": "user", "password": "user"}`)))

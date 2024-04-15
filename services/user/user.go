@@ -67,7 +67,7 @@ func (u *UserService) Login(c app.Context, loginData *LoginData) (*LoginResponse
 		return nil, errors.Unauthorized("invalid login or password")
 	}
 
-	if err := utils.CheckHash(loginData.Password, userEntity.Get("password").(string)); err != nil {
+	if err := utils.CheckHash(loginData.Password, userEntity.GetString("password", "")); err != nil {
 		return nil, errors.Unauthorized("invalid login or password")
 	}
 

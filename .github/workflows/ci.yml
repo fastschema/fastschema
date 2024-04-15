@@ -22,41 +22,12 @@ jobs:
         with:
           args: --verbose
 
-  unittest:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.21', '1.22']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Run tests for app
-        run: go test -race ./...
-        working-directory: app
-      - name: Run tests for cmd
-        run: go test -race ./...
-        working-directory: cmd
-      - name: Run tests for pkg
-        run: go test -race ./...
-        working-directory: pkg
-      - name: Run tests for schema
-        run: go test -race ./...
-        working-directory: schema
-      - name: Run tests for services
-        run: go test -race ./...
-        working-directory: services
-      
-
-  integrationtest:
-    runs-on: ubuntu-latest
+        go: ['1.21.x', '1.22.x']
+        platform: [ubuntu-latest, windows-latest, macos-latest, macos-14]
     services:
       mysql56:
         image: mysql:5.6.35
@@ -212,13 +183,22 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: ${{ matrix.go }}
       - uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Run integration tests
-        working-directory: tests/integration
-        run: go test -race -count=2 ./...
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@v1.11.0
+      - name: Test
+        run: gotestsum -f testname -- ./... -race -count=1 -coverprofile=coverage.txt -covermode=atomic
+      - name: Upload coverage reports to Codecov
+        if: ${{ matrix.platform == 'ubuntu-latest' && matrix.go == '1.22.x' }}
+        uses: codecov/codecov-action@v4.3.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.txt
+          flags: unittests
+          slug: fastschema/fastschema

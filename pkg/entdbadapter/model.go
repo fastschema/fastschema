@@ -88,11 +88,6 @@ func (m *Model) Query(predicates ...*app.Predicate) app.Query {
 		predicates:      predicates,
 		entities:        []*schema.Entity{},
 		withEdgesFields: []*schema.Field{},
-		hooks:           &app.Hooks{},
-	}
-
-	if m.client != nil {
-		q.hooks = m.client.Hooks()
 	}
 
 	q.querySpec = &sqlgraph.QuerySpec{

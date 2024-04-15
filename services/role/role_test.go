@@ -14,9 +14,18 @@ import (
 )
 
 type TestApp struct {
-	sb        *schema.Builder
-	db        app.DBClient
-	resources *app.ResourcesManager
+	sb                *schema.Builder
+	db                app.DBClient
+	resources         *app.ResourcesManager
+	adminUser         *app.User
+	normalUser        *app.User
+	inactiveUser      *app.User
+	roleService       *rs.RoleService
+	roleModel         app.Model
+	server            *rr.Server
+	adminToken        string
+	normalUserToken   string
+	inactiveUserToken string
 }
 
 func (s TestApp) DB() app.DBClient {
@@ -24,7 +33,7 @@ func (s TestApp) DB() app.DBClient {
 }
 
 func (s TestApp) Roles() []*app.Role {
-	roleEntities := utils.Must(roleModel.Query().Select("id", "name", "root", "permissions").Get())
+	roleEntities := utils.Must(s.roleModel.Query().Select("id", "name", "root", "permissions").Get())
 	return app.EntitiesToRoles(roleEntities)
 }
 
@@ -40,20 +49,7 @@ func (s TestApp) Resources() *app.ResourcesManager {
 	return s.resources
 }
 
-var (
-	adminUser         *app.User
-	normalUser        *app.User
-	inactiveUser      *app.User
-	testApp           *TestApp
-	roleService       *rs.RoleService
-	roleModel         app.Model
-	server            *rr.Server
-	adminToken        string
-	normalUserToken   string
-	inactiveUserToken string
-)
-
-func init() {
+func createRoleTest() *TestApp {
 	schemaDir := os.TempDir()
 	utils.WriteFile(schemaDir+"/blog.json", `{
 		"name": "blog",
@@ -69,8 +65,8 @@ func init() {
 		]
 	}`)
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
-	db := utils.Must(entdbadapter.NewTestClient(os.TempDir(), sb))
-	roleModel = utils.Must(db.Model("role"))
+	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
+	roleModel := utils.Must(db.Model("role"))
 	userModel := utils.Must(db.Model("user"))
 	appRoles := []*app.Role{app.RoleAdmin, app.RoleUser, app.RoleGuest}
 
@@ -109,26 +105,27 @@ func init() {
 		Set("role_id", app.RoleUser.ID),
 	))
 
-	testApp = &TestApp{
-		sb: sb,
-		db: db,
+	testApp := &TestApp{
+		sb:        sb,
+		db:        db,
+		roleModel: roleModel,
 	}
 
-	adminUser = &app.User{
+	testApp.adminUser = &app.User{
 		ID:       1,
 		Username: "adminuser",
 		Active:   true,
 		Roles:    []*app.Role{app.RoleAdmin},
 		RoleIDs:  []uint64{1},
 	}
-	normalUser = &app.User{
+	testApp.normalUser = &app.User{
 		ID:       2,
 		Username: "normaluser",
 		Active:   true,
 		Roles:    []*app.Role{app.RoleUser},
 		RoleIDs:  []uint64{2},
 	}
-	inactiveUser = &app.User{
+	testApp.inactiveUser = &app.User{
 		ID:       3,
 		Username: "inactiveuser",
 		Active:   false,
@@ -136,21 +133,25 @@ func init() {
 		RoleIDs:  []uint64{2},
 	}
 
-	adminToken, _, _ = adminUser.JwtClaim(testApp.Key())
-	normalUserToken, _, _ = normalUser.JwtClaim(testApp.Key())
-	inactiveUserToken, _, _ = inactiveUser.JwtClaim(testApp.Key())
+	testApp.adminToken, _, _ = testApp.adminUser.JwtClaim(testApp.Key())
+	testApp.normalUserToken, _, _ = testApp.normalUser.JwtClaim(testApp.Key())
+	testApp.inactiveUserToken, _, _ = testApp.inactiveUser.JwtClaim(testApp.Key())
 
-	roleService = rs.New(testApp)
+	testApp.roleService = rs.New(testApp)
 	testApp.resources = app.NewResourcesManager()
-	testApp.resources.Middlewares = append(testApp.resources.Middlewares, roleService.ParseUser)
-	testApp.resources.BeforeResolveHooks = append(testApp.resources.BeforeResolveHooks, roleService.Authorize)
+	testApp.resources.Hooks = func() *app.Hooks {
+		return &app.Hooks{
+			PreResolve: []app.Middleware{testApp.roleService.Authorize},
+		}
+	}
+	testApp.resources.Middlewares = append(testApp.resources.Middlewares, testApp.roleService.ParseUser)
 	testApp.resources.Group("role").
-		Add(app.NewResource("list", roleService.List, app.Meta{app.GET: ""})).
-		Add(app.NewResource("resources", roleService.ResourcesList, app.Meta{app.GET: "/resources"})).
-		Add(app.NewResource("detail", roleService.Detail, app.Meta{app.GET: "/:id"})).
-		Add(app.NewResource("create", roleService.Create, app.Meta{app.POST: ""})).
-		Add(app.NewResource("update", roleService.Update, app.Meta{app.PUT: "/:id"})).
-		Add(app.NewResource("delete", roleService.Delete, app.Meta{app.DELETE: "/:id"}))
+		Add(app.NewResource("list", testApp.roleService.List, app.Meta{app.GET: ""})).
+		Add(app.NewResource("resources", testApp.roleService.ResourcesList, app.Meta{app.GET: "/resources"})).
+		Add(app.NewResource("detail", testApp.roleService.Detail, app.Meta{app.GET: "/:id"})).
+		Add(app.NewResource("create", testApp.roleService.Create, app.Meta{app.POST: ""})).
+		Add(app.NewResource("update", testApp.roleService.Update, app.Meta{app.PUT: "/:id"})).
+		Add(app.NewResource("delete", testApp.roleService.Delete, app.Meta{app.DELETE: "/:id"}))
 
 	testApp.resources.Group("content").
 		Add(app.NewResource("list", func(c app.Context, _ *any) (any, error) {
@@ -179,11 +180,14 @@ func init() {
 		panic(err)
 	}
 
-	server = rr.NewRestResolver(testApp.resources).Init(app.CreateMockLogger(true)).Server()
+	testApp.server = rr.NewRestResolver(testApp.resources, app.CreateMockLogger(true)).Server()
+
+	return testApp
 }
 
 func TestNewRoleService(t *testing.T) {
+	testApp := createRoleTest()
 	assert.NotNil(t, testApp)
-	assert.NotNil(t, roleService)
-	assert.NotNil(t, server)
+	assert.NotNil(t, testApp.roleService)
+	assert.NotNil(t, testApp.server)
 }

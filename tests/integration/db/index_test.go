@@ -82,7 +82,7 @@ func TestMysql(t *testing.T) {
 			Host:         "127.0.0.1",
 			Port:         strconv.Itoa(sc.port),
 			MigrationDir: "../../../tests/data/migrations",
-			LogQueries:   true,
+			LogQueries:   false,
 		}, sb))
 
 		return dbClient{
@@ -111,7 +111,7 @@ func TestPostgres(t *testing.T) {
 			Host:         "localhost",
 			Port:         strconv.Itoa(sc.port),
 			MigrationDir: "../../../tests/data/migrations",
-			LogQueries:   true,
+			LogQueries:   false,
 		}, sb))
 
 		return dbClient{
@@ -126,9 +126,9 @@ func TestSQLite(t *testing.T) {
 	removeAllMigrationFiles("../../../tests/data/migrations")
 	client := utils.Must(entdbadapter.NewEntClient(&app.DBConfig{
 		Driver:       "sqlite",
-		Name:         "fastschema",
+		Name:         path.Join(t.TempDir(), "fastschema"),
 		MigrationDir: "../../../tests/data/migrations",
-		LogQueries:   true,
+		LogQueries:   false,
 	}, sb))
 
 	runTests(t, []dbClient{{
