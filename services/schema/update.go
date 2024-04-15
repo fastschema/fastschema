@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/daemon/graphdriver/copy"
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/otiai10/copy"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -508,7 +508,7 @@ func (su *SchemaUpdate) createNewSchemaDir() error {
 	}
 
 	// Copy all files from the current schema directory to the new directory
-	if err := copy.DirCopy(schemasDir, su.newSchemaBuilderDir, copy.Content, false); err != nil {
+	if err := copy.Copy(schemasDir, su.newSchemaBuilderDir); err != nil {
 		return err
 	}
 
