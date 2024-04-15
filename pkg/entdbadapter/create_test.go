@@ -307,7 +307,7 @@ func TestMockCreateNodeEdges(t *testing.T) {
 	MockRunCreateTests(func(d *sql.DB) app.DBClient {
 		driver := utils.Must(NewEntClient(&app.DBConfig{
 			Driver:     "sqlmock",
-			LogQueries: true,
+			LogQueries: false,
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
 	}, sb, t, tests)
