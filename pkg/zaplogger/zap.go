@@ -77,7 +77,8 @@ func NewZapLogger(config *ZapConfig) (_ *ZapLogger, err error) {
 		e := zapLogger.Sync()
 		if e != nil {
 			// check if the error is related to /dev/stdout
-			if strings.Contains(e.Error(), "sync /dev/stdout: invalid argument") {
+			if strings.Contains(e.Error(), "sync /dev/stdout: invalid argument") ||
+				strings.Contains(e.Error(), "sync /dev/stdout: inappropriate ioctl for device") {
 				return
 			}
 
