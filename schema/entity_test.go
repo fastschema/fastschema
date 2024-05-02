@@ -366,3 +366,147 @@ func TestEntityUnmarshalJSONErrorArrayEach(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "Unknown value type", err.Error())
 }
+
+func TestEntityToStruct(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+
+	group := NewEntity()
+	group.Set("id", 1)
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+	type TestStruct struct {
+		Name   string   `json:"name"`
+		Age    int      `json:"age"`
+		Skills []string `json:"skills"`
+		Group  struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"group"`
+	}
+
+	expected := TestStruct{
+		Name:   "John",
+		Age:    30,
+		Skills: []string{"Go", "Python", "Java"},
+		Group: struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   1,
+			Name: "Admin",
+		},
+	}
+
+	result := entity.EntityToStruct(&TestStruct{})
+
+	assert.Equal(t, expected, result)
+}
+
+func TestEntityToStructWithNestedStruct(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+	group := NewEntity()
+	group.Set("id", 1)
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+
+	type Group struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+
+	type TestStruct struct {
+		Name   string `json:"name"`
+		Age    int    `json:"age"`
+		Skills []string
+		Group  Group `json:"group"`
+	}
+
+	expected := TestStruct{
+		Name:   "John",
+		Age:    30,
+		Skills: []string{"Go", "Python", "Java"},
+		Group: Group{
+			ID:   1,
+			Name: "Admin",
+		},
+	}
+
+	result := entity.EntityToStruct(&TestStruct{})
+
+	assert.Equal(t, expected, result)
+}
+
+func TestEntityToStructWithMissingFields(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+
+	type TestStruct struct {
+		Name   string `json:"name"`
+		Age    int    `json:"age"`
+		Skills []string
+		Group  struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"group"`
+	}
+
+	expected := TestStruct{
+		Name:   "John",
+		Age:    0,
+		Skills: nil,
+		Group: struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   0,
+			Name: "",
+		},
+	}
+
+	result := entity.EntityToStruct(&TestStruct{})
+
+	assert.Equal(t, expected, result)
+}
+
+func TestEntityToStructWithInvalidNestedStruct(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+	group := NewEntity()
+	group.Set("id", "invalid")
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+
+	type Group struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+
+	type TestStruct struct {
+		Name   string `json:"name"`
+		Age    int    `json:"age"`
+		Skills []string
+		Group  Group `json:"group"`
+	}
+
+	expected := TestStruct{
+		Name:   "John",
+		Age:    30,
+		Skills: []string{"Go", "Python", "Java"},
+		Group: Group{
+			ID:   0,
+			Name: "Admin",
+		},
+	}
+
+	result := entity.EntityToStruct(&TestStruct{})
+
+	assert.Equal(t, expected, result)
+}

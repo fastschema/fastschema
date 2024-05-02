@@ -3,6 +3,7 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/buger/jsonparser"
@@ -265,4 +266,45 @@ func NewEntityFromMap(data map[string]any) *Entity {
 	}
 
 	return entity
+}
+
+// EntityToStruct converts an entity to a struct
+func (e *Entity) EntityToStruct(s interface{}) interface{} {
+	// Get the type of the struct
+	structType := reflect.TypeOf(s).Elem()
+
+	// Create a new instance of the struct
+	structValue := reflect.New(structType).Elem()
+
+	// Iterate over the fields of the struct
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		fieldName := field.Name
+
+		// Get the corresponding value from the schema.Entity
+		value := e.Get(fieldName)
+		jsonTag := field.Tag.Get("json")
+		fmt.Println("jsonTag", jsonTag)
+
+		if jsonTag != "" {
+			// Set the value using the JSON tag as the field name
+			value = e.Get(jsonTag)
+		}
+
+		// Check if the value is not nil
+		if value != nil {
+			// Check if the field is a struct
+			if field.Type.Kind() == reflect.Struct {
+				// Recursively convert the nested struct
+				nestedStruct := reflect.New(field.Type).Interface()
+				nestedStruct = e.EntityToStruct(nestedStruct)
+				value = nestedStruct
+			}
+			// Set the value of the struct field
+			structField := structValue.FieldByName(fieldName)
+			structField.Set(reflect.ValueOf(value))
+		}
+	}
+
+	return structValue.Interface()
 }
