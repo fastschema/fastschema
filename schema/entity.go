@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/buger/jsonparser"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -279,31 +280,41 @@ func (e *Entity) EntityToStruct(s interface{}) interface{} {
 	// Iterate over the fields of the struct
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
-		fieldName := field.Name
+
+		entityFieldName := field.Name
+		jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
+
+		// Check if the field has a json tag
+		if jsonTag != "" {
+			entityFieldName = jsonTag
+		}
 
 		// Get the corresponding value from the schema.Entity
-		value := e.Get(fieldName)
-		jsonTag := field.Tag.Get("json")
-		fmt.Println("jsonTag", jsonTag)
-
-		if jsonTag != "" {
-			// Set the value using the JSON tag as the field name
-			value = e.Get(jsonTag)
-		}
+		structField := structValue.FieldByName(field.Name)
+		value := e.Get(entityFieldName)
 
 		// Check if the value is not nil
-		if value != nil {
-			// Check if the field is a struct
-			if field.Type.Kind() == reflect.Struct {
-				// Recursively convert the nested struct
-				nestedStruct := reflect.New(field.Type).Interface()
-				nestedStruct = e.EntityToStruct(nestedStruct)
-				value = nestedStruct
-			}
-			// Set the value of the struct field
-			structField := structValue.FieldByName(fieldName)
-			structField.Set(reflect.ValueOf(value))
+		if value == nil {
+			continue
 		}
+
+		// Check if the field is a struct
+		if field.Type.Kind() == reflect.Struct {
+			// value must be an entity, otherwise the conversion will fail
+			entityValue, ok := value.(*Entity)
+			if !ok {
+				panic(fmt.Sprintf("value must be an entity, got %v", value))
+			}
+
+			// Recursively convert the nested struct
+			nestedStruct := reflect.New(field.Type).Interface()
+			nestedStruct = entityValue.EntityToStruct(nestedStruct)
+			structField.Set(reflect.ValueOf(nestedStruct))
+			continue
+		}
+
+		// Set the value of the struct field
+		structField.Set(reflect.ValueOf(value))
 	}
 
 	return structValue.Interface()
