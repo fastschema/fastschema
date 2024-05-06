@@ -271,6 +271,7 @@ func NewEntityFromMap(data map[string]any) *Entity {
 
 // EntityToStruct converts an entity to a struct
 func (e *Entity) EntityToStruct(s interface{}) interface{} {
+	fmt.Println("start")
 	// Get the type of the struct
 	structType := reflect.TypeOf(s).Elem()
 
@@ -313,9 +314,79 @@ func (e *Entity) EntityToStruct(s interface{}) interface{} {
 			continue
 		}
 
+		if field.Type.Kind() == reflect.Slice || field.Type.Kind() == reflect.Array {
+			fmt.Println("field.Type.Kind()", field.Type.Kind())
+			// Check if all items are primitive types and have the same type
+			sliceValue := reflect.ValueOf(value)
+			// sliceType := sliceValue.Type()
+			if isPrimitiveSlice(sliceValue) {
+				// Set the value of the struct field
+				structField.Set(reflect.ValueOf(value))
+				continue
+			} else {
+				// reflect.Struct, reflect.Map, reflect.Slice, reflect.Array
+				// check if slice type is reflect.Struct
+				fmt.Println("fieldfieldfield", field)
+				if field.Type.Elem().Kind() == reflect.Struct {
+					// value must be a slice of entities, otherwise the conversion will fail
+					entitySlice, ok := value.([]*Entity)
+					fmt.Println("entitySlice", entitySlice)
+					if !ok {
+						panic(fmt.Sprintf("value must be a slice of entities, got %v", value))
+					}
+					// Create a new slice to hold the converted structs
+					structSlice := reflect.MakeSlice(field.Type, len(entitySlice), len(entitySlice))
+					// Iterate over the entities and convert them to structs
+					for i, entity := range entitySlice {
+						fmt.Println("entityentity", entity)
+						structValue := reflect.New(field.Type.Elem()).Interface()
+						structValue = entity.EntityToStruct(structValue)
+						structSlice.Index(i).Set(reflect.ValueOf(structValue).Elem())
+					}
+					// Set the value of the struct field
+					structField.Set(structSlice)
+					continue
+				}
+
+				// check if slice type is reflect.Slice, reflect.Array
+
+			}
+
+		}
+
 		// Set the value of the struct field
 		structField.Set(reflect.ValueOf(value))
 	}
 
 	return structValue.Interface()
+}
+
+func isPrimitiveSlice(slice interface{}) bool {
+	val := reflect.ValueOf(slice)
+
+	// Check if the input is a slice or array
+	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+		return false
+	}
+
+	// Get the type of the elements in the slice or array
+	elemType := val.Type().Elem()
+
+	// Check if the element type is a primitive type
+	switch elemType.Kind() {
+	case reflect.Bool, reflect.String:
+		return true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return true
+	case reflect.Float32, reflect.Float64:
+		return true
+	case reflect.Complex64, reflect.Complex128:
+		return true
+	case reflect.Struct, reflect.Map, reflect.Slice, reflect.Array:
+		return false
+	default:
+		return false
+	}
 }

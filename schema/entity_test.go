@@ -377,11 +377,21 @@ func TestEntityToStruct(t *testing.T) {
 	group.Set("id", 1)
 	group.Set("name", "Admin")
 	entity.Set("group", group)
+
+	type TestSliceStruct struct {
+		Name string `json:"name"`
+	}
+	entity.Set("sliceStruct", []TestSliceStruct{
+		TestSliceStruct{Name: "name 1"},
+		TestSliceStruct{Name: "name 2"},
+	})
+
 	type TestStruct struct {
-		Name   string   `json:"name"`
-		Age    int      `json:"age"`
-		Skills []string `json:"skills"`
-		Group  struct {
+		Name        string            `json:"name"`
+		Age         int               `json:"age"`
+		Skills      []string          `json:"skills"`
+		SliceStruct []TestSliceStruct `json:"sliceStruct"`
+		Group       struct {
 			ID   int    `json:"id"`
 			Name string `json:"name"`
 		} `json:"group"`
@@ -397,6 +407,10 @@ func TestEntityToStruct(t *testing.T) {
 		}{
 			ID:   1,
 			Name: "Admin",
+		},
+		SliceStruct: []TestSliceStruct{
+			TestSliceStruct{Name: "name 1"},
+			TestSliceStruct{Name: "name 2"},
 		},
 	}
 
