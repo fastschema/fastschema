@@ -271,7 +271,6 @@ func NewEntityFromMap(data map[string]any) *Entity {
 
 // EntityToStruct converts an entity to a struct
 func (e *Entity) EntityToStruct(s interface{}) interface{} {
-	fmt.Println("start")
 	// Get the type of the struct
 	structType := reflect.TypeOf(s).Elem()
 
@@ -314,44 +313,55 @@ func (e *Entity) EntityToStruct(s interface{}) interface{} {
 			continue
 		}
 
+		// Check if the field is a map
+		if field.Type.Kind() == reflect.Map {
+			// Check if the map value type is a struct
+			if field.Type.Elem().Kind() == reflect.Struct {
+				// value must be a map of entities, otherwise the conversion will fail
+				entityMap, ok := value.(map[string]*Entity)
+				if !ok {
+					panic(fmt.Sprintf("value must be a map of entities, got %v", value))
+				}
+				// Create a new map to hold the converted structs
+				structMap := reflect.MakeMap(field.Type)
+				// Iterate over the entities and convert them to structs
+				for key, entity := range entityMap {
+					structValue := reflect.New(field.Type.Elem()).Interface()
+					structValue = entity.EntityToStruct(structValue)
+					structMap.SetMapIndex(reflect.ValueOf(key), reflect.ValueOf(structValue).Elem())
+				}
+				// Set the value of the struct field
+				structField.Set(structMap)
+				continue
+			}
+		}
+
+		// Check if the field is a slice or array
 		if field.Type.Kind() == reflect.Slice || field.Type.Kind() == reflect.Array {
-			fmt.Println("field.Type.Kind()", field.Type.Kind())
 			// Check if all items are primitive types and have the same type
 			sliceValue := reflect.ValueOf(value)
-			// sliceType := sliceValue.Type()
 			if isPrimitiveSlice(sliceValue) {
 				// Set the value of the struct field
 				structField.Set(reflect.ValueOf(value))
 				continue
-			} else {
-				// reflect.Struct, reflect.Map, reflect.Slice, reflect.Array
-				// check if slice type is reflect.Struct
-				fmt.Println("fieldfieldfield", field)
-				if field.Type.Elem().Kind() == reflect.Struct {
-					// value must be a slice of entities, otherwise the conversion will fail
-					entitySlice, ok := value.([]*Entity)
-					fmt.Println("entitySlice", entitySlice)
-					if !ok {
-						panic(fmt.Sprintf("value must be a slice of entities, got %v", value))
-					}
-					// Create a new slice to hold the converted structs
-					structSlice := reflect.MakeSlice(field.Type, len(entitySlice), len(entitySlice))
-					// Iterate over the entities and convert them to structs
-					for i, entity := range entitySlice {
-						fmt.Println("entityentity", entity)
-						structValue := reflect.New(field.Type.Elem()).Interface()
-						structValue = entity.EntityToStruct(structValue)
-						structSlice.Index(i).Set(reflect.ValueOf(structValue).Elem())
-					}
-					// Set the value of the struct field
-					structField.Set(structSlice)
-					continue
+			} else if field.Type.Elem().Kind() == reflect.Struct {
+				// value must be a slice of entities, otherwise the conversion will fail
+				entitySlice, ok := value.([]*Entity)
+				if !ok {
+					panic(fmt.Sprintf("value must be a slice of entities, got %v", value))
 				}
-
-				// check if slice type is reflect.Slice, reflect.Array
-
+				// Create a new slice to hold the converted structs
+				structSlice := reflect.MakeSlice(field.Type, len(entitySlice), len(entitySlice))
+				// Iterate over the entities and convert them to structs
+				for i, entity := range entitySlice {
+					structValue := reflect.New(field.Type.Elem()).Interface()
+					structValue = entity.EntityToStruct(structValue)
+					structSlice.Index(i).Set(reflect.ValueOf(structValue).Elem())
+				}
+				// Set the value of the struct field
+				structField.Set(structSlice)
+				continue
 			}
-
 		}
 
 		// Set the value of the struct field

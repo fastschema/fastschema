@@ -381,20 +381,34 @@ func TestEntityToStruct(t *testing.T) {
 	type TestSliceStruct struct {
 		Name string `json:"name"`
 	}
-	entity.Set("sliceStruct", []TestSliceStruct{
-		TestSliceStruct{Name: "name 1"},
-		TestSliceStruct{Name: "name 2"},
+
+	sliceStruct1 := NewEntity()
+	sliceStruct1.Set("name", "name 1")
+	sliceStruct2 := NewEntity()
+	sliceStruct2.Set("name", "name 2")
+
+	entity.Set("sliceStruct", []*Entity{
+		sliceStruct1,
+		sliceStruct2,
+	})
+
+	entity.Set("colors", map[string]string{
+		"red":   "#ff0000",
+		"green": "#00ff00",
+		"blue":  "#0000ff",
 	})
 
 	type TestStruct struct {
-		Name        string            `json:"name"`
-		Age         int               `json:"age"`
-		Skills      []string          `json:"skills"`
-		SliceStruct []TestSliceStruct `json:"sliceStruct"`
+		Name        string             `json:"name"`
+		Age         int                `json:"age"`
+		Skills      []string           `json:"skills"`
+		SliceStruct []*TestSliceStruct `json:"sliceStruct"`
 		Group       struct {
 			ID   int    `json:"id"`
 			Name string `json:"name"`
 		} `json:"group"`
+
+		Colors map[string]string `json:"colors"`
 	}
 
 	expected := TestStruct{
@@ -408,9 +422,85 @@ func TestEntityToStruct(t *testing.T) {
 			ID:   1,
 			Name: "Admin",
 		},
-		SliceStruct: []TestSliceStruct{
-			TestSliceStruct{Name: "name 1"},
-			TestSliceStruct{Name: "name 2"},
+		SliceStruct: []*TestSliceStruct{
+			&TestSliceStruct{Name: "name 1"},
+			&TestSliceStruct{Name: "name 2"},
+		},
+		Colors: map[string]string{
+			"red":   "#ff0000",
+			"green": "#00ff00",
+			"blue":  "#0000ff",
+		},
+	}
+
+	result := entity.EntityToStruct(&TestStruct{})
+
+	assert.Equal(t, expected, result)
+}
+
+func TestEntityToStructWithMapOfSliceOfStruct(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+
+	group := NewEntity()
+	group.Set("id", 1)
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+
+	type Color struct {
+		Name string
+		Code string
+	}
+
+	entity.Set("colors", map[string][]*Color{
+		"primary": {
+			{"Red", "#ff0000"},
+			{"Green", "#00ff00"},
+			{"Blue", "#0000ff"},
+		},
+		"secondary": {
+			{"Yellow", "#ffff00"},
+			{"Cyan", "#00ffff"},
+			{"Magenta", "#ff00ff"},
+		},
+	})
+
+	type TestStruct struct {
+		Name   string   `json:"name"`
+		Age    int      `json:"age"`
+		Skills []string `json:"skills"`
+		Group  struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"group"`
+
+		Colors map[string][]*Color `json:"colors"`
+	}
+
+	expected := TestStruct{
+		Name:   "John",
+		Age:    30,
+		Skills: []string{"Go", "Python", "Java"},
+		Group: struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   1,
+			Name: "Admin",
+		},
+		Colors: map[string][]*Color{
+			"primary": {
+				{"Red", "#ff0000"},
+				{"Green", "#00ff00"},
+				{"Blue", "#0000ff"},
+			},
+			"secondary": {
+				{"Yellow", "#ffff00"},
+				{"Cyan", "#00ffff"},
+				{"Magenta", "#ff00ff"},
+			},
 		},
 	}
 
