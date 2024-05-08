@@ -57,7 +57,7 @@ func (rs *RoleService) Authorize(c app.Context) error {
 	}
 
 	// Allow white listed routes.
-	if resource.WhiteListed() {
+	if resource.IsPublic() {
 		return nil
 	}
 

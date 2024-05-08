@@ -5,6 +5,7 @@ import (
 
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,4 +34,17 @@ func TestTransformHandlers(t *testing.T) {
 	}
 	result3 := restresolver.TransformHandlers(r, handlers, nil)
 	assert.Len(t, result3, 1)
+}
+
+func TestGetHandlerInfo(t *testing.T) {
+	handler := func(ctx *restresolver.Context) error { return nil }
+	resource := app.NewResource("testResource", func(c app.Context, _ any) (any, error) {
+		return nil, nil
+	})
+
+	name, handlers := restresolver.GetHandlerInfo(handler, nil, resource)
+
+	assert.Equal(t, "testResource", name)
+	assert.Len(t, handlers, 1)
+	assert.IsType(t, (fiber.Handler)(nil), handlers[0])
 }

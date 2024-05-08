@@ -6,7 +6,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (rs *RoleService) List(c app.Context, _ *any) ([]*schema.Entity, error) {
+func (rs *RoleService) List(c app.Context, _ any) ([]*schema.Entity, error) {
 	model, err := rs.DB().Model("role")
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())

@@ -186,11 +186,21 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 
 	resources := app.NewResourcesManager()
 	resources.Group("schema").
-		Add(app.NewResource("list", schemaService.List, app.Meta{app.GET: ""})).
-		Add(app.NewResource("create", schemaService.Create, app.Meta{app.POST: ""})).
-		Add(app.NewResource("detail", schemaService.Detail, app.Meta{app.GET: "/:name"})).
-		Add(app.NewResource("update", schemaService.Update, app.Meta{app.PUT: "/:name"})).
-		Add(app.NewResource("delete", schemaService.Delete, app.Meta{app.DELETE: "/:name"}))
+		Add(app.NewResource("list", schemaService.List, &app.Meta{
+			Get: "/",
+		})).
+		Add(app.NewResource("create", schemaService.Create, &app.Meta{
+			Post: "/",
+		})).
+		Add(app.NewResource("detail", schemaService.Detail, &app.Meta{
+			Get: "/:name",
+		})).
+		Add(app.NewResource("update", schemaService.Update, &app.Meta{
+			Put: "/:name",
+		})).
+		Add(app.NewResource("delete", schemaService.Delete, &app.Meta{
+			Delete: "/:name",
+		}))
 
 	assert.NoError(t, resources.Init())
 	restResolver := restresolver.NewRestResolver(resources, app.CreateMockLogger(true))

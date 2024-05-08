@@ -7,7 +7,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (cs *ContentService) Update(c app.Context, _ *any) (*schema.Entity, error) {
+func (cs *ContentService) Update(c app.Context, _ any) (*schema.Entity, error) {
 	schemaName := c.Arg("schema")
 	id := c.ArgInt("id")
 	model, err := cs.DB().Model(schemaName)

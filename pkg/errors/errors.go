@@ -154,18 +154,6 @@ func (e *Error) Error() string {
 	return result
 }
 
-// Format is error interface implementation.
-func (e *Error) Format(f fmt.State, c rune) {
-	xerrors.FormatError(e, f, c)
-}
-
-// FormatError is error interface implementation.
-func (e *Error) FormatError(p xerrors.Printer) error {
-	e.frame.Format(p)
-
-	return e.Unwrap()
-}
-
 func (e *Error) Messagef(format string, a ...any) *Error {
 	e.Message = fmt.Sprintf(format, a...)
 

@@ -26,7 +26,7 @@ type StatsData struct {
 	TotalMedias  int `json:"totalMedias"`
 }
 
-func (s *ToolService) Stats(c app.Context, _ *any) (_ *StatsData, err error) {
+func (s *ToolService) Stats(c app.Context, _ any) (_ *StatsData, err error) {
 	totalSchemas := len(s.DB().SchemaBuilder().Schemas())
 	totalUsers := 0
 	totalRoles := 0

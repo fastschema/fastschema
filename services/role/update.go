@@ -7,7 +7,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
+func (rs *RoleService) Update(c app.Context, _ any) (_ *app.Role, err error) {
 	tx, err := rs.DB().Tx(c.Context())
 	if err != nil {
 		return nil, errors.InternalServerError(err.Error())

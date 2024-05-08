@@ -35,16 +35,30 @@ func TestNewRestResolver(t *testing.T) {
 		Root:     http.Dir(staticDir),
 	}}
 
-	resourceManager.Group("user").
+	resourceManager.Group("user", &app.Meta{Prefix: "/userprefix"}).
 		Add(app.NewResource("profile", func(c app.Context, input *testInput) (map[string]any, error) {
 			return map[string]any{
 				"input": input,
 				"test":  c.Value("test"),
 			}, nil
-		}, app.Meta{app.POST: "/profile"})).
+		}, &app.Meta{Post: "/profile"})).
 		Add(app.NewResource("profileerror", func(c app.Context, input *testInput) (map[string]any, error) {
 			return nil, errors.BadRequest("test error")
-		}, app.Meta{app.POST: "/profileerror"}))
+		}, &app.Meta{Post: "/profileerror"}))
+
+	resourceManager.Add(app.NewResource("bytes", func(c app.Context, _ any) (any, error) {
+		return []byte(`{"data": "test"}`), nil
+	}))
+
+	resourceManager.Add(app.NewResource("html", func(c app.Context, _ any) (any, error) {
+		header := make(http.Header)
+		header.Set("Content-Type", "text/html")
+
+		return &app.HTTPResponse{
+			Header: header,
+			Body:   []byte(`<body>test</body>`),
+		}, nil
+	}))
 
 	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true), staticFSs...)
 	assert.NotNil(t, restResolver.Server())
@@ -56,7 +70,7 @@ func TestNewRestResolver(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, `test`, utils.Must(utils.ReadCloserToString(resp.Body)))
 
-	req2 := httptest.NewRequest("POST", "/user/profile", bytes.NewReader([]byte(`{"name": "test"}`)))
+	req2 := httptest.NewRequest("POST", "/userprefix/profile", bytes.NewReader([]byte(`{"name": "test"}`)))
 	req2.Header.Set("Content-Type", "application/json")
 	resp, err = restResolver.Server().App.Test(req2)
 	assert.NoError(t, err)
@@ -64,13 +78,29 @@ func TestNewRestResolver(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, `{"data":{"input":{"name":"test"},"test":"test"}}`, utils.Must(utils.ReadCloserToString(resp.Body)))
 
-	req3 := httptest.NewRequest("POST", "/user/profileerror", bytes.NewReader([]byte(`{"name": "test"}`)))
+	req3 := httptest.NewRequest("POST", "/userprefix/profileerror", bytes.NewReader([]byte(`{"name": "test"}`)))
 	req3.Header.Set("Content-Type", "application/json")
 	resp, err = restResolver.Server().App.Test(req3)
 	assert.NoError(t, err)
 	defer closeResponse(t, resp)
 	assert.Equal(t, 400, resp.StatusCode)
 	assert.Equal(t, `{"error":{"code":"400","message":"test error"},"data":null}`, utils.Must(utils.ReadCloserToString(resp.Body)))
+
+	req4 := httptest.NewRequest("GET", "/bytes", nil)
+	resp, err = restResolver.Server().App.Test(req4)
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, `{"data": "test"}`, utils.Must(utils.ReadCloserToString(resp.Body)))
+
+	req5 := httptest.NewRequest("GET", "/html", nil)
+	resp, err = restResolver.Server().App.Test(req5)
+	respContentType := resp.Header.Get("Content-Type")
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, "text/html", respContentType)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, `<body>test</body>`, utils.Must(utils.ReadCloserToString(resp.Body)))
 }
 
 func TestNewRestResolverErrorMiddleware(t *testing.T) {
@@ -110,7 +140,7 @@ func TestNewRestResolverErrorMiddleware(t *testing.T) {
 
 func TestNewRestResolverWithBeforeResolverHookError(t *testing.T) {
 	resourceManager := app.NewResourcesManager()
-	resourceManager.Add(app.NewResource("test", func(c app.Context, _ *any) (any, error) {
+	resourceManager.Add(app.NewResource("test", func(c app.Context, _ any) (any, error) {
 		return nil, nil
 	}))
 	resourceManager.Hooks = func() *app.Hooks {
@@ -136,7 +166,7 @@ func TestNewRestResolverWithBeforeResolverHookError(t *testing.T) {
 
 func TestNewRestResolverWithAfterResolverHookError(t *testing.T) {
 	resourceManager := app.NewResourcesManager()
-	resourceManager.Add(app.NewResource("test", func(c app.Context, _ *any) (any, error) {
+	resourceManager.Add(app.NewResource("test", func(c app.Context, _ any) (any, error) {
 		return nil, nil
 	}))
 	resourceManager.Hooks = func() *app.Hooks {
@@ -162,7 +192,7 @@ func TestNewRestResolverWithAfterResolverHookError(t *testing.T) {
 
 func TestNewRestResolverStart(t *testing.T) {
 	resourceManager := app.NewResourcesManager()
-	resourceManager.Add(app.NewResource("test", func(c app.Context, _ *any) (any, error) {
+	resourceManager.Add(app.NewResource("test", func(c app.Context, _ any) (any, error) {
 		return nil, nil
 	}))
 

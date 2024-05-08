@@ -82,9 +82,15 @@ func TestUserService(t *testing.T) {
 		return c.Next()
 	}}
 	resources.Group("user").
-		Add(app.NewResource("logout", userService.Logout, app.Meta{app.POST: "/logout"}, true)).
-		Add(app.NewResource("me", userService.Me, true)).
-		Add(app.NewResource("login", userService.Login, app.Meta{app.POST: "/login"}, true))
+		Add(app.NewResource("logout", userService.Logout, &app.Meta{
+			Post:   "/logout",
+			Public: true,
+		})).
+		Add(app.NewResource("me", userService.Me, &app.Meta{Public: true})).
+		Add(app.NewResource("login", userService.Login, &app.Meta{
+			Post:   "/login",
+			Public: true,
+		}))
 
 	assert.NoError(t, resources.Init())
 	server := restresolver.NewRestResolver(resources, app.CreateMockLogger(true)).Server()

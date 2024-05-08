@@ -41,79 +41,46 @@ func (g *Router) Group(prefix string, r *app.Resource, handlers ...Handler) *Rou
 }
 
 func (g *Router) Get(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-
-	handlers := TransformHandlers(r, []Handler{handler}, g.logger)
+	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Get(path, handlers...).Name(name)
 }
 
+func (g *Router) Head(path string, handler Handler, resources ...*app.Resource) {
+	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
+	g.fiberGroup.Head(path, handlers...).Name(name)
+}
+
 func (g *Router) Post(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, g.logger)
+	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Post(path, handlers...).Name(name)
 }
 
 func (g *Router) Put(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, g.logger)
+	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Put(path, handlers...).Name(name)
 }
 
 func (g *Router) Delete(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, g.logger)
+	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Delete(path, handlers...).Name(name)
 }
 
-func (g *Router) Patch(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, g.logger)
-	g.fiberGroup.Patch(path, handlers...).Name(name)
+func (g *Router) Connect(path string, handler Handler, resources ...*app.Resource) {
+	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
+	g.fiberGroup.Connect(path, handlers...).Name(name)
 }
 
 func (g *Router) Options(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, g.logger)
+	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Options(path, handlers...).Name(name)
 }
 
-func (g *Router) Head(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, g.logger)
-	g.fiberGroup.Head(path, handlers...).Name(name)
+func (g *Router) Trace(path string, handler Handler, resources ...*app.Resource) {
+	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
+	g.fiberGroup.Trace(path, handlers...).Name(name)
+}
+
+func (g *Router) Patch(path string, handler Handler, resources ...*app.Resource) {
+	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
+	g.fiberGroup.Patch(path, handlers...).Name(name)
 }

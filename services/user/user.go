@@ -84,11 +84,11 @@ func (u *UserService) Login(c app.Context, loginData *LoginData) (*LoginResponse
 	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
 }
 
-func (u *UserService) Logout(c app.Context, _ *any) (*any, error) {
+func (u *UserService) Logout(c app.Context, _ any) (*any, error) {
 	return nil, nil
 }
 
-func (u *UserService) Me(c app.Context, _ *any) (*app.User, error) {
+func (u *UserService) Me(c app.Context, _ any) (*app.User, error) {
 	user := c.User()
 
 	if user == nil {

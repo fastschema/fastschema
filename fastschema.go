@@ -5,7 +5,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -14,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/fastschema/fastschema/pkg/openapi"
 	"github.com/fastschema/fastschema/pkg/rclonefs"
 	"github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -31,14 +31,6 @@ import (
 
 //go:embed all:dash/*
 var embedDashStatic embed.FS
-var CWD string
-
-func init() {
-	var err error
-	if CWD, err = os.Getwd(); err != nil {
-		log.Fatal(err)
-	}
-}
 
 type AppConfig struct {
 	Dir               string
@@ -72,6 +64,7 @@ func (ac *AppConfig) Clone() *AppConfig {
 
 type App struct {
 	config          *AppConfig
+	cwd             string
 	dir             string
 	envFile         string
 	dataDir         string
@@ -80,6 +73,7 @@ type App struct {
 	schemasDir      string
 	migrationDir    string
 	schemaBuilder   *schema.Builder
+	restResolver    *restresolver.RestSolver
 	resources       *app.ResourcesManager
 	api             *app.Resource
 	hooks           *app.Hooks
@@ -89,6 +83,7 @@ type App struct {
 	setupToken      string
 	startupMessages []string
 	statics         []*app.StaticFs
+	openAPISpec     []byte
 }
 
 func New(config *AppConfig) (_ *App, err error) {
@@ -97,6 +92,10 @@ func New(config *AppConfig) (_ *App, err error) {
 		disks:  []app.Disk{},
 		roles:  []*app.Role{},
 		hooks:  &app.Hooks{},
+	}
+
+	if a.cwd, err = os.Getwd(); err != nil {
+		return nil, err
 	}
 
 	if err := a.prepareConfig(); err != nil {
@@ -108,6 +107,10 @@ func New(config *AppConfig) (_ *App, err error) {
 	}
 
 	return a, nil
+}
+
+func (a *App) CWD() string {
+	return a.cwd
 }
 
 func (a *App) init() (err error) {
@@ -165,12 +168,8 @@ func (a *App) init() (err error) {
 				return false, errors.BadRequest("Setup token is not available")
 			}
 
-			if setupData == nil {
-				return false, errors.BadRequest("Invalid setup data")
-			}
-
-			if setupData.Token != setupToken {
-				return false, errors.Forbidden("Invalid setup token")
+			if setupData == nil || setupData.Token != setupToken {
+				return false, errors.Forbidden("Invalid setup data or token")
 			}
 
 			if err := ts.Setup(
@@ -189,7 +188,10 @@ func (a *App) init() (err error) {
 			a.setupToken = ""
 
 			return true, nil
-		}, app.Meta{app.POST: "/setup"}, true))
+		}, &app.Meta{
+			Post:   "/setup",
+			Public: true,
+		}))
 
 		setupURL := fmt.Sprintf(
 			"%s/setup/?token=%s\033[0m",
@@ -242,6 +244,10 @@ func (a *App) Reload(migration *app.Migration) (err error) {
 
 	a.config.DB = newDB
 
+	if _, err := a.CreateOpenAPISpec(true); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -277,6 +283,27 @@ func (a *App) UpdateCache() error {
 	return nil
 }
 
+// CreateOpenAPISpec generates the openapi spec for the app.
+func (a *App) CreateOpenAPISpec(overrides ...bool) ([]byte, error) {
+	overrides = append(overrides, false)
+
+	if a.openAPISpec == nil || overrides[0] {
+		s, err := openapi.NewSpec(&openapi.OpenAPISpecConfig{
+			BaseURL:       a.config.BaseURL,
+			Resources:     a.Resources(),
+			SchemaBuilder: a.schemaBuilder,
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		a.openAPISpec = s.Spec()
+	}
+
+	return a.openAPISpec, nil
+}
+
 func (a *App) Start() error {
 	addr := fmt.Sprintf(":%s", a.config.Port)
 	if err := a.resources.Init(); err != nil {
@@ -286,7 +313,8 @@ func (a *App) Start() error {
 	if !a.config.HideResourcesInfo {
 		a.resources.Print()
 	}
-	restResolver := restresolver.NewRestResolver(a.resources, a.Logger(), a.statics...)
+
+	a.restResolver = restresolver.NewRestResolver(a.resources, a.Logger(), a.statics...)
 
 	fmt.Printf("\n")
 	for _, msg := range a.startupMessages {
@@ -294,7 +322,23 @@ func (a *App) Start() error {
 	}
 	fmt.Printf("\n")
 
-	return restResolver.Start(addr)
+	return a.restResolver.Start(addr)
+}
+
+func (a *App) Shutdown() error {
+	if a.DB() != nil {
+		if err := a.DB().Close(); err != nil {
+			return err
+		}
+	}
+
+	if a.restResolver != nil {
+		if err := a.restResolver.Shutdown(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (a *App) SchemaBuilder() *schema.Builder {
@@ -547,40 +591,108 @@ func (a *App) createResources() error {
 		return a.hooks
 	}
 
+	var createArg = func(t app.ArgType, desc string) app.Arg {
+		return app.Arg{Type: t, Required: true, Description: desc}
+	}
+
 	a.api = a.resources.Group(a.config.APIBaseName)
 	a.api.Group("user").
-		Add(app.NewResource("logout", userService.Logout, app.Meta{app.POST: "/logout"}, true)).
-		Add(app.NewResource("me", userService.Me, true)).
-		Add(app.NewResource("login", userService.Login, app.Meta{app.POST: "/login"}, true))
+		Add(app.NewResource("logout", userService.Logout, &app.Meta{
+			Post:   "/logout",
+			Public: true,
+		})).
+		Add(app.NewResource("me", userService.Me, &app.Meta{Public: true})).
+		Add(app.NewResource("login", userService.Login, &app.Meta{
+			Post:   "/login",
+			Public: true,
+		}))
 
 	a.api.Group("schema").
-		Add(app.NewResource("list", schemaService.List, app.Meta{app.GET: ""})).
-		Add(app.NewResource("create", schemaService.Create, app.Meta{app.POST: ""})).
-		Add(app.NewResource("detail", schemaService.Detail, app.Meta{app.GET: "/:name"})).
-		Add(app.NewResource("update", schemaService.Update, app.Meta{app.PUT: "/:name"})).
-		Add(app.NewResource("delete", schemaService.Delete, app.Meta{app.DELETE: "/:name"}))
+		Add(app.NewResource("list", schemaService.List, &app.Meta{Get: "/"})).
+		Add(app.NewResource("create", schemaService.Create, &app.Meta{Post: "/"})).
+		Add(app.NewResource("detail", schemaService.Detail, &app.Meta{
+			Get:  "/:name",
+			Args: app.Args{"name": createArg(app.TypeString, "The schema name")},
+		})).
+		Add(app.NewResource("update", schemaService.Update, &app.Meta{
+			Put:  "/:name",
+			Args: app.Args{"name": createArg(app.TypeString, "The schema name")},
+		})).
+		Add(app.NewResource("delete", schemaService.Delete, &app.Meta{
+			Delete: "/:name",
+			Args:   app.Args{"name": createArg(app.TypeString, "The schema name")},
+		}))
 
-	a.api.Group("content").
-		Add(app.NewResource("list", contentService.List, app.Meta{app.GET: "/:schema"})).
-		Add(app.NewResource("detail", contentService.Detail, app.Meta{app.GET: "/:schema/:id"})).
-		Add(app.NewResource("create", contentService.Create, app.Meta{app.POST: "/:schema"})).
-		Add(app.NewResource("update", contentService.Update, app.Meta{app.PUT: "/:schema/:id"})).
-		Add(app.NewResource("delete", contentService.Delete, app.Meta{app.DELETE: "/:schema/:id"}))
+	a.api.Group("content", &app.Meta{
+		Prefix: "/content/:schema",
+		Args: app.Args{
+			"schema": {
+				Required:    true,
+				Type:        app.TypeString,
+				Description: "The schema name",
+			},
+		},
+	}).
+		Add(app.NewResource("list", contentService.List, &app.Meta{Get: "/"})).
+		Add(app.NewResource("detail", contentService.Detail, &app.Meta{
+			Get:  "/:id",
+			Args: app.Args{"id": createArg(app.TypeUint64, "The content ID")},
+		})).
+		Add(app.NewResource("create", contentService.Create, &app.Meta{Post: "/"})).
+		Add(app.NewResource("update", contentService.Update, &app.Meta{
+			Put:  "/:id",
+			Args: app.Args{"id": createArg(app.TypeUint64, "The content ID")},
+		})).
+		Add(app.NewResource("delete", contentService.Delete, &app.Meta{
+			Delete: "/:id",
+			Args:   app.Args{"id": createArg(app.TypeUint64, "The content ID")},
+		}))
 
 	a.api.Group("role").
-		Add(app.NewResource("list", roleService.List, app.Meta{app.GET: ""})).
-		Add(app.NewResource("resources", roleService.ResourcesList, app.Meta{app.GET: "/resources"})).
-		Add(app.NewResource("detail", roleService.Detail, app.Meta{app.GET: "/:id"})).
-		Add(app.NewResource("create", roleService.Create, app.Meta{app.POST: ""})).
-		Add(app.NewResource("update", roleService.Update, app.Meta{app.PUT: "/:id"})).
-		Add(app.NewResource("delete", roleService.Delete, app.Meta{app.DELETE: "/:id"}))
+		Add(app.NewResource("list", roleService.List, &app.Meta{Get: "/"})).
+		Add(app.NewResource("resources", roleService.ResourcesList, &app.Meta{
+			Get: "/resources",
+		})).
+		Add(app.NewResource("detail", roleService.Detail, &app.Meta{
+			Get:  "/:id",
+			Args: app.Args{"id": createArg(app.TypeUint64, "The role ID")},
+		})).
+		Add(app.NewResource("create", roleService.Create, &app.Meta{Post: "/"})).
+		Add(app.NewResource("update", roleService.Update, &app.Meta{
+			Put:  "/:id",
+			Args: app.Args{"id": createArg(app.TypeUint64, "The role ID")},
+		})).
+		Add(app.NewResource("delete", roleService.Delete, &app.Meta{
+			Delete: "/:id",
+			Args:   app.Args{"id": createArg(app.TypeUint64, "The role ID")},
+		}))
 
 	a.api.Group("media").
-		Add(app.NewResource("upload", mediaService.Upload, app.Meta{app.POST: "/upload"})).
-		Add(app.NewResource("delete", mediaService.Delete, app.Meta{app.DELETE: ""}))
+		Add(app.NewResource("upload", mediaService.Upload, &app.Meta{Post: "/upload"})).
+		Add(app.NewResource("delete", mediaService.Delete, &app.Meta{Delete: "/"}))
 
 	a.api.Group("tool").
-		Add(app.NewResource("stats", toolService.Stats, app.Meta{app.GET: "/stats"}, true))
+		Add(app.NewResource("stats", toolService.Stats, &app.Meta{
+			Get:    "/stats",
+			Public: true,
+		}))
+
+	a.resources.Group("docs").
+		Add(app.NewResource("spec", func(c app.Context, _ any) (any, error) {
+			return a.CreateOpenAPISpec()
+		}, &app.Meta{Get: "/openapi.json"})).
+		Add(app.NewResource("viewer", func(c app.Context, _ any) (any, error) {
+			header := make(http.Header)
+			header.Set("Content-Type", "text/html")
+
+			return &app.HTTPResponse{
+				StatusCode: http.StatusOK,
+				Header:     header,
+				Body: []byte(utils.CreateSwaggerUIPage(
+					a.config.BaseURL + "/docs/openapi.json",
+				)),
+			}, nil
+		}, &app.Meta{Get: "/"}))
 
 	return nil
 }
@@ -591,7 +703,7 @@ func (a *App) getAppDir() {
 	}()
 
 	if a.config.Dir == "" {
-		a.dir = CWD
+		a.dir = a.cwd
 		return
 	}
 
@@ -600,7 +712,7 @@ func (a *App) getAppDir() {
 		return
 	}
 
-	a.dir = path.Join(CWD, a.config.Dir)
+	a.dir = path.Join(a.cwd, a.config.Dir)
 }
 
 func (a *App) prepareConfig() (err error) {

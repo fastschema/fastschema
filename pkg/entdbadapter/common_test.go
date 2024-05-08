@@ -1,6 +1,7 @@
 package entdbadapter
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -277,4 +278,44 @@ func TestNOW(t *testing.T) {
 	unsupportedResult := NOW("unsupported")
 	assert.NotNil(t, unsupportedResult)
 	// Add assertions for the expected unsupported result
+}
+
+func TestCreateDebugFN(t *testing.T) {
+	mockLogger := app.CreateMockLogger(true)
+	config := &app.DBConfig{
+		LogQueries: true,
+		Logger:     mockLogger,
+	}
+
+	type TraceID string
+	ctx := context.WithValue(context.Background(), TraceID("trace_id"), "12345")
+	debugFn := CreateDebugFN(config)
+
+	debugFn(ctx, 1, 2, 3)
+	assert.Contains(t, mockLogger.Last().String(), "[1 2 3]")
+}
+
+func TestCloneMigrateTableWithNewName(t *testing.T) {
+	// Create a sample table
+	table := &atlasSchema.Table{
+		Name:        "table",
+		Schema:      &atlasSchema.Schema{},
+		Columns:     []*atlasSchema.Column{},
+		Indexes:     []*atlasSchema.Index{},
+		PrimaryKey:  &atlasSchema.Index{},
+		ForeignKeys: []*atlasSchema.ForeignKey{},
+		Attrs:       []atlasSchema.Attr{},
+	}
+
+	// Clone the table with a new name
+	clone := cloneMigrateTableWithNewName(table, "newTable")
+
+	// Verify that the cloned table has the same values as the original
+	assert.Equal(t, "newTable", clone.Name)
+	assert.Equal(t, table.Schema, clone.Schema)
+	assert.Equal(t, table.Columns, clone.Columns)
+	assert.Equal(t, table.Indexes, clone.Indexes)
+	assert.Equal(t, table.PrimaryKey, clone.PrimaryKey)
+	assert.Equal(t, table.ForeignKeys, clone.ForeignKeys)
+	assert.Equal(t, table.Attrs, clone.Attrs)
 }

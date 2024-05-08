@@ -5,7 +5,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/errors"
 )
 
-func (rs *RoleService) Create(c app.Context, _ *any) (*app.Role, error) {
+func (rs *RoleService) Create(c app.Context, _ any) (*app.Role, error) {
 	entity, err := c.Entity()
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())

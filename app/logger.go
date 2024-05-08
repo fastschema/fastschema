@@ -2,7 +2,7 @@ package app
 
 import "fmt"
 
-type LogContext Map
+type LogContext = map[string]any
 
 type Logger interface {
 	Info(...any)

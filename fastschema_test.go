@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/app"
@@ -61,7 +62,7 @@ func TestFastSchemaCustomDirRelative(t *testing.T) {
 	app, err := fastschema.New(config)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, path.Join(fastschema.CWD, config.Dir), app.Dir())
+	assert.Equal(t, path.Join(app.CWD(), config.Dir), app.Dir())
 }
 
 // Case 3: Test app custom dir with empty path
@@ -71,7 +72,7 @@ func TestFastSchemaCustomDirDefault(t *testing.T) {
 	app, err := fastschema.New(config)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, fastschema.CWD, app.Dir())
+	assert.Equal(t, app.CWD(), app.Dir())
 }
 
 func TestFastSchemaPrepareConfig(t *testing.T) {
@@ -250,8 +251,8 @@ func TestFastschemaSetup(t *testing.T) {
 
 func TestFastschemaResources(t *testing.T) {
 	clearEnvs(t)
-	var a = &fastschema.App{}
 	var err error
+	a := &fastschema.App{}
 	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb, func() *app.Hooks {
 		return a.Hooks()
@@ -289,13 +290,13 @@ func TestFastschemaResources(t *testing.T) {
 		return entities, nil
 	})
 
-	a.AddResource(app.NewResource("test", func(c app.Context, _ *any) (any, error) {
+	a.AddResource(app.NewResource("test", func(c app.Context, _ any) (any, error) {
 		return "test", nil
-	}, true))
+	}, &app.Meta{Public: true}))
 
-	a.AddResource(app.NewResource("error", func(c app.Context, _ *any) (any, error) {
+	a.AddResource(app.NewResource("error", func(c app.Context, _ any) (any, error) {
 		return "test", nil
-	}, true))
+	}, &app.Meta{Public: true}))
 
 	resources := a.Resources()
 	assert.NotNil(t, resources)
@@ -316,7 +317,21 @@ func TestFastschemaResources(t *testing.T) {
 	assert.Equal(t, 500, resp.StatusCode)
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `error_from_middleware`)
 
-	// Setup
+	// Setup empty token
+	req = httptest.NewRequest("POST", "/api/setup", bytes.NewReader([]byte(`{"token":""}`)))
+	resp = utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 403, resp.StatusCode)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Invalid setup data or token`)
+
+	// Setup invalid token
+	req = httptest.NewRequest("POST", "/api/setup", bytes.NewReader([]byte(`{"token":"aaaaa"}`)))
+	resp = utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 403, resp.StatusCode)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Invalid setup data or token`)
+
+	// Setup success
 	setupToken := utils.Must(a.SetupToken())
 	req = httptest.NewRequest("POST", "/api/setup", bytes.NewReader([]byte(`{
 		"token":"`+setupToken+`",
@@ -347,4 +362,55 @@ func TestFastschemaResources(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"id":1`)
+
+	// Setup not available
+	req = httptest.NewRequest("POST", "/api/setup", bytes.NewReader([]byte(`{"token":"aaaaa"}`)))
+	resp = utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 400, resp.StatusCode)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Setup token is not available`)
+
+	// Test openapi spec
+	req = httptest.NewRequest("GET", "/docs/openapi.json", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `FastSchema OAS3`)
+
+	// Test swagger ui
+	req = httptest.NewRequest("GET", "/docs/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `/docs/openapi.json`)
+}
+
+func TestFastschemaStart(t *testing.T) {
+	clearEnvs(t)
+	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
+	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb, func() *app.Hooks {
+		return &app.Hooks{}
+	}))
+	config := &fastschema.AppConfig{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+		DB:                db,
+		Port:              "8080",
+	}
+	a, err := fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, a)
+
+	// Test Start
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		a2, err := fastschema.New(config)
+		assert.NoError(t, err)
+		assert.Error(t, a2.Start())
+		assert.NoError(t, a.Shutdown())
+	}()
+
+	assert.NoError(t, a.Start())
 }
