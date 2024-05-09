@@ -266,3 +266,18 @@ func NewEntityFromMap(data map[string]any) *Entity {
 
 	return entity
 }
+
+func EntityToStruct[T any](e *Entity, t *T) (*T, error) {
+	jsonData, err := json.Marshal(e)
+	if err != nil {
+		return nil, err
+	}
+
+	var j T
+	if err := json.Unmarshal(jsonData, &j); err != nil {
+		fmt.Println("llllll", err)
+		return nil, err
+	}
+	return &j, nil
+
+}
