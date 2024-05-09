@@ -275,7 +275,6 @@ func EntityToStruct[T any](e *Entity, t *T) (*T, error) {
 
 	var j T
 	if err := json.Unmarshal(jsonData, &j); err != nil {
-		fmt.Println("llllll", err)
 		return nil, err
 	}
 	return &j, nil
