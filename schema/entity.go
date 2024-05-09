@@ -279,5 +279,4 @@ func EntityToStruct[T any](e *Entity, t *T) (*T, error) {
 		return nil, err
 	}
 	return &j, nil
-
 }
