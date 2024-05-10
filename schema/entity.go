@@ -274,6 +274,6 @@ func EntityToStruct[T any](e *Entity) (T, error) {
 		return j, err
 	}
 
-	_ := json.Unmarshal(jsonData, &j)
+	_ = json.Unmarshal(jsonData, &j)
 	return j, nil
 }
