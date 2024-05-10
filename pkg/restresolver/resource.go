@@ -38,13 +38,6 @@ func (r *RestSolver) init(logger app.Logger) *RestSolver {
 		Logger:  logger,
 	})
 
-	for _, staticResource := range r.staticFSs {
-		r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
-			Root:       staticResource.Root,
-			PathPrefix: staticResource.PathPrefix,
-		}))
-	}
-
 	for _, middleware := range r.resourceManager.Middlewares {
 		middlewares = append(middlewares, func(c *Context) error {
 			if err := middleware(c); err != nil {
@@ -67,6 +60,13 @@ func (r *RestSolver) init(logger app.Logger) *RestSolver {
 	}
 
 	r.server.Use(middlewares...)
+	for _, staticResource := range r.staticFSs {
+		r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
+			Root:       staticResource.Root,
+			PathPrefix: staticResource.PathPrefix,
+		}))
+	}
+
 	manager := r.server.Group(r.resourceManager.Name(), nil)
 
 	var getHooks = func() *app.Hooks {
@@ -94,23 +94,24 @@ func (r *RestSolver) Shutdown() error {
 	return r.server.App.Shutdown()
 }
 
+type MethodData struct {
+	Path    string
+	Handler func(path string, handler Handler, resources ...*app.Resource)
+}
+
 func registerResourceRoutes(
 	resources []*app.Resource,
 	router *Router,
 	getHooks func() *app.Hooks,
 ) {
-	methodMapper := map[string]func(string, Handler, ...*app.Resource){
-		app.GET:     router.Get,
-		app.POST:    router.Post,
-		app.PUT:     router.Put,
-		app.DELETE:  router.Delete,
-		app.PATCH:   router.Patch,
-		app.OPTIONS: router.Options,
-	}
-
 	for _, r := range resources {
 		if r.IsGroup() {
-			group := router.Group(r.Name(), r)
+			groupPrefix := r.Name()
+			if r.Meta() != nil && r.Meta().Prefix != "" {
+				groupPrefix = r.Meta().Prefix
+			}
+
+			group := router.Group(groupPrefix, r)
 			registerResourceRoutes(r.Resources(), group, getHooks)
 
 			continue
@@ -118,12 +119,43 @@ func registerResourceRoutes(
 
 		meta := r.Meta()
 		path := r.Name()
-		handler := methodMapper[app.GET]
+		handler := router.Get
 
-		for matchedMethod, matchedHandler := range methodMapper {
-			if _, ok := meta[matchedMethod]; ok {
-				handler = matchedHandler
-				path = meta[matchedMethod].(string)
+		if meta != nil {
+			methods := []MethodData{{
+				Path:    meta.Get,
+				Handler: router.Get,
+			}, {
+				Path:    meta.Head,
+				Handler: router.Head,
+			}, {
+				Path:    meta.Post,
+				Handler: router.Post,
+			}, {
+				Path:    meta.Put,
+				Handler: router.Put,
+			}, {
+				Path:    meta.Delete,
+				Handler: router.Delete,
+			}, {
+				Path:    meta.Connect,
+				Handler: router.Connect,
+			}, {
+				Path:    meta.Options,
+				Handler: router.Options,
+			}, {
+				Path:    meta.Trace,
+				Handler: router.Trace,
+			}, {
+				Path:    meta.Patch,
+				Handler: router.Patch,
+			}}
+
+			for _, method := range methods {
+				if method.Path != "" {
+					handler = method.Handler
+					path = method.Path
+				}
 			}
 		}
 
@@ -159,6 +191,31 @@ func registerResourceRoutes(
 
 						return c.JSON(result)
 					}
+				}
+
+				// Send raw bytes
+				bytes, ok := result.Data.([]byte)
+				if ok {
+					return c.Send(bytes)
+				}
+
+				// Send http response
+				httpResponse, ok := result.Data.(*app.HTTPResponse)
+				if ok {
+					status := httpResponse.StatusCode
+					if status == 0 {
+						status = fiber.StatusOK
+					}
+
+					if httpResponse.Header != nil {
+						for key, values := range httpResponse.Header {
+							for _, value := range values {
+								c.Set(key, value)
+							}
+						}
+					}
+
+					return c.Status(status).Send(httpResponse.Body)
 				}
 
 				return c.JSON(result)

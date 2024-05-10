@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -75,4 +76,35 @@ func TestFieldDBClone(t *testing.T) {
 	assert.Equal(t, field.Collation, clone.Collation)
 	assert.Equal(t, field.Increment, clone.Increment)
 	assert.Equal(t, field.Key, clone.Key)
+}
+
+func TestFieldTypeStructType(t *testing.T) {
+	tests := []struct {
+		name      string
+		fieldType FieldType
+		expected  reflect.Type
+	}{
+		{
+			name:      "String FieldType",
+			fieldType: TypeString,
+			expected:  reflect.TypeOf(""),
+		},
+		{
+			name:      "Bool FieldType",
+			fieldType: TypeBool,
+			expected:  reflect.TypeOf(true),
+		},
+		{
+			name:      "Invalid FieldType",
+			fieldType: endFieldTypes + 1,
+			expected:  reflect.TypeOf(nil),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := tt.fieldType.StructType()
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
 }

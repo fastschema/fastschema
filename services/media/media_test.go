@@ -50,8 +50,12 @@ func createMediaService(t *testing.T) (*ms.MediaService, *rr.Server) {
 		return c.Next()
 	})
 	resources.Group("media").
-		Add(app.NewResource("upload", mediaService.Upload, app.Meta{app.POST: "/upload"})).
-		Add(app.NewResource("delete", mediaService.Delete, app.Meta{app.DELETE: ""}))
+		Add(app.NewResource("upload", mediaService.Upload, &app.Meta{
+			Post: "/upload",
+		})).
+		Add(app.NewResource("delete", mediaService.Delete, &app.Meta{
+			Delete: "/",
+		}))
 	assert.NoError(t, resources.Init())
 	restResolver := rr.NewRestResolver(resources, app.CreateMockLogger(true))
 

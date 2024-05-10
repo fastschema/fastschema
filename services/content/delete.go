@@ -4,9 +4,10 @@ import (
 	"github.com/fastschema/fastschema/app"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 )
 
-func (cs *ContentService) Delete(c app.Context, _ *any) (any, error) {
+func (cs *ContentService) Delete(c app.Context, _ any) (any, error) {
 	model, err := cs.DB().Model(c.Arg("schema"))
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
@@ -25,5 +26,5 @@ func (cs *ContentService) Delete(c app.Context, _ *any) (any, error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	return nil, nil
+	return schema.NewEntity(uint64(id)), nil
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (rs *RoleService) Detail(c app.Context, _ *any) (*schema.Entity, error) {
+func (rs *RoleService) Detail(c app.Context, _ any) (*schema.Entity, error) {
 	roleID := c.ArgInt("id")
 	model, err := rs.DB().Model("role")
 	if err != nil {

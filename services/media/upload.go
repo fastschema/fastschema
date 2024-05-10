@@ -6,7 +6,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (m *MediaService) Upload(c app.Context, _ *any) (_ *app.Map, err error) {
+func (m *MediaService) Upload(c app.Context, _ any) (_ app.Map, err error) {
 	uploadedFiles := make([]*app.File, 0)
 	errorFiles := make([]*app.File, 0)
 
@@ -35,7 +35,7 @@ func (m *MediaService) Upload(c app.Context, _ *any) (_ *app.Map, err error) {
 		}
 	}
 
-	return &app.Map{
+	return app.Map{
 		"success": uploadedFiles,
 		"error":   errorFiles,
 	}, nil

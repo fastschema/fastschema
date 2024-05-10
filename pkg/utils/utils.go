@@ -438,3 +438,31 @@ func MergeErrorMessages(errs ...error) error {
 
 	return errors.New(strings.Join(messages, ", "))
 }
+
+// Capitalize the first letter of the given string
+func Capitalize(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// CreateSwaggerUIPage creates a simple HTML page that serves the Swagger UI
+func CreateSwaggerUIPage(specURL string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Fastschema Open OAS 3.1</title>
+	<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+<script>window.onload = () => {
+	window.ui = SwaggerUIBundle({url: '%s',dom_id: '#swagger-ui'});
+};</script>
+</body>
+</html>`, specURL)
+}

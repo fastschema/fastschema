@@ -45,3 +45,16 @@ func CreateContext(r *app.Resource, c *fiber.Ctx, logger app.Logger) *Context {
 		logger:   logger,
 	}
 }
+
+func GetHandlerInfo(handler Handler, logger app.Logger, resources ...*app.Resource) (string, []fiber.Handler) {
+	var r *app.Resource
+	name := ""
+	if len(resources) > 0 {
+		name = resources[0].Name()
+		r = resources[0]
+	}
+
+	handlers := TransformHandlers(r, []Handler{handler}, logger)
+
+	return name, handlers
+}

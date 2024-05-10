@@ -69,8 +69,6 @@ func TestResourceInitErrorName(t *testing.T) {
 
 type testContext struct{}
 
-var testInput = &TestResourceInput{Field1: "test"}
-
 func (c *testContext) ID() string               { return "test" }
 func (c *testContext) User() *app.User          { return nil }
 func (c *testContext) Value(string, ...any) any { return nil }
@@ -101,9 +99,7 @@ func TestNewResource(t *testing.T) {
 	r := app.NewResource(
 		"test",
 		ResourceResolver1,
-		app.Map{"key": "value"},
-		true,
-		app.Signature{&TestResourceInput{}, &TestResourceInput{}},
+		&app.Meta{Get: "/get"},
 	)
 	assert.NotNil(t, r, "Resource should not be nil")
 
@@ -112,18 +108,19 @@ func TestNewResource(t *testing.T) {
 	resolver := r.Resolver()
 	result, err := resolver(c)
 	assert.NoError(t, err, "Resolver should not return an error")
-	assert.Equal(t, testInput, result, "Resolver should return the input")
+	assert.Equal(t, (*TestResourceInput)(nil), result, "Resolver should return the input")
 }
 
 func TestNewResourceResolveError(t *testing.T) {
 	r := app.NewResource(
 		"test",
 		func(c app.Context, input *string) (*string, error) {
-			return input, nil
+			return input, errors.New("error")
 		},
-		app.Map{"key": "value"},
-		true,
-		app.Signature{&TestResourceInput{}, &TestResourceInput{}},
+		&app.Meta{
+			Get:    "/get",
+			Public: true,
+		},
 	)
 	assert.NotNil(t, r, "Resource should not be nil")
 
@@ -155,8 +152,33 @@ func TestRemoveResource(t *testing.T) {
 	assert.Nil(t, result, "Resource should be removed")
 }
 
+func TestResourcesManagerClone(t *testing.T) {
+	rs := &app.ResourcesManager{
+		Resource:    &app.Resource{},
+		Middlewares: []app.Middleware{func(c app.Context) error { return nil }},
+		Hooks:       func() *app.Hooks { return nil },
+	}
+
+	clone := rs.Clone()
+
+	// Assert that the cloned ResourcesManager is not the same instance as the original
+	assert.NotEqual(t, rs, clone)
+
+	// Assert that the cloned ResourcesManager has the same Resource instance as the original
+	assert.Equal(t, rs.Resource, clone.Resource)
+
+	// Assert that the cloned ResourcesManager has the same number of Middlewares as the original
+	assert.Len(t, clone.Middlewares, len(rs.Middlewares))
+
+	// Assert that the cloned ResourcesManager has the same Middleware instances as the original
+	assert.Len(t, clone.Middlewares, len(rs.Middlewares))
+
+	// Assert that the cloned ResourcesManager has the same Hooks instance as the original
+	assert.NotNil(t, clone.Hooks)
+}
+
 func TestResourceClone(t *testing.T) {
-	rs1 := app.NewResource("resource1", ResourceResolver1)
+	rs1 := app.NewResource("resource1", ResourceResolver1, &app.Meta{Get: "/get"})
 	rs2 := app.NewResource("resource2", ResourceResolver1)
 	rs1 = rs1.Add(rs2)
 	rsClone := rs1.Clone()
@@ -167,24 +189,29 @@ func TestResourceClone(t *testing.T) {
 
 func TestAddResource(t *testing.T) {
 	r := app.NewResource("parent", ResourceResolver1)
-	extras := []interface{}{
-		app.Meta{"key": "value"},
-		app.Signature{"param1", "param2"},
-		true,
+	signatures := app.Signatures{"a", "a"}
+	meta := &app.Meta{
+		Get:        "/get",
+		Public:     true,
+		Signatures: signatures,
 	}
 
 	resolver := func(c app.Context) (any, error) {
 		return nil, nil
 	}
 
-	r.AddResource("child", resolver, extras...)
+	r.AddResource("child", resolver, meta)
 	child := r.Find("parent.child")
 
 	assert.NotNil(t, child, "Resource should not be nil")
 	assert.Equal(t, "child", child.Name(), "Resource name should be 'child'")
-	assert.Equal(t, app.Meta{"key": "value"}, child.Meta(), "Resource meta should match")
-	assert.True(t, child.WhiteListed(), "Resource should be a white list")
+	assert.Equal(t, "/get", child.Meta().Get, "Resource meta should match")
+	assert.True(t, child.IsPublic(), "Resource should be a white list")
 	assert.Contains(t, r.Resources(), child, "Resource should be added to the parent's resources")
+	assert.Equal(t, signatures, child.Signature(), "Resource signature should match")
+
+	nonPublicResource := app.NewResource("non-public", ResourceResolver1)
+	assert.False(t, nonPublicResource.IsPublic(), "Resource should not be a white list")
 }
 
 func TestResourceResolver(t *testing.T) {
@@ -206,8 +233,10 @@ func TestGroup(t *testing.T) {
 	child1 := app.NewResource("child1", ResourceResolver1)
 	child2 := app.NewResource("child2", ResourceResolver1)
 
-	group := r.Group("group", child1, child2)
+	group := r.Group("group", &app.Meta{Prefix: "/group"})
+	group.Add(child1, child2)
 
+	assert.Equal(t, "[group] /group", group.String(), "String representation should match the expected value")
 	assert.NotNil(t, group, "Group should not be nil")
 	assert.Equal(t, "group", group.Name(), "Group name should be 'group'")
 	assert.True(t, group.IsGroup(), "Group should be a group resource")
@@ -217,9 +246,19 @@ func TestGroup(t *testing.T) {
 }
 
 func TestResourceString(t *testing.T) {
-	r := app.NewResource("test", ResourceResolver1, app.Meta{"key": "value"})
+	r := app.NewResource("test", ResourceResolver1, &app.Meta{
+		Get:     "/get",
+		Head:    "/head",
+		Post:    "/post",
+		Put:     "/put",
+		Delete:  "/delete",
+		Trace:   "/trace",
+		Options: "/options",
+		Connect: "/connect",
+		Patch:   "/patch",
+	})
 
-	expected := "[test] - map[key:value]"
+	expected := "- test - GET: /get, HEAD: /head, POST: /post, PUT: /put, DELETE: /delete, CONNECT: /connect, OPTIONS: /options, TRACE: /trace, PATCH: /patch"
 	result := r.String()
 
 	assert.Equal(t, expected, result, "String representation should match the expected value")
@@ -232,15 +271,16 @@ func TestGroupResourceString(t *testing.T) {
 	r.Add(child1)
 	r.Add(child2)
 
-	assert.Equal(t, "[]", r.String(), "String representation should match the expected value")
-	assert.Equal(t, "[child1]", child1.String(), "String representation should match the expected value")
-	assert.Equal(t, "[child2]", child2.String(), "String representation should match the expected value")
+	assert.Equal(t, "[root] /", r.String(), "String representation should match the expected value")
+	assert.Equal(t, "- child1", child1.String(), "String representation should match the expected value")
+	assert.Equal(t, "- child2", child2.String(), "String representation should match the expected value")
 }
 func TestPrint(t *testing.T) {
 	rs := app.NewResource("test", ResourceResolver1)
 	child1 := app.NewResource("child1", ResourceResolver1)
 	child2 := app.NewResource("child2", ResourceResolver1)
-	rs.Group("group", child1, child2)
+	g := rs.Group("group")
+	g.Add(child1, child2)
 
 	backupStdOut := os.Stdout
 	r, w, _ := os.Pipe()
@@ -258,16 +298,20 @@ func TestPrint(t *testing.T) {
 	w.Close()
 	os.Stdout = backupStdOut
 	out := <-outputChannel
-	expectedOutput := "[test]\n  [group]\n    [child1]\n    [child2]\n"
+	expectedOutput := "- test\n  [group] /group\n    - child1\n    - child2\n"
 	assert.Equal(t, expectedOutput, out, "Print output should match the expected output")
 }
+
 func TestResourceMarshalJSON(t *testing.T) {
 	rm := app.NewResourcesManager()
-	r1 := app.NewResource("test", ResourceResolver1, app.Meta{"key": "value"}, true)
+	r1 := app.NewResource("test", ResourceResolver1, &app.Meta{
+		Get:    "/get",
+		Public: true,
+	})
 	rm.Add(r1)
 	child := app.NewResource("child", ResourceResolver1)
 	r1.Add(child)
-	expected := `{"id":"","name":"","group":true,"resources":[{"id":"test","name":"test","meta":{"key":"value"},"whitelist":true,"resources":[{"id":"test.child","name":"child"}]}]}`
+	expected := `{"id":"","name":"","group":true,"resources":[{"id":"test","name":"test","meta":{"get":"/get","public":true},"resources":[{"id":"test.child","name":"child"}]}]}`
 	result, err := rm.MarshalJSON()
 	assert.NoError(t, err, "MarshalJSON should not return an error")
 	assert.Equal(t, expected, string(result), "Marshalled JSON should match the expected value")

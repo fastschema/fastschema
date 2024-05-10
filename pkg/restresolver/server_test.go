@@ -89,11 +89,14 @@ func TestServerMethods(t *testing.T) {
 	server := restresolver.New(restresolver.Config{})
 	methodsMap := map[string]func(path string, handler restresolver.Handler, resources ...*app.Resource){
 		"GET":     server.Get,
+		"HEAD":    server.Head,
 		"POST":    server.Post,
 		"PUT":     server.Put,
 		"DELETE":  server.Delete,
-		"PATCH":   server.Patch,
+		"CONNECT": server.Connect,
 		"OPTIONS": server.Options,
+		"TRACE":   server.Trace,
+		"PATCH":   server.Patch,
 	}
 
 	for method, methodFunc := range methodsMap {
@@ -110,10 +113,13 @@ func TestServerMethods(t *testing.T) {
 }
 
 func TestServerListen(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
+	config := restresolver.Config{
+		Logger: app.CreateMockLogger(true),
+	}
+	server := restresolver.New(config)
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		server2 := restresolver.New(restresolver.Config{})
+		server2 := restresolver.New(config)
 		err := server2.Listen(":8080")
 		assert.Error(t, err)
 		assert.NoError(t, server.App.Shutdown())

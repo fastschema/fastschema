@@ -7,7 +7,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (ss *SchemaService) List(c app.Context, _ *any) ([]*schema.Schema, error) {
+func (ss *SchemaService) List(c app.Context, _ any) ([]*schema.Schema, error) {
 	builder, err := schema.NewBuilderFromDir(ss.app.SchemaBuilder().Dir())
 	if err != nil {
 		return nil, err

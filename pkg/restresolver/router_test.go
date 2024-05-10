@@ -42,12 +42,14 @@ func TestRouterMethods(t *testing.T) {
 	router := server.Group("user", nil)
 	methodsMap := map[string]func(path string, handler restresolver.Handler, resources ...*app.Resource){
 		"GET":     router.Get,
+		"HEAD":    router.Head,
 		"POST":    router.Post,
 		"PUT":     router.Put,
 		"DELETE":  router.Delete,
-		"PATCH":   router.Patch,
+		"CONNECT": router.Connect,
 		"OPTIONS": router.Options,
-		"HEAD":    router.Head,
+		"TRACE":   router.Trace,
+		"PATCH":   router.Patch,
 	}
 
 	for method, methodFunc := range methodsMap {

@@ -888,3 +888,35 @@ func TestMergeErrorMessages(t *testing.T) {
 	expected4 := "error 1, error 2, error 3"
 	assert.EqualError(t, result4, expected4)
 }
+
+func TestCapitalize(t *testing.T) {
+	// Test case 1
+	input1 := "hello"
+	expected1 := "Hello"
+	result1 := Capitalize(input1)
+	assert.Equal(t, expected1, result1)
+
+	// Test case 2
+	input2 := "world"
+	expected2 := "World"
+	result2 := Capitalize(input2)
+	assert.Equal(t, expected2, result2)
+
+	// Test case 3
+	input3 := "foo bar"
+	expected3 := "Foo bar"
+	result3 := Capitalize(input3)
+	assert.Equal(t, expected3, result3)
+
+	// Test case 4
+	input4 := ""
+	expected4 := ""
+	result4 := Capitalize(input4)
+	assert.Equal(t, expected4, result4)
+}
+
+func TestCreateSwaggerUIPage(t *testing.T) {
+	specURL := "https://example.com/swagger.json"
+	result := CreateSwaggerUIPage(specURL)
+	assert.Contains(t, result, specURL)
+}

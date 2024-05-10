@@ -6,7 +6,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
-func (rs *RoleService) Delete(c app.Context, _ *any) (any, error) {
+func (rs *RoleService) Delete(c app.Context, _ any) (any, error) {
 	id := c.ArgInt("id")
 
 	if id <= 3 {

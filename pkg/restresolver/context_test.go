@@ -106,7 +106,7 @@ func TestContextParse(t *testing.T) {
 
 func TestContextResource(t *testing.T) {
 	server := restresolver.New(restresolver.Config{})
-	resource := app.NewResource("test", func(c app.Context, _ *any) (*any, error) {
+	resource := app.NewResource("test", func(c app.Context, _ any) (*any, error) {
 		return nil, nil
 	})
 	server.Get("/test", func(c *restresolver.Context) error {
@@ -144,7 +144,7 @@ func TestContextAuthToken(t *testing.T) {
 }
 
 func TestContextMethods(t *testing.T) {
-	resource := app.NewResource("test_resource", func(c app.Context, _ *any) (*any, error) {
+	resource := app.NewResource("test_resource", func(c app.Context, _ any) (*any, error) {
 		return nil, nil
 	})
 	server := restresolver.New(restresolver.Config{

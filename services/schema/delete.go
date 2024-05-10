@@ -7,7 +7,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/errors"
 )
 
-func (ss *SchemaService) Delete(c app.Context, _ *any) (app.Map, error) {
+func (ss *SchemaService) Delete(c app.Context, _ any) (app.Map, error) {
 	schemaName := c.Arg("name")
 	s, err := ss.app.SchemaBuilder().Schema(schemaName)
 	if err != nil {

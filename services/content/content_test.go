@@ -42,11 +42,21 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 	contentService := cs.New(&testApp{sb: sb, db: db})
 	resources := app.NewResourcesManager()
 	resources.Group("content").
-		Add(app.NewResource("list", contentService.List, app.Meta{app.GET: "/:schema"})).
-		Add(app.NewResource("detail", contentService.Detail, app.Meta{app.GET: "/:schema/:id"})).
-		Add(app.NewResource("create", contentService.Create, app.Meta{app.POST: "/:schema"})).
-		Add(app.NewResource("update", contentService.Update, app.Meta{app.PUT: "/:schema/:id"})).
-		Add(app.NewResource("delete", contentService.Delete, app.Meta{app.DELETE: "/:schema/:id"}))
+		Add(app.NewResource("list", contentService.List, &app.Meta{
+			Get: "/:schema",
+		})).
+		Add(app.NewResource("detail", contentService.Detail, &app.Meta{
+			Get: "/:schema/:id",
+		})).
+		Add(app.NewResource("create", contentService.Create, &app.Meta{
+			Post: "/:schema",
+		})).
+		Add(app.NewResource("update", contentService.Update, &app.Meta{
+			Put: "/:schema/:id",
+		})).
+		Add(app.NewResource("delete", contentService.Delete, &app.Meta{
+			Delete: "/:schema/:id",
+		}))
 
 	assert.NoError(t, resources.Init())
 	restResolver := rr.NewRestResolver(resources, app.CreateMockLogger(true))

@@ -23,13 +23,32 @@ type Config struct {
 func New(config Config) *Server {
 	app := fiber.New(fiber.Config{
 		AppName:               config.AppName,
-		StrictRouting:         true,
+		StrictRouting:         false,
 		CaseSensitive:         true,
 		EnablePrintRoutes:     false,
 		DisableStartupMessage: true,
 		JSONEncoder:           config.JSONEncoder,
 		// Prefork:       true,
 		// Immutable:     true,
+	})
+
+	app.Hooks().OnListen(func(listenData fiber.ListenData) error {
+		if fiber.IsChild() {
+			return nil
+		}
+		scheme := "http"
+		if listenData.TLS {
+			scheme = "https"
+		}
+		address := scheme + "://" + listenData.Host + ":" + listenData.Port
+		config.Logger.Info("Server listening on " + address)
+
+		return nil
+	})
+
+	app.Hooks().OnShutdown(func() error {
+		config.Logger.Info("Server is shutting down")
+		return nil
 	})
 
 	app.Use(compress.New(compress.Config{
@@ -96,67 +115,46 @@ func (s *Server) Static(prefix, root string, configs ...StaticConfig) {
 }
 
 func (s *Server) Get(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
+	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Get(path, handlers...).Name(name)
 }
 
+func (s *Server) Head(path string, handler Handler, resources ...*app.Resource) {
+	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
+	s.App.Head(path, handlers...).Name(name)
+}
+
 func (s *Server) Post(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
+	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Post(path, handlers...).Name(name)
 }
 
 func (s *Server) Put(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
+	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Put(path, handlers...).Name(name)
 }
 
 func (s *Server) Delete(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
+	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Delete(path, handlers...).Name(name)
 }
 
-func (s *Server) Patch(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
-	s.App.Patch(path, handlers...).Name(name)
+func (s *Server) Connect(path string, handler Handler, resources ...*app.Resource) {
+	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
+	s.App.Connect(path, handlers...).Name(name)
 }
 
 func (s *Server) Options(path string, handler Handler, resources ...*app.Resource) {
-	var r *app.Resource
-	name := ""
-	if len(resources) > 0 {
-		name = resources[0].Name()
-		r = resources[0]
-	}
-	handlers := TransformHandlers(r, []Handler{handler}, s.logger)
+	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Options(path, handlers...).Name(name)
+}
+
+func (s *Server) Trace(path string, handler Handler, resources ...*app.Resource) {
+	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
+	s.App.Trace(path, handlers...).Name(name)
+}
+
+func (s *Server) Patch(path string, handler Handler, resources ...*app.Resource) {
+	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
+	s.App.Patch(path, handlers...).Name(name)
 }

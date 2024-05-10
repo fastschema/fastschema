@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"time"
 )
 
 const FieldID = "id"
@@ -51,7 +53,7 @@ func (f *FieldDB) Clone() *FieldDB {
 	}
 }
 
-// FieltType define the data type of a field
+// FieldType define the data type of a field
 type FieldType int
 
 const (
@@ -136,6 +138,33 @@ var (
 		"relation": TypeRelation,
 		"media":    TypeMedia,
 	}
+
+	fieldTypeToStringsToStructTypes = [...]reflect.Type{
+		TypeInvalid: nil,
+		TypeBool:    reflect.TypeOf(bool(false)),
+		TypeTime:    reflect.TypeOf(time.Time{}),
+		TypeJSON:    reflect.TypeOf([]byte{}),
+		TypeUUID:    reflect.TypeOf([16]byte{}),
+		TypeBytes:   reflect.TypeOf([]byte{}),
+		TypeEnum:    reflect.TypeOf(FieldEnum{}),
+		TypeString:  reflect.TypeOf(string("")),
+		TypeText:    reflect.TypeOf(string("")),
+		TypeInt:     reflect.TypeOf(int(0)),
+		TypeInt8:    reflect.TypeOf(int8(0)),
+		TypeInt16:   reflect.TypeOf(int16(0)),
+		TypeInt32:   reflect.TypeOf(int32(0)),
+		TypeInt64:   reflect.TypeOf(int64(0)),
+		TypeUint:    reflect.TypeOf(uint(0)),
+		// TypeUintptr:  reflect.TypeOf(uintptr(0)),
+		TypeUint8:    reflect.TypeOf(uint8(0)),
+		TypeUint16:   reflect.TypeOf(uint16(0)),
+		TypeUint32:   reflect.TypeOf(uint32(0)),
+		TypeUint64:   reflect.TypeOf(uint64(0)),
+		TypeFloat32:  reflect.TypeOf(float32(0)),
+		TypeFloat64:  reflect.TypeOf(float64(0)),
+		TypeRelation: reflect.TypeOf(&Relation{}),
+		TypeMedia:    reflect.TypeOf(&Relation{}),
+	}
 )
 
 func (t FieldType) IsRelationType() bool {
@@ -148,6 +177,14 @@ func (t FieldType) String() string {
 		return fieldTypeToStrings[t]
 	}
 	return fieldTypeToStrings[TypeInvalid]
+}
+
+// StructType returns the reflect.Type of the field type
+func (t FieldType) StructType() reflect.Type {
+	if t < endFieldTypes {
+		return fieldTypeToStringsToStructTypes[t]
+	}
+	return fieldTypeToStringsToStructTypes[TypeInvalid]
 }
 
 // Valid reports if the given type if known type.

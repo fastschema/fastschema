@@ -50,7 +50,7 @@ func (s TestApp) Resources() *app.ResourcesManager {
 }
 
 func createRoleTest() *TestApp {
-	schemaDir := os.TempDir()
+	schemaDir := utils.Must(os.MkdirTemp("", "schema"))
 	utils.WriteFile(schemaDir+"/blog.json", `{
 		"name": "blog",
 		"namespace": "blogs",
@@ -146,41 +146,59 @@ func createRoleTest() *TestApp {
 	}
 	testApp.resources.Middlewares = append(testApp.resources.Middlewares, testApp.roleService.ParseUser)
 	testApp.resources.Group("role").
-		Add(app.NewResource("list", testApp.roleService.List, app.Meta{app.GET: ""})).
-		Add(app.NewResource("resources", testApp.roleService.ResourcesList, app.Meta{app.GET: "/resources"})).
-		Add(app.NewResource("detail", testApp.roleService.Detail, app.Meta{app.GET: "/:id"})).
-		Add(app.NewResource("create", testApp.roleService.Create, app.Meta{app.POST: ""})).
-		Add(app.NewResource("update", testApp.roleService.Update, app.Meta{app.PUT: "/:id"})).
-		Add(app.NewResource("delete", testApp.roleService.Delete, app.Meta{app.DELETE: "/:id"}))
+		Add(app.NewResource("list", testApp.roleService.List, &app.Meta{
+			Get: "/",
+		})).
+		Add(app.NewResource("resources", testApp.roleService.ResourcesList, &app.Meta{
+			Get: "/resources",
+		})).
+		Add(app.NewResource("detail", testApp.roleService.Detail, &app.Meta{
+			Get: "/:id",
+		})).
+		Add(app.NewResource("create", testApp.roleService.Create, &app.Meta{
+			Post: "/",
+		})).
+		Add(app.NewResource("update", testApp.roleService.Update, &app.Meta{
+			Put: "/:id",
+		})).
+		Add(app.NewResource("delete", testApp.roleService.Delete, &app.Meta{
+			Delete: "/:id",
+		}))
 
 	testApp.resources.Group("content").
-		Add(app.NewResource("list", func(c app.Context, _ *any) (any, error) {
+		Add(app.NewResource("list", func(c app.Context, _ any) (any, error) {
 			return "blog list", nil
-		}, app.Meta{app.GET: "/:schema"})).
-		Add(app.NewResource("detail", func(c app.Context, _ *any) (any, error) {
+		}, &app.Meta{
+			Get: "/:schema",
+		})).
+		Add(app.NewResource("detail", func(c app.Context, _ any) (any, error) {
 			return "blog detail", nil
-		}, app.Meta{app.GET: "/:schema/:id"})).
-		Add(app.NewResource("meta", func(c app.Context, _ *any) (any, error) {
+		}, &app.Meta{
+			Get: "/:schema/:id",
+		})).
+		Add(app.NewResource("meta", func(c app.Context, _ any) (any, error) {
 			return "blog meta", nil
-		}, app.Meta{app.GET: "/:schema/meta"}))
+		}, &app.Meta{
+			Get: "/:schema/meta",
+		}))
 
 	testApp.resources.
 		Add(
-			app.NewResource("testuser", func(c app.Context, _ *any) (any, error) {
+			app.NewResource("testuser", func(c app.Context, _ any) (any, error) {
 				return c.User(), nil
-			}, true),
+			}, &app.Meta{Public: true}),
 		).
 		Add(
-			app.NewResource("test", func(c app.Context, _ *any) (any, error) {
+			app.NewResource("test", func(c app.Context, _ any) (any, error) {
 				return "test response", nil
-			}, true),
+			}, &app.Meta{Public: true}),
 		)
 
 	if err := testApp.resources.Init(); err != nil {
 		panic(err)
 	}
 
-	testApp.server = rr.NewRestResolver(testApp.resources, app.CreateMockLogger(true)).Server()
+	testApp.server = rr.NewRestResolver(testApp.resources, app.CreateMockLogger()).Server()
 
 	return testApp
 }

@@ -30,7 +30,9 @@ func TestToolServiceError(t *testing.T) {
 
 	resources := app.NewResourcesManager()
 	resources.Group("tool").
-		Add(app.NewResource("stats", toolService.Stats, app.Meta{app.GET: "/stats"}))
+		Add(app.NewResource("stats", toolService.Stats, &app.Meta{
+			Get: "/stats",
+		}))
 
 	assert.NoError(t, resources.Init())
 	restResolver := restresolver.NewRestResolver(resources, app.CreateMockLogger(true))
@@ -53,7 +55,9 @@ func TestToolService(t *testing.T) {
 
 	resources := app.NewResourcesManager()
 	resources.Group("tool").
-		Add(app.NewResource("stats", toolService.Stats, app.Meta{app.GET: "/stats"}))
+		Add(app.NewResource("stats", toolService.Stats, &app.Meta{
+			Get: "/stats",
+		}))
 
 	assert.NoError(t, resources.Init())
 	restResolver := restresolver.NewRestResolver(resources, app.CreateMockLogger(true))
