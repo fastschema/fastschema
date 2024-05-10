@@ -368,3 +368,352 @@ func TestEntityUnmarshalJSONErrorArrayEach(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "Unknown value type", err.Error())
 }
+
+func TestEntityToStruct(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+
+	group := NewEntity()
+	group.Set("id", 1)
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+
+	// option 1 to set slice of struct
+	structElem1 := NewEntity()
+	structElem1.Set("name", "name 1")
+	structElem2 := NewEntity()
+	structElem2.Set("name", "name 2")
+	entity.Set("sliceStruct", []*Entity{structElem1, structElem2})
+
+	// option 2 to set slice of struct
+	// entity.Set("sliceStruct", []struct {
+	// 	Name string `json:"name"`
+	// }{
+	// 	{Name: "name 1"},
+	// 	{Name: "name 2"},
+	// })
+
+	type TestSliceStruct struct {
+		Name string `json:"name"`
+	}
+
+	entity.Set("colors", map[string]string{
+		"red":   "#ff0000",
+		"green": "#00ff00",
+		"blue":  "#0000ff",
+	})
+
+	// entity.Set("colors", NewEntity().
+	// 	Set("red", "#f00000").
+	// 	Set("green", "#00ff00").
+	// 	Set("blue", "#0000ff"),
+	// )
+
+	type TestStruct struct {
+		Name        string             `json:"name"`
+		Age         int                `json:"age"`
+		Skills      []string           `json:"skills"`
+		SliceStruct []*TestSliceStruct `json:"sliceStruct"`
+		Group       struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"group"`
+
+		Colors map[string]string `json:"colors"`
+	}
+
+	expected := TestStruct{
+		Name:   "John",
+		Age:    30,
+		Skills: []string{"Go", "Python", "Java"},
+		Group: struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   1,
+			Name: "Admin",
+		},
+		SliceStruct: []*TestSliceStruct{
+			{Name: "name 1"},
+			{Name: "name 2"},
+		},
+		Colors: map[string]string{
+			"red":   "#ff0000",
+			"green": "#00ff00",
+			"blue":  "#0000ff",
+		},
+	}
+
+	result, err := EntityToStruct[TestStruct](entity)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+// TestEntityToStructWithMapOfSliceOfStruct
+
+func TestEntityToStructWithMapOfSliceOfStruct(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+
+	group := NewEntity()
+	group.Set("id", 1)
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+
+	entity.Set("colors", map[string]string{
+		"red":   "#ff0000",
+		"green": "#00ff00",
+		"blue":  "#0000ff",
+	})
+
+	// entity.Set("colors", map[string][]map[string]string{
+	// 	"primary": {
+	// 		{"name": "Red", "code": "#ff0000"},
+	// 		{"name": "Green", "code": "#00ff00"},
+	// 		{"name": "Blue", "code": "#0000ff"},
+	// 	},
+	// 	"secondary": {
+	// 		{"name": "Yellow", "code": "#ffff00"},
+	// 		{"name": "Cyan", "code": "#00ffff"},
+	// 		{"name": "Magenta", "code": "#ff00ff"},
+	// 	},
+	// })
+
+	entity.Set("colors", NewEntity().
+		Set("primary", []*Entity{
+			NewEntity().Set("name", "Red").Set("code", "#ff0000"),
+			NewEntity().Set("name", "Green").Set("code", "#00ff00"),
+			NewEntity().Set("name", "Blue").Set("code", "#0000ff"),
+		}).
+		Set("secondary", []*Entity{
+			NewEntity().Set("name", "Yellow").Set("code", "#ffff00"),
+			NewEntity().Set("name", "Cyan").Set("code", "#00ffff"),
+			NewEntity().Set("name", "Magenta").Set("code", "#ff00ff"),
+		}),
+	)
+
+	type Color struct {
+		Name string
+		Code string
+	}
+	// entity.Set("colors", map[string][]Color{
+	// 	"primary": {
+	// 		{"Red", "#ff0000"},
+	// 		{"Green", "#00ff00"},
+	// 		{"Blue", "#0000ff"},
+	// 	},
+	// 	"secondary": {
+	// 		{"Yellow", "#ffff00"},
+	// 		{"Cyan", "#00ffff"},
+	// 		{"Magenta", "#ff00ff"},
+	// 	},
+	// })
+
+	type TestStruct struct {
+		Name   string   `json:"name"`
+		Age    int      `json:"age"`
+		Skills []string `json:"skills"`
+		Group  struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"group"`
+
+		Colors map[string][]*Color `json:"colors"`
+	}
+
+	expected := TestStruct{
+		Name:   "John",
+		Age:    30,
+		Skills: []string{"Go", "Python", "Java"},
+		Group: struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   1,
+			Name: "Admin",
+		},
+		Colors: map[string][]*Color{
+			"primary": {
+				{"Red", "#ff0000"},
+				{"Green", "#00ff00"},
+				{"Blue", "#0000ff"},
+			},
+			"secondary": {
+				{"Yellow", "#ffff00"},
+				{"Cyan", "#00ffff"},
+				{"Magenta", "#ff00ff"},
+			},
+		},
+	}
+
+	result, err := EntityToStruct[TestStruct](entity)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+// TestEntityToStructWithNestedStruct
+func TestEntityToStructWithNestedStruct(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+
+	group := NewEntity()
+	group.Set("id", 1)
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+
+	colors := NewEntity()
+	colors.Set("primary", []*Entity{
+		NewEntity().Set("name", "Red").Set("code", "#ff0000"),
+		NewEntity().Set("name", "Green").Set("code", "#00ff00"),
+		NewEntity().Set("name", "Blue").Set("code", "#0000ff"),
+	})
+	colors.Set("secondary", []*Entity{
+		NewEntity().Set("name", "Yellow").Set("code", "#ffff00"),
+		NewEntity().Set("name", "Cyan").Set("code", "#00ffff"),
+		NewEntity().Set("name", "Magenta").Set("code", "#ff00ff"),
+	})
+	entity.Set("colors", colors)
+
+	type Color struct {
+		Name string `json:"name"`
+		Code string `json:"code"`
+	}
+
+	type Group struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+
+	type TestStruct struct {
+		Name   string   `json:"name"`
+		Age    int      `json:"age"`
+		Skills []string `json:"skills"`
+		Group  Group    `json:"group"`
+
+		Colors struct {
+			Primary   []*Color `json:"primary"`
+			Secondary []*Color `json:"secondary"`
+		} `json:"colors"`
+	}
+
+	expected := TestStruct{
+		Name:   "John",
+		Age:    30,
+		Skills: []string{"Go", "Python", "Java"},
+		Group: Group{
+			ID:   1,
+			Name: "Admin",
+		},
+		Colors: struct {
+			Primary   []*Color `json:"primary"`
+			Secondary []*Color `json:"secondary"`
+		}{
+			Primary: []*Color{
+				{Name: "Red", Code: "#ff0000"},
+				{Name: "Green", Code: "#00ff00"},
+				{Name: "Blue", Code: "#0000ff"},
+			},
+			Secondary: []*Color{
+				{Name: "Yellow", Code: "#ffff00"},
+				{Name: "Cyan", Code: "#00ffff"},
+				{Name: "Magenta", Code: "#ff00ff"},
+			},
+		},
+	}
+
+	result, err := EntityToStruct[TestStruct](entity)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestEntityToStructWithMissingFields(t *testing.T) {
+	entity := NewEntity()
+	// set missing name field
+	// entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+
+	group := NewEntity()
+
+	group.Set("id", 1)
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+
+	// option 1 to set slice of struct
+	structElem1 := NewEntity()
+	structElem1.Set("name", "name 1")
+	structElem2 := NewEntity()
+	structElem2.Set("name", "name 2")
+	entity.Set("sliceStruct", []*Entity{structElem1, structElem2})
+
+	type TestSliceStruct struct {
+		Name string `json:"name"`
+	}
+
+	entity.Set("colors", map[string]string{
+		"red":   "#ff0000",
+		"green": "#00ff00",
+		"blue":  "#0000ff",
+	})
+
+	type TestStruct struct {
+		Name        string             `json:"name,omitempty"`
+		Age         int                `json:"age"`
+		Skills      []string           `json:"skills"`
+		SliceStruct []*TestSliceStruct `json:"sliceStruct"`
+		Group       struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"group"`
+
+		Colors map[string]string `json:"colors"`
+	}
+
+	expected := TestStruct{
+		// Name:   "",
+		Age:    30,
+		Skills: []string{"Go", "Python", "Java"},
+		Group: struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   1,
+			Name: "Admin",
+		},
+		SliceStruct: []*TestSliceStruct{
+			{Name: "name 1"},
+			{Name: "name 2"},
+		},
+		Colors: map[string]string{
+			"red":   "#ff0000",
+			"green": "#00ff00",
+			"blue":  "#0000ff",
+		},
+	}
+
+	result, err := EntityToStruct[TestStruct](entity)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+func TestEntityToStruct_MarshalError(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+
+	// Set an invalid value to trigger marshaling error
+	entity.Set("group", make(chan int))
+
+	type StructType struct {
+		Name string `json:"name"`
+	}
+	_, err := EntityToStruct[StructType](entity)
+	assert.Error(t, err)
+}
