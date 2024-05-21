@@ -25,6 +25,22 @@ type FieldRenderer struct {
 	Settings map[string]any `json:"settings,omitempty"` // renderer settings.
 }
 
+func (fr *FieldRenderer) Clone() *FieldRenderer {
+	if fr == nil {
+		return nil
+	}
+
+	settings := make(map[string]any)
+	for k, v := range fr.Settings {
+		settings[k] = v
+	}
+
+	return &FieldRenderer{
+		Class:    fr.Class,
+		Settings: settings,
+	}
+}
+
 // FieldDB define the db config for a field
 type FieldDB struct {
 	Attr      string `json:"attr,omitempty"`      // extra attributes.
@@ -80,7 +96,7 @@ const (
 	TypeFloat32
 	TypeFloat64
 	TypeRelation
-	TypeMedia
+	TypeFile
 	endFieldTypes
 )
 
@@ -109,7 +125,26 @@ var (
 		TypeFloat32:  "float32",
 		TypeFloat64:  "float64",
 		TypeRelation: "relation",
-		TypeMedia:    "media",
+		TypeFile:     "file",
+	}
+
+	atomicTypes = []FieldType{
+		TypeBool,
+		TypeString,
+		TypeText,
+		TypeInt,
+		TypeInt8,
+		TypeInt16,
+		TypeInt32,
+		TypeInt64,
+		TypeUint,
+		TypeUint8,
+		TypeUint16,
+		TypeUint32,
+		TypeUint64,
+		TypeFloat32,
+		TypeFloat64,
+		TypeTime,
 	}
 
 	stringToFieldTypes = map[string]FieldType{
@@ -136,7 +171,7 @@ var (
 		"float32":  TypeFloat32,
 		"float64":  TypeFloat64,
 		"relation": TypeRelation,
-		"media":    TypeMedia,
+		"file":     TypeFile,
 	}
 
 	fieldTypeToStringsToStructTypes = [...]reflect.Type{
@@ -163,12 +198,53 @@ var (
 		TypeFloat32:  reflect.TypeOf(float32(0)),
 		TypeFloat64:  reflect.TypeOf(float64(0)),
 		TypeRelation: reflect.TypeOf(&Relation{}),
-		TypeMedia:    reflect.TypeOf(&Relation{}),
+		TypeFile:     reflect.TypeOf(&Relation{}),
+	}
+
+	reflectTypesToFieldType = map[reflect.Type]FieldType{
+		reflect.TypeOf(bool(false)):  TypeBool,
+		reflect.TypeOf(time.Time{}):  TypeTime,
+		reflect.TypeOf(&time.Time{}): TypeTime,
+		reflect.TypeOf([]byte{}):     TypeJSON,
+		reflect.TypeOf([16]byte{}):   TypeUUID,
+		reflect.TypeOf([]byte{}):     TypeBytes,
+		reflect.TypeOf(FieldEnum{}):  TypeEnum,
+		reflect.TypeOf(string("")):   TypeString,
+		reflect.TypeOf(int(0)):       TypeInt,
+		reflect.TypeOf(int8(0)):      TypeInt8,
+		reflect.TypeOf(int16(0)):     TypeInt16,
+		reflect.TypeOf(int32(0)):     TypeInt32,
+		reflect.TypeOf(int64(0)):     TypeInt64,
+		reflect.TypeOf(uint(0)):      TypeUint,
+		reflect.TypeOf(uint8(0)):     TypeUint8,
+		reflect.TypeOf(uint16(0)):    TypeUint16,
+		reflect.TypeOf(uint32(0)):    TypeUint32,
+		reflect.TypeOf(uint64(0)):    TypeUint64,
+		reflect.TypeOf(float32(0)):   TypeFloat32,
+		reflect.TypeOf(float64(0)):   TypeFloat64,
+		// reflect.TypeOf(&Relation{}):  TypeRelation,
+		// reflect.TypeOf(&Relation{}):  TypeFile,
 	}
 )
 
+func FieldTypeFromReflectType(t reflect.Type) FieldType {
+	if f, ok := reflectTypesToFieldType[t]; ok {
+		return f
+	}
+
+	return TypeInvalid
+}
+
+func FieldTypeFromString(s string) FieldType {
+	if f, ok := stringToFieldTypes[s]; ok {
+		return f
+	}
+
+	return TypeInvalid
+}
+
 func (t FieldType) IsRelationType() bool {
-	return t == TypeRelation || t == TypeMedia
+	return t == TypeRelation || t == TypeFile
 }
 
 // String returns the string representation of a type.
@@ -185,6 +261,16 @@ func (t FieldType) StructType() reflect.Type {
 		return fieldTypeToStringsToStructTypes[t]
 	}
 	return fieldTypeToStringsToStructTypes[TypeInvalid]
+}
+
+// IsAtomic reports if the given type is an atomic type.
+func (t FieldType) IsAtomic() bool {
+	for _, pt := range atomicTypes {
+		if t == pt {
+			return true
+		}
+	}
+	return false
 }
 
 // Valid reports if the given type if known type.
@@ -241,6 +327,14 @@ var (
 		"m2m":     M2M,
 	}
 )
+
+func RelationTypeFromString(s string) RelationType {
+	if f, ok := stringToRelationTypes[s]; ok {
+		return f
+	}
+
+	return RelationInvalid
+}
 
 func (t RelationType) IsO2O() bool {
 	return t == O2O

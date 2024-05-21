@@ -1,6 +1,7 @@
 package entdbadapter
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 	dialectSql "entgo.io/ent/dialect/sql"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ func TestCreateError(t *testing.T) {
 	mut := &Mutation{
 		model: &Model{name: "user"},
 	}
-	_, err := mut.Create(nil)
+	_, err := mut.Create(context.Background(), nil)
 	assert.Equal(t, errors.New("model or schema user not found"), err)
 }
 
@@ -33,7 +34,7 @@ func TestCreateClientIsNotEntClient(t *testing.T) {
 		},
 		client: nil,
 	}
-	_, err := mut.Create(schema.NewEntity())
+	_, err := mut.Create(context.Background(), schema.NewEntity())
 	assert.Equal(t, errors.New("client is not an ent adapter"), err)
 }
 
@@ -87,8 +88,8 @@ func TestMockCreateNode(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	MockRunCreateTests(func(d *sql.DB) app.DBClient {
-		driver := utils.Must(NewEntClient(&app.DBConfig{
+	MockRunCreateTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
@@ -304,8 +305,8 @@ func TestMockCreateNodeEdges(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	MockRunCreateTests(func(d *sql.DB) app.DBClient {
-		driver := utils.Must(NewEntClient(&app.DBConfig{
+	MockRunCreateTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
 			Driver:     "sqlmock",
 			LogQueries: false,
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
@@ -349,8 +350,8 @@ func TestMockCreateNodeWithRelationData(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	MockRunCreateTests(func(d *sql.DB) app.DBClient {
-		driver := utils.Must(NewEntClient(&app.DBConfig{
+	MockRunCreateTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver

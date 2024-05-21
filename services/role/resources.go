@@ -1,8 +1,8 @@
 package roleservice
 
-import "github.com/fastschema/fastschema/app"
+import "github.com/fastschema/fastschema/fs"
 
-func (rs *RoleService) ResourcesList(c app.Context, _ any) ([]*app.Resource, error) {
+func (rs *RoleService) ResourcesList(c fs.Context, _ any) ([]*fs.Resource, error) {
 	// Override the resources to remove the content resource
 	// Add the content resource with the schemas
 	resources := rs.Resources().Clone()
@@ -20,19 +20,19 @@ func (rs *RoleService) ResourcesList(c app.Context, _ any) ([]*app.Resource, err
 		}
 
 		schemaGroup := contentGroup.Group(schema.Name)
-		schemaGroup.AddResource("list", nil, &app.Meta{
+		schemaGroup.AddResource("list", nil, &fs.Meta{
 			Get: "/",
 		})
-		schemaGroup.AddResource("detail", nil, &app.Meta{
+		schemaGroup.AddResource("detail", nil, &fs.Meta{
 			Get: "/:id",
 		})
-		schemaGroup.AddResource("create", nil, &app.Meta{
+		schemaGroup.AddResource("create", nil, &fs.Meta{
 			Post: "/",
 		})
-		schemaGroup.AddResource("update", nil, &app.Meta{
+		schemaGroup.AddResource("update", nil, &fs.Meta{
 			Put: "/:id",
 		})
-		schemaGroup.AddResource("delete", nil, &app.Meta{
+		schemaGroup.AddResource("delete", nil, &fs.Meta{
 			Delete: "/:id",
 		})
 	}

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -35,13 +35,13 @@ func TestNewZapLogger(t *testing.T) {
 }
 
 func TestZapLoggerWithContext(t *testing.T) {
-	logger, err := NewZapLogger(&ZapConfig{})
+	zapLogger, err := NewZapLogger(&ZapConfig{})
 	assert.NoError(t, err)
-	loggerWithContext := logger.WithContext(app.LogContext{"key": "value"})
+	loggerWithContext := zapLogger.WithContext(logger.LogContext{"key": "value"})
 	zapLoggerWithContext, ok := loggerWithContext.(*ZapLogger)
 	assert.True(t, ok)
-	assert.NotEqual(t, logger, loggerWithContext)
-	assert.Equal(t, app.LogContext{"key": "value"}, zapLoggerWithContext.LogContext)
+	assert.NotEqual(t, zapLogger, loggerWithContext)
+	assert.Equal(t, logger.LogContext{"key": "value"}, zapLoggerWithContext.LogContext)
 }
 
 func createLogger(t *testing.T) *ZapLogger {
@@ -168,7 +168,7 @@ func TestGetZapFields(t *testing.T) {
 	assert.Empty(t, fields)
 
 	// Test with single context
-	context := app.LogContext{"key1": "value1", "key2": "value2"}
+	context := logger.LogContext{"key1": "value1", "key2": "value2"}
 	expectedFields := []zapcore.Field{
 		zap.Any("key1", "value1"),
 		zap.Any("key2", "value2"),
@@ -177,7 +177,7 @@ func TestGetZapFields(t *testing.T) {
 	assert.ElementsMatch(t, expectedFields, fields)
 
 	// Test with multiple contexts
-	contexts := []app.LogContext{
+	contexts := []logger.LogContext{
 		{"key1": "value1"},
 		{"key2": "value2"},
 		{"key3": "value3"},

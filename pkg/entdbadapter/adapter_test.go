@@ -6,13 +6,13 @@ import (
 
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAdapterInit(t *testing.T) {
-	config := &app.DBConfig{Driver: "sqlmock"}
+	config := &db.Config{Driver: "sqlmock"}
 	adapter := &Adapter{
 		driver:        nil,
 		sqldb:         nil,

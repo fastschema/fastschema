@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,7 +44,7 @@ func TestContentServiceCreateNormal(t *testing.T) {
 
 	// check if blog is created
 	blogModel := utils.Must(cs.DB().Model("blog"))
-	blog := utils.Must(blogModel.Query(app.EQ("name", "test blog")).First(context.Background()))
+	blog := utils.Must(blogModel.Query(db.EQ("name", "test blog")).First(context.Background()))
 	assert.Equal(t, "test blog", blog.GetString("name"))
 	assert.Equal(t, uint64(1), blog.ID())
 }
@@ -67,7 +67,7 @@ func TestContentServiceCreateUser(t *testing.T) {
 
 	// check if user is created
 	userModel := utils.Must(cs.DB().Model("user"))
-	user := utils.Must(userModel.Query(app.EQ("username", "testuser")).First(context.Background()))
+	user := utils.Must(userModel.Query(db.EQ("username", "testuser")).First(context.Background()))
 	assert.Equal(t, "testuser", user.GetString("username"))
 	assert.NotEqual(t, "testpassword", user.GetString("password"))
 }

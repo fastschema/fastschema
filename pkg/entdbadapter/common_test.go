@@ -8,7 +8,8 @@ import (
 	atlasSchema "ariga.io/atlas/sql/schema"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
@@ -121,7 +122,7 @@ func TestCreateEntColumn(t *testing.T) {
 }
 
 func TestCreateDBDSN(t *testing.T) {
-	config := &app.DBConfig{
+	config := &db.Config{
 		Driver: "mysql",
 		User:   "user",
 		Pass:   "pass",
@@ -148,13 +149,13 @@ func TestCreateDBDSN(t *testing.T) {
 func TestGetEntDialect(t *testing.T) {
 	tests := []struct {
 		name            string
-		config          *app.DBConfig
+		config          *db.Config
 		expectedDialect string
 		expectedError   error
 	}{
 		{
 			name: "Supported driver",
-			config: &app.DBConfig{
+			config: &db.Config{
 				Driver: "mysql",
 			},
 			expectedDialect: "mysql",
@@ -162,7 +163,7 @@ func TestGetEntDialect(t *testing.T) {
 		},
 		{
 			name: "Unsupported driver",
-			config: &app.DBConfig{
+			config: &db.Config{
 				Driver: "mongodb",
 			},
 			expectedDialect: "",
@@ -181,11 +182,11 @@ func TestGetEntDialect(t *testing.T) {
 
 func TestCreateRenameColumnsHook(t *testing.T) {
 	// Define sample rename tables and rename columns
-	renameTables := []*app.RenameItem{
+	renameTables := []*db.RenameItem{
 		{From: "old_table", To: "new_table"},
 		{From: "another_table", To: "renamed_table"},
 	}
-	renameColumns := []*app.RenameItem{
+	renameColumns := []*db.RenameItem{
 		{From: "old_column", To: "new_column"},
 		{From: "another_column", To: "renamed_column"},
 	}
@@ -281,8 +282,8 @@ func TestNOW(t *testing.T) {
 }
 
 func TestCreateDebugFN(t *testing.T) {
-	mockLogger := app.CreateMockLogger(true)
-	config := &app.DBConfig{
+	mockLogger := logger.CreateMockLogger(true)
+	config := &db.Config{
 		LogQueries: true,
 		Logger:     mockLogger,
 	}

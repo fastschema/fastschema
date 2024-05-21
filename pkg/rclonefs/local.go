@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/rclone/rclone/backend/local"
 	"github.com/rclone/rclone/fs/config/configmap"
 )
@@ -22,7 +22,7 @@ type RcloneLocal struct {
 	config *RcloneLocalConfig
 }
 
-func NewLocal(config *RcloneLocalConfig) (app.Disk, error) {
+func NewLocal(config *RcloneLocalConfig) (fs.Disk, error) {
 	rl := &RcloneLocal{
 		config: config,
 		BaseRcloneDisk: &BaseRcloneDisk{

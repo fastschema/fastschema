@@ -1,6 +1,7 @@
 package contentservice_test
 
 import (
+	"context"
 	"fmt"
 	"net/http/httptest"
 	"testing"
@@ -27,7 +28,7 @@ func TestContentServiceDelete(t *testing.T) {
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `no entities found`)
 
 	blogModel := utils.Must(cs.DB().Model("blog"))
-	blogID := utils.Must(blogModel.CreateFromJSON(`{"name": "test blog"}`))
+	blogID := utils.Must(blogModel.CreateFromJSON(context.Background(), `{"name": "test blog"}`))
 
 	// Case 3: success
 	req = httptest.NewRequest("DELETE", fmt.Sprintf("/content/blog/%d", blogID), nil)

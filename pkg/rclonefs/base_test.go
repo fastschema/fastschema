@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/rclone/rclone/backend/local"
 	"github.com/rclone/rclone/fs/config/configmap"
 	"github.com/stretchr/testify/assert"
@@ -46,7 +46,7 @@ func TestBaseRcloneDiskPut(t *testing.T) {
 	}
 
 	// Create a mock file1
-	file1 := &app.File{
+	file1 := &fs.File{
 		Path:   tmpFile,
 		Name:   "test.txt",
 		Reader: mockReader, // Provide a valid reader here
@@ -61,7 +61,7 @@ func TestBaseRcloneDiskPut(t *testing.T) {
 	assert.NotEmpty(t, newFile.URL)
 
 	// Create a mock file1
-	file2 := &app.File{
+	file2 := &fs.File{
 		Path:   "",
 		Name:   "test.txt",
 		Reader: mockReader, // Provide a valid reader here

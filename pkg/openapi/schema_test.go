@@ -3,7 +3,7 @@ package openapi_test
 import (
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/openapi"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -59,7 +59,6 @@ func TestContentDetailSchema(t *testing.T) {
 		Namespace:        "schema",
 		LabelFieldName:   "name",
 		DisableTimestamp: false,
-		DBColumns:        []string{"column1", "column2"},
 		IsSystemSchema:   true,
 		IsJunctionSchema: false,
 		Fields: []*schema.Field{
@@ -87,7 +86,6 @@ func TestContentCreateSchema(t *testing.T) {
 		Namespace:        "schema",
 		LabelFieldName:   "name",
 		DisableTimestamp: false,
-		DBColumns:        []string{"column1", "column2"},
 		IsSystemSchema:   true,
 		IsJunctionSchema: false,
 		Fields: []*schema.Field{
@@ -111,8 +109,8 @@ func TestContentCreateSchema(t *testing.T) {
 }
 
 func TestSchemasToOGenSchemas(t *testing.T) {
-	resources := app.NewResourcesManager()
-	resources.Add(app.NewResource("test", func(c app.Context, _ any) (any, error) {
+	resources := fs.NewResourcesManager()
+	resources.Add(fs.NewResource("test", func(c fs.Context, _ any) (any, error) {
 		return nil, nil
 	}))
 
@@ -120,10 +118,10 @@ func TestSchemasToOGenSchemas(t *testing.T) {
 	oas := utils.Must(openapi.NewSpec(&openapi.OpenAPISpecConfig{
 		Resources: resources,
 	}))
-	assert.NoError(t, oas.SchemasToOGenSchemas())
+	oas.SchemasToOGenSchemas()
 
 	// Case 2: SchemaBuilder is not nil
-	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
+	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
 	roleSchema := utils.Must(sb.Schema("role"))
 	assert.NotNil(t, roleSchema)
 	oas = utils.Must(openapi.NewSpec(&openapi.OpenAPISpecConfig{
@@ -131,7 +129,7 @@ func TestSchemasToOGenSchemas(t *testing.T) {
 		Resources:     resources,
 	}))
 
-	assert.NoError(t, oas.SchemasToOGenSchemas())
+	oas.SchemasToOGenSchemas()
 	ogenSchemaRole := oas.Schema("Schema.Role")
 	ogenSchemaPermission := oas.Schema("Schema.Permission")
 	assert.NotNil(t, ogenSchemaRole)

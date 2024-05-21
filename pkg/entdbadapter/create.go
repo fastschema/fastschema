@@ -1,6 +1,7 @@
 package entdbadapter
 
 import (
+	"context"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -9,7 +10,7 @@ import (
 )
 
 // Create creates a new entity in the database
-func (m *Mutation) Create(e *schema.Entity) (_ uint64, err error) {
+func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err error) {
 	if m.model == nil || m.model.schema == nil {
 		return 0, fmt.Errorf("model or schema %s not found", m.model.name)
 	}
@@ -70,13 +71,13 @@ func (m *Mutation) Create(e *schema.Entity) (_ uint64, err error) {
 		}
 	}
 
-	if err = sqlgraph.CreateNode(m.ctx, entAdapter.Driver(), createSpec); err != nil {
+	if err = sqlgraph.CreateNode(ctx, entAdapter.Driver(), createSpec); err != nil {
 		return 0, err
 	}
 
 	e.SetID(createSpec.ID.Value)
 
-	if !m.skipTx {
+	if m.autoCommit {
 		if err = m.client.Commit(); err != nil {
 			return 0, err
 		}

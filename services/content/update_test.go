@@ -2,11 +2,12 @@ package contentservice_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,7 +29,7 @@ func TestContentServiceUpdate(t *testing.T) {
 	assert.Equal(t, 400, resp.StatusCode)
 
 	blogModel := utils.Must(cs.DB().Model("blog"))
-	blogID := utils.Must(blogModel.CreateFromJSON(`{"name": "test blog"}`))
+	blogID := utils.Must(blogModel.CreateFromJSON(context.Background(), `{"name": "test blog"}`))
 
 	// Case 3: blog entity has invalid field
 	req = httptest.NewRequest(
@@ -61,8 +62,8 @@ func TestContentServiceUpdate(t *testing.T) {
 	)
 
 	userModel := utils.Must(cs.DB().Model("user"))
-	userID := utils.Must(userModel.CreateFromJSON(`{"username": "testuser", "password": "testpassword"}`))
-	user := utils.Must(userModel.Query(app.EQ("id", userID)).First())
+	userID := utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "testuser", "password": "testpassword"}`))
+	user := utils.Must(userModel.Query(db.EQ("id", userID)).First(context.Background()))
 
 	// Case 5: update user without password
 	req = httptest.NewRequest(
@@ -85,6 +86,6 @@ func TestContentServiceUpdate(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"username":"updated"`)
-	userUpdated := utils.Must(userModel.Query(app.EQ("id", userID)).First())
+	userUpdated := utils.Must(userModel.Query(db.EQ("id", userID)).First(context.Background()))
 	assert.NotEqual(t, user.GetString("password"), userUpdated.GetString("password"))
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -147,6 +148,13 @@ func TestSliceEqual(t *testing.T) {
 	expected6 := false
 	result6 := SliceEqual(slice11, slice12)
 	assert.Equal(t, expected6, result6)
+
+	// Test not equal slices
+	slice13 := []int{1, 2, 3, 4, 5}
+	slice14 := []int{1, 2, 3, 4, 6}
+	expected7 := false
+	result7 := SliceEqual(slice13, slice14)
+	assert.Equal(t, expected7, result7)
 }
 
 func TestSliceInsertBeforeElement(t *testing.T) {
@@ -919,4 +927,127 @@ func TestCreateSwaggerUIPage(t *testing.T) {
 	specURL := "https://example.com/swagger.json"
 	result := CreateSwaggerUIPage(specURL)
 	assert.Contains(t, result, specURL)
+}
+
+func TestTitle(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"hello world", "Hello World"},
+		{"hello_world", "Hello World"},
+		{"hello-world", "Hello World"},
+		{"hello   world", "Hello World"},
+		{"", ""},
+	}
+
+	for _, test := range tests {
+		result := Title(test.input)
+		if result != test.expected {
+			t.Errorf("Title(%s) = %s; expected %s", test.input, result, test.expected)
+		}
+	}
+}
+
+func TestCreateSnakeCase(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    "HelloWorld",
+			expected: "hello_world",
+		},
+		{
+			input:    "FastSchema",
+			expected: "fast_schema",
+		},
+		{
+			input:    "CreateSnakeCase",
+			expected: "create_snake_case",
+		},
+		{
+			input:    "APIEndpoint",
+			expected: "api_endpoint",
+		},
+		{
+			input:    "UserID",
+			expected: "user_id",
+		},
+		{
+			input:    "HTTPStatusCode",
+			expected: "http_status_code",
+		},
+	}
+
+	for _, test := range tests {
+		result := ToSnakeCase(test.input)
+		assert.Equal(t, test.expected, result)
+	}
+}
+
+func TestGetStructFieldName(t *testing.T) {
+	type TestStruct struct {
+		Field1 string `json:"field_1"`
+		Field2 int    `json:"field_2,omitempty"`
+		Field3 bool   `json:"-"`
+	}
+
+	field1Name := GetStructFieldName(reflect.TypeOf(TestStruct{}).Field(0))
+	assert.Equal(t, "field_1", field1Name)
+
+	field2Name := GetStructFieldName(reflect.TypeOf(TestStruct{}).Field(1))
+	assert.Equal(t, "field_2", field2Name)
+
+	field3Name := GetStructFieldName(reflect.TypeOf(TestStruct{}).Field(2))
+	assert.Equal(t, "", field3Name)
+}
+
+func TestParseStructFieldTag(t *testing.T) {
+	type TestStruct struct {
+		Field1 string `fs:"name=aaaaa"`
+		Field2 int    `fs:"type=text;name=title;multiple;size=10;unique;;sortable;"`
+	}
+
+	expected1 := map[string]string{"name": "aaaaa"}
+	expected2 := map[string]string{
+		"type":     "text",
+		"name":     "title",
+		"multiple": "",
+		"size":     "10",
+		"unique":   "",
+		"sortable": "",
+	}
+
+	result1 := ParseStructFieldTag(reflect.TypeOf(TestStruct{}).Field(0), "fs")
+	result2 := ParseStructFieldTag(reflect.TypeOf(TestStruct{}).Field(1), "fs")
+
+	assert.Equal(t, expected1, result1)
+	assert.Equal(t, expected2, result2)
+}
+
+func TestParseHJSON(t *testing.T) {
+	type testStruct struct {
+		Name  string `json:"name"`
+		Age   int    `json:"age"`
+		Email string `json:"email"`
+	}
+
+	// Case 1: Invalid input
+	_, err := ParseHJSON[testStruct]([]byte(`{`))
+	assert.Error(t, err)
+
+	// Case 2: Valid input
+	result, err := ParseHJSON[testStruct]([]byte(`{
+		"name": "John",
+		"age": 30,
+		"email": "john@example.com"
+	}`))
+
+	assert.NoError(t, err)
+	assert.Equal(t, testStruct{
+		Name:  "John",
+		Age:   30,
+		Email: "john@example.com",
+	}, result)
 }

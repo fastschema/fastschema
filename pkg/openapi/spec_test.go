@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/openapi"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -28,7 +28,7 @@ func TestGetElemSchema(t *testing.T) {
 
 func TestCreateSliceSchema(t *testing.T) {
 	oas := utils.Must(openapi.NewSpec(&openapi.OpenAPISpecConfig{
-		Resources: app.NewResourcesManager(),
+		Resources: fs.NewResourcesManager(),
 	}))
 
 	// Case 1: slice of string
@@ -61,7 +61,7 @@ func TestCreateSliceSchema(t *testing.T) {
 func TestCreateMapSchema(t *testing.T) {
 	// Case 1: map of any type
 	oas := utils.Must(openapi.NewSpec(&openapi.OpenAPISpecConfig{
-		Resources: app.NewResourcesManager(),
+		Resources: fs.NewResourcesManager(),
 	}))
 	dtType := reflect.TypeOf(map[string]any{})
 	mapSchema := oas.CreateMapSchema(dtType)
@@ -86,7 +86,7 @@ func TestCreateMapSchema(t *testing.T) {
 func TestCreateStructSchema(t *testing.T) {
 	// Case 1: struct with no name and fields
 	oas := utils.Must(openapi.NewSpec(&openapi.OpenAPISpecConfig{
-		Resources: app.NewResourcesManager(),
+		Resources: fs.NewResourcesManager(),
 	}))
 	dtType := reflect.TypeOf(struct{}{})
 	structSchema := oas.CreateStructSchema(dtType)
@@ -103,7 +103,7 @@ func TestCreateStructSchema(t *testing.T) {
 
 func TestTypeToOgenSchema(t *testing.T) {
 	oas := utils.Must(openapi.NewSpec(&openapi.OpenAPISpecConfig{
-		Resources: app.NewResourcesManager(),
+		Resources: fs.NewResourcesManager(),
 	}))
 
 	// Test case 1: Type is already an ogen.Schema object
@@ -149,11 +149,10 @@ func TestTypeToOgenSchema(t *testing.T) {
 
 func TestResolveSchemaReferences(t *testing.T) {
 	oas := utils.Must(openapi.NewSpec(&openapi.OpenAPISpecConfig{
-		Resources: app.NewResourcesManager(),
+		Resources: fs.NewResourcesManager(),
 	}))
 
-	err := oas.ResolveSchemaReferences()
-	assert.NoError(t, err)
+	oas.ResolveSchemaReferences()
 
 	type testStruct2 struct {
 		Name string
@@ -171,7 +170,7 @@ func TestResolveSchemaReferences(t *testing.T) {
 	dtType := reflect.TypeOf(testStruct2{})
 	structSchema := oas.CreateStructSchema(dtType)
 	assert.NotNil(t, structSchema)
-	assert.NoError(t, oas.ResolveSchemaReferences())
+	oas.ResolveSchemaReferences()
 
 	testStructSchema := openapi.RefSchema("testStruct")
 	assert.NotNil(t, testStructSchema)

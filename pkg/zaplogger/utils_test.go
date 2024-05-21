@@ -4,40 +4,40 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestZapLoggerGetLogContext(t *testing.T) {
-	logger := &ZapLogger{}
+	zapLogger := &ZapLogger{}
 
 	t.Run("EmptyParams", func(t *testing.T) {
-		msg, contexts := logger.getLogContext()
+		msg, contexts := zapLogger.getLogContext()
 		assert.Equal(t, "", msg)
-		assert.Equal(t, []app.LogContext{}, contexts)
+		assert.Equal(t, []logger.LogContext{}, contexts)
 	})
 
 	t.Run("StringParam", func(t *testing.T) {
-		var logContexts []app.LogContext
+		var logContexts []logger.LogContext
 		params := []any{"message"}
-		msg, contexts := logger.getLogContext(params...)
+		msg, contexts := zapLogger.getLogContext(params...)
 		assert.Equal(t, "message", msg)
 		assert.Equal(t, logContexts, contexts)
 	})
 
 	t.Run("ErrorParam", func(t *testing.T) {
-		var logContexts []app.LogContext
+		var logContexts []logger.LogContext
 		params := []any{errors.New("error message")}
-		msg, contexts := logger.getLogContext(params...)
+		msg, contexts := zapLogger.getLogContext(params...)
 		assert.Equal(t, "error message", msg)
 		assert.Equal(t, logContexts, contexts)
 	})
 
 	t.Run("ParamsWithLogContext", func(t *testing.T) {
 		params := []any{"message", "param1", "param2"}
-		msg, contexts := logger.getLogContext(params...)
+		msg, contexts := zapLogger.getLogContext(params...)
 		assert.Equal(t, "message", msg)
-		expectedContexts := []app.LogContext{
+		expectedContexts := []logger.LogContext{
 			{"params": []any{"param1", "param2"}},
 		}
 		assert.Equal(t, expectedContexts, contexts)

@@ -261,7 +261,7 @@ func main() {
 
 	newApp.OnAfterDBContentList(
     func(query *app.QueryOptions, entities []*schema.Entity) ([]*schema.Entity, error) {
-      if query.Model.Schema().Name != "media" {
+      if query.Model.Schema().Name != "file" {
         return entities, nil
       }
 
@@ -324,6 +324,7 @@ Ent use ariga.io/atlast and it cause error with sqlite (ariga.io/atlas@v0.21.1/s
 Currently, Atlas sqlite driver need to perform copyRows to a temporary table. But it use the `new` column name to copy the rows. This column is not existed in the table, because it's not renamed yet. This will cause the error: `SQL logic error: no such column:`.
 
 The problem seem to be fixed in this PR: https://github.com/ariga/atlas/pull/2672
+
 
 ```bash
 

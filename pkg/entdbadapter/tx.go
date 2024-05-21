@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent/dialect"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -18,12 +18,12 @@ import (
 type Tx struct {
 	ctx    context.Context
 	driver dialect.Driver
-	client app.DBClient
-	config *app.DBConfig
+	client db.Client
+	config *db.Config
 }
 
 // NewTx creates a new transaction.
-func NewTx(ctx context.Context, client app.DBClient) (*Tx, error) {
+func NewTx(ctx context.Context, client db.Client) (*Tx, error) {
 	entAdapter := client.(EntAdapter)
 	driver := entAdapter.Driver()
 	tx, err := driver.Tx(ctx)
@@ -58,11 +58,11 @@ func (tx *Tx) NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, error)
 	return entAdapter.NewEdgeStepOption(r)
 }
 
-func (tx *Tx) Config() *app.DBConfig {
+func (tx *Tx) Config() *db.Config {
 	return tx.config
 }
 
-func (tx *Tx) Hooks() *app.Hooks {
+func (tx *Tx) Hooks() *db.Hooks {
 	return tx.client.Hooks()
 }
 
@@ -78,13 +78,21 @@ func (tx *Tx) SetDriver(driver dialect.Driver) {
 	// This method is only used to satisfy the EntAdapter interface
 }
 
-func (tx *Tx) Migrate(migration *app.Migration, appendEntTables ...*entSchema.Table) (err error) {
+func (tx *Tx) Migrate(
+	ctx context.Context,
+	migration *db.Migration,
+	appendEntTables ...*entSchema.Table,
+) (err error) {
 	return nil
 }
 
 // Reload reloads the schema.
-func (tx *Tx) Reload(newSchemaBuilder *schema.Builder, migration *app.Migration) (app.DBClient, error) {
-	return tx.client.Reload(newSchemaBuilder, migration)
+func (tx *Tx) Reload(
+	ctx context.Context,
+	newSchemaBuilder *schema.Builder,
+	migration *db.Migration,
+) (db.Client, error) {
+	return tx.client.Reload(ctx, newSchemaBuilder, migration)
 }
 
 // SchemaBuilder returns the schema builder.
@@ -93,8 +101,8 @@ func (tx *Tx) SchemaBuilder() *schema.Builder {
 }
 
 // Model returns the model by name.
-func (tx *Tx) Model(name string) (app.Model, error) {
-	m, err := tx.client.Model(name)
+func (tx *Tx) Model(name string, types ...any) (db.Model, error) {
+	m, err := tx.client.Model(name, types...)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +121,7 @@ func (tx *Tx) Driver() dialect.Driver {
 }
 
 // CreateDBModel creates a new model from the schema.
-func (tx *Tx) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) app.Model {
+func (tx *Tx) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.Model {
 	return tx.client.CreateDBModel(s, relations...)
 }
 
@@ -145,7 +153,7 @@ func (tx *Tx) IsTx() bool {
 }
 
 // Tx returns the transaction.
-func (tx *Tx) Tx(ctx context.Context) (t app.DBClient, err error) {
+func (tx *Tx) Tx(ctx context.Context) (t db.Client, err error) {
 	return tx, nil
 }
 

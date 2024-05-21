@@ -1,6 +1,7 @@
 package entdbadapter
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -9,7 +10,8 @@ import (
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +22,7 @@ type MockTestCreateData struct {
 	Name        string
 	Schema      string
 	InputJSON   string
-	Run         func(model app.Model, entity *schema.Entity) error
+	Run         func(model db.Model, entity *schema.Entity) error
 	Expect      func(sqlmock.Sqlmock)
 	ExpectError string
 	Transaction bool
@@ -30,9 +32,9 @@ type MockTestUpdateData struct {
 	Name         string
 	Schema       string
 	InputJSON    string
-	Run          func(model app.Model, entity *schema.Entity) (int, error)
+	Run          func(model db.Model, entity *schema.Entity) (int, error)
 	Expect       func(sqlmock.Sqlmock)
-	Predicates   []*app.Predicate
+	Predicates   []*db.Predicate
 	WantErr      bool
 	WantAffected int
 	Transaction  bool
@@ -41,9 +43,9 @@ type MockTestUpdateData struct {
 type MockTestDeleteData struct {
 	Name         string
 	Schema       string
-	Run          func(model app.Model) (int, error)
+	Run          func(model db.Model) (int, error)
 	Expect       func(sqlmock.Sqlmock)
-	Predicates   []*app.Predicate
+	Predicates   []*db.Predicate
 	WantErr      bool
 	WantAffected int
 	Transaction  bool
@@ -57,8 +59,8 @@ type MockTestCountData struct {
 	Unique bool
 	Expect func(sqlmock.Sqlmock)
 	Run    func(
-		model app.Model,
-		predicates []*app.Predicate,
+		model db.Model,
+		predicates []*db.Predicate,
 		unique bool,
 		column string,
 	) (int, error)
@@ -75,8 +77,8 @@ type MockTestQueryData struct {
 	Order   []string
 	Expect  func(sqlmock.Sqlmock)
 	Run     func(
-		model app.Model,
-		predicates []*app.Predicate,
+		model db.Model,
+		predicates []*db.Predicate,
 		limit, offset uint,
 		order []string,
 		columns ...string,
@@ -88,8 +90,14 @@ type MockTestQueryData struct {
 func createSchemaBuilderFromDir(schemaDir string) *schema.Builder {
 	var err error
 	var sb *schema.Builder
+	var systemSchemas = []any{
+		fs.Role{},
+		fs.Permission{},
+		fs.User{},
+		fs.File{},
+	}
 
-	if sb, err = schema.NewBuilderFromDir(schemaDir); err != nil {
+	if sb, err = schema.NewBuilderFromDir(schemaDir, systemSchemas...); err != nil {
 		panic(err)
 	}
 
@@ -101,17 +109,17 @@ func createSchemaBuilder() *schema.Builder {
 }
 
 func createMockAdapter(t *testing.T) EntAdapter {
-	db, _, err := sqlmock.New()
+	mockDB, _, err := sqlmock.New()
 	assert.NoError(t, err)
 
 	tmpDir, err := os.MkdirTemp("", "migrations")
 	assert.NoError(t, err)
 
 	sb := createSchemaBuilder()
-	client := utils.Must(NewEntClient(&app.DBConfig{
+	client := utils.Must(NewEntClient(&db.Config{
 		Driver:       "sqlmock",
 		MigrationDir: tmpDir,
-	}, sb, dialectSql.OpenDB(dialect.MySQL, db)))
+	}, sb, dialectSql.OpenDB(dialect.MySQL, mockDB)))
 
 	adapter, ok := client.(EntAdapter)
 	assert.True(t, ok)
@@ -244,11 +252,11 @@ var testUserSchemaJSON = `{
 }`
 
 func NewMockExpectClient(
-	createMockClient func(db *sql.DB) app.DBClient,
+	createMockClient func(db *sql.DB) db.Client,
 	s *schema.Builder,
 	beforeCreateClient func(m sqlmock.Sqlmock),
 	expectTransaction bool,
-) (app.DBClient, error) {
+) (db.Client, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -272,7 +280,7 @@ func NewMockExpectClient(
 }
 
 func MockRunCreateTests(
-	createMockClient func(db *sql.DB) app.DBClient,
+	createMockClient func(db *sql.DB) db.Client,
 	sb *schema.Builder,
 	t *testing.T,
 	tests []MockTestCreateData,
@@ -291,8 +299,8 @@ func MockRunCreateTests(
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model app.Model, entity *schema.Entity) error {
-					_, err := model.Mutation().Create(entity)
+				runFn = func(model db.Model, entity *schema.Entity) error {
+					_, err := model.Mutation().Create(context.Background(), entity)
 					return err
 				}
 			}
@@ -308,7 +316,7 @@ func MockRunCreateTests(
 }
 
 func MockRunUpdateTests(
-	createMockClient func(db *sql.DB) app.DBClient,
+	createMockClient func(db *sql.DB) db.Client,
 	sb *schema.Builder,
 	t *testing.T,
 	tests []MockTestUpdateData,
@@ -326,12 +334,12 @@ func MockRunUpdateTests(
 			require.NoError(t, err)
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model app.Model, entity *schema.Entity) (int, error) {
+				runFn = func(model db.Model, entity *schema.Entity) (int, error) {
 					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
-					return mut.Update(entity)
+					return mut.Update(context.Background(), entity)
 				}
 			}
 
@@ -346,7 +354,7 @@ func MockRunUpdateTests(
 }
 
 func MockRunDeleteTests(
-	createMockClient func(db *sql.DB) app.DBClient,
+	createMockClient func(db *sql.DB) db.Client,
 	sb *schema.Builder,
 	t *testing.T,
 	tests []MockTestDeleteData,
@@ -362,12 +370,12 @@ func MockRunDeleteTests(
 			require.NoError(t, err)
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model app.Model) (int, error) {
+				runFn = func(model db.Model) (int, error) {
 					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
-					return mut.Delete()
+					return mut.Delete(context.Background())
 				}
 			}
 
@@ -382,7 +390,7 @@ func MockRunDeleteTests(
 }
 
 func MockRunCountTests(
-	createMockClient func(db *sql.DB) app.DBClient,
+	createMockClient func(db *sql.DB) db.Client,
 	sb *schema.Builder,
 	t *testing.T,
 	tests []MockTestCountData,
@@ -399,8 +407,8 @@ func MockRunCountTests(
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(
-					model app.Model,
-					predicates []*app.Predicate,
+					model db.Model,
+					predicates []*db.Predicate,
 					unique bool,
 					column string,
 				) (int, error) {
@@ -408,18 +416,18 @@ func MockRunCountTests(
 					if len(predicates) > 0 {
 						query = query.Where(predicates...)
 					}
-					countOpts := &app.CountOption{
+					countOpts := &db.CountOption{
 						Unique: unique,
 						Column: column,
 					}
 
-					return query.Count(countOpts)
+					return query.Count(context.Background(), countOpts)
 				}
 			}
 
-			var predicates []*app.Predicate
+			var predicates []*db.Predicate
 			if tt.Filter != "" {
-				predicates, err = app.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
+				predicates, err = db.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
 				require.NoError(t, err)
 			}
 
@@ -438,8 +446,8 @@ func MockRunCountTests(
 }
 
 func MockDefaultQueryRunFn(
-	model app.Model,
-	predicates []*app.Predicate,
+	model db.Model,
+	predicates []*db.Predicate,
 	limit, offset uint,
 	order []string,
 	columns ...string,
@@ -465,11 +473,11 @@ func MockDefaultQueryRunFn(
 		query = query.Select(columns...)
 	}
 
-	return query.Get()
+	return query.Get(context.Background())
 }
 
 func MockRunQueryTests(
-	createMockClient func(db *sql.DB) app.DBClient,
+	createMockClient func(db *sql.DB) db.Client,
 	sb *schema.Builder,
 	t *testing.T,
 	tests []MockTestQueryData,
@@ -489,9 +497,9 @@ func MockRunQueryTests(
 				runFn = MockDefaultQueryRunFn
 			}
 
-			var predicates []*app.Predicate
+			var predicates []*db.Predicate
 			if tt.Filter != "" {
-				predicates, err = app.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
+				predicates, err = db.CreatePredicatesFromFilterObject(sb, model.Schema(), tt.Filter)
 				require.NoError(t, err)
 			}
 

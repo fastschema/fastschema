@@ -1,6 +1,7 @@
 package contentservice_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -65,13 +66,13 @@ func TestContentServiceList(t *testing.T) {
 	// create 10 blog posts
 	blogModel := utils.Must(cs.DB().Model("blog"))
 	for i := 0; i < 10; i++ {
-		utils.Must(blogModel.CreateFromJSON(fmt.Sprintf(`{"name": "test blog %d"}`, i+1)))
+		utils.Must(blogModel.CreateFromJSON(context.Background(), fmt.Sprintf(`{"name": "test blog %d"}`, i+1)))
 	}
 
 	// create 10 blog users
 	userModel := utils.Must(cs.DB().Model("user"))
 	for i := 0; i < 10; i++ {
-		utils.Must(userModel.CreateFromJSON(fmt.Sprintf(`{"username": "user%d", "password": "123"}`, i+1)))
+		utils.Must(userModel.CreateFromJSON(context.Background(), fmt.Sprintf(`{"username": "user%d", "password": "123"}`, i+1)))
 	}
 
 	// Case 2: invalid predicate

@@ -48,6 +48,9 @@ issues:
     - path: pkg/entdbadapter/query.go
       linters:
         - funlen
+    - path: schema/system_test.go
+      linters:
+        - govet
     - path: \.go
       linters:
         - staticcheck

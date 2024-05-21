@@ -1,22 +1,23 @@
 package restresolver
 
 import (
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
 
 type RestSolver struct {
-	resourceManager *app.ResourcesManager
-	staticFSs       []*app.StaticFs
+	resourceManager *fs.ResourcesManager
+	staticFSs       []*fs.StaticFs
 	server          *Server
 }
 
 func NewRestResolver(
-	resourceManager *app.ResourcesManager,
-	logger app.Logger,
-	staticFSs ...*app.StaticFs,
+	resourceManager *fs.ResourcesManager,
+	logger logger.Logger,
+	staticFSs ...*fs.StaticFs,
 ) *RestSolver {
 	rs := &RestSolver{
 		resourceManager: resourceManager,
@@ -26,12 +27,12 @@ func NewRestResolver(
 	return rs.init(logger)
 }
 
-func (r *RestSolver) init(logger app.Logger) *RestSolver {
+func (r *RestSolver) init(logger logger.Logger) *RestSolver {
 	middlewares := []Handler{
 		MiddlewareCors,
 		MiddlewareRecover,
 		MiddlewareRequestID,
-		MiddlewareRequestLog,
+		CreateMiddlewareRequestLog(r.staticFSs),
 	}
 	r.server = New(Config{
 		AppName: "fastschema",
@@ -46,7 +47,7 @@ func (r *RestSolver) init(logger app.Logger) *RestSolver {
 					err = errors.GetErrorByStatus(fiberError.Code, err)
 				}
 
-				result := app.NewResult(nil, err)
+				result := fs.NewResult(nil, err)
 
 				if result.Error != nil && result.Error.Status != 0 {
 					c.Status(result.Error.Status)
@@ -60,6 +61,7 @@ func (r *RestSolver) init(logger app.Logger) *RestSolver {
 	}
 
 	r.server.Use(middlewares...)
+
 	for _, staticResource := range r.staticFSs {
 		r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
 			Root:       staticResource.Root,
@@ -69,8 +71,8 @@ func (r *RestSolver) init(logger app.Logger) *RestSolver {
 
 	manager := r.server.Group(r.resourceManager.Name(), nil)
 
-	var getHooks = func() *app.Hooks {
-		return &app.Hooks{}
+	var getHooks = func() *fs.Hooks {
+		return &fs.Hooks{}
 	}
 
 	if r.resourceManager.Hooks != nil {
@@ -96,13 +98,13 @@ func (r *RestSolver) Shutdown() error {
 
 type MethodData struct {
 	Path    string
-	Handler func(path string, handler Handler, resources ...*app.Resource)
+	Handler func(path string, handler Handler, resources ...*fs.Resource)
 }
 
 func registerResourceRoutes(
-	resources []*app.Resource,
+	resources []*fs.Resource,
 	router *Router,
-	getHooks func() *app.Hooks,
+	getHooks func() *fs.Hooks,
 ) {
 	for _, r := range resources {
 		if r.IsGroup() {
@@ -161,11 +163,11 @@ func registerResourceRoutes(
 
 		hooks := getHooks()
 
-		func(r *app.Resource) {
+		func(r *fs.Resource) {
 			handler(path, func(c *Context) error {
 				for _, hook := range hooks.PreResolve {
 					if err := hook(c); err != nil {
-						result := app.NewResult(nil, err)
+						result := fs.NewResult(nil, err)
 						if result.Error != nil && result.Error.Status != 0 {
 							c.Status(result.Error.Status)
 						}
@@ -174,7 +176,7 @@ func registerResourceRoutes(
 					}
 				}
 
-				result := app.NewResult(r.Resolver()(c))
+				result := fs.NewResult(r.Resolver()(c))
 				if result.Error != nil && result.Error.Status != 0 {
 					c.Status(result.Error.Status)
 				}
@@ -183,7 +185,7 @@ func registerResourceRoutes(
 
 				for _, hook := range hooks.PostResolve {
 					if err := hook(c); err != nil {
-						result := app.NewResult(nil, err)
+						result := fs.NewResult(nil, err)
 
 						if result.Error != nil && result.Error.Status != 0 {
 							c.Status(result.Error.Status)
@@ -200,7 +202,7 @@ func registerResourceRoutes(
 				}
 
 				// Send http response
-				httpResponse, ok := result.Data.(*app.HTTPResponse)
+				httpResponse, ok := result.Data.(*fs.HTTPResponse)
 				if ok {
 					status := httpResponse.StatusCode
 					if status == 0 {

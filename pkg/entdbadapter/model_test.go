@@ -1,6 +1,7 @@
 package entdbadapter
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"testing"
@@ -8,7 +9,7 @@ import (
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -79,8 +80,8 @@ func TestModelCreate(t *testing.T) {
 	assert.Nil(t, json.Unmarshal([]byte(userSchemaJSON), userSchema))
 
 	sb := createSchemaBuilder()
-	createMockClient := func(d *sql.DB) app.DBClient {
-		driver := utils.Must(NewEntClient(&app.DBConfig{
+	createMockClient := func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
@@ -101,7 +102,7 @@ func TestModelCreate(t *testing.T) {
 	require.NoError(t, err)
 	entity, err := schema.NewEntityFromJSON(`{"name": "John", "age": 30}`)
 	assert.NoError(t, err)
-	id, err := model.Create(entity)
+	id, err := model.Create(context.Background(), entity)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), id)
 }
@@ -111,8 +112,8 @@ func TestModelCreateFromJson(t *testing.T) {
 	assert.Nil(t, json.Unmarshal([]byte(userSchemaJSON), userSchema))
 
 	sb := createSchemaBuilder()
-	createMockClient := func(d *sql.DB) app.DBClient {
-		driver := utils.Must(NewEntClient(&app.DBConfig{
+	createMockClient := func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
@@ -132,7 +133,7 @@ func TestModelCreateFromJson(t *testing.T) {
 
 	model, err := client.Model("user")
 	require.NoError(t, err)
-	id, err := model.CreateFromJSON(`{"name": "John", "age": 30}`)
+	id, err := model.CreateFromJSON(context.Background(), `{"name": "John", "age": 30}`)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), id)
 }

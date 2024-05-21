@@ -5,8 +5,9 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 )
 
 type PredicateFN func(*sql.Selector) *sql.Predicate
@@ -15,7 +16,7 @@ type PredicateFN func(*sql.Selector) *sql.Predicate
 func createEntPredicates(
 	entAdapter EntAdapter,
 	model *Model,
-	predicates []*app.Predicate,
+	predicates []*db.Predicate,
 ) (func(*sql.Selector) []*sql.Predicate, error) {
 	var predicateFns = []PredicateFN{}
 
@@ -87,15 +88,15 @@ func createEntPredicates(
 func createRelationsPredicate(
 	entAdapter EntAdapter,
 	model *Model,
-	lastFieldPredicate *app.Predicate,
+	lastFieldPredicate *db.Predicate,
 	relationFieldNames ...string,
 ) (PredicateFN, error) {
 	relationFieldName := relationFieldNames[0]
 	relationFieldNames = relationFieldNames[1:]
-	relationField, err := model.schema.Field(relationFieldName)
+	relationField := model.schema.Field(relationFieldName)
 
-	if err != nil {
-		return nil, err
+	if relationField == nil {
+		return nil, schema.ErrFieldNotFound(model.schema.Name, relationFieldName)
 	}
 
 	relation := relationField.Relation
@@ -138,7 +139,7 @@ func createRelationsPredicate(
 			s2.Where(p(s2))
 		}
 	} else {
-		predFn, err := createEntPredicates(entAdapter, model, []*app.Predicate{lastFieldPredicate})
+		predFn, err := createEntPredicates(entAdapter, model, []*db.Predicate{lastFieldPredicate})
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +157,7 @@ func createRelationsPredicate(
 }
 
 // CreateFieldPredicate convert a predicate to ent predicate
-func CreateFieldPredicate(predicate *app.Predicate) (PredicateFN, error) {
+func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 	var columnWrap = func(field string, selectors ...*sql.Selector) string {
 		if len(selectors) > 0 {
 			return selectors[0].C(field)
@@ -166,37 +167,37 @@ func CreateFieldPredicate(predicate *app.Predicate) (PredicateFN, error) {
 	}
 
 	switch predicate.Operator {
-	case app.OpEQ:
+	case db.OpEQ:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.EQ(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case app.OpNEQ:
+	case db.OpNEQ:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.NEQ(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case app.OpGT:
+	case db.OpGT:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.GT(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case app.OpGTE:
+	case db.OpGTE:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.GTE(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case app.OpLT:
+	case db.OpLT:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.LT(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case app.OpLTE:
+	case db.OpLTE:
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.LTE(columnWrap(predicate.Field), predicate.Value)
 		}, nil
-	case app.OpLIKE:
+	case db.OpLIKE:
 		stringValue, ok := predicate.Value.(string)
 		if !ok {
 			return nil, fmt.Errorf(
 				"value of field %s.%s = %v (%T) must be string",
 				predicate.Field,
-				app.OpLIKE,
+				db.OpLIKE,
 				predicate.Value,
 				predicate.Value,
 			)
@@ -205,7 +206,7 @@ func CreateFieldPredicate(predicate *app.Predicate) (PredicateFN, error) {
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.Like(columnWrap(predicate.Field), stringValue)
 		}, nil
-	case app.OpIN, app.OpNIN:
+	case db.OpIN, db.OpNIN:
 		arrayValue, ok := predicate.Value.([]any)
 		if !ok {
 			return nil, fmt.Errorf(
@@ -218,10 +219,10 @@ func CreateFieldPredicate(predicate *app.Predicate) (PredicateFN, error) {
 		}
 
 		return func(s *sql.Selector) *sql.Predicate {
-			op := utils.If(predicate.Operator == app.OpIN, sql.In, sql.NotIn)
+			op := utils.If(predicate.Operator == db.OpIN, sql.In, sql.NotIn)
 			return op(columnWrap(predicate.Field), arrayValue...)
 		}, nil
-	case app.OpNULL:
+	case db.OpNULL:
 		return func(s *sql.Selector) *sql.Predicate {
 			op := utils.If(predicate.Value == true, sql.IsNull, sql.NotNull)
 			return op(columnWrap(predicate.Field))

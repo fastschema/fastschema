@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +25,7 @@ func TestRouterUse(t *testing.T) {
 	assert.Equal(t, 404, resp.StatusCode)
 	assert.Equal(t, "test", resp.Header.Get("X-Test"))
 
-	router.Group("profile", &app.Resource{}, func(c *restresolver.Context) error {
+	router.Group("profile", &fs.Resource{}, func(c *restresolver.Context) error {
 		return c.JSON("profile")
 	})
 
@@ -40,7 +40,7 @@ func TestRouterUse(t *testing.T) {
 func TestRouterMethods(t *testing.T) {
 	server := restresolver.New(restresolver.Config{})
 	router := server.Group("user", nil)
-	methodsMap := map[string]func(path string, handler restresolver.Handler, resources ...*app.Resource){
+	methodsMap := map[string]func(path string, handler restresolver.Handler, resources ...*fs.Resource){
 		"GET":     router.Get,
 		"HEAD":    router.Head,
 		"POST":    router.Post,
@@ -55,7 +55,7 @@ func TestRouterMethods(t *testing.T) {
 	for method, methodFunc := range methodsMap {
 		methodFunc("/test", func(c *restresolver.Context) error {
 			return c.JSON(method)
-		}, &app.Resource{})
+		}, &fs.Resource{})
 
 		req := httptest.NewRequest(method, "/user/test", nil)
 		resp, err := server.Test(req)

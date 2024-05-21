@@ -7,7 +7,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	ef "entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -20,18 +20,16 @@ type Column struct {
 // Model holds the model data
 type Model struct {
 	name        string
-	ctx         context.Context
-	client      app.DBClient
+	client      db.Client
 	schema      *schema.Schema
 	entTable    *entSchema.Table  `json:"-"`
 	entIDColumn *entSchema.Column `json:"-"`
 	columns     []*Column         `json:"-"`
 }
 
-func (m *Model) Clone() app.Model {
+func (m *Model) Clone() db.Model {
 	return &Model{
 		name:        m.name,
-		ctx:         m.ctx,
 		client:      m.client,
 		schema:      m.schema,
 		entTable:    m.entTable,
@@ -48,7 +46,7 @@ func (m *Model) GetEntTable() *entSchema.Table {
 	return m.entTable
 }
 
-func (m *Model) SetClient(client app.DBClient) app.Model {
+func (m *Model) SetClient(client db.Client) db.Model {
 	m.client = client
 	return m
 }
@@ -81,7 +79,7 @@ func (m *Model) DBColumns() []string {
 }
 
 // Query returns a new query builder for the model
-func (m *Model) Query(predicates ...*app.Predicate) app.Query {
+func (m *Model) Query(predicates ...*db.Predicate) db.Querier {
 	q := &Query{
 		model:           m,
 		client:          m.client,
@@ -115,27 +113,26 @@ func (m *Model) Query(predicates ...*app.Predicate) app.Query {
 }
 
 // Mutation returns a new mutation builder for the model
-func (m *Model) Mutation(skipTxs ...bool) app.Mutation {
+func (m *Model) Mutation() db.Mutator {
 	return &Mutation{
-		client: m.client,
-		ctx:    m.ctx,
-		skipTx: true,
-		model:  m,
+		client:     m.client,
+		autoCommit: false,
+		model:      m,
 	}
 }
 
 // Create creates a new entity
-func (m *Model) Create(e *schema.Entity) (_ uint64, err error) {
-	return m.Mutation().Create(e)
+func (m *Model) Create(ctx context.Context, e *schema.Entity) (_ uint64, err error) {
+	return m.Mutation().Create(ctx, e)
 }
 
 // CreateFromJSON creates a new entity from JSON
-func (m *Model) CreateFromJSON(json string) (_ uint64, err error) {
+func (m *Model) CreateFromJSON(ctx context.Context, json string) (_ uint64, err error) {
 	entity, err := schema.NewEntityFromJSON(json)
 
 	if err != nil {
 		return 0, err
 	}
 
-	return m.Mutation().Create(entity)
+	return m.Mutation().Create(ctx, entity)
 }

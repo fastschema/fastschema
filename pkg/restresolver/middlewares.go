@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/google/uuid"
 )
 
@@ -25,24 +28,36 @@ func MiddlewareRequestID(c *Context) error {
 	return c.Next()
 }
 
-func MiddlewareRequestLog(c *Context) error {
-	start := time.Now()
-	err := c.Next()
-	latency := time.Since(start).Round(time.Millisecond)
-	logContext := app.LogContext{
-		"latency": latency.String(),
-		"status":  c.Response().StatusCode(),
-		"method":  c.Method(),
-		"path":    c.Path(),
-		"ip":      c.IP(),
-	}
+func CreateMiddlewareRequestLog(statics []*fs.StaticFs) func(c *Context) error {
+	ignoreLogPaths := utils.Map(statics, func(s *fs.StaticFs) string {
+		return s.BasePath
+	})
 
-	if err != nil {
-		logContext["error"] = err.Error()
-	}
+	return func(c *Context) error {
+		for _, path := range ignoreLogPaths {
+			if strings.Contains(c.Path(), path) {
+				return c.Next()
+			}
+		}
 
-	c.Logger().Info("Request completed", logContext)
-	return err
+		start := time.Now()
+		err := c.Next()
+		latency := time.Since(start).Round(time.Millisecond)
+		logContext := logger.LogContext{
+			"latency": latency.String(),
+			"status":  c.Response().StatusCode(),
+			"method":  c.Method(),
+			"path":    c.Path(),
+			"ip":      c.IP(),
+		}
+
+		if err != nil {
+			logContext["error"] = err.Error()
+		}
+
+		c.Logger().Info("Request completed", logContext)
+		return err
+	}
 }
 
 func MiddlewareCookie(c *Context) error {
@@ -83,8 +98,8 @@ func MiddlewareRecover(c *Context) error {
 			stack := make([]byte, 4<<10)
 			length := runtime.Stack(stack, true)
 			msg := fmt.Sprintf("%v %s\n", err, stack[:length])
-			c.Logger().Error(msg, app.LogContext{"recovered": true})
-			if err := c.Status(http.StatusBadRequest).JSON(app.Map{"error": err.Error()}); err != nil {
+			c.Logger().Error(msg, logger.LogContext{"recovered": true})
+			if err := c.Status(http.StatusBadRequest).JSON(fs.Map{"error": err.Error()}); err != nil {
 				c.Logger().Error(err)
 			}
 		}

@@ -4,11 +4,11 @@ import (
 	"errors"
 	"path"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 )
 
-func NewFromConfig(diskConfigs []*app.DiskConfig, localRoot string) ([]app.Disk, error) {
-	var disks []app.Disk
+func NewFromConfig(diskConfigs []*fs.DiskConfig, localRoot string) ([]fs.Disk, error) {
+	var disks []fs.Disk
 
 	for _, diskConfig := range diskConfigs {
 		switch diskConfig.Driver {

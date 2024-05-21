@@ -5,21 +5,22 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMiddlewares(t *testing.T) {
-	mockLogger := app.CreateMockLogger(true)
+	mockLogger := logger.CreateMockLogger(true)
 	server := restresolver.New(restresolver.Config{
 		Logger: mockLogger,
 	})
 	server.Use(
 		restresolver.MiddlewareCookie,
 		restresolver.MiddlewareRequestID,
-		restresolver.MiddlewareRequestLog,
+		restresolver.CreateMiddlewareRequestLog([]*fs.StaticFs{}),
 		restresolver.MiddlewareCors,
 		restresolver.MiddlewareRecover,
 	)

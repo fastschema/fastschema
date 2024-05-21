@@ -3,10 +3,12 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/buger/jsonparser"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/mitchellh/mapstructure"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 )
 
@@ -222,6 +224,16 @@ func (e *Entity) ToMap() map[string]any {
 			continue
 		}
 
+		if entitiesValue, ok := pair.Value.([]*Entity); ok {
+			entityValues := []map[string]any{}
+			for _, entity := range entitiesValue {
+				entityValues = append(entityValues, entity.ToMap())
+			}
+
+			data[pair.Key] = entityValues
+			continue
+		}
+
 		data[pair.Key] = pair.Value
 	}
 
@@ -267,13 +279,38 @@ func NewEntityFromMap(data map[string]any) *Entity {
 	return entity
 }
 
-func EntityToStruct[T any](e *Entity) (T, error) {
-	var j T
-	jsonData, err := json.Marshal(e)
+// func EntityToStruct[T any](e *Entity) (T, error) {
+// 	var j T
+// 	jsonData, err := json.Marshal(e)
+// 	if err != nil {
+// 		return j, err
+// 	}
+
+// 	_ = json.Unmarshal(jsonData, &j)
+// 	return j, nil
+// }
+
+// BindEntity binds the fields of the given Entity to a target struct value.
+func BindEntity[T any](e *Entity) (result T, err error) {
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  &result,
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(func(from, to reflect.Type, data any) (any, error) {
+			if e, ok := data.(*Entity); ok {
+				return e.ToMap(), nil
+			}
+
+			return data, nil
+		}),
+	})
+
 	if err != nil {
-		return j, err
+		return
 	}
 
-	_ = json.Unmarshal(jsonData, &j)
-	return j, nil
+	if err = decoder.Decode(e); err != nil {
+		return
+	}
+
+	return result, nil
 }

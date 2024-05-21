@@ -2,10 +2,12 @@ package roleservice_test
 
 import (
 	"bytes"
+	"context"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -53,11 +55,14 @@ func TestRoleServiceUpdate(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 
-	userRole := app.EntityToRole(utils.Must(testApp.roleModel.Query(app.EQ("id", 2)).
-		Select("name", "permissions.resource", "permissions.value").
-		First()))
+	userRole := utils.Must(
+		db.Query[*fs.Role](testApp.db).
+			Where(db.EQ("id", 2)).
+			Select("permissions").
+			First(context.Background()),
+	)
 
-	permissions := utils.Map(userRole.Permissions, func(p *app.Permission) string {
+	permissions := utils.Map(userRole.Permissions, func(p *fs.Permission) string {
 		return p.Resource
 	})
 

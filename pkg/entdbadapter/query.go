@@ -9,7 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/google/uuid"
@@ -21,15 +21,15 @@ type Query struct {
 	fields          []string
 	order           []string
 	entities        []*schema.Entity
-	predicates      []*app.Predicate
+	predicates      []*db.Predicate
 	withEdgesFields []*schema.Field
-	client          app.DBClient
+	client          db.Client
 	model           *Model
 	querySpec       *sqlgraph.QuerySpec
 }
 
-func (q *Query) Options() *app.QueryOption {
-	return &app.QueryOption{
+func (q *Query) Options() *db.QueryOption {
+	return &db.QueryOption{
 		Limit:      q.limit,
 		Offset:     q.offset,
 		Columns:    q.fields,
@@ -40,38 +40,37 @@ func (q *Query) Options() *app.QueryOption {
 }
 
 // Limit sets the limit of the query.
-func (q *Query) Limit(limit uint) app.Query {
+func (q *Query) Limit(limit uint) db.Querier {
 	q.limit = limit
 	return q
 }
 
 // Offset sets the offset of the query.
-func (q *Query) Offset(offset uint) app.Query {
+func (q *Query) Offset(offset uint) db.Querier {
 	q.offset = offset
 	return q
 }
 
 // Order sets the order of the query.
-func (q *Query) Order(order ...string) app.Query {
+func (q *Query) Order(order ...string) db.Querier {
 	q.order = append(q.order, order...)
 	return q
 }
 
 // Select sets the columns of the query.
-func (q *Query) Select(fields ...string) app.Query {
+func (q *Query) Select(fields ...string) db.Querier {
 	q.fields = append(q.fields, fields...)
 	return q
 }
 
 // Where adds the given predicates to the query.
-func (q *Query) Where(predicates ...*app.Predicate) app.Query {
+func (q *Query) Where(predicates ...*db.Predicate) db.Querier {
 	q.predicates = append(q.predicates, predicates...)
 	return q
 }
 
 // Count returns the number of entities that match the query.
-func (q *Query) Count(options *app.CountOption, ctxs ...context.Context) (int, error) {
-	ctxs = append(ctxs, context.Background())
+func (q *Query) Count(ctx context.Context, options *db.CountOption) (int, error) {
 	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
 		return 0, fmt.Errorf("client is not an ent adapter")
@@ -94,28 +93,28 @@ func (q *Query) Count(options *app.CountOption, ctxs ...context.Context) (int, e
 		}
 	}
 
-	return sqlgraph.CountNodes(ctxs[0], entAdapter.Driver(), q.querySpec)
+	return sqlgraph.CountNodes(ctx, entAdapter.Driver(), q.querySpec)
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(ctxs ...context.Context) (*schema.Entity, error) {
+func (q *Query) First(ctx context.Context) (*schema.Entity, error) {
 	q.Limit(1)
-	entities, err := q.Get(ctxs...)
+	entities, err := q.Get(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
 	if len(entities) == 0 {
-		return nil, &app.NotFoundError{Message: "no entities found"}
+		return nil, &db.NotFoundError{Message: "no entities found"}
 	}
 
 	return entities[0], nil
 }
 
 // Only returns the matched entity or an error if there is more than one.
-func (q *Query) Only(ctxs ...context.Context) (*schema.Entity, error) {
-	entities, err := q.Get(ctxs...)
+func (q *Query) Only(ctx context.Context) (*schema.Entity, error) {
+	entities, err := q.Get(ctx)
 
 	if err != nil {
 		return nil, err
@@ -126,15 +125,14 @@ func (q *Query) Only(ctxs ...context.Context) (*schema.Entity, error) {
 	}
 
 	if len(entities) == 0 {
-		return nil, &app.NotFoundError{Message: "no entities found"}
+		return nil, &db.NotFoundError{Message: "no entities found"}
 	}
 
 	return entities[0], nil
 }
 
 // Get returns the list of entities that match the query.
-func (q *Query) Get(ctxs ...context.Context) ([]*schema.Entity, error) {
-	ctxs = append(ctxs, context.Background())
+func (q *Query) Get(ctx context.Context) ([]*schema.Entity, error) {
 	columnNames := []string{}
 	edgeColumns := map[string][]string{}
 	allSelectsAreEdges := true
@@ -246,15 +244,15 @@ func (q *Query) Get(ctxs ...context.Context) ([]*schema.Entity, error) {
 		q.querySpec.Offset = int(q.offset)
 	}
 
-	if err := sqlgraph.QueryNodes(ctxs[0], entAdapter.Driver(), q.querySpec); err != nil {
+	if err := sqlgraph.QueryNodes(ctx, entAdapter.Driver(), q.querySpec); err != nil {
 		return nil, err
 	}
 
-	if err := q.loadEdges(edgeColumns); err != nil {
+	if err := q.loadEdges(ctx, edgeColumns); err != nil {
 		return nil, err
 	}
 
-	var hooks = &app.Hooks{}
+	var hooks = &db.Hooks{}
 	if q.client != nil {
 		hooks = q.client.Hooks()
 	}
@@ -273,7 +271,7 @@ func (q *Query) Get(ctxs ...context.Context) ([]*schema.Entity, error) {
 }
 
 // loadEdges loads the edges for the given fields.
-func (q *Query) loadEdges(edgesColumns map[string][]string) error {
+func (q *Query) loadEdges(ctx context.Context, edgesColumns map[string][]string) error {
 	for _, edgeField := range q.withEdgesFields {
 		relation := edgeField.Relation
 		edgeModel, err := q.client.Model(relation.TargetSchemaName)
@@ -289,19 +287,19 @@ func (q *Query) loadEdges(edgesColumns map[string][]string) error {
 		edgeColumns := edgesColumns[edgeField.Name]
 
 		if relation.Type == schema.O2M {
-			if err := q.loadEdgesO2M(edgeField, edgeEntModel, edgeColumns); err != nil {
+			if err := q.loadEdgesO2M(ctx, edgeField, edgeEntModel, edgeColumns); err != nil {
 				return err
 			}
 		}
 
 		if relation.Type == schema.O2O {
-			if err := q.loadEdgesO2O(edgeField, edgeEntModel, edgeColumns); err != nil {
+			if err := q.loadEdgesO2O(ctx, edgeField, edgeEntModel, edgeColumns); err != nil {
 				return err
 			}
 		}
 
 		if relation.Type == schema.M2M {
-			if err := q.loadEdgesM2M(edgeField, edgeEntModel, edgeColumns); err != nil {
+			if err := q.loadEdgesM2M(ctx, edgeField, edgeEntModel, edgeColumns); err != nil {
 				return err
 			}
 		}
@@ -310,43 +308,64 @@ func (q *Query) loadEdges(edgesColumns map[string][]string) error {
 }
 
 // loadEdgesO2M loads the one-to-many edges for the given field.
-func (q *Query) loadEdgesO2M(field *schema.Field, edgeModel *Model, edgeColumns []string) error {
+func (q *Query) loadEdgesO2M(
+	ctx context.Context,
+	field *schema.Field,
+	edgeModel *Model,
+	edgeColumns []string,
+) error {
 	if !field.Relation.Owner {
-		return q.loadNonOwnerEdges(field, edgeModel, edgeColumns)
+		return q.loadNonOwnerEdges(ctx, field, edgeModel, edgeColumns)
 	}
 
-	return q.loadOwnerEdges(field, edgeModel, edgeColumns, func(node *schema.Entity, neighbor *schema.Entity) error {
-		edgeValues := node.Get(field.Name)
-		if edgeValues == nil {
-			node.Set(field.Name, []*schema.Entity{neighbor})
+	return q.loadOwnerEdges(
+		ctx, field, edgeModel, edgeColumns,
+		func(node *schema.Entity, neighbor *schema.Entity) error {
+			edgeValues := node.Get(field.Name)
+			if edgeValues == nil {
+				node.Set(field.Name, []*schema.Entity{neighbor})
+				return nil
+			}
+
+			edgeEntities, ok := edgeValues.([]*schema.Entity)
+			if !ok {
+				return invalidEntityArrayError(q.model.name, field.Name, edgeValues)
+			}
+
+			edgeEntities = append(edgeEntities, neighbor)
+			node.Set(field.Name, edgeEntities)
 			return nil
-		}
-
-		edgeEntities, ok := edgeValues.([]*schema.Entity)
-		if !ok {
-			return invalidEntityArrayError(q.model.name, field.Name, edgeValues)
-		}
-
-		edgeEntities = append(edgeEntities, neighbor)
-		node.Set(field.Name, edgeEntities)
-		return nil
-	})
+		},
+	)
 }
 
 // loadEdgesO2O loads the one-to-one edges for the given field.
-func (q *Query) loadEdgesO2O(field *schema.Field, edgeModel *Model, edgeColumns []string) error {
+func (q *Query) loadEdgesO2O(
+	ctx context.Context,
+	field *schema.Field,
+	edgeModel *Model,
+	edgeColumns []string,
+) error {
 	if !field.Relation.Owner {
-		return q.loadNonOwnerEdges(field, edgeModel, edgeColumns)
+		return q.loadNonOwnerEdges(ctx, field, edgeModel, edgeColumns)
 	}
 
-	return q.loadOwnerEdges(field, edgeModel, edgeColumns, func(node *schema.Entity, neighbor *schema.Entity) error {
-		node.Set(field.Name, neighbor)
-		return nil
-	})
+	return q.loadOwnerEdges(
+		ctx, field, edgeModel, edgeColumns,
+		func(node *schema.Entity, neighbor *schema.Entity) error {
+			node.Set(field.Name, neighbor)
+			return nil
+		},
+	)
 }
 
 // loadEdgesM2M loads the many-to-many edges for the given field.
-func (q *Query) loadEdgesM2M(field *schema.Field, edgeModel *Model, edgeColumns []string) error {
+func (q *Query) loadEdgesM2M(
+	ctx context.Context,
+	field *schema.Field,
+	edgeModel *Model,
+	edgeColumns []string,
+) error {
 	edgeIDs := make([]driver.Value, len(q.entities))
 	byID := make(map[uint64]*schema.Entity)
 	nids := make(map[uint64]map[*schema.Entity]struct{})
@@ -406,7 +425,7 @@ func (q *Query) loadEdgesM2M(field *schema.Field, edgeModel *Model, edgeColumns 
 	}
 
 	entEdgeQuery.order = []string{edgeModel.entIDColumn.Name}
-	neighbors, err := entEdgeQuery.Get(q.model.ctx)
+	neighbors, err := entEdgeQuery.Get(ctx)
 	if err != nil {
 		return err
 	}
@@ -425,7 +444,7 @@ func (q *Query) loadEdgesM2M(field *schema.Field, edgeModel *Model, edgeColumns 
 }
 
 // loadNonOwnerEdges loads the non-owner edges for the given field.
-func (q *Query) loadNonOwnerEdges(field *schema.Field, edgeModel *Model, edgeColumns []string) error {
+func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edgeModel *Model, edgeColumns []string) error {
 	relation := field.Relation
 	edgeSchemaName := relation.TargetSchemaName
 	ids := make([]any, 0, len(q.entities))
@@ -452,8 +471,8 @@ func (q *Query) loadNonOwnerEdges(field *schema.Field, edgeModel *Model, edgeCol
 		return nil
 	}
 
-	edgeQuery := edgeModel.Query().Select(edgeColumns...).Where(app.In(edgeModel.entIDColumn.Name, ids))
-	neighbors, err := edgeQuery.Get(q.model.ctx)
+	edgeQuery := edgeModel.Query().Select(edgeColumns...).Where(db.In(edgeModel.entIDColumn.Name, ids))
+	neighbors, err := edgeQuery.Get(ctx)
 	if err != nil {
 		return err
 	}
@@ -474,6 +493,7 @@ func (q *Query) loadNonOwnerEdges(field *schema.Field, edgeModel *Model, edgeCol
 
 // loadOwnerEdges loads the owner edges for the given field.
 func (q *Query) loadOwnerEdges(
+	ctx context.Context,
 	field *schema.Field,
 	edgeModel *Model,
 	edgeColumns []string,
@@ -495,7 +515,7 @@ func (q *Query) loadOwnerEdges(
 		edgeColumns = append(edgeColumns, fkColumn)
 	}
 
-	neighbors, err := edgeModel.Query().Select(edgeColumns...).Where(app.In(fkColumn, fks)).Get(q.model.ctx)
+	neighbors, err := edgeModel.Query().Select(edgeColumns...).Where(db.In(fkColumn, fks)).Get(ctx)
 	if err != nil {
 		return err
 	}
@@ -523,8 +543,8 @@ func (q *Query) loadOwnerEdges(
 func scanValues(s *schema.Schema, columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
-		field, err := s.Field(columns[i])
-		if err != nil { // This error is not found error. Ignore it.
+		field := s.Field(columns[i])
+		if field == nil { // No field found. Ignore it.
 			values[i] = new(any)
 			continue
 		}
@@ -556,8 +576,8 @@ func assignValues(s *schema.Schema, entity *schema.Entity, columns []string, val
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
 	for i := range columns {
-		field, err := s.Field(columns[i])
-		if err != nil { // This error is not found error. Ignore it.
+		field := s.Field(columns[i])
+		if field == nil { // No field found. Ignore it.
 			entity.Set(columns[i], new(any))
 			continue
 		}

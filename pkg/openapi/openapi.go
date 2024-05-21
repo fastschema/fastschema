@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -20,8 +20,8 @@ type ResourceInfo struct {
 	ID         string
 	Path       string
 	Method     string
-	Signatures app.Signatures
-	Args       app.Args
+	Signatures fs.Signatures
+	Args       fs.Args
 	Public     bool
 }
 
@@ -40,7 +40,7 @@ type OpenAPISpec struct {
 }
 
 type OpenAPISpecConfig struct {
-	Resources     *app.ResourcesManager
+	Resources     *fs.ResourcesManager
 	SchemaBuilder *schema.Builder
 	BaseURL       string
 }
@@ -100,12 +100,9 @@ func NewSpec(config *OpenAPISpecConfig) (*OpenAPISpec, error) {
 }
 
 func (oas *OpenAPISpec) Create() (err error) {
-	if err = oas.SchemasToOGenSchemas(); err != nil {
-		return err
-	}
-
+	oas.SchemasToOGenSchemas()
 	oas.CreateResourcesForSchemas()
-	flattenedResources, err := FlattenResources(oas.config.Resources.Resources(), "/", app.Args{})
+	flattenedResources, err := FlattenResources(oas.config.Resources.Resources(), "/", fs.Args{})
 	if err != nil {
 		return err
 	}
@@ -119,9 +116,7 @@ func (oas *OpenAPISpec) Create() (err error) {
 		oas.ogenSpec.Paths = MergePathItems(oas.ogenSpec.Paths, pathItems)
 	}
 
-	if err := oas.ResolveSchemaReferences(); err != nil {
-		return err
-	}
+	oas.ResolveSchemaReferences()
 
 	if oas.spec, err = json.MarshalIndent(oas.ogenSpec, "", "  "); err != nil {
 		return err
@@ -151,35 +146,35 @@ func (oas *OpenAPISpec) CreateResourcesForSchemas() {
 	}
 
 	contentGroup := api.Group("content")
-	contentIDArg := app.Arg{
+	contentIDArg := fs.Arg{
 		Required:    true,
-		Type:        app.TypeUint64,
+		Type:        fs.TypeUint64,
 		Description: "The content ID",
 	}
 
-	listArgs := app.Args{
+	listArgs := fs.Args{
 		"sort": {
-			Type:        app.TypeString,
+			Type:        fs.TypeString,
 			Description: "Sort the results by a field",
 			Example:     "-id",
 		},
 		"filter": {
-			Type:        app.TypeJSON,
+			Type:        fs.TypeJSON,
 			Description: "Filter the results by a field",
 			Example:     `{"name":{"$like":"%test%"}}`,
 		},
 		"page": {
-			Type:        app.TypeUint,
+			Type:        fs.TypeUint,
 			Description: "The page number",
 		},
 		"limit": {
-			Type:        app.TypeUint,
+			Type:        fs.TypeUint,
 			Description: "The number of items per page",
 		},
 	}
 
 	for _, s := range schemas {
-		if s.IsSystemSchema {
+		if s.IsJunctionSchema {
 			continue
 		}
 
@@ -187,35 +182,35 @@ func (oas *OpenAPISpec) CreateResourcesForSchemas() {
 		contentCreateSchema := ContentCreateSchema(s)
 		contentDetailSchema := ContentDetailSchema(s)
 
-		schemaGroup.AddResource("list", nil, &app.Meta{
+		schemaGroup.AddResource("list", nil, &fs.Meta{
 			Get:        "/",
 			Signatures: []any{nil, ContentListResponseSchema(s)},
 			Args:       listArgs,
 		})
-		schemaGroup.AddResource("detail", nil, &app.Meta{
+		schemaGroup.AddResource("detail", nil, &fs.Meta{
 			Get:        "/:id",
 			Signatures: []any{nil, contentDetailSchema},
-			Args: app.Args{
+			Args: fs.Args{
 				"id": contentIDArg,
 				"select": {
-					Type:        app.TypeString,
+					Type:        fs.TypeString,
 					Description: "Select the fields to return",
 					Example:     "id,name",
 				},
 			},
 		})
-		schemaGroup.AddResource("create", nil, &app.Meta{
+		schemaGroup.AddResource("create", nil, &fs.Meta{
 			Post:       "/",
 			Signatures: []any{contentCreateSchema, contentDetailSchema},
 		})
-		schemaGroup.AddResource("update", nil, &app.Meta{
+		schemaGroup.AddResource("update", nil, &fs.Meta{
 			Put:        "/:id",
-			Args:       app.Args{"id": contentIDArg},
+			Args:       fs.Args{"id": contentIDArg},
 			Signatures: []any{contentCreateSchema, contentDetailSchema},
 		})
-		schemaGroup.AddResource("delete", nil, &app.Meta{
+		schemaGroup.AddResource("delete", nil, &fs.Meta{
 			Delete:     "/:id",
-			Args:       app.Args{"id": contentIDArg},
+			Args:       fs.Args{"id": contentIDArg},
 			Signatures: []any{nil, IDOnlySchema},
 		})
 	}
@@ -253,7 +248,7 @@ func (oas *OpenAPISpec) CreatePathItem(r *ResourceInfo) (map[string]*ogen.PathIt
 	if len(r.Signatures) > 0 && utils.Contains([]string{"POST", "PUT", "PATCH"}, r.Method) {
 		bodyType := r.Signatures[0]
 		bodyTypeName := ""
-		signature, ok := bodyType.(*app.Signature)
+		signature, ok := bodyType.(*fs.Signature)
 		if ok {
 			bodyType = signature.Type
 			bodyTypeName = signature.Name
@@ -272,7 +267,7 @@ func (oas *OpenAPISpec) CreatePathItem(r *ResourceInfo) (map[string]*ogen.PathIt
 	if len(r.Signatures) > 1 {
 		responseType := r.Signatures[1]
 		responseTypeName := ""
-		signature, ok := responseType.(*app.Signature)
+		signature, ok := responseType.(*fs.Signature)
 		if ok {
 			responseType = signature.Type
 			responseTypeName = signature.Name

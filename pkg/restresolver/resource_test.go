@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -20,9 +21,9 @@ type testInput struct {
 }
 
 func TestNewRestResolver(t *testing.T) {
-	resourceManager := app.NewResourcesManager()
-	resourceManager.Middlewares = []app.Middleware{
-		func(c app.Context) error {
+	resourceManager := fs.NewResourcesManager()
+	resourceManager.Middlewares = []fs.Middleware{
+		func(c fs.Context) error {
 			c.Value("test", "test")
 			return c.Next()
 		},
@@ -30,37 +31,37 @@ func TestNewRestResolver(t *testing.T) {
 
 	staticDir := t.TempDir()
 	utils.WriteFile(staticDir+"/test.txt", "test")
-	staticFSs := []*app.StaticFs{{
+	staticFSs := []*fs.StaticFs{{
 		BasePath: "/static",
 		Root:     http.Dir(staticDir),
 	}}
 
-	resourceManager.Group("user", &app.Meta{Prefix: "/userprefix"}).
-		Add(app.NewResource("profile", func(c app.Context, input *testInput) (map[string]any, error) {
+	resourceManager.Group("user", &fs.Meta{Prefix: "/userprefix"}).
+		Add(fs.NewResource("profile", func(c fs.Context, input *testInput) (map[string]any, error) {
 			return map[string]any{
 				"input": input,
 				"test":  c.Value("test"),
 			}, nil
-		}, &app.Meta{Post: "/profile"})).
-		Add(app.NewResource("profileerror", func(c app.Context, input *testInput) (map[string]any, error) {
+		}, &fs.Meta{Post: "/profile"})).
+		Add(fs.NewResource("profileerror", func(c fs.Context, input *testInput) (map[string]any, error) {
 			return nil, errors.BadRequest("test error")
-		}, &app.Meta{Post: "/profileerror"}))
+		}, &fs.Meta{Post: "/profileerror"}))
 
-	resourceManager.Add(app.NewResource("bytes", func(c app.Context, _ any) (any, error) {
+	resourceManager.Add(fs.NewResource("bytes", func(c fs.Context, _ any) (any, error) {
 		return []byte(`{"data": "test"}`), nil
 	}))
 
-	resourceManager.Add(app.NewResource("html", func(c app.Context, _ any) (any, error) {
+	resourceManager.Add(fs.NewResource("html", func(c fs.Context, _ any) (any, error) {
 		header := make(http.Header)
 		header.Set("Content-Type", "text/html")
 
-		return &app.HTTPResponse{
+		return &fs.HTTPResponse{
 			Header: header,
 			Body:   []byte(`<body>test</body>`),
 		}, nil
 	}))
 
-	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true), staticFSs...)
+	restResolver := restresolver.NewRestResolver(resourceManager, logger.CreateMockLogger(true), staticFSs...)
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/static/test.txt", nil)
@@ -104,14 +105,14 @@ func TestNewRestResolver(t *testing.T) {
 }
 
 func TestNewRestResolverErrorMiddleware(t *testing.T) {
-	resourceManager := app.NewResourcesManager()
-	resourceManager.Middlewares = []app.Middleware{
-		func(c app.Context) error {
+	resourceManager := fs.NewResourcesManager()
+	resourceManager.Middlewares = []fs.Middleware{
+		func(c fs.Context) error {
 			return errors.BadGateway("test bad gateway")
 		},
 	}
 
-	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager, logger.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -121,14 +122,14 @@ func TestNewRestResolverErrorMiddleware(t *testing.T) {
 	assert.Equal(t, 502, resp.StatusCode)
 	assert.Equal(t, `{"error":{"code":"502","message":"test bad gateway"}}`, utils.Must(utils.ReadCloserToString(resp.Body)))
 
-	resourceManager = app.NewResourcesManager()
-	resourceManager.Middlewares = []app.Middleware{
-		func(c app.Context) error {
+	resourceManager = fs.NewResourcesManager()
+	resourceManager.Middlewares = []fs.Middleware{
+		func(c fs.Context) error {
 			return fiber.ErrBadRequest
 		},
 	}
 
-	restResolver = restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
+	restResolver = restresolver.NewRestResolver(resourceManager, logger.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req2 := httptest.NewRequest("GET", "/test", nil)
@@ -139,21 +140,21 @@ func TestNewRestResolverErrorMiddleware(t *testing.T) {
 }
 
 func TestNewRestResolverWithBeforeResolverHookError(t *testing.T) {
-	resourceManager := app.NewResourcesManager()
-	resourceManager.Add(app.NewResource("test", func(c app.Context, _ any) (any, error) {
+	resourceManager := fs.NewResourcesManager()
+	resourceManager.Add(fs.NewResource("test", func(c fs.Context, _ any) (any, error) {
 		return nil, nil
 	}))
-	resourceManager.Hooks = func() *app.Hooks {
-		return &app.Hooks{
-			PreResolve: []app.Middleware{
-				func(c app.Context) error {
+	resourceManager.Hooks = func() *fs.Hooks {
+		return &fs.Hooks{
+			PreResolve: []fs.Middleware{
+				func(c fs.Context) error {
 					return errors.BadRequest("test before hook error")
 				},
 			},
 		}
 	}
 
-	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager, logger.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -165,21 +166,21 @@ func TestNewRestResolverWithBeforeResolverHookError(t *testing.T) {
 }
 
 func TestNewRestResolverWithAfterResolverHookError(t *testing.T) {
-	resourceManager := app.NewResourcesManager()
-	resourceManager.Add(app.NewResource("test", func(c app.Context, _ any) (any, error) {
+	resourceManager := fs.NewResourcesManager()
+	resourceManager.Add(fs.NewResource("test", func(c fs.Context, _ any) (any, error) {
 		return nil, nil
 	}))
-	resourceManager.Hooks = func() *app.Hooks {
-		return &app.Hooks{
-			PostResolve: []app.Middleware{
-				func(c app.Context) error {
+	resourceManager.Hooks = func() *fs.Hooks {
+		return &fs.Hooks{
+			PostResolve: []fs.Middleware{
+				func(c fs.Context) error {
 					return errors.BadRequest("test after hook error")
 				},
 			},
 		}
 	}
 
-	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager, logger.CreateMockLogger(true))
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -191,12 +192,12 @@ func TestNewRestResolverWithAfterResolverHookError(t *testing.T) {
 }
 
 func TestNewRestResolverStart(t *testing.T) {
-	resourceManager := app.NewResourcesManager()
-	resourceManager.Add(app.NewResource("test", func(c app.Context, _ any) (any, error) {
+	resourceManager := fs.NewResourcesManager()
+	resourceManager.Add(fs.NewResource("test", func(c fs.Context, _ any) (any, error) {
 		return nil, nil
 	}))
 
-	restResolver := restresolver.NewRestResolver(resourceManager, app.CreateMockLogger(true))
+	restResolver := restresolver.NewRestResolver(resourceManager, logger.CreateMockLogger(true))
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)

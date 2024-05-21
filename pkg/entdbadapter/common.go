@@ -16,7 +16,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -100,7 +100,7 @@ func createEntColumn(f *schema.Field) *entSchema.Column {
 }
 
 // CreateDBDSN create a DSN string for the database connection
-func CreateDBDSN(config *app.DBConfig) string {
+func CreateDBDSN(config *db.Config) string {
 	dsn := ""
 
 	if config.Driver == "mysql" {
@@ -139,7 +139,7 @@ func CreateDBDSN(config *app.DBConfig) string {
 	return dsn
 }
 
-func CreateDebugFN(config *app.DBConfig) func(ctx context.Context, i ...any) {
+func CreateDebugFN(config *db.Config) func(ctx context.Context, i ...any) {
 	return func(ctx context.Context, i ...any) {
 		if !config.LogQueries {
 			return
@@ -156,7 +156,7 @@ func CreateDebugFN(config *app.DBConfig) func(ctx context.Context, i ...any) {
 	}
 }
 
-func GetEntDialect(config *app.DBConfig) (string, error) {
+func GetEntDialect(config *db.Config) (string, error) {
 	entDialect, ok := dialectMap[config.Driver]
 	if !ok {
 		return "", fmt.Errorf("unsupported driver: %v", config.Driver)
@@ -166,8 +166,8 @@ func GetEntDialect(config *app.DBConfig) (string, error) {
 }
 
 func createRenameColumnsHook(
-	renameTables []*app.RenameItem,
-	renameColumns []*app.RenameItem,
+	renameTables []*db.RenameItem,
+	renameColumns []*db.RenameItem,
 ) entSchema.DiffHook {
 	return func(next entSchema.Differ) entSchema.Differ {
 		return entSchema.DiffFunc(func(current, desired *atlasSchema.Schema) ([]atlasSchema.Change, error) {
@@ -187,7 +187,7 @@ func createRenameColumnsHook(
 				}
 
 				// check if the new table is renamed from another table
-				matchedRenameTables := utils.Filter(renameTables, func(rt *app.RenameItem) bool {
+				matchedRenameTables := utils.Filter(renameTables, func(rt *db.RenameItem) bool {
 					return addTable.T.Name == rt.To
 				})
 
@@ -214,7 +214,7 @@ func createRenameColumnsHook(
 				for _, change := range changes {
 					if addColumn, ok := change.(*atlasSchema.AddColumn); ok {
 						// check if the new column is renamed from another column
-						matchedRenameFields := utils.Filter(renameColumns, func(rf *app.RenameItem) bool {
+						matchedRenameFields := utils.Filter(renameColumns, func(rf *db.RenameItem) bool {
 							return addColumn.C.Name == rf.To
 						})
 
@@ -254,7 +254,11 @@ func createRenameColumnsHook(
 	}
 }
 
-func getPlanForRenameTables(migrateDriver atlasMigrate.Driver, renameTables []*app.RenameItem) (*atlasMigrate.Plan, error) {
+func getPlanForRenameTables(
+	ctx context.Context,
+	migrateDriver atlasMigrate.Driver,
+	renameTables []*db.RenameItem,
+) (*atlasMigrate.Plan, error) {
 	if len(renameTables) == 0 {
 		return nil, nil
 	}
@@ -266,7 +270,7 @@ func getPlanForRenameTables(migrateDriver atlasMigrate.Driver, renameTables []*a
 		}
 	}
 
-	inspectedSchema, err := migrateDriver.InspectSchema(context.Background(), "", &atlasSchema.InspectOptions{
+	inspectedSchema, err := migrateDriver.InspectSchema(ctx, "", &atlasSchema.InspectOptions{
 		Tables: allTables,
 	})
 
@@ -289,7 +293,7 @@ func getPlanForRenameTables(migrateDriver atlasMigrate.Driver, renameTables []*a
 	}
 
 	return migrateDriver.PlanChanges(
-		context.Background(),
+		ctx,
 		"simulate_changes",
 		changes,
 	)

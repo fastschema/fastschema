@@ -3,7 +3,7 @@ package restresolver_test
 import (
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
@@ -11,7 +11,7 @@ import (
 
 func TestTransformHandlers(t *testing.T) {
 	// Test case 1
-	r := &app.Resource{}
+	r := &fs.Resource{}
 	handlers := []restresolver.Handler{
 		func(ctx *restresolver.Context) error { return nil },
 		func(ctx *restresolver.Context) error { return nil },
@@ -22,13 +22,13 @@ func TestTransformHandlers(t *testing.T) {
 	assert.Len(t, result1, 3)
 
 	// Test case 2
-	r = &app.Resource{}
+	r = &fs.Resource{}
 	handlers = []restresolver.Handler{}
 	result2 := restresolver.TransformHandlers(r, handlers, nil)
 	assert.Len(t, result2, 0)
 
 	// Test case 3
-	r = &app.Resource{}
+	r = &fs.Resource{}
 	handlers = []restresolver.Handler{
 		func(ctx *restresolver.Context) error { return nil },
 	}
@@ -38,7 +38,7 @@ func TestTransformHandlers(t *testing.T) {
 
 func TestGetHandlerInfo(t *testing.T) {
 	handler := func(ctx *restresolver.Context) error { return nil }
-	resource := app.NewResource("testResource", func(c app.Context, _ any) (any, error) {
+	resource := fs.NewResource("testResource", func(c fs.Context, _ any) (any, error) {
 		return nil, nil
 	})
 

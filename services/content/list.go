@@ -4,7 +4,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -29,7 +30,7 @@ func NewPagination(total, perPage, currentPage uint, items []*schema.Entity) *Pa
 	}
 }
 
-func (cs *ContentService) List(c app.Context, _ any) (*Pagination, error) {
+func (cs *ContentService) List(c fs.Context, _ any) (*Pagination, error) {
 	schemaName := c.Arg("schema")
 	model, err := cs.DB().Model(schemaName)
 	if err != nil {
@@ -37,7 +38,7 @@ func (cs *ContentService) List(c app.Context, _ any) (*Pagination, error) {
 	}
 
 	filter := c.Arg("filter")
-	predicates, err := app.CreatePredicatesFromFilterObject(
+	predicates, err := db.CreatePredicatesFromFilterObject(
 		cs.DB().SchemaBuilder(),
 		model.Schema(),
 		filter,
@@ -52,7 +53,7 @@ func (cs *ContentService) List(c app.Context, _ any) (*Pagination, error) {
 	page := uint(c.ArgInt("page", 1))
 	limit := uint(c.ArgInt("limit", 10))
 	offset := (page - 1) * limit
-	total, err := model.Query(predicates...).Count(&app.CountOption{})
+	total, err := model.Query(predicates...).Count(c.Context(), &db.CountOption{})
 
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())

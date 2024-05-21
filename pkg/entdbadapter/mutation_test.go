@@ -4,26 +4,24 @@ import (
 	"database/sql/driver"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMutation(t *testing.T) {
 	mutation := &Mutation{
-		ctx:    nil,
-		skipTx: false,
 		client: nil,
 		model: &Model{
 			name: "test",
 		},
-		predicates: []*app.Predicate{},
+		predicates: []*db.Predicate{},
 	}
 
-	mutation.Where(app.LT("id", 1))
+	mutation.Where(db.LT("id", 1))
 
 	assert.Equal(t, 1, len(mutation.predicates))
-	assert.Equal(t, []*app.Predicate{app.LT("id", 1)}, mutation.predicates)
+	assert.Equal(t, []*db.Predicate{db.LT("id", 1)}, mutation.predicates)
 
 	_, err := mutation.GetRelationEntityIDs("test", 1)
 	assert.Equal(t, "relation value for test.test is invalid", err.Error())

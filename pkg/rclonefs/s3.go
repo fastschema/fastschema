@@ -3,7 +3,7 @@ package rclonefs
 import (
 	"context"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/rclone/rclone/backend/s3"
 	rclonefs "github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/config/configmap"
@@ -28,7 +28,7 @@ type RcloneS3 struct {
 	config *RcloneS3Config
 }
 
-func NewS3(config *RcloneS3Config) (app.Disk, error) {
+func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 	if config.ChunkSize < rclonefs.SizeSuffix(1024*1024*5) {
 		config.ChunkSize = rclonefs.SizeSuffix(1024 * 1024 * 5)
 	}
