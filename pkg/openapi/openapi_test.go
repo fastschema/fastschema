@@ -3,7 +3,7 @@ package openapi_test
 import (
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/openapi"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func handler[T any](c app.Context, input T) (T, error) {
+func handler[T any](c fs.Context, input T) (T, error) {
 	return input, nil
 }
 
-func meta(name string) *app.Meta {
-	return &app.Meta{Post: "/" + name}
+func meta(name string) *fs.Meta {
+	return &fs.Meta{Post: "/" + name}
 }
 
 func TestResourceInfoClone(t *testing.T) {
@@ -25,8 +25,8 @@ func TestResourceInfoClone(t *testing.T) {
 		ID:         "testresource",
 		Path:       "/testresource",
 		Method:     "GET",
-		Signatures: app.Signatures{testStruct{}, testStruct{}},
-		Args:       app.Args{},
+		Signatures: fs.Signatures{testStruct{}, testStruct{}},
+		Args:       fs.Args{},
 		Public:     true,
 	}
 
@@ -40,36 +40,82 @@ func TestResourceInfoClone(t *testing.T) {
 }
 
 func TestNewSpec(t *testing.T) {
-	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
-	resources := app.NewResourcesManager()
-	resources.Add(
-		app.NewResource("bool", handler[bool], meta("bool")),
-	)
+	// Case 1: Error nil config
+	oas, err := openapi.NewSpec(nil)
+	assert.Error(t, err)
+	assert.Nil(t, oas)
 
+	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
+
+	// Case 2: Error create duplicate argument
+	resources := fs.NewResourcesManager()
+	group := resources.Group("group", &fs.Meta{
+		Args: fs.Args{
+			"arg": {
+				Type:     fs.TypeInt,
+				Required: true,
+			},
+		},
+	})
+	group.Add(
+		fs.NewResource("bool", handler[bool], &fs.Meta{
+			Post: "/bool",
+			Args: fs.Args{
+				"arg": {
+					Type:     fs.TypeInt,
+					Required: true,
+				},
+			},
+		}),
+	)
 	config := &openapi.OpenAPISpecConfig{
 		Resources:     resources,
 		SchemaBuilder: sb,
 		BaseURL:       "http://localhost:8080",
 	}
+	oas, err = openapi.NewSpec(config)
+	assert.Nil(t, oas)
+	assert.Contains(t, err.Error(), "duplicate key arg in args")
 
-	oas, err := openapi.NewSpec(config)
+	// Case 3: Error create missing params
+	resources = fs.NewResourcesManager()
+	resources.Add(
+		fs.NewResource("bool", handler[bool], &fs.Meta{
+			Post: "/bool/:param",
+			Args: fs.Args{},
+		}),
+	)
+	config = &openapi.OpenAPISpecConfig{
+		Resources:     resources,
+		SchemaBuilder: sb,
+		BaseURL:       "http://localhost:8080",
+	}
+	oas, err = openapi.NewSpec(config)
+	assert.Nil(t, oas)
+	assert.Contains(t, err.Error(), "missing param param in args")
+
+	// Case 4: Success
+	resources = fs.NewResourcesManager()
+	resources.Add(
+		fs.NewResource("bool", handler[bool], meta("bool")),
+	)
+	config = &openapi.OpenAPISpecConfig{
+		Resources:     resources,
+		SchemaBuilder: sb,
+		BaseURL:       "http://localhost:8080",
+	}
+	oas, err = openapi.NewSpec(config)
 	assert.NoError(t, err)
 	assert.NotNil(t, oas)
 	assert.NoError(t, oas.Create())
 	assert.NotNil(t, oas.Spec())
 }
 
-func TestNewSpecError(t *testing.T) {
-	oas, err := openapi.NewSpec(nil)
-	assert.Error(t, err)
-	assert.Nil(t, oas)
-}
-
 func TestCreatePathItem(t *testing.T) {
 	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
-	resources := app.NewResourcesManager()
+	resources := fs.NewResourcesManager()
 	resources.Add(
-		app.NewResource("bool", handler[bool], meta("bool")),
+		fs.NewResource("bool", handler[bool], meta("bool")),
 	)
 
 	config := &openapi.OpenAPISpecConfig{
@@ -86,17 +132,17 @@ func TestCreatePathItem(t *testing.T) {
 		ID:     "root.testresource",
 		Path:   "/testresource",
 		Method: "GET",
-		Signatures: app.Signatures{
-			&app.Signature{
+		Signatures: fs.Signatures{
+			&fs.Signature{
 				Type: &struct{ Name string }{},
 				Name: "TestStruct",
 			},
-			&app.Signature{
+			&fs.Signature{
 				Type: &struct{ Name string }{},
 				Name: "TestStruct",
 			},
 		},
-		Args:   app.Args{},
+		Args:   fs.Args{},
 		Public: true,
 	}
 
@@ -169,7 +215,7 @@ func TestCreatePathItem(t *testing.T) {
 
 func TestCreatePathItemErrorMissingParam(t *testing.T) {
 	config := &openapi.OpenAPISpecConfig{
-		Resources: app.NewResourcesManager(),
+		Resources: fs.NewResourcesManager(),
 	}
 
 	oas := utils.Must(openapi.NewSpec(config))
@@ -177,17 +223,42 @@ func TestCreatePathItemErrorMissingParam(t *testing.T) {
 		ID:     "root.testresource",
 		Path:   "/testresource/:param/missing",
 		Method: "GET",
-		Signatures: app.Signatures{
-			&app.Signature{
+		Signatures: fs.Signatures{
+			&fs.Signature{
 				Type: &struct{ Name string }{},
 				Name: "TestStruct",
 			},
-			&app.Signature{
+			&fs.Signature{
 				Type: &struct{ Name string }{},
 				Name: "TestStruct",
 			},
 		},
-		Args:   app.Args{},
+		Args:   fs.Args{},
+		Public: true,
+	}
+
+	_, err := oas.CreatePathItem(resource)
+	assert.Error(t, err)
+}
+
+func TestCreatePathItemErrorInvalidArgExample(t *testing.T) {
+	config := &openapi.OpenAPISpecConfig{
+		Resources: fs.NewResourcesManager(),
+	}
+
+	oas := utils.Must(openapi.NewSpec(config))
+	resource := &openapi.ResourceInfo{
+		ID:     "root.testresource",
+		Path:   "/testresource",
+		Method: "GET",
+		Args: fs.Args{
+			"arg": {
+				Type:        fs.TypeInt,
+				Required:    true,
+				Description: "The arg",
+				Example:     make(chan int),
+			},
+		},
 		Public: true,
 	}
 
@@ -196,57 +267,62 @@ func TestCreatePathItemErrorMissingParam(t *testing.T) {
 }
 
 func TestCreateResourcesForSchemas(t *testing.T) {
-	resources := app.NewResourcesManager()
+	resources := fs.NewResourcesManager()
 	api := resources.Group("api")
-	var createArg = func(t app.ArgType, desc string) app.Arg {
-		return app.Arg{Type: t, Required: true, Description: desc}
+	var createArg = func(t fs.ArgType, desc string) fs.Arg {
+		return fs.Arg{Type: t, Required: true, Description: desc}
 	}
 
-	api.Group("content", &app.Meta{
+	api.Group("content", &fs.Meta{
 		Prefix: "/content/:schema",
-		Args: app.Args{
+		Args: fs.Args{
 			"schema": {
 				Required:    true,
-				Type:        app.TypeString,
+				Type:        fs.TypeString,
 				Description: "The schema name",
 			},
 		},
 	}).
-		Add(app.NewResource("list", func(c app.Context, _ any) (*contentservice.Pagination, error) {
+		Add(fs.NewResource("list", func(c fs.Context, _ any) (*contentservice.Pagination, error) {
 			return nil, nil
-		}, &app.Meta{Get: "/"})).
-		Add(app.NewResource("detail", func(c app.Context, _ any) (*schema.Entity, error) {
+		}, &fs.Meta{Get: "/"})).
+		Add(fs.NewResource("detail", func(c fs.Context, _ any) (*schema.Entity, error) {
 			return nil, nil
-		}, &app.Meta{
+		}, &fs.Meta{
 			Get:  "/:id",
-			Args: app.Args{"id": createArg(app.TypeUint64, "The content ID")},
+			Args: fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
 		})).
-		Add(app.NewResource("create", func(c app.Context, _ any) (*schema.Entity, error) {
+		Add(fs.NewResource("create", func(c fs.Context, _ any) (*schema.Entity, error) {
 			return nil, nil
-		}, &app.Meta{Post: "/"})).
-		Add(app.NewResource("update", func(c app.Context, _ any) (*schema.Entity, error) {
+		}, &fs.Meta{Post: "/"})).
+		Add(fs.NewResource("update", func(c fs.Context, _ any) (*schema.Entity, error) {
 			return nil, nil
-		}, &app.Meta{
+		}, &fs.Meta{
 			Put:  "/:id",
-			Args: app.Args{"id": createArg(app.TypeUint64, "The content ID")},
+			Args: fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
 		})).
-		Add(app.NewResource("delete", func(c app.Context, _ any) (any, error) {
+		Add(fs.NewResource("delete", func(c fs.Context, _ any) (any, error) {
 			return nil, nil
-		}, &app.Meta{
+		}, &fs.Meta{
 			Delete: "/:id",
-			Args:   app.Args{"id": createArg(app.TypeUint64, "The content ID")},
+			Args:   fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
 		}))
 
-	schemaBuilder := utils.Must(schema.NewBuilderFromSchemas(t.TempDir(), map[string]*schema.Schema{
-		"category": {
-			Name:           "category",
-			Namespace:      "Schema",
-			LabelFieldName: "name",
-			Fields: []*schema.Field{
-				{Name: "name", Type: schema.TypeString},
+	schemaBuilder := utils.Must(schema.NewBuilderFromSchemas(
+		t.TempDir(),
+		map[string]*schema.Schema{
+			"category": {
+				Name:           "category",
+				Namespace:      "Schema",
+				LabelFieldName: "name",
+				Fields: []*schema.Field{
+					{Name: "name", Type: schema.TypeString},
+				},
 			},
 		},
-	}))
+		fs.SystemSchemaTypes...,
+	),
+	)
 	baseURL := "http://localhost:8080"
 	config := &openapi.OpenAPISpecConfig{
 		Resources:     resources,

@@ -4,13 +4,13 @@ import (
 	"path"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewFromConfig(t *testing.T) {
 	rootDir := t.TempDir()
-	diskConfigs := []*app.DiskConfig{
+	diskConfigs := []*fs.DiskConfig{
 		{
 			Driver:          "s3",
 			Name:            "s3-disk",

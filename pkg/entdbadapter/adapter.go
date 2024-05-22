@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"sort"
 
 	"entgo.io/ent/dialect"
@@ -12,14 +13,14 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
 
 // Adapter is the ent adapter for app.Client
 type Adapter struct {
-	config        *app.DBConfig
+	config        *db.Config
 	sqldb         *sql.DB
 	migrationDir  string
 	driver        dialect.Driver
@@ -27,6 +28,7 @@ type Adapter struct {
 	models        []*Model
 	tables        []*entSchema.Table
 	edgeSpec      map[string]sqlgraph.EdgeSpec
+	typesModels   map[reflect.Type]*Model
 }
 
 func (d *Adapter) SetSQLDB(db *sql.DB) {
@@ -41,15 +43,15 @@ func (d *Adapter) DB() *sql.DB {
 	return d.sqldb
 }
 
-func (d *Adapter) Hooks() *app.Hooks {
+func (d *Adapter) Hooks() *db.Hooks {
 	if d.config.Hooks != nil {
 		return d.config.Hooks()
 	}
 
-	return &app.Hooks{}
+	return &db.Hooks{}
 }
 
-func (d *Adapter) Config() *app.DBConfig {
+func (d *Adapter) Config() *db.Config {
 	return d.config
 }
 
@@ -94,7 +96,7 @@ func (d *Adapter) IsTx() bool {
 }
 
 // Tx creates a new transaction.
-func (d *Adapter) Tx(ctx context.Context) (app.DBClient, error) {
+func (d *Adapter) Tx(ctx context.Context) (db.Client, error) {
 	return NewTx(ctx, d)
 }
 
@@ -103,8 +105,27 @@ func (d *Adapter) SchemaBuilder() *schema.Builder {
 	return d.schemaBuilder
 }
 
-// Model return the model object for query and mutation.
-func (d *Adapter) Model(name string) (app.Model, error) {
+// Model return the model from given name.
+//
+//	Support finding model from name or types
+//	If types is provided, it will use types to find the model instead of name
+func (d *Adapter) Model(name string, types ...any) (db.Model, error) {
+	if len(types) > 0 {
+		var tt reflect.Type
+		if rType, ok := types[0].(reflect.Type); ok {
+			tt = rType
+		} else {
+			tt = utils.GetDereferencedType(types[0])
+		}
+
+		model, ok := d.typesModels[tt]
+		if !ok {
+			return nil, fmt.Errorf("model %s not found", tt.Name())
+		}
+
+		return model, nil
+	}
+
 	return d.model(name)
 }
 
@@ -277,7 +298,7 @@ func (d *Adapter) NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, er
 	), nil
 }
 
-func (d *Adapter) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) app.Model {
+func (d *Adapter) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.Model {
 	return d.CreateModel(s, relations...)
 }
 
@@ -287,7 +308,6 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 		client:  d,
 		name:    s.Name,
 		schema:  s,
-		ctx:     context.Background(),
 		columns: []*Column{},
 		entTable: &entSchema.Table{
 			Name:        s.Namespace,

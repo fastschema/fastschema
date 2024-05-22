@@ -4,24 +4,24 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/openapi"
 	"github.com/ogen-go/ogen"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateParameters(t *testing.T) {
-	args := app.Args{
+	args := fs.Args{
 		"param1": {
 			Description: "Parameter 1",
 			Required:    true,
-			Type:        app.TypeString,
+			Type:        fs.TypeString,
 			Example:     "example1",
 		},
 		"param2": {
 			Description: "Parameter 2",
 			Required:    false,
-			Type:        app.TypeInt32,
+			Type:        fs.TypeInt32,
 			Example:     "123",
 		},
 	}
@@ -151,35 +151,35 @@ func TestMergeParameters(t *testing.T) {
 	assert.Equal(t, expected, result)
 }
 func TestMergeArgs(t *testing.T) {
-	first := app.Args{
+	first := fs.Args{
 		"param1": {
 			Description: "Parameter 1",
 			Required:    true,
-			Type:        app.TypeString,
+			Type:        fs.TypeString,
 			Example:     "example1",
 		},
 	}
 
-	second := app.Args{
+	second := fs.Args{
 		"param2": {
 			Description: "Parameter 2",
 			Required:    false,
-			Type:        app.TypeInt32,
+			Type:        fs.TypeInt32,
 			Example:     "123",
 		},
 	}
 
-	expected := app.Args{
+	expected := fs.Args{
 		"param1": {
 			Description: "Parameter 1",
 			Required:    true,
-			Type:        app.TypeString,
+			Type:        fs.TypeString,
 			Example:     "example1",
 		},
 		"param2": {
 			Description: "Parameter 2",
 			Required:    false,
-			Type:        app.TypeInt32,
+			Type:        fs.TypeInt32,
 			Example:     "123",
 		},
 	}
@@ -190,20 +190,20 @@ func TestMergeArgs(t *testing.T) {
 }
 
 func TestMergeArgsDuplicateKey(t *testing.T) {
-	first := app.Args{
+	first := fs.Args{
 		"param1": {
 			Description: "Parameter 1",
 			Required:    true,
-			Type:        app.TypeString,
+			Type:        fs.TypeString,
 			Example:     "example1",
 		},
 	}
 
-	second := app.Args{
+	second := fs.Args{
 		"param1": {
 			Description: "Parameter 2",
 			Required:    false,
-			Type:        app.TypeInt32,
+			Type:        fs.TypeInt32,
 			Example:     "123",
 		},
 	}
@@ -351,10 +351,10 @@ func TestExtractPathParams(t *testing.T) {
 }
 
 func TestFlattenResources(t *testing.T) {
-	root := app.NewResourcesManager().Group("root")
-	r1 := app.NewResource("r1", func(c app.Context, _ any) (any, error) {
+	root := fs.NewResourcesManager().Group("root")
+	r1 := fs.NewResource("r1", func(c fs.Context, _ any) (any, error) {
 		return nil, nil
-	}, &app.Meta{
+	}, &fs.Meta{
 		Prefix: "/groupr1",
 
 		Get:     "/get",
@@ -368,19 +368,19 @@ func TestFlattenResources(t *testing.T) {
 		Patch:   "/patch",
 	})
 
-	r2 := app.NewResource("r2", func(c app.Context, _ any) (any, error) {
+	r2 := fs.NewResource("r2", func(c fs.Context, _ any) (any, error) {
 		return nil, nil
 	})
 
 	r3 := root.Group("r3")
-	r3.Add(app.NewResource("sub1", func(c app.Context, _ any) (any, error) {
+	r3.Add(fs.NewResource("sub1", func(c fs.Context, _ any) (any, error) {
 		return nil, nil
 	}))
 
-	r4 := r3.Group("sub2", &app.Meta{
+	r4 := r3.Group("sub2", &fs.Meta{
 		Prefix: "/groupr4",
 	})
-	r4.Add(app.NewResource("sub3", func(c app.Context, _ any) (any, error) {
+	r4.Add(fs.NewResource("sub3", func(c fs.Context, _ any) (any, error) {
 		return nil, nil
 	}))
 
@@ -393,7 +393,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/r3/sub1",
 			Method:     "GET",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -401,7 +401,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/r3/groupr4/sub3",
 			Method:     "GET",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -409,7 +409,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/get",
 			Method:     "GET",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -417,7 +417,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/head",
 			Method:     "HEAD",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -425,7 +425,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/post",
 			Method:     "POST",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -433,7 +433,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/put",
 			Method:     "PUT",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -441,7 +441,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/delete",
 			Method:     "DELETE",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -449,7 +449,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/connect",
 			Method:     "CONNECT",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -457,7 +457,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/options",
 			Method:     "OPTIONS",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -465,7 +465,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/trace",
 			Method:     "TRACE",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -473,7 +473,7 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/patch",
 			Method:     "PATCH",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 		{
@@ -481,12 +481,12 @@ func TestFlattenResources(t *testing.T) {
 			Path:       "/r2",
 			Method:     "GET",
 			Signatures: []any{nil, nil},
-			Args:       app.Args{},
+			Args:       fs.Args{},
 			Public:     false,
 		},
 	}
 
-	result, err := openapi.FlattenResources(root.Resources(), "", app.Args{})
+	result, err := openapi.FlattenResources(root.Resources(), "", fs.Args{})
 	assert.NoError(t, err)
 	assert.Equal(t, expected, result)
 }

@@ -4,10 +4,10 @@ import (
 	"reflect"
 )
 
-// GetDereferencedType returns the dereferenced type of a pointer.
-func GetDereferencedType(v any) any {
+// GetDereferencedType returns the dereferenced type of a value 'v'
+func GetDereferencedType(v any) reflect.Type {
 	if reflect.TypeOf(v) == nil {
-		return v
+		return nil
 	}
 
 	// v can be a pointer that points to its own address,
@@ -33,7 +33,7 @@ func GetDereferencedType(v any) any {
 		}
 	}
 
-	return v
+	return reflect.Indirect(reflect.ValueOf(v)).Type()
 }
 
 // CreateZeroValue creates a zero value of a type.

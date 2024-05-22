@@ -1,13 +1,13 @@
 package db
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
 
 	"entgo.io/ent/dialect"
-	"github.com/fastschema/fastschema/app"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -19,9 +19,9 @@ type DBTestCreateData struct {
 	Schema      string
 	InputJSON   string
 	ClearTables []string
-	Run         func(model app.Model, entity *schema.Entity) (*schema.Entity, error)
+	Run         func(model db.Model, entity *schema.Entity) (*schema.Entity, error)
 	Prepare     func(t *testing.T)
-	Expect      func(t *testing.T, m app.Model, e *schema.Entity)
+	Expect      func(t *testing.T, m db.Model, e *schema.Entity)
 	WantErr     bool
 	ExpectError error
 }
@@ -31,10 +31,10 @@ type DBTestUpdateData struct {
 	Schema       string
 	InputJSON    string
 	ClearTables  []string
-	Run          func(model app.Model, entity *schema.Entity) (int, error)
-	Expect       func(t *testing.T, m app.Model)
-	Prepare      func(t *testing.T, m app.Model)
-	Predicates   []*app.Predicate
+	Run          func(model db.Model, entity *schema.Entity) (int, error)
+	Expect       func(t *testing.T, m db.Model)
+	Prepare      func(t *testing.T, m db.Model)
+	Predicates   []*db.Predicate
 	WantErr      bool
 	WantAffected int
 	Transaction  bool
@@ -44,10 +44,10 @@ type DBTestDeleteData struct {
 	Name         string
 	Schema       string
 	ClearTables  []string
-	Run          func(model app.Model) (int, error)
-	Expect       func(t *testing.T, m app.Model)
-	Prepare      func(t *testing.T, m app.Model)
-	Predicates   []*app.Predicate
+	Run          func(model db.Model) (int, error)
+	Expect       func(t *testing.T, m db.Model)
+	Prepare      func(t *testing.T, m db.Model)
+	Predicates   []*db.Predicate
 	WantErr      bool
 	ExpectError  error
 	WantAffected int
@@ -64,16 +64,16 @@ type DBTestQueryData struct {
 	Order       []string
 	ClearTables []string
 	Run         func(
-		model app.Model,
-		predicates []*app.Predicate,
+		model db.Model,
+		predicates []*db.Predicate,
 		limit, offset uint,
 		order []string,
 		columns ...string,
 	) ([]*schema.Entity, error)
-	Prepare func(t *testing.T, client app.DBClient, m app.Model) []*schema.Entity
+	Prepare func(t *testing.T, client db.Client, m db.Model) []*schema.Entity
 	Expect  func(
 		t *testing.T,
-		m app.Model,
+		m db.Model,
 		preparedEntities []*schema.Entity,
 		results []*schema.Entity,
 	)
@@ -88,22 +88,22 @@ type DBTestCountData struct {
 	Unique      bool
 	ClearTables []string
 	Run         func(
-		model app.Model,
-		predicates []*app.Predicate,
+		model db.Model,
+		predicates []*db.Predicate,
 		unique bool,
 		column string,
 	) (int, error)
-	Prepare func(t *testing.T, client app.DBClient, m app.Model) int
+	Prepare func(t *testing.T, client db.Client, m db.Model) int
 	Expect  func(
 		t *testing.T,
-		m app.Model,
+		m db.Model,
 		preparedCount int,
 		results int,
 	)
 	ExpectError string
 }
 
-func ClearDBData(client app.DBClient, tables ...string) {
+func ClearDBData(client db.Client, tables ...string) {
 	sqls := []string{}
 
 	if client.Dialect() == dialect.MySQL {
@@ -156,7 +156,7 @@ func ClearDBData(client app.DBClient, tables ...string) {
 	})
 
 	if err := client.Exec(
-		context.Background(),
+		Ctx(),
 		strings.Join(sqls, "; "),
 		[]any{},
 		nil,
@@ -166,7 +166,7 @@ func ClearDBData(client app.DBClient, tables ...string) {
 	fmt.Printf("\n")
 }
 
-func DBRunCreateTests(client app.DBClient, t *testing.T, tests []DBTestCreateData) {
+func DBRunCreateTests(client db.Client, t *testing.T, tests []DBTestCreateData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -185,9 +185,9 @@ func DBRunCreateTests(client app.DBClient, t *testing.T, tests []DBTestCreateDat
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model app.Model, entity *schema.Entity) (*schema.Entity, error) {
-					createdEntityID := utils.Must(model.Create(entity))
-					return model.Query(app.EQ("id", createdEntityID)).First()
+				runFn = func(model db.Model, entity *schema.Entity) (*schema.Entity, error) {
+					createdEntityID := utils.Must(model.Create(Ctx(), entity))
+					return model.Query(db.EQ("id", createdEntityID)).First(Ctx())
 				}
 			}
 
@@ -206,7 +206,7 @@ func DBRunCreateTests(client app.DBClient, t *testing.T, tests []DBTestCreateDat
 	}
 }
 
-func DBRunUpdateTests(client app.DBClient, t *testing.T, tests []DBTestUpdateData) {
+func DBRunUpdateTests(client db.Client, t *testing.T, tests []DBTestUpdateData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -226,12 +226,12 @@ func DBRunUpdateTests(client app.DBClient, t *testing.T, tests []DBTestUpdateDat
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model app.Model, entity *schema.Entity) (int, error) {
+				runFn = func(model db.Model, entity *schema.Entity) (int, error) {
 					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
-					return mut.Update(entity)
+					return mut.Update(Ctx(), entity)
 				}
 			}
 
@@ -248,7 +248,7 @@ func DBRunUpdateTests(client app.DBClient, t *testing.T, tests []DBTestUpdateDat
 	}
 }
 
-func DBRunDeleteTests(client app.DBClient, t *testing.T, tests []DBTestDeleteData) {
+func DBRunDeleteTests(client db.Client, t *testing.T, tests []DBTestDeleteData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -265,12 +265,12 @@ func DBRunDeleteTests(client app.DBClient, t *testing.T, tests []DBTestDeleteDat
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model app.Model) (int, error) {
+				runFn = func(model db.Model) (int, error) {
 					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
-					return mut.Delete()
+					return mut.Delete(Ctx())
 				}
 			}
 
@@ -292,8 +292,8 @@ func DBRunDeleteTests(client app.DBClient, t *testing.T, tests []DBTestDeleteDat
 }
 
 func MockDefaultQueryRunFn(
-	model app.Model,
-	predicates []*app.Predicate,
+	model db.Model,
+	predicates []*db.Predicate,
 	limit, offset uint,
 	order []string,
 	columns ...string,
@@ -319,10 +319,10 @@ func MockDefaultQueryRunFn(
 		query = query.Select(columns...)
 	}
 
-	return query.Get()
+	return query.Get(Ctx())
 }
 
-func DBRunQueryTests(client app.DBClient, t *testing.T, tests []DBTestQueryData) {
+func DBRunQueryTests(client db.Client, t *testing.T, tests []DBTestQueryData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -335,9 +335,9 @@ func DBRunQueryTests(client app.DBClient, t *testing.T, tests []DBTestQueryData)
 				runFn = MockDefaultQueryRunFn
 			}
 
-			var predicates []*app.Predicate
+			var predicates []*db.Predicate
 			if tt.Filter != "" {
-				predicates, err = app.CreatePredicatesFromFilterObject(client.SchemaBuilder(), model.Schema(), tt.Filter)
+				predicates, err = db.CreatePredicatesFromFilterObject(client.SchemaBuilder(), model.Schema(), tt.Filter)
 				require.NoError(t, err)
 			}
 
@@ -359,12 +359,12 @@ func DBRunQueryTests(client app.DBClient, t *testing.T, tests []DBTestQueryData)
 
 				if !assert.Equal(t, preparedJSONs, entityJSONs) {
 					fmt.Println("------------WANT-----------")
-					for _, we := range preparedJSONs {
-						fmt.Println(we)
+					for _, e := range preparedJSONs {
+						spew.Dump(e)
 					}
 					fmt.Println("------------GOT-----------")
 					for _, e := range entityJSONs {
-						fmt.Println(e)
+						spew.Dump(e)
 					}
 				}
 				if tt.Expect != nil {
@@ -380,7 +380,7 @@ func DBRunQueryTests(client app.DBClient, t *testing.T, tests []DBTestQueryData)
 	}
 }
 
-func DBRunCountTests(client app.DBClient, t *testing.T, tests []DBTestCountData) {
+func DBRunCountTests(client db.Client, t *testing.T, tests []DBTestCountData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
@@ -391,8 +391,8 @@ func DBRunCountTests(client app.DBClient, t *testing.T, tests []DBTestCountData)
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(
-					model app.Model,
-					predicates []*app.Predicate,
+					model db.Model,
+					predicates []*db.Predicate,
 					unique bool,
 					column string,
 				) (int, error) {
@@ -401,18 +401,18 @@ func DBRunCountTests(client app.DBClient, t *testing.T, tests []DBTestCountData)
 						query = query.Where(predicates...)
 					}
 
-					countOptions := &app.CountOption{
+					countOptions := &db.CountOption{
 						Unique: unique,
 						Column: column,
 					}
 
-					return query.Count(countOptions)
+					return query.Count(Ctx(), countOptions)
 				}
 			}
 
-			var predicates []*app.Predicate
+			var predicates []*db.Predicate
 			if tt.Filter != "" {
-				predicates, err = app.CreatePredicatesFromFilterObject(client.SchemaBuilder(), model.Schema(), tt.Filter)
+				predicates, err = db.CreatePredicatesFromFilterObject(client.SchemaBuilder(), model.Schema(), tt.Filter)
 				require.NoError(t, err)
 			}
 

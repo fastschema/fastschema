@@ -7,6 +7,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 type TestStruct struct {
@@ -18,53 +19,41 @@ func TestGetDereferencedType(t *testing.T) {
 	ptr := &TestStruct{Name: "John"}
 	result := utils.GetDereferencedType(ptr)
 	expected := TestStruct{Name: "John"}
-	if !reflect.DeepEqual(result, expected) {
-		t.Errorf("Expected %v, but got %v", expected, result)
-	}
+	assert.Equal(t, reflect.TypeOf(expected), result)
 
 	// Test case 2: Dereference a pointer to a pointer to a struct
 	ptrPtr := &ptr
 	result = utils.GetDereferencedType(ptrPtr)
-	if !reflect.DeepEqual(result, expected) {
-		t.Errorf("Expected %v, but got %v", expected, result)
-	}
+	assert.Equal(t, reflect.TypeOf(expected), result)
 
 	// Test case 3: Dereference a non-pointer value
 	value := TestStruct{Name: "John"}
 	result = utils.GetDereferencedType(value)
-	if !reflect.DeepEqual(result, value) {
-		t.Errorf("Expected %v, but got %v", value, result)
-	}
+	assert.Equal(t, reflect.TypeOf(value), result)
 
 	// Test case 4: Dereference a pointer to itself
 	selfPtr := &ptrPtr
 	result = utils.GetDereferencedType(selfPtr)
-	if !reflect.DeepEqual(result, *ptr) {
-		t.Errorf("Expected %v, but got %v", selfPtr, result)
-	}
+	assert.Equal(t, reflect.TypeOf(expected), result)
 
 	// Test case 5: Dereference a pointer to a pointer to itself
-	var a any = 5
+	var a1 = 5
+	var a any = &a1
 	a = &a
 	a = &a
+
 	result = utils.GetDereferencedType(&a)
-	if !reflect.DeepEqual(result, a) {
-		t.Errorf("Expected %v, but got %v", **ptrPtr, result)
-	}
+	assert.Equal(t, reflect.Interface, result.Kind())
 
 	// Test case 6: Dereference a nil pointer
 	var nilPtr *TestStruct
 	result = utils.GetDereferencedType(nilPtr)
-	if !reflect.DeepEqual(result, TestStruct{}) {
-		t.Errorf("Expected %v, but got %v", TestStruct{}, result)
-	}
+	assert.Equal(t, reflect.TypeOf(TestStruct{}), result)
 
 	// Test case 7: Dereference a nil value
 	var nilValue any
 	result = utils.GetDereferencedType(nilValue)
-	if !reflect.DeepEqual(result, nilValue) {
-		t.Errorf("Expected %v, but got %v", nilValue, result)
-	}
+	assert.Equal(t, reflect.TypeOf(nilValue), result)
 }
 
 func TestGeneratePointerChain(t *testing.T) {

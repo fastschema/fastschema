@@ -1,19 +1,20 @@
 package entdbadapter
 
 import (
+	"context"
 	"testing"
 
 	entSchema "entgo.io/ent/dialect/sql/schema"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAdapterMigrateErrorConnection(t *testing.T) {
 	adapter := createMockAdapter(t)
 
-	migration := &app.Migration{}           // Replace with your migration definition
+	migration := &db.Migration{}            // Replace with your migration definition
 	appendEntTables := []*entSchema.Table{} // Replace with additional ent tables if needed
 
-	err := adapter.Migrate(migration, appendEntTables...)
+	err := adapter.Migrate(context.Background(), migration, appendEntTables...)
 	assert.Error(t, err)
 }

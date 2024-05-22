@@ -105,8 +105,7 @@ func TestSchemaServiceCreate(t *testing.T) {
 	assert.NotEmpty(t, response)
 
 	blogSchema := utils.Must(testApp.SchemaBuilder().Schema("blog"))
-	blogCategoriesField, err := blogSchema.Field("categories")
-	assert.NoError(t, err)
+	blogCategoriesField := blogSchema.Field("categories")
 	assert.NotNil(t, blogCategoriesField)
 	assert.Equal(t, "relation", blogCategoriesField.Type.String())
 	assert.Equal(t, schema.M2M, blogCategoriesField.Relation.Type)
@@ -114,8 +113,7 @@ func TestSchemaServiceCreate(t *testing.T) {
 	assert.Equal(t, "blogs", blogCategoriesField.Relation.TargetFieldName)
 
 	categorySchema := utils.Must(testApp.SchemaBuilder().Schema("category"))
-	categoryBlogsField, err := categorySchema.Field("blogs")
-	assert.NoError(t, err)
+	categoryBlogsField := categorySchema.Field("blogs")
 	assert.NotNil(t, categoryBlogsField)
 	assert.Equal(t, "relation", categoryBlogsField.Type.String())
 	assert.Equal(t, schema.M2M, categoryBlogsField.Relation.Type)

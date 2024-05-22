@@ -11,7 +11,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ func TestRequestIDContextKeyString(t *testing.T) {
 
 func TestContextResult(t *testing.T) {
 	c := &restresolver.Context{}
-	result := &app.Result{}
+	result := &fs.Result{}
 	c.Result(result)
 	assert.Equal(t, result, c.Result())
 }
@@ -106,7 +107,7 @@ func TestContextParse(t *testing.T) {
 
 func TestContextResource(t *testing.T) {
 	server := restresolver.New(restresolver.Config{})
-	resource := app.NewResource("test", func(c app.Context, _ any) (*any, error) {
+	resource := fs.NewResource("test", func(c fs.Context, _ any) (*any, error) {
 		return nil, nil
 	})
 	server.Get("/test", func(c *restresolver.Context) error {
@@ -144,18 +145,18 @@ func TestContextAuthToken(t *testing.T) {
 }
 
 func TestContextMethods(t *testing.T) {
-	resource := app.NewResource("test_resource", func(c app.Context, _ any) (*any, error) {
+	resource := fs.NewResource("test_resource", func(c fs.Context, _ any) (*any, error) {
 		return nil, nil
 	})
 	server := restresolver.New(restresolver.Config{
-		Logger: app.CreateMockLogger(true),
+		Logger: logger.CreateMockLogger(true),
 	})
 	server.Get("/test", func(c *restresolver.Context) error {
 		c.Value("test", "test_value")
 		assert.Equal(t, "test_value", c.Value("test"))
 		assert.Nil(t, c.User())
 
-		c.Value("user", &app.User{})
+		c.Value("user", &fs.User{})
 		assert.NotNil(t, c.User())
 
 		assert.Equal(t, "header-value", c.Header("custom-header"))

@@ -21,9 +21,8 @@ type Relation struct {
 	TargetSchemaName string `json:"schema"`          // target schema name
 	TargetFieldName  string `json:"field,omitempty"` // target field name, aka the back reference field name
 
-	Type  RelationType `json:"type"`            // the relation type: o2o, o2m, m2m
-	Owner bool         `json:"owner,omitempty"` // the relation owner: true, false
-	// FKColumns       []string     `json:"fk_columns"`
+	Type            RelationType       `json:"type"`            // the relation type: o2o, o2m, m2m
+	Owner           bool               `json:"owner,omitempty"` // the relation owner: true, false
 	FKColumns       *RelationFKColumns `json:"fk_columns"`
 	JunctionTable   string             `json:"junction_table,omitempty"` // junction table name for m2m relation
 	Optional        bool               `json:"optional"`
@@ -64,6 +63,10 @@ func (r *Relation) Clone() *Relation {
 
 	// Skip clone auto generated fields
 	newRelation := &Relation{
+		Name:       r.Name,
+		SchemaName: r.SchemaName,
+		FieldName:  r.FieldName,
+
 		TargetSchemaName: r.TargetSchemaName,
 		TargetFieldName:  r.TargetFieldName,
 		Type:             r.Type,
@@ -127,9 +130,9 @@ func (r *Relation) HasFKs() bool {
 }
 
 // CreateFKFields create the foreign key fields
-func (r *Relation) CreateFKFields() {
+func (r *Relation) CreateFKFields() *Field {
 	if !r.HasFKs() {
-		return
+		return nil
 	}
 
 	fk := r.GetTargetFKColumn()
@@ -147,7 +150,7 @@ func (r *Relation) CreateFKFields() {
 	}
 
 	fkField.Init()
-	r.FKFields = []*Field{fkField}
+	return fkField
 }
 
 func NewRelationNodeError(schema *Schema, field *Field) error {

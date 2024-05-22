@@ -5,14 +5,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/ogen-go/ogen"
 )
 
 // CreateParameters creates openapi parameters from app args
-func CreateParameters(args app.Args, params []string) ([]*ogen.Parameter, error) {
+func CreateParameters(args fs.Args, params []string) ([]*ogen.Parameter, error) {
 	parameters := make([]*ogen.Parameter, 0, len(args))
 	for argName, arg := range args {
 		example, err := json.Marshal(arg.Example)
@@ -59,7 +59,7 @@ func MergeParameters(first []*ogen.Parameter, second []*ogen.Parameter) []*ogen.
 // MergeArgs merges two app.Args maps and returns a new app.Args map.
 //
 //	If there are duplicate keys in the second map, an error is returned.
-func MergeArgs(first app.Args, second app.Args) (app.Args, error) {
+func MergeArgs(first fs.Args, second fs.Args) (fs.Args, error) {
 	result := first.Clone()
 	for key, value := range second {
 		if _, ok := result[key]; ok {
@@ -182,12 +182,12 @@ type methodPath struct {
 //	If a resource has no method, it uses "GET" as the default method.
 //	The ResourceInfo struct contains information about the resource, such as ID, signature, method, path, args, and public status.
 //	If there is an error during the flattening process, it returns nil and the error.
-func FlattenResources(resources []*app.Resource, prefix string, args app.Args) ([]*ResourceInfo, error) {
+func FlattenResources(resources []*fs.Resource, prefix string, args fs.Args) ([]*ResourceInfo, error) {
 	var infos []*ResourceInfo
 	for _, resource := range resources {
 		meta := resource.Meta()
 		if meta == nil {
-			meta = &app.Meta{}
+			meta = &fs.Meta{}
 		}
 
 		args, err := MergeArgs(args, meta.Args)

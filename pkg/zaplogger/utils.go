@@ -1,17 +1,16 @@
 package zaplogger
 
 import (
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/logger"
 )
 
-func (l *ZapLogger) getLogContext(params ...any) (string, []app.LogContext) {
+func (l *ZapLogger) getLogContext(params ...any) (string, []logger.LogContext) {
 	if len(params) == 0 {
-		return "", []app.LogContext{}
+		return "", []logger.LogContext{}
 	}
 
 	msg := ""
-	// ctx := app.LogContext{}
-	var contexts []app.LogContext
+	var contexts []logger.LogContext
 
 	if l.LogContext != nil {
 		contexts = append(contexts, l.LogContext)
@@ -30,7 +29,7 @@ func (l *ZapLogger) getLogContext(params ...any) (string, []app.LogContext) {
 	}
 
 	if len(params) > 0 {
-		contexts = append(contexts, app.LogContext{"params": params})
+		contexts = append(contexts, logger.LogContext{"params": params})
 	}
 
 	return msg, contexts

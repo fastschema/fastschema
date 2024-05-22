@@ -37,8 +37,7 @@ func (oas *OpenAPISpec) TypeToOgenSchema(t any, configs ...*TypeToOgenConfig) (s
 	}
 
 	configs = append(configs, &TypeToOgenConfig{})
-	dt := utils.GetDereferencedType(t)
-	dtType := reflect.TypeOf(dt)
+	dtType := utils.GetDereferencedType(t)
 	dtKind := dtType.Kind()
 
 	// Create schema for primitive types
@@ -164,7 +163,7 @@ func (oas *OpenAPISpec) GetElemSchema(rt reflect.Type) *ogen.Schema {
 //	These references need to be created so openapi can resolve them.
 //	While creating reference schema, there may be new reference schemas created.
 //	We need to resolve these new reference schemas as well.
-func (oas *OpenAPISpec) ResolveSchemaReferences() error {
+func (oas *OpenAPISpec) ResolveSchemaReferences() {
 	hasNewReferenceSchemas := false
 	for _, refSchema := range oas.referenceSchemas {
 		sType := refSchema.Type
@@ -192,7 +191,7 @@ func (oas *OpenAPISpec) ResolveSchemaReferences() error {
 
 			// create zero value of field.Type
 			zeroedField := utils.CreateZeroValue(field.Type)
-			fieldType := reflect.TypeOf(utils.GetDereferencedType(zeroedField))
+			fieldType := utils.GetDereferencedType(zeroedField)
 			if fieldType == nil {
 				fieldSchema := ogen.NewSchema()
 				structSchema.AddOptionalProperties(fieldSchema.ToProperty(fieldName))
@@ -224,8 +223,7 @@ func (oas *OpenAPISpec) ResolveSchemaReferences() error {
 	}
 
 	if hasNewReferenceSchemas {
-		return oas.ResolveSchemaReferences()
+		oas.ResolveSchemaReferences()
+		return
 	}
-
-	return nil
 }

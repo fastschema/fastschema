@@ -1,10 +1,13 @@
 package roleservice_test
 
 import (
+	"context"
 	"os"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	rr "github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -15,37 +18,38 @@ import (
 
 type TestApp struct {
 	sb                *schema.Builder
-	db                app.DBClient
-	resources         *app.ResourcesManager
-	adminUser         *app.User
-	normalUser        *app.User
-	inactiveUser      *app.User
+	db                db.Client
+	resources         *fs.ResourcesManager
+	adminUser         *fs.User
+	normalUser        *fs.User
+	inactiveUser      *fs.User
 	roleService       *rs.RoleService
-	roleModel         app.Model
+	roleModel         db.Model
 	server            *rr.Server
 	adminToken        string
 	normalUserToken   string
 	inactiveUserToken string
 }
 
-func (s TestApp) DB() app.DBClient {
+func (s TestApp) DB() db.Client {
 	return s.db
 }
 
-func (s TestApp) Roles() []*app.Role {
-	roleEntities := utils.Must(s.roleModel.Query().Select("id", "name", "root", "permissions").Get())
-	return app.EntitiesToRoles(roleEntities)
+func (s TestApp) Roles() []*fs.Role {
+	return utils.Must(
+		db.Query[*fs.Role](s.db).Select("id", "name", "root", "permissions").Get(context.Background()),
+	)
 }
 
 func (s TestApp) Key() string {
 	return "test"
 }
 
-func (s TestApp) UpdateCache() error {
+func (s TestApp) UpdateCache(ctx context.Context) error {
 	return nil
 }
 
-func (s TestApp) Resources() *app.ResourcesManager {
+func (s TestApp) Resources() *fs.ResourcesManager {
 	return s.resources
 }
 
@@ -64,26 +68,26 @@ func createRoleTest() *TestApp {
 			}
 		]
 	}`)
-	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
+	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	roleModel := utils.Must(db.Model("role"))
 	userModel := utils.Must(db.Model("user"))
-	appRoles := []*app.Role{app.RoleAdmin, app.RoleUser, app.RoleGuest}
+	appRoles := []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest}
 
 	for _, r := range appRoles {
-		utils.Must(roleModel.Create(schema.NewEntity().
+		utils.Must(roleModel.Create(context.Background(), schema.NewEntity().
 			Set("name", r.Name).
 			Set("root", r.Root),
 		))
 	}
 
-	utils.Must(userModel.Create(schema.NewEntity().
+	utils.Must(userModel.Create(context.Background(), schema.NewEntity().
 		Set("username", "adminuser").
 		Set("password", "adminuser").
 		Set("roles", []*schema.Entity{schema.NewEntity(1)}),
 	))
 
-	utils.Must(userModel.Create(schema.NewEntity().
+	utils.Must(userModel.Create(context.Background(), schema.NewEntity().
 		Set("username", "normaluser").
 		Set("password", "normaluser").
 		Set("roles", []*schema.Entity{schema.NewEntity(2)}),
@@ -94,15 +98,15 @@ func createRoleTest() *TestApp {
 	// And no permission set for content.meta
 	// We expect that user with role user should have access to content.list but not content.detail and content.meta
 	permissionModel := utils.Must(db.Model("permission"))
-	utils.Must(permissionModel.Create(schema.NewEntity().
+	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
 		Set("resource", "content.blog.list").
-		Set("value", app.PermissionTypeAllow.String()).
-		Set("role_id", app.RoleUser.ID),
+		Set("value", fs.PermissionTypeAllow.String()).
+		Set("role_id", fs.RoleUser.ID),
 	))
-	utils.Must(permissionModel.Create(schema.NewEntity().
+	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
 		Set("resource", "content.blog.detail").
-		Set("value", app.PermissionTypeDeny.String()).
-		Set("role_id", app.RoleUser.ID),
+		Set("value", fs.PermissionTypeDeny.String()).
+		Set("role_id", fs.RoleUser.ID),
 	))
 
 	testApp := &TestApp{
@@ -111,25 +115,25 @@ func createRoleTest() *TestApp {
 		roleModel: roleModel,
 	}
 
-	testApp.adminUser = &app.User{
+	testApp.adminUser = &fs.User{
 		ID:       1,
 		Username: "adminuser",
 		Active:   true,
-		Roles:    []*app.Role{app.RoleAdmin},
+		Roles:    []*fs.Role{fs.RoleAdmin},
 		RoleIDs:  []uint64{1},
 	}
-	testApp.normalUser = &app.User{
+	testApp.normalUser = &fs.User{
 		ID:       2,
 		Username: "normaluser",
 		Active:   true,
-		Roles:    []*app.Role{app.RoleUser},
+		Roles:    []*fs.Role{fs.RoleUser},
 		RoleIDs:  []uint64{2},
 	}
-	testApp.inactiveUser = &app.User{
+	testApp.inactiveUser = &fs.User{
 		ID:       3,
 		Username: "inactiveuser",
 		Active:   false,
-		Roles:    []*app.Role{app.RoleUser},
+		Roles:    []*fs.Role{fs.RoleUser},
 		RoleIDs:  []uint64{2},
 	}
 
@@ -138,67 +142,67 @@ func createRoleTest() *TestApp {
 	testApp.inactiveUserToken, _, _ = testApp.inactiveUser.JwtClaim(testApp.Key())
 
 	testApp.roleService = rs.New(testApp)
-	testApp.resources = app.NewResourcesManager()
-	testApp.resources.Hooks = func() *app.Hooks {
-		return &app.Hooks{
-			PreResolve: []app.Middleware{testApp.roleService.Authorize},
+	testApp.resources = fs.NewResourcesManager()
+	testApp.resources.Hooks = func() *fs.Hooks {
+		return &fs.Hooks{
+			PreResolve: []fs.Middleware{testApp.roleService.Authorize},
 		}
 	}
 	testApp.resources.Middlewares = append(testApp.resources.Middlewares, testApp.roleService.ParseUser)
 	testApp.resources.Group("role").
-		Add(app.NewResource("list", testApp.roleService.List, &app.Meta{
+		Add(fs.NewResource("list", testApp.roleService.List, &fs.Meta{
 			Get: "/",
 		})).
-		Add(app.NewResource("resources", testApp.roleService.ResourcesList, &app.Meta{
+		Add(fs.NewResource("resources", testApp.roleService.ResourcesList, &fs.Meta{
 			Get: "/resources",
 		})).
-		Add(app.NewResource("detail", testApp.roleService.Detail, &app.Meta{
+		Add(fs.NewResource("detail", testApp.roleService.Detail, &fs.Meta{
 			Get: "/:id",
 		})).
-		Add(app.NewResource("create", testApp.roleService.Create, &app.Meta{
+		Add(fs.NewResource("create", testApp.roleService.Create, &fs.Meta{
 			Post: "/",
 		})).
-		Add(app.NewResource("update", testApp.roleService.Update, &app.Meta{
+		Add(fs.NewResource("update", testApp.roleService.Update, &fs.Meta{
 			Put: "/:id",
 		})).
-		Add(app.NewResource("delete", testApp.roleService.Delete, &app.Meta{
+		Add(fs.NewResource("delete", testApp.roleService.Delete, &fs.Meta{
 			Delete: "/:id",
 		}))
 
 	testApp.resources.Group("content").
-		Add(app.NewResource("list", func(c app.Context, _ any) (any, error) {
+		Add(fs.NewResource("list", func(c fs.Context, _ any) (any, error) {
 			return "blog list", nil
-		}, &app.Meta{
+		}, &fs.Meta{
 			Get: "/:schema",
 		})).
-		Add(app.NewResource("detail", func(c app.Context, _ any) (any, error) {
+		Add(fs.NewResource("detail", func(c fs.Context, _ any) (any, error) {
 			return "blog detail", nil
-		}, &app.Meta{
+		}, &fs.Meta{
 			Get: "/:schema/:id",
 		})).
-		Add(app.NewResource("meta", func(c app.Context, _ any) (any, error) {
+		Add(fs.NewResource("meta", func(c fs.Context, _ any) (any, error) {
 			return "blog meta", nil
-		}, &app.Meta{
+		}, &fs.Meta{
 			Get: "/:schema/meta",
 		}))
 
 	testApp.resources.
 		Add(
-			app.NewResource("testuser", func(c app.Context, _ any) (any, error) {
+			fs.NewResource("testuser", func(c fs.Context, _ any) (any, error) {
 				return c.User(), nil
-			}, &app.Meta{Public: true}),
+			}, &fs.Meta{Public: true}),
 		).
 		Add(
-			app.NewResource("test", func(c app.Context, _ any) (any, error) {
+			fs.NewResource("test", func(c fs.Context, _ any) (any, error) {
 				return "test response", nil
-			}, &app.Meta{Public: true}),
+			}, &fs.Meta{Public: true}),
 		)
 
 	if err := testApp.resources.Init(); err != nil {
 		panic(err)
 	}
 
-	testApp.server = rr.NewRestResolver(testApp.resources, app.CreateMockLogger()).Server()
+	testApp.server = rr.NewRestResolver(testApp.resources, logger.CreateMockLogger()).Server()
 
 	return testApp
 }

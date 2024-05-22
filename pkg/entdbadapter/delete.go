@@ -1,6 +1,7 @@
 package entdbadapter
 
 import (
+	"context"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql"
@@ -8,7 +9,7 @@ import (
 )
 
 // Delete deletes entities from the database
-func (m *Mutation) Delete() (affected int, err error) {
+func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 	deleteSpec := &sqlgraph.DeleteSpec{
 		Node: &sqlgraph.NodeSpec{
 			Table: m.model.schema.Namespace,
@@ -34,5 +35,5 @@ func (m *Mutation) Delete() (affected int, err error) {
 		}
 	}
 
-	return sqlgraph.DeleteNodes(m.ctx, entAdapter.Driver(), deleteSpec)
+	return sqlgraph.DeleteNodes(ctx, entAdapter.Driver(), deleteSpec)
 }

@@ -12,7 +12,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -97,7 +97,7 @@ var carSchemaJSON = `{
 func TestCreateFieldPredicate(t *testing.T) {
 	type args struct {
 		name               string
-		predicate          *app.Predicate
+		predicate          *db.Predicate
 		expectSQLPredicate *dialectSql.Predicate
 		expectError        error
 	}
@@ -105,64 +105,64 @@ func TestCreateFieldPredicate(t *testing.T) {
 	tests := []args{
 		{
 			name:               "EQ",
-			predicate:          app.EQ("name", "John"),
+			predicate:          db.EQ("name", "John"),
 			expectSQLPredicate: dialectSql.EQ("name", "John"),
 		},
 		{
 			name:               "NEQ",
-			predicate:          app.NEQ("name", "John"),
+			predicate:          db.NEQ("name", "John"),
 			expectSQLPredicate: dialectSql.NEQ("name", "John"),
 		},
 		{
 			name:               "GT",
-			predicate:          app.GT("age", 5),
+			predicate:          db.GT("age", 5),
 			expectSQLPredicate: dialectSql.GT("age", 5),
 		},
 		{
 			name:               "GTE",
-			predicate:          app.GTE("age", 5),
+			predicate:          db.GTE("age", 5),
 			expectSQLPredicate: dialectSql.GTE("age", 5),
 		},
 		{
 			name:               "LT",
-			predicate:          app.LT("age", 5),
+			predicate:          db.LT("age", 5),
 			expectSQLPredicate: dialectSql.LT("age", 5),
 		},
 		{
 			name:               "LTE",
-			predicate:          app.LTE("age", 5),
+			predicate:          db.LTE("age", 5),
 			expectSQLPredicate: dialectSql.LTE("age", 5),
 		},
 		{
 			name:               "Like",
-			predicate:          app.Like("name", "%John%"),
+			predicate:          db.Like("name", "%John%"),
 			expectSQLPredicate: dialectSql.Like("name", "%John%"),
 		},
 		{
 			name:               "In",
-			predicate:          app.In("name", []any{"John", "Doe"}),
+			predicate:          db.In("name", []any{"John", "Doe"}),
 			expectSQLPredicate: dialectSql.In("name", []any{"John", "Doe"}...),
 		},
 		{
 			name:               "NotIn",
-			predicate:          app.NotIn("name", []any{"John", "Doe"}),
+			predicate:          db.NotIn("name", []any{"John", "Doe"}),
 			expectSQLPredicate: dialectSql.NotIn("name", []any{"John", "Doe"}...),
 		},
 		{
 			name:               "Null",
-			predicate:          app.Null("name", true),
+			predicate:          db.Null("name", true),
 			expectSQLPredicate: dialectSql.IsNull("name"),
 		},
 		{
 			name:               "NotNull",
-			predicate:          app.Null("name", false),
+			predicate:          db.Null("name", false),
 			expectSQLPredicate: dialectSql.NotNull("name"),
 		},
 		{
 			name: "Invalid",
-			predicate: &app.Predicate{
+			predicate: &db.Predicate{
 				Field:    "name",
-				Operator: app.OpInvalid,
+				Operator: db.OpInvalid,
 			},
 			expectError: errors.New("operator invalid not supported"),
 		},
@@ -206,8 +206,8 @@ func TestCreateEntPredicates(t *testing.T) {
 	sb.AddSchema(carSchema)
 	assert.NoError(t, sb.Init())
 
-	client, err := NewMockExpectClient(func(d *sql.DB) app.DBClient {
-		driver := utils.Must(NewEntClient(&app.DBConfig{
+	client, err := NewMockExpectClient(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
@@ -245,7 +245,7 @@ func TestCreateEntPredicates(t *testing.T) {
 
 	type args struct {
 		name        string
-		predicates  []*app.Predicate
+		predicates  []*db.Predicate
 		expectQuery string
 		expectArgs  []any
 	}
@@ -253,19 +253,19 @@ func TestCreateEntPredicates(t *testing.T) {
 	tests := []args{
 		{
 			name: "And",
-			predicates: []*app.Predicate{
-				app.Like("name", "%car%"),
-				app.GT("year", 2000),
+			predicates: []*db.Predicate{
+				db.Like("name", "%car%"),
+				db.GT("year", 2000),
 			},
 			expectQuery: "`name` LIKE ? AND `year` > ?",
 			expectArgs:  []any{"%car%", 2000},
 		},
 		{
 			name: "Or",
-			predicates: []*app.Predicate{
-				app.Or(
-					app.Like("name", "%car%"),
-					app.GT("year", 2000),
+			predicates: []*db.Predicate{
+				db.Or(
+					db.Like("name", "%car%"),
+					db.GT("year", 2000),
 				),
 			},
 			expectQuery: "`name` LIKE ? OR `year` > ?",
@@ -273,11 +273,11 @@ func TestCreateEntPredicates(t *testing.T) {
 		},
 		{
 			name: "Relation",
-			predicates: []*app.Predicate{
-				app.GT("year", 2000),
+			predicates: []*db.Predicate{
+				db.GT("year", 2000),
 				{
 					Field:              "name",
-					Operator:           app.OpLIKE,
+					Operator:           db.OpLIKE,
 					Value:              "%group%",
 					RelationFieldNames: []string{"group", "parent"},
 				},

@@ -47,16 +47,14 @@ func ContentCreateSchema(s *schema.Schema) *ogen.Schema {
 // SchemasToOGenSchemas converts the schemas defined in the OpenAPISpec to OGenSchemas.
 //
 //	It iterates over the schema builder's schemas and calls schemaToOGenSchema for each schema.
-func (oas *OpenAPISpec) SchemasToOGenSchemas() (err error) {
+func (oas *OpenAPISpec) SchemasToOGenSchemas() {
 	if oas.config.SchemaBuilder == nil {
-		return nil
+		return
 	}
 
 	for _, s := range oas.config.SchemaBuilder.Schemas() {
 		oas.SchemaToOGenSchema(s)
 	}
-
-	return nil
 }
 
 // SchemaToOGenSchema converts a schema.Schema object to an ogen.Schema object and adds it to the OpenAPISpec.

@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,7 @@ func TestNew(t *testing.T) {
 	config := restresolver.Config{
 		AppName:     "TestApp",
 		JSONEncoder: json.Marshal,
-		Logger:      app.CreateMockLogger(true),
+		Logger:      logger.CreateMockLogger(true),
 	}
 
 	server := restresolver.New(config)
@@ -37,7 +38,7 @@ func TestServerUse(t *testing.T) {
 	assert.Equal(t, 404, resp.StatusCode)
 	assert.Equal(t, "test", resp.Header.Get("X-Test"))
 
-	server.Group("profile", &app.Resource{}, func(c *restresolver.Context) error {
+	server.Group("profile", &fs.Resource{}, func(c *restresolver.Context) error {
 		return c.JSON("profile")
 	})
 
@@ -87,7 +88,7 @@ func TestServerStatic(t *testing.T) {
 
 func TestServerMethods(t *testing.T) {
 	server := restresolver.New(restresolver.Config{})
-	methodsMap := map[string]func(path string, handler restresolver.Handler, resources ...*app.Resource){
+	methodsMap := map[string]func(path string, handler restresolver.Handler, resources ...*fs.Resource){
 		"GET":     server.Get,
 		"HEAD":    server.Head,
 		"POST":    server.Post,
@@ -102,7 +103,7 @@ func TestServerMethods(t *testing.T) {
 	for method, methodFunc := range methodsMap {
 		methodFunc("/test", func(c *restresolver.Context) error {
 			return c.JSON(method)
-		}, &app.Resource{})
+		}, &fs.Resource{})
 
 		req := httptest.NewRequest(method, "/test", nil)
 		resp, err := server.Test(req)
@@ -114,7 +115,7 @@ func TestServerMethods(t *testing.T) {
 
 func TestServerListen(t *testing.T) {
 	config := restresolver.Config{
-		Logger: app.CreateMockLogger(true),
+		Logger: logger.CreateMockLogger(true),
 	}
 	server := restresolver.New(config)
 	go func() {

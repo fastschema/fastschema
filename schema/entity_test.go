@@ -279,6 +279,13 @@ func TestEntityToMapNestedEntities(t *testing.T) {
 
 	entity1.Set("info", entity2)
 
+	childSlice := []*Entity{
+		NewEntity().Set("id", float64(1)).Set("name", "Go"),
+		NewEntity().Set("id", float64(2)).Set("name", "Python"),
+		NewEntity().Set("id", float64(3)).Set("name", "Java"),
+	}
+	entity1.Set("skills", childSlice)
+
 	expected := map[string]any{
 		"name": "John",
 		"info": map[string]any{
@@ -286,6 +293,11 @@ func TestEntityToMapNestedEntities(t *testing.T) {
 			"group": map[string]any{
 				"skills": []string{"Go", "Python", "Java"},
 			},
+		},
+		"skills": []map[string]any{
+			{"id": float64(1), "name": "Go"},
+			{"id": float64(2), "name": "Python"},
+			{"id": float64(3), "name": "Java"},
 		},
 	}
 
@@ -446,7 +458,7 @@ func TestEntityToStruct(t *testing.T) {
 		},
 	}
 
-	result, err := EntityToStruct[TestStruct](entity)
+	result, err := BindEntity[TestStruct](entity)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expected, result)
@@ -551,7 +563,7 @@ func TestEntityToStructWithMapOfSliceOfStruct(t *testing.T) {
 		},
 	}
 
-	result, err := EntityToStruct[TestStruct](entity)
+	result, err := BindEntity[TestStruct](entity)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, result)
 }
@@ -628,7 +640,7 @@ func TestEntityToStructWithNestedStruct(t *testing.T) {
 		},
 	}
 
-	result, err := EntityToStruct[TestStruct](entity)
+	result, err := BindEntity[TestStruct](entity)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, result)
 }
@@ -698,13 +710,14 @@ func TestEntityToStructWithMissingFields(t *testing.T) {
 		},
 	}
 
-	result, err := EntityToStruct[TestStruct](entity)
+	result, err := BindEntity[TestStruct](entity)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, result)
 }
-func TestEntityToStruct_MarshalError(t *testing.T) {
+
+func TestEntityToStructMarshalError(t *testing.T) {
 	entity := NewEntity()
-	entity.Set("name", "John")
+	entity.Set("name", make(chan int))
 	entity.Set("age", 30)
 	entity.Set("skills", []string{"Go", "Python", "Java"})
 
@@ -714,6 +727,6 @@ func TestEntityToStruct_MarshalError(t *testing.T) {
 	type StructType struct {
 		Name string `json:"name"`
 	}
-	_, err := EntityToStruct[StructType](entity)
+	_, err := BindEntity[StructType](entity)
 	assert.Error(t, err)
 }

@@ -1,15 +1,13 @@
 package contentservice
 
-import (
-	"github.com/fastschema/fastschema/app"
-)
+import "github.com/fastschema/fastschema/db"
 
 type AppLike interface {
-	DB() app.DBClient
+	DB() db.Client
 }
 
 type ContentService struct {
-	DB func() app.DBClient
+	DB func() db.Client
 }
 
 func New(app AppLike) *ContentService {

@@ -25,11 +25,11 @@ if [ "$#" -gt 0 ]; then
       fi;
     done
   else
-    testFiles=$testFile
+    go test -covermode=atomic -coverprofile $coverageFile.txt -failfast -v -p 1 $testFile;
   fi
 else
   echo "Testing all"
-  gotestsum -f testname -- ./... -race -count=1 -coverprofile=$coverageFile.txt -covermode=atomic
+  gotestsum -f testname -- ./... -failfast -race -count=1 -coverprofile=$coverageFile.txt -covermode=atomic
   go tool cover -html=$coverageFile.txt -o $coverageFile.html
 fi
 

@@ -4,7 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	rr "github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -15,10 +17,10 @@ import (
 
 type testApp struct {
 	sb *schema.Builder
-	db app.DBClient
+	db db.Client
 }
 
-func (s testApp) DB() app.DBClient {
+func (s testApp) DB() db.Client {
 	return s.db
 }
 
@@ -37,29 +39,29 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 			}
 		]
 	}`)
-	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
+	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	contentService := cs.New(&testApp{sb: sb, db: db})
-	resources := app.NewResourcesManager()
+	resources := fs.NewResourcesManager()
 	resources.Group("content").
-		Add(app.NewResource("list", contentService.List, &app.Meta{
+		Add(fs.NewResource("list", contentService.List, &fs.Meta{
 			Get: "/:schema",
 		})).
-		Add(app.NewResource("detail", contentService.Detail, &app.Meta{
+		Add(fs.NewResource("detail", contentService.Detail, &fs.Meta{
 			Get: "/:schema/:id",
 		})).
-		Add(app.NewResource("create", contentService.Create, &app.Meta{
+		Add(fs.NewResource("create", contentService.Create, &fs.Meta{
 			Post: "/:schema",
 		})).
-		Add(app.NewResource("update", contentService.Update, &app.Meta{
+		Add(fs.NewResource("update", contentService.Update, &fs.Meta{
 			Put: "/:schema/:id",
 		})).
-		Add(app.NewResource("delete", contentService.Delete, &app.Meta{
+		Add(fs.NewResource("delete", contentService.Delete, &fs.Meta{
 			Delete: "/:schema/:id",
 		}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := rr.NewRestResolver(resources, app.CreateMockLogger(true))
+	restResolver := rr.NewRestResolver(resources, logger.CreateMockLogger(true))
 
 	return contentService, restResolver.Server()
 }

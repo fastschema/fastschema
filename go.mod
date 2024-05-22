@@ -13,8 +13,12 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.4
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/google/uuid v1.6.0
+	github.com/hjson/hjson-go/v4 v4.4.0
+	github.com/iancoleman/strcase v0.3.0
 	github.com/jackc/pgx/v5 v5.5.5
+	github.com/jinzhu/inflection v1.0.0
 	github.com/joho/godotenv v1.5.1
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/ogen-go/ogen v1.1.1
 	github.com/otiai10/copy v1.14.0
 	github.com/rclone/rclone v1.66.0

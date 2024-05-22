@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/restresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -41,7 +41,7 @@ func TestSchemaServiceUpdateError(t *testing.T) {
 	req := httptest.NewRequest("PUT", "/schema/product", nil)
 	resp := utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 500, resp.StatusCode)
+	assert.Equal(t, 400, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.Contains(t, response, `"error":{`)
 
@@ -86,7 +86,7 @@ func addFieldDescriptionToBlog(t *testing.T, testApp *testApp, server *restresol
 	assert.Equal(t, 200, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
-	assert.Equal(t, "description", utils.Must(testApp.Schema("blog").Field("description")).Name)
+	assert.Equal(t, "description", testApp.Schema("blog").Field("description").Name)
 
 	return newBlogJSON
 }
@@ -107,7 +107,7 @@ func addFieldCategoriesToBlog(t *testing.T, testApp *testApp, server *restresolv
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
 
-	blogFieldCategories := utils.Must(testApp.Schema("blog").Field("categories"))
+	blogFieldCategories := testApp.Schema("blog").Field("categories")
 	assert.Equal(t, "categories", blogFieldCategories.Name)
 	assert.Equal(t, schema.M2M, blogFieldCategories.Relation.Type)
 	assert.Equal(t, "category", blogFieldCategories.Relation.TargetSchemaName)
@@ -115,7 +115,7 @@ func addFieldCategoriesToBlog(t *testing.T, testApp *testApp, server *restresolv
 	assert.False(t, blogFieldCategories.Relation.Owner)
 	assert.False(t, blogFieldCategories.Relation.Optional)
 
-	categoryFieldBlogs := utils.Must(testApp.Schema("category").Field("blogs"))
+	categoryFieldBlogs := testApp.Schema("category").Field("blogs")
 	assert.Equal(t, "blogs", categoryFieldBlogs.Name)
 	assert.Equal(t, schema.M2M, categoryFieldBlogs.Relation.Type)
 	assert.Equal(t, "blog", categoryFieldBlogs.Relation.TargetSchemaName)
@@ -142,7 +142,7 @@ func addFieldCategoryToBlog(t *testing.T, testApp *testApp, server *restresolver
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
 
-	blogFieldCategory := utils.Must(testApp.Schema("blog").Field("category"))
+	blogFieldCategory := testApp.Schema("blog").Field("category")
 	assert.Equal(t, "category", blogFieldCategory.Name)
 	assert.Equal(t, schema.O2M, blogFieldCategory.Relation.Type)
 	assert.Equal(t, "category", blogFieldCategory.Relation.TargetSchemaName)
@@ -150,7 +150,7 @@ func addFieldCategoryToBlog(t *testing.T, testApp *testApp, server *restresolver
 	assert.False(t, blogFieldCategory.Relation.Owner)
 	assert.False(t, blogFieldCategory.Relation.Optional)
 
-	categoryFieldBlogs := utils.Must(testApp.Schema("category").Field("blogs"))
+	categoryFieldBlogs := testApp.Schema("category").Field("blogs")
 	assert.Equal(t, "blogs", categoryFieldBlogs.Name)
 	assert.Equal(t, schema.O2M, categoryFieldBlogs.Relation.Type)
 	assert.Equal(t, "blog", categoryFieldBlogs.Relation.TargetSchemaName)
@@ -226,9 +226,8 @@ func TestSchemaServiceUpdateRemoveRelationFieldSuccess(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
-	fieldCategories, err := testApp.Schema("blog").Field("categories")
+	fieldCategories := testApp.Schema("blog").Field("categories")
 	assert.Nil(t, fieldCategories)
-	assert.Error(t, err)
 }
 
 // Case 4: add normal field
@@ -309,17 +308,16 @@ func TestSchemaServiceUpdate(t *testing.T) {
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
 
-	fieldDescription, err := testApp.Schema("blog").Field("description")
+	fieldDescription := testApp.Schema("blog").Field("description")
 	assert.Nil(t, fieldDescription)
-	assert.Error(t, err)
-	fieldCategories, err := testApp.Schema("blog").Field("categories")
-	assert.Nil(t, fieldCategories)
-	assert.Error(t, err)
 
-	fieldNote := utils.Must(testApp.Schema("blog").Field("note"))
+	fieldCategories := testApp.Schema("blog").Field("categories")
+	assert.Nil(t, fieldCategories)
+
+	fieldNote := testApp.Schema("blog").Field("note")
 	assert.Equal(t, "note", fieldNote.Name)
 
-	fieldTags := utils.Must(testApp.Schema("blog").Field("tags"))
+	fieldTags := testApp.Schema("blog").Field("tags")
 	assert.Equal(t, "tags", fieldTags.Name)
 	assert.Equal(t, schema.M2M, fieldTags.Relation.Type)
 	assert.Equal(t, "tag", fieldTags.Relation.TargetSchemaName)
@@ -327,7 +325,7 @@ func TestSchemaServiceUpdate(t *testing.T) {
 	assert.False(t, fieldTags.Relation.Owner)
 	assert.False(t, fieldTags.Relation.Optional)
 
-	fieldBlogs := utils.Must(testApp.Schema("tag").Field("blogs"))
+	fieldBlogs := testApp.Schema("tag").Field("blogs")
 	assert.Equal(t, "blogs", fieldBlogs.Name)
 	assert.Equal(t, schema.M2M, fieldBlogs.Relation.Type)
 	assert.Equal(t, "blog", fieldBlogs.Relation.TargetSchemaName)
@@ -344,7 +342,7 @@ func TestSchemaServiceUpdateRenameNormalField(t *testing.T) {
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,
 		},
-		reloadFn: func(migrations *app.Migration) error {
+		reloadFn: func(migrations *db.Migration) error {
 			if !checkMigration {
 				return nil
 			}
@@ -381,7 +379,7 @@ func TestSchemaServiceUpdateRenameNormalField(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
-	assert.Equal(t, "desc", utils.Must(testApp.Schema("blog").Field("desc")).Name)
+	assert.Equal(t, "desc", testApp.Schema("blog").Field("desc").Name)
 }
 
 // Case 9: rename m2m relation field
@@ -392,7 +390,7 @@ func TestSchemaServiceUpdateRenameO2MRelationField(t *testing.T) {
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,
 		},
-		reloadFn: func(migrations *app.Migration) error {
+		reloadFn: func(migrations *db.Migration) error {
 			if !checkMigration {
 				return nil
 			}
@@ -430,7 +428,7 @@ func TestSchemaServiceUpdateRenameO2MRelationField(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
-	assert.Equal(t, "main_category", utils.Must(testApp.Schema("blog").Field("main_category")).Name)
+	assert.Equal(t, "main_category", testApp.Schema("blog").Field("main_category").Name)
 }
 
 // Case 10: rename m2m relation field
@@ -441,7 +439,7 @@ func TestSchemaServiceUpdateRenameM2MRelationField(t *testing.T) {
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,
 		},
-		reloadFn: func(migrations *app.Migration) error {
+		reloadFn: func(migrations *db.Migration) error {
 			if !checkMigration {
 				return nil
 			}
@@ -487,5 +485,5 @@ func TestSchemaServiceUpdateRenameM2MRelationField(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
-	assert.Equal(t, "cats", utils.Must(testApp.Schema("blog").Field("cats")).Name)
+	assert.Equal(t, "cats", testApp.Schema("blog").Field("cats").Name)
 }

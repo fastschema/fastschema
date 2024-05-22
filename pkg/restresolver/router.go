@@ -1,7 +1,8 @@
 package restresolver
 
 import (
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -9,7 +10,7 @@ import (
 type Router struct {
 	*fiber.App
 	fiberGroup *fiber.Group
-	logger     app.Logger
+	logger     logger.Logger
 }
 
 func (g *Router) Use(handlers ...Handler) {
@@ -22,7 +23,7 @@ func (g *Router) Use(handlers ...Handler) {
 	g.fiberGroup.Use(middlewares...)
 }
 
-func (g *Router) Group(prefix string, r *app.Resource, handlers ...Handler) *Router {
+func (g *Router) Group(prefix string, r *fs.Resource, handlers ...Handler) *Router {
 	var fiberHandlers []fiber.Handler
 
 	for _, handler := range handlers {
@@ -40,47 +41,47 @@ func (g *Router) Group(prefix string, r *app.Resource, handlers ...Handler) *Rou
 	}
 }
 
-func (g *Router) Get(path string, handler Handler, resources ...*app.Resource) {
+func (g *Router) Get(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Get(path, handlers...).Name(name)
 }
 
-func (g *Router) Head(path string, handler Handler, resources ...*app.Resource) {
+func (g *Router) Head(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Head(path, handlers...).Name(name)
 }
 
-func (g *Router) Post(path string, handler Handler, resources ...*app.Resource) {
+func (g *Router) Post(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Post(path, handlers...).Name(name)
 }
 
-func (g *Router) Put(path string, handler Handler, resources ...*app.Resource) {
+func (g *Router) Put(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Put(path, handlers...).Name(name)
 }
 
-func (g *Router) Delete(path string, handler Handler, resources ...*app.Resource) {
+func (g *Router) Delete(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Delete(path, handlers...).Name(name)
 }
 
-func (g *Router) Connect(path string, handler Handler, resources ...*app.Resource) {
+func (g *Router) Connect(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Connect(path, handlers...).Name(name)
 }
 
-func (g *Router) Options(path string, handler Handler, resources ...*app.Resource) {
+func (g *Router) Options(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Options(path, handlers...).Name(name)
 }
 
-func (g *Router) Trace(path string, handler Handler, resources ...*app.Resource) {
+func (g *Router) Trace(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Trace(path, handlers...).Name(name)
 }
 
-func (g *Router) Patch(path string, handler Handler, resources ...*app.Resource) {
+func (g *Router) Patch(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, g.logger, resources...)
 	g.fiberGroup.Patch(path, handlers...).Name(name)
 }

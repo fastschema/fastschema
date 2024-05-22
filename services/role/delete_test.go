@@ -1,6 +1,7 @@
 package roleservice_test
 
 import (
+	"context"
 	"fmt"
 	"net/http/httptest"
 	"testing"
@@ -28,7 +29,7 @@ func TestRoleServiceDelete(t *testing.T) {
 	assert.Contains(t, response, "Can't delete default roles")
 
 	// Case 3: Success
-	newRoleID := utils.Must(testApp.roleModel.CreateFromJSON(`{"name": "New role for delete"}`))
+	newRoleID := utils.Must(testApp.roleModel.CreateFromJSON(context.Background(), `{"name": "New role for delete"}`))
 	req = httptest.NewRequest("DELETE", fmt.Sprintf("/role/%d", newRoleID), nil)
 	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
 	resp = utils.Must(testApp.server.Test(req))

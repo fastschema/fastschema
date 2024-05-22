@@ -10,7 +10,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/openapi"
@@ -20,7 +22,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/zaplogger"
 	"github.com/fastschema/fastschema/schema"
 	cs "github.com/fastschema/fastschema/services/content"
-	ms "github.com/fastschema/fastschema/services/media"
+	ms "github.com/fastschema/fastschema/services/file"
 	rs "github.com/fastschema/fastschema/services/role"
 	ss "github.com/fastschema/fastschema/services/schema"
 	ts "github.com/fastschema/fastschema/services/tool"
@@ -40,14 +42,15 @@ type AppConfig struct {
 	DashURL           string
 	APIBaseName       string
 	DashBaseName      string
-	Logger            app.Logger
-	DB                app.DBClient
-	StorageConfig     *app.StorageConfig
+	Logger            logger.Logger
+	DB                db.Client
+	StorageConfig     *fs.StorageConfig
 	HideResourcesInfo bool
+	SystemSchemaTypes []any // types to build the system schemas
 }
 
 func (ac *AppConfig) Clone() *AppConfig {
-	return &AppConfig{
+	c := &AppConfig{
 		Dir:               ac.Dir,
 		AppKey:            ac.AppKey,
 		Port:              ac.Port,
@@ -59,7 +62,10 @@ func (ac *AppConfig) Clone() *AppConfig {
 		DB:                ac.DB,
 		StorageConfig:     ac.StorageConfig.Clone(),
 		HideResourcesInfo: ac.HideResourcesInfo,
+		SystemSchemaTypes: append([]any{}, ac.SystemSchemaTypes...),
 	}
+
+	return c
 }
 
 type App struct {
@@ -74,24 +80,26 @@ type App struct {
 	migrationDir    string
 	schemaBuilder   *schema.Builder
 	restResolver    *restresolver.RestSolver
-	resources       *app.ResourcesManager
-	api             *app.Resource
-	hooks           *app.Hooks
-	roles           []*app.Role
-	disks           []app.Disk
-	defaultDisk     app.Disk
+	resources       *fs.ResourcesManager
+	api             *fs.Resource
+	hooks           *fs.Hooks
+	roles           []*fs.Role
+	disks           []fs.Disk
+	defaultDisk     fs.Disk
 	setupToken      string
 	startupMessages []string
-	statics         []*app.StaticFs
+	statics         []*fs.StaticFs
 	openAPISpec     []byte
 }
 
 func New(config *AppConfig) (_ *App, err error) {
 	a := &App{
 		config: config.Clone(),
-		disks:  []app.Disk{},
-		roles:  []*app.Role{},
-		hooks:  &app.Hooks{},
+		disks:  []fs.Disk{},
+		roles:  []*fs.Role{},
+		hooks: &fs.Hooks{
+			DBHooks: &db.Hooks{},
+		},
 	}
 
 	if a.cwd, err = os.Getwd(); err != nil {
@@ -144,14 +152,14 @@ func (a *App) init() (err error) {
 				fmt.Sprintf("Serving files from disk [%s:%s] at %s", disk.Name(), publicPath, disk.Root()),
 			)
 
-			a.statics = append(a.statics, &app.StaticFs{
+			a.statics = append(a.statics, &fs.StaticFs{
 				BasePath: publicPath,
 				Root:     http.Dir(disk.Root()),
 			})
 		}
 	}
 
-	setupToken, err := a.SetupToken()
+	setupToken, err := a.SetupToken(context.Background())
 	if err != nil {
 		return err
 	}
@@ -163,7 +171,7 @@ func (a *App) init() (err error) {
 			Email    string `json:"email"`
 			Password string `json:"password"`
 		}
-		a.api.Add(app.NewResource("setup", func(c app.Context, setupData *setupData) (bool, error) {
+		a.api.Add(fs.NewResource("setup", func(c fs.Context, setupData *setupData) (bool, error) {
 			if setupToken == "" {
 				return false, errors.BadRequest("Setup token is not available")
 			}
@@ -173,6 +181,7 @@ func (a *App) init() (err error) {
 			}
 
 			if err := ts.Setup(
+				c.Context(),
 				a.DB(),
 				a.Logger(),
 				setupData.Username, setupData.Email, setupData.Password,
@@ -180,7 +189,7 @@ func (a *App) init() (err error) {
 				return false, err
 			}
 
-			if err := a.UpdateCache(); err != nil {
+			if err := a.UpdateCache(c.Context()); err != nil {
 				return false, err
 			}
 
@@ -188,7 +197,7 @@ func (a *App) init() (err error) {
 			a.setupToken = ""
 
 			return true, nil
-		}, &app.Meta{
+		}, &fs.Meta{
 			Post:   "/setup",
 			Public: true,
 		}))
@@ -205,7 +214,7 @@ func (a *App) init() (err error) {
 		))
 	}
 
-	a.statics = append(a.statics, &app.StaticFs{
+	a.statics = append(a.statics, &fs.StaticFs{
 		BasePath:   "/" + a.config.DashBaseName,
 		Root:       http.FS(embedDashStatic),
 		PathPrefix: "dash",
@@ -226,7 +235,7 @@ func (a *App) Dir() string {
 	return a.dir
 }
 
-func (a *App) Reload(migration *app.Migration) (err error) {
+func (a *App) Reload(ctx context.Context, migration *db.Migration) (err error) {
 	if a.DB() != nil {
 		if err = a.DB().Close(); err != nil {
 			return err
@@ -237,7 +246,7 @@ func (a *App) Reload(migration *app.Migration) (err error) {
 		return err
 	}
 
-	newDB, err := a.DB().Reload(a.schemaBuilder, migration)
+	newDB, err := a.DB().Reload(ctx, a.schemaBuilder, migration)
 	if err != nil {
 		return err
 	}
@@ -253,14 +262,8 @@ func (a *App) Reload(migration *app.Migration) (err error) {
 
 // UpdateCache updates the application cache.
 // It fetches all roles from the database and stores them in the cache.
-func (a *App) UpdateCache() error {
-	a.roles = []*app.Role{}
-	roleModel, err := a.DB().Model("role")
-	if err != nil {
-		return err
-	}
-
-	roles, err := roleModel.Query().Select(
+func (a *App) UpdateCache(ctx context.Context) (err error) {
+	if a.roles, err = db.Query[*fs.Role](a.DB()).Select(
 		"id",
 		"name",
 		"description",
@@ -269,15 +272,8 @@ func (a *App) UpdateCache() error {
 		schema.FieldCreatedAt,
 		schema.FieldUpdatedAt,
 		schema.FieldDeletedAt,
-	).Get(context.Background())
-
-	if err != nil {
+	).Get(ctx); err != nil {
 		return err
-	}
-
-	for _, r := range roles {
-		role := app.EntityToRole(r)
-		a.roles = append(a.roles, role)
 	}
 
 	return nil
@@ -345,35 +341,35 @@ func (a *App) SchemaBuilder() *schema.Builder {
 	return a.schemaBuilder
 }
 
-func (a *App) DB() app.DBClient {
+func (a *App) DB() db.Client {
 	return a.config.DB
 }
 
-func (a *App) API() *app.Resource {
+func (a *App) API() *fs.Resource {
 	return a.api
 }
 
-func (a *App) Logger() app.Logger {
+func (a *App) Logger() logger.Logger {
 	return a.config.Logger
 }
 
-func (a *App) Resources() *app.ResourcesManager {
+func (a *App) Resources() *fs.ResourcesManager {
 	return a.resources
 }
 
-func (a *App) Roles() []*app.Role {
+func (a *App) Roles() []*fs.Role {
 	return a.roles
 }
 
-func (a *App) Hooks() *app.Hooks {
+func (a *App) Hooks() *fs.Hooks {
 	return a.hooks
 }
 
-func (a *App) Disks() []app.Disk {
+func (a *App) Disks() []fs.Disk {
 	return a.disks
 }
 
-func (a *App) Disk(names ...string) app.Disk {
+func (a *App) Disk(names ...string) fs.Disk {
 	if len(names) == 0 {
 		return a.defaultDisk
 	}
@@ -387,33 +383,33 @@ func (a *App) Disk(names ...string) app.Disk {
 	return nil
 }
 
-func (a *App) AddResource(resource *app.Resource) {
+func (a *App) AddResource(resource *fs.Resource) {
 	a.resources.Add(resource)
 }
 
-func (a *App) AddMiddlewares(middlewares ...app.Middleware) {
+func (a *App) AddMiddlewares(middlewares ...fs.Middleware) {
 	a.resources.Middlewares = append(a.resources.Middlewares, middlewares...)
 }
 
-func (a *App) OnPreResolve(middlewares ...app.Middleware) {
+func (a *App) OnPreResolve(middlewares ...fs.Middleware) {
 	a.hooks.PreResolve = append(a.hooks.PreResolve, middlewares...)
 }
 
-func (a *App) OnPostResolve(middlewares ...app.Middleware) {
+func (a *App) OnPostResolve(middlewares ...fs.Middleware) {
 	a.hooks.PostResolve = append(a.hooks.PostResolve, middlewares...)
 }
 
-func (a *App) OnPostDBGet(hooks ...app.PostDBGetHook) {
-	a.hooks.PostDBGet = append(a.hooks.PostDBGet, hooks...)
+func (a *App) OnPostDBGet(hooks ...db.PostDBGet) {
+	a.hooks.DBHooks.PostDBGet = append(a.hooks.DBHooks.PostDBGet, hooks...)
 }
 
-func (a *App) SetupToken() (string, error) {
+func (a *App) SetupToken(ctx context.Context) (string, error) {
 	// If there is no roles and users, then the app is not setup
 	// we need to setup the app.
 	// Generate a random token and return it to enable the setup.
 	// If there are roles or users, then the app is already setup.
 	// Return an empty string to disable the setup.
-	needSetup, err := a.needSetup()
+	needSetup, err := a.needSetup(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -429,33 +425,22 @@ func (a *App) SetupToken() (string, error) {
 	return a.setupToken, nil
 }
 
-func (a *App) needSetup() (bool, error) {
+func (a *App) needSetup(ctx context.Context) (bool, error) {
 	// If there is no roles and users, then the app is not setup
 	// we need to setup the app.
 	var err error
 	var userCount int
 	var roleCount int
-	ctx := context.Background()
-	countOption := &app.CountOption{
+	countOption := &db.CountOption{
 		Column: "id",
 		Unique: true,
 	}
 
-	userModel, err := a.DB().Model("user")
-	if err != nil {
+	if userCount, err = db.Query[*fs.User](a.DB()).Count(ctx, countOption); err != nil {
 		return false, err
 	}
 
-	roleModel, err := a.DB().Model("role")
-	if err != nil {
-		return false, err
-	}
-
-	if userCount, err = userModel.Query().Count(countOption, ctx); err != nil {
-		return false, err
-	}
-
-	if roleCount, err = roleModel.Query().Count(countOption, ctx); err != nil {
+	if roleCount, err = db.Query[*fs.Role](a.DB()).Count(ctx, countOption); err != nil {
 		return false, err
 	}
 
@@ -467,7 +452,7 @@ func (a *App) getDefaultDBClient() (err error) {
 		return nil
 	}
 
-	dbConfig := &app.DBConfig{
+	dbConfig := &db.Config{
 		Driver:       utils.Env("DB_DRIVER", "sqlite"),
 		Name:         utils.Env("DB_NAME"),
 		User:         utils.Env("DB_USER"),
@@ -477,8 +462,10 @@ func (a *App) getDefaultDBClient() (err error) {
 		LogQueries:   utils.Env("DB_LOGGING", "false") == "true",
 		Logger:       a.Logger(),
 		MigrationDir: a.migrationDir,
-		Hooks: func() *app.Hooks {
-			return a.hooks
+		Hooks: func() *db.Hooks {
+			return &db.Hooks{
+				PostDBGet: a.hooks.DBHooks.PostDBGet,
+			}
 		},
 	}
 
@@ -496,7 +483,7 @@ func (a *App) getDefaultDBClient() (err error) {
 		return err
 	}
 
-	if err := a.UpdateCache(); err != nil {
+	if err := a.UpdateCache(context.Background()); err != nil {
 		return err
 	}
 
@@ -516,7 +503,7 @@ func (a *App) getDefaultLogger() (err error) {
 
 func (a *App) getDefaultDisk() (err error) {
 	if a.config.StorageConfig == nil {
-		a.config.StorageConfig = &app.StorageConfig{}
+		a.config.StorageConfig = &fs.StorageConfig{}
 	}
 
 	defaultDiskName := a.config.StorageConfig.DefaultDisk
@@ -533,7 +520,7 @@ func (a *App) getDefaultDisk() (err error) {
 
 	// if threre is no disk config, add a default disk
 	if storageDisksConfig == nil {
-		storageDisksConfig = []*app.DiskConfig{{
+		storageDisksConfig = []*fs.DiskConfig{{
 			Name:       "local_public",
 			Driver:     "local",
 			PublicPath: "/files",
@@ -567,7 +554,10 @@ func (a *App) getDefaultDisk() (err error) {
 }
 
 func (a *App) createSchemaBuilder() (err error) {
-	if a.schemaBuilder, err = schema.NewBuilderFromDir(a.schemasDir); err != nil {
+	if a.schemaBuilder, err = schema.NewBuilderFromDir(
+		a.schemasDir,
+		append(fs.SystemSchemaTypes, a.config.SystemSchemaTypes...)...,
+	); err != nil {
 		return err
 	}
 
@@ -577,122 +567,122 @@ func (a *App) createSchemaBuilder() (err error) {
 func (a *App) createResources() error {
 	userService := us.New(a)
 	roleService := rs.New(a)
-	mediaService := ms.New(a)
+	fileService := ms.New(a)
 	schemaService := ss.New(a)
 	contentService := cs.New(a)
 	toolService := ts.New(a)
 
-	a.hooks.PostDBGet = append(a.hooks.PostDBGet, mediaService.MediaListHook)
+	a.hooks.DBHooks.PostDBGet = append(a.hooks.DBHooks.PostDBGet, fileService.FileListHook)
 	a.hooks.PreResolve = append(a.hooks.PreResolve, roleService.Authorize)
 
-	a.resources = app.NewResourcesManager()
+	a.resources = fs.NewResourcesManager()
 	a.resources.Middlewares = append(a.resources.Middlewares, roleService.ParseUser)
-	a.resources.Hooks = func() *app.Hooks {
+	a.resources.Hooks = func() *fs.Hooks {
 		return a.hooks
 	}
 
-	var createArg = func(t app.ArgType, desc string) app.Arg {
-		return app.Arg{Type: t, Required: true, Description: desc}
+	var createArg = func(t fs.ArgType, desc string) fs.Arg {
+		return fs.Arg{Type: t, Required: true, Description: desc}
 	}
 
 	a.api = a.resources.Group(a.config.APIBaseName)
 	a.api.Group("user").
-		Add(app.NewResource("logout", userService.Logout, &app.Meta{
+		Add(fs.NewResource("logout", userService.Logout, &fs.Meta{
 			Post:   "/logout",
 			Public: true,
 		})).
-		Add(app.NewResource("me", userService.Me, &app.Meta{Public: true})).
-		Add(app.NewResource("login", userService.Login, &app.Meta{
+		Add(fs.NewResource("me", userService.Me, &fs.Meta{Public: true})).
+		Add(fs.NewResource("login", userService.Login, &fs.Meta{
 			Post:   "/login",
 			Public: true,
 		}))
 
 	a.api.Group("schema").
-		Add(app.NewResource("list", schemaService.List, &app.Meta{Get: "/"})).
-		Add(app.NewResource("create", schemaService.Create, &app.Meta{Post: "/"})).
-		Add(app.NewResource("detail", schemaService.Detail, &app.Meta{
+		Add(fs.NewResource("list", schemaService.List, &fs.Meta{Get: "/"})).
+		Add(fs.NewResource("create", schemaService.Create, &fs.Meta{Post: "/"})).
+		Add(fs.NewResource("detail", schemaService.Detail, &fs.Meta{
 			Get:  "/:name",
-			Args: app.Args{"name": createArg(app.TypeString, "The schema name")},
+			Args: fs.Args{"name": createArg(fs.TypeString, "The schema name")},
 		})).
-		Add(app.NewResource("update", schemaService.Update, &app.Meta{
+		Add(fs.NewResource("update", schemaService.Update, &fs.Meta{
 			Put:  "/:name",
-			Args: app.Args{"name": createArg(app.TypeString, "The schema name")},
+			Args: fs.Args{"name": createArg(fs.TypeString, "The schema name")},
 		})).
-		Add(app.NewResource("delete", schemaService.Delete, &app.Meta{
+		Add(fs.NewResource("delete", schemaService.Delete, &fs.Meta{
 			Delete: "/:name",
-			Args:   app.Args{"name": createArg(app.TypeString, "The schema name")},
+			Args:   fs.Args{"name": createArg(fs.TypeString, "The schema name")},
 		}))
 
-	a.api.Group("content", &app.Meta{
+	a.api.Group("content", &fs.Meta{
 		Prefix: "/content/:schema",
-		Args: app.Args{
+		Args: fs.Args{
 			"schema": {
 				Required:    true,
-				Type:        app.TypeString,
+				Type:        fs.TypeString,
 				Description: "The schema name",
 			},
 		},
 	}).
-		Add(app.NewResource("list", contentService.List, &app.Meta{Get: "/"})).
-		Add(app.NewResource("detail", contentService.Detail, &app.Meta{
+		Add(fs.NewResource("list", contentService.List, &fs.Meta{Get: "/"})).
+		Add(fs.NewResource("detail", contentService.Detail, &fs.Meta{
 			Get:  "/:id",
-			Args: app.Args{"id": createArg(app.TypeUint64, "The content ID")},
+			Args: fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
 		})).
-		Add(app.NewResource("create", contentService.Create, &app.Meta{Post: "/"})).
-		Add(app.NewResource("update", contentService.Update, &app.Meta{
+		Add(fs.NewResource("create", contentService.Create, &fs.Meta{Post: "/"})).
+		Add(fs.NewResource("update", contentService.Update, &fs.Meta{
 			Put:  "/:id",
-			Args: app.Args{"id": createArg(app.TypeUint64, "The content ID")},
+			Args: fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
 		})).
-		Add(app.NewResource("delete", contentService.Delete, &app.Meta{
+		Add(fs.NewResource("delete", contentService.Delete, &fs.Meta{
 			Delete: "/:id",
-			Args:   app.Args{"id": createArg(app.TypeUint64, "The content ID")},
+			Args:   fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
 		}))
 
 	a.api.Group("role").
-		Add(app.NewResource("list", roleService.List, &app.Meta{Get: "/"})).
-		Add(app.NewResource("resources", roleService.ResourcesList, &app.Meta{
+		Add(fs.NewResource("list", roleService.List, &fs.Meta{Get: "/"})).
+		Add(fs.NewResource("resources", roleService.ResourcesList, &fs.Meta{
 			Get: "/resources",
 		})).
-		Add(app.NewResource("detail", roleService.Detail, &app.Meta{
+		Add(fs.NewResource("detail", roleService.Detail, &fs.Meta{
 			Get:  "/:id",
-			Args: app.Args{"id": createArg(app.TypeUint64, "The role ID")},
+			Args: fs.Args{"id": createArg(fs.TypeUint64, "The role ID")},
 		})).
-		Add(app.NewResource("create", roleService.Create, &app.Meta{Post: "/"})).
-		Add(app.NewResource("update", roleService.Update, &app.Meta{
+		Add(fs.NewResource("create", roleService.Create, &fs.Meta{Post: "/"})).
+		Add(fs.NewResource("update", roleService.Update, &fs.Meta{
 			Put:  "/:id",
-			Args: app.Args{"id": createArg(app.TypeUint64, "The role ID")},
+			Args: fs.Args{"id": createArg(fs.TypeUint64, "The role ID")},
 		})).
-		Add(app.NewResource("delete", roleService.Delete, &app.Meta{
+		Add(fs.NewResource("delete", roleService.Delete, &fs.Meta{
 			Delete: "/:id",
-			Args:   app.Args{"id": createArg(app.TypeUint64, "The role ID")},
+			Args:   fs.Args{"id": createArg(fs.TypeUint64, "The role ID")},
 		}))
 
-	a.api.Group("media").
-		Add(app.NewResource("upload", mediaService.Upload, &app.Meta{Post: "/upload"})).
-		Add(app.NewResource("delete", mediaService.Delete, &app.Meta{Delete: "/"}))
+	a.api.Group("file").
+		Add(fs.NewResource("upload", fileService.Upload, &fs.Meta{Post: "/upload"})).
+		Add(fs.NewResource("delete", fileService.Delete, &fs.Meta{Delete: "/"}))
 
 	a.api.Group("tool").
-		Add(app.NewResource("stats", toolService.Stats, &app.Meta{
+		Add(fs.NewResource("stats", toolService.Stats, &fs.Meta{
 			Get:    "/stats",
 			Public: true,
 		}))
 
 	a.resources.Group("docs").
-		Add(app.NewResource("spec", func(c app.Context, _ any) (any, error) {
+		Add(fs.NewResource("spec", func(c fs.Context, _ any) (any, error) {
 			return a.CreateOpenAPISpec()
-		}, &app.Meta{Get: "/openapi.json"})).
-		Add(app.NewResource("viewer", func(c app.Context, _ any) (any, error) {
+		}, &fs.Meta{Get: "/openapi.json"})).
+		Add(fs.NewResource("viewer", func(c fs.Context, _ any) (any, error) {
 			header := make(http.Header)
 			header.Set("Content-Type", "text/html")
 
-			return &app.HTTPResponse{
+			return &fs.HTTPResponse{
 				StatusCode: http.StatusOK,
 				Header:     header,
 				Body: []byte(utils.CreateSwaggerUIPage(
 					a.config.BaseURL + "/docs/openapi.json",
 				)),
 			}, nil
-		}, &app.Meta{Get: "/"}))
+		}, &fs.Meta{Get: "/"}))
 
 	return nil
 }

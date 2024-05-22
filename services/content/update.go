@@ -1,13 +1,14 @@
 package contentservice
 
 import (
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (cs *ContentService) Update(c app.Context, _ any) (*schema.Entity, error) {
+func (cs *ContentService) Update(c fs.Context, _ any) (*schema.Entity, error) {
 	schemaName := c.Arg("schema")
 	id := c.ArgInt("id")
 	model, err := cs.DB().Model(schemaName)
@@ -34,7 +35,7 @@ func (cs *ContentService) Update(c app.Context, _ any) (*schema.Entity, error) {
 		}
 	}
 
-	if _, err := model.Mutation().Where(app.EQ("id", id)).Update(entity); err != nil {
+	if _, err := model.Mutation().Where(db.EQ("id", id)).Update(c.Context(), entity); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 

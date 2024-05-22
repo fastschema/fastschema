@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +32,7 @@ func createTestSchemaBuilder(t *testing.T) *schema.Builder {
 	return sb
 }
 
-func createTx(t *testing.T, client app.DBClient, sb *schema.Builder) *Tx {
+func createTx(t *testing.T, client db.Client, sb *schema.Builder) *Tx {
 	tx := utils.Must(NewTx(context.Background(), client))
 	assert.Equal(t, sb, tx.SchemaBuilder())
 	assert.NotNil(t, utils.Must(tx.Model("car")))
@@ -61,7 +61,7 @@ func TestTxCommit(t *testing.T) {
 	sb := createTestSchemaBuilder(t)
 	mdb, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	client := utils.Must(NewEntClient(&app.DBConfig{
+	client := utils.Must(NewEntClient(&db.Config{
 		Driver: "sqlmock",
 	}, sb, dialectSql.OpenDB(dialect.MySQL, mdb)))
 
@@ -80,7 +80,7 @@ func TestTxRollback(t *testing.T) {
 	sb := createTestSchemaBuilder(t)
 	mdb, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	client := utils.Must(NewEntClient(&app.DBConfig{
+	client := utils.Must(NewEntClient(&db.Config{
 		Driver: "sqlmock",
 	}, sb, dialectSql.OpenDB(dialect.MySQL, mdb)))
 
@@ -99,7 +99,7 @@ func TestTxClose(t *testing.T) {
 	sb := createTestSchemaBuilder(t)
 	mdb, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	client := utils.Must(NewEntClient(&app.DBConfig{
+	client := utils.Must(NewEntClient(&db.Config{
 		Driver: "sqlmock",
 	}, sb, dialectSql.OpenDB(dialect.MySQL, mdb)))
 

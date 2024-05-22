@@ -3,7 +3,8 @@ package restresolver
 import (
 	"net/http"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/utils"
@@ -11,13 +12,13 @@ import (
 
 type Server struct {
 	*fiber.App
-	logger app.Logger
+	logger logger.Logger
 }
 
 type Config struct {
 	AppName     string
 	JSONEncoder utils.JSONMarshal
-	Logger      app.Logger
+	Logger      logger.Logger
 }
 
 func New(config Config) *Server {
@@ -33,14 +34,7 @@ func New(config Config) *Server {
 	})
 
 	app.Hooks().OnListen(func(listenData fiber.ListenData) error {
-		if fiber.IsChild() {
-			return nil
-		}
-		scheme := "http"
-		if listenData.TLS {
-			scheme = "https"
-		}
-		address := scheme + "://" + listenData.Host + ":" + listenData.Port
+		address := listenData.Host + ":" + listenData.Port
 		config.Logger.Info("Server listening on " + address)
 
 		return nil
@@ -79,7 +73,7 @@ func (s *Server) Use(handlers ...Handler) {
 	s.App.Use(middlewares...)
 }
 
-func (s *Server) Group(prefix string, r *app.Resource, handlers ...Handler) *Router {
+func (s *Server) Group(prefix string, r *fs.Resource, handlers ...Handler) *Router {
 	var fiberHandlers []fiber.Handler
 
 	for _, handler := range handlers {
@@ -114,47 +108,47 @@ func (s *Server) Static(prefix, root string, configs ...StaticConfig) {
 	s.App.Static(prefix, root, config)
 }
 
-func (s *Server) Get(path string, handler Handler, resources ...*app.Resource) {
+func (s *Server) Get(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Get(path, handlers...).Name(name)
 }
 
-func (s *Server) Head(path string, handler Handler, resources ...*app.Resource) {
+func (s *Server) Head(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Head(path, handlers...).Name(name)
 }
 
-func (s *Server) Post(path string, handler Handler, resources ...*app.Resource) {
+func (s *Server) Post(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Post(path, handlers...).Name(name)
 }
 
-func (s *Server) Put(path string, handler Handler, resources ...*app.Resource) {
+func (s *Server) Put(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Put(path, handlers...).Name(name)
 }
 
-func (s *Server) Delete(path string, handler Handler, resources ...*app.Resource) {
+func (s *Server) Delete(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Delete(path, handlers...).Name(name)
 }
 
-func (s *Server) Connect(path string, handler Handler, resources ...*app.Resource) {
+func (s *Server) Connect(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Connect(path, handlers...).Name(name)
 }
 
-func (s *Server) Options(path string, handler Handler, resources ...*app.Resource) {
+func (s *Server) Options(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Options(path, handlers...).Name(name)
 }
 
-func (s *Server) Trace(path string, handler Handler, resources ...*app.Resource) {
+func (s *Server) Trace(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Trace(path, handlers...).Name(name)
 }
 
-func (s *Server) Patch(path string, handler Handler, resources ...*app.Resource) {
+func (s *Server) Patch(path string, handler Handler, resources ...*fs.Resource) {
 	name, handlers := GetHandlerInfo(handler, s.logger, resources...)
 	s.App.Patch(path, handlers...).Name(name)
 }

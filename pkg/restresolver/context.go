@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
 
 	// "github.com/fastschema/fastschema/app/server"
@@ -29,13 +30,13 @@ var (
 type Context struct {
 	*fiber.Ctx
 	args     map[string]string
-	resource *app.Resource
-	result   *app.Result
+	resource *fs.Resource
+	result   *fs.Result
 	entity   *schema.Entity
-	logger   app.Logger
+	logger   logger.Logger
 }
 
-func (c *Context) Result(results ...*app.Result) *app.Result {
+func (c *Context) Result(results ...*fs.Result) *fs.Result {
 	if len(results) > 0 {
 		c.result = results[0]
 	}
@@ -78,7 +79,7 @@ func (c *Context) Entity() (*schema.Entity, error) {
 	return c.entity, nil
 }
 
-func (c *Context) Resource() *app.Resource {
+func (c *Context) Resource() *fs.Resource {
 	return c.resource
 }
 
@@ -141,12 +142,12 @@ func (c *Context) Value(key string, value ...any) (val any) {
 	return c.Ctx.Locals(key, value...)
 }
 
-func (c *Context) Logger() app.Logger {
-	return c.logger.WithContext(app.LogContext{requestID: c.ID()}, 0)
+func (c *Context) Logger() logger.Logger {
+	return c.logger.WithContext(logger.LogContext{requestID: c.ID()}, 0)
 }
 
-func (c *Context) User() *app.User {
-	if user, ok := c.Locals("user").(*app.User); ok {
+func (c *Context) User() *fs.User {
+	if user, ok := c.Locals("user").(*fs.User); ok {
 		return user
 	}
 
@@ -209,13 +210,13 @@ func (c *Context) Parse(v any) error {
 	return c.Ctx.BodyParser(v)
 }
 
-func (c *Context) Files() ([]*app.File, error) {
+func (c *Context) Files() ([]*fs.File, error) {
 	form, err := c.MultipartForm()
 	if err != nil {
 		return nil, err
 	}
 
-	files := make([]*app.File, 0)
+	files := make([]*fs.File, 0)
 
 	for _, fileHeaders := range form.File {
 		for _, fileHeader := range fileHeaders {
@@ -234,7 +235,7 @@ func (c *Context) Files() ([]*app.File, error) {
 				return nil, err
 			}
 
-			files = append(files, &app.File{
+			files = append(files, &fs.File{
 				Name:   fileHeader.Filename,
 				Size:   uint64(fileHeader.Size),
 				Type:   http.DetectContentType(m),
