@@ -21,6 +21,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/pkg/zaplogger"
 	"github.com/fastschema/fastschema/schema"
+	as "github.com/fastschema/fastschema/services/auth"
 	cs "github.com/fastschema/fastschema/services/content"
 	ms "github.com/fastschema/fastschema/services/file"
 	rs "github.com/fastschema/fastschema/services/role"
@@ -542,6 +543,7 @@ func (a *App) createResources() error {
 	schemaService := ss.New(a)
 	contentService := cs.New(a)
 	toolService := ts.New(a)
+	authService := as.New(a)
 
 	a.hooks.DBHooks.PostDBGet = append(a.hooks.DBHooks.PostDBGet, fileService.FileListHook)
 	a.hooks.PreResolve = append(a.hooks.PreResolve, roleService.Authorize)
@@ -568,6 +570,15 @@ func (a *App) createResources() error {
 			Public: true,
 		}))
 
+	a.api.Group("auth").
+		Add(fs.NewResource("login", authService.Login, &fs.Meta{
+			Get:    "/:provider",
+			Public: true,
+		})).
+		Add(fs.NewResource("callback", authService.Callback, &fs.Meta{
+			Get:    "/:provider/callback",
+			Public: true,
+		}))
 	a.api.Group("schema").
 		Add(fs.NewResource("list", schemaService.List, &fs.Meta{Get: "/"})).
 		Add(fs.NewResource("create", schemaService.Create, &fs.Meta{Post: "/"})).

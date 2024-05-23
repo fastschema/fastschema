@@ -52,7 +52,7 @@ func New(app AppLike) *AuthService {
 			config: &oauth2.Config{
 				ClientID:     utils.Env("GITHUB_CLIENT_ID"),
 				ClientSecret: utils.Env("GITHUB_CLIENT_SECRET"),
-				RedirectURL:  "http://localhost:8000/api/auth/github/callback",
+				RedirectURL:  utils.Env("APP_BASE_URL") + "/api/auth/github/callback",
 				Endpoint:     github.Endpoint,
 			},
 		}
@@ -64,7 +64,7 @@ func New(app AppLike) *AuthService {
 				ClientID:     utils.Env("GOOGLE_CLIENT_ID"),
 				ClientSecret: utils.Env("GOOGLE_CLIENT_SECRET"),
 				Endpoint:     google.Endpoint,
-				RedirectURL:  "http://localhost:8000/api/auth/google/callback",
+				RedirectURL:  utils.Env("APP_BASE_URL") + "/api/auth/google/callback",
 				Scopes: []string{
 					"https://www.googleapis.com/auth/userinfo.email",
 					"https://www.googleapis.com/auth/userinfo.profile",
@@ -76,15 +76,16 @@ func New(app AppLike) *AuthService {
 	return authService
 }
 
-func (as *AuthService) Login(c fs.Context, _ any) (u *schema.Schema, err error) {
+func (as *AuthService) Login(c fs.Context, _ any) (nil, err error) {
 
-	if c.Arg("provider") == Github {
-		return as.LoginGithub(c, nil)
+	switch c.Arg("provider") {
+	case Github:
+		return nil, as.LoginGithub(c, nil)
+	case Google:
+		return nil, as.LoginGoogle(c, nil)
+	default:
+		return nil, errors.New("invalid provider")
 	}
-	if c.Arg("provider") == Google {
-		return as.LoginGoogle(c, nil)
-	}
-	return nil, errors.New("invalid provider")
 
 }
 
