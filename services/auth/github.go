@@ -15,8 +15,6 @@ import (
 	// "github.com/fastschema/fastschema/pkg/utils"
 	// userservice "github.com/fastschema/fastschema/services/user"
 	"golang.org/x/oauth2"
-
-	"github.com/fastschema/fastschema/schema"
 )
 
 const GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
@@ -122,20 +120,22 @@ func (as *AuthService) GetGithubUserFromAccessCode(code string) (*GithubUserResp
 	return as.GetGithubUser(accessToken)
 }
 
-func (as *AuthService) LoginGithub(c fs.Context, _ any) (u *schema.Schema, err error) {
+func (as *AuthService) LoginGithub(c fs.Context, _ any) (err error) {
 	url := as.OAuthGithub.config.AuthCodeURL(
 		"randomstate",
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("scope", "user:email"),
 	)
-	fmt.Println("url", url)
-	c.Redirect(url)
-	return nil, nil
+	return c.Redirect(url)
 }
 
 func (as *AuthService) CallbackGithub(c fs.Context, _ any) (u *userservice.LoginResponse, err error) {
 	if c.Arg("code") == "" {
 		return nil, fmt.Errorf("code is empty")
+	}
+
+	if c.Arg("state") != "randomstate" {
+		return nil, fmt.Errorf("invalid oauth Github state")
 	}
 
 	githubUser, err := as.GetGithubUserFromAccessCode(c.Arg("code"))

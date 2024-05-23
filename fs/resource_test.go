@@ -97,6 +97,7 @@ func (c *testContext) AuthToken() string               { return "" }
 func (c *testContext) Next() error                     { return nil }
 func (c *testContext) Result(...*fs.Result) *fs.Result { return nil }
 func (c *testContext) Files() ([]*fs.File, error)      { return nil, nil }
+func (c *testContext) Redirect(string) error           { return nil }
 
 func TestNewResource(t *testing.T) {
 	r := fs.NewResource(

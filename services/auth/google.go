@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/fastschema/fastschema/fs"
-	"github.com/fastschema/fastschema/schema"
 	userservice "github.com/fastschema/fastschema/services/user"
 )
 
@@ -45,11 +44,10 @@ func (as *AuthService) GetGoogleUserFromAccessCode(code string) (*GoogleUserResp
 	return userResponse, nil
 }
 
-func (as *AuthService) LoginGoogle(c fs.Context, _ any) (u *schema.Schema, err error) {
+func (as *AuthService) LoginGoogle(c fs.Context, _ any) (err error) {
 	url := as.OAuthGoogle.config.AuthCodeURL("randomstate")
 	fmt.Println("url", url)
-	c.Redirect(url)
-	return nil, nil
+	return c.Redirect(url)
 }
 
 func (as *AuthService) CallbackGoogle(c fs.Context, _ any) (u *userservice.LoginResponse, err error) {
