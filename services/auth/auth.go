@@ -2,7 +2,6 @@ package authservice
 
 import (
 	// "errors"
-	"fmt"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
@@ -48,6 +47,9 @@ func New(app AppLike) *AuthService {
 	}
 
 	if utils.Env("GITHUB_PROVIDER_ENABLED") == "true" {
+		if utils.Env("GITHUB_CLIENT_ID") == "" || utils.Env("GITHUB_CLIENT_SECRET") == "" {
+			panic("Github client id or secret is not set")
+		}
 		authService.OAuthGithub = AuthProvider{
 			config: &oauth2.Config{
 				ClientID:     utils.Env("GITHUB_CLIENT_ID"),
@@ -59,6 +61,9 @@ func New(app AppLike) *AuthService {
 	}
 
 	if utils.Env("GOOGLE_PROVIDER_ENABLED") == "true" {
+		if utils.Env("GOOGLE_CLIENT_ID") == "" || utils.Env("GOOGLE_CLIENT_SECRET") == "" {
+			panic("Google client id or secret is not set")
+		}
 		authService.OAuthGoogle = AuthProvider{
 			config: &oauth2.Config{
 				ClientID:     utils.Env("GOOGLE_CLIENT_ID"),
@@ -117,7 +122,6 @@ func (as *AuthService) processLoginResponse(c fs.Context, providerUsers Provider
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("jwtToken ", jwtToken, exp)
 
 		return &userservice.LoginResponse{Token: jwtToken, Expires: exp}, nil
 	}
@@ -162,6 +166,5 @@ func (as *AuthService) processLoginResponse(c fs.Context, providerUsers Provider
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("userSaved %v ", userSaved)
 	return &userservice.LoginResponse{Token: jwtToken, Expires: exp}, nil
 }
