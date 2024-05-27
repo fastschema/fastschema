@@ -19,7 +19,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/ogen-go/ogen v1.1.1
+	github.com/ogen-go/ogen v1.2.0
 	github.com/otiai10/copy v1.14.0
 	github.com/rclone/rclone v1.66.0
 	github.com/stretchr/testify v1.9.0
