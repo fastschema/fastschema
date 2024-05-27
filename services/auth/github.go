@@ -17,8 +17,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
-const GITHUB_USER_URL = "https://api.github.com/user"
+const (
+	GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
+	GITHUB_USER_URL         = "https://api.github.com/user"
+)
 
 type GithubAccessTokenResponse struct {
 	Scope       string `json:"scope"`

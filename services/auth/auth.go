@@ -3,6 +3,9 @@ package authservice
 import (
 	// "errors"
 
+	"encoding/json"
+	"fmt"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
@@ -28,6 +31,24 @@ const (
 	Google = "google"
 )
 
+type AuthProviders struct {
+	EnabledProviders []string `json:"enabled_providers"`
+	Providers        struct {
+		Github struct {
+			ClientID     string `json:"client_id"`
+			ClientSecret string `json:"client_secret"`
+		} `json:"github"`
+		Google struct {
+			ClientID     string `json:"client_id"`
+			ClientSecret string `json:"client_secret"`
+		} `json:"google"`
+		Twitter struct {
+			ConsumerKey    string `json:"consumer_key"`
+			ConsumerSecret string `json:"consumer_secret"`
+		} `json:"twitter"`
+	} `json:"providers"`
+}
+
 type ProviderUsers struct {
 	Github GithubUserResponse `json:"github"`
 	Google GoogleUserResponse `json:"google"`
@@ -46,35 +67,42 @@ func New(app AppLike) *AuthService {
 		AppKey: app.Key,
 	}
 
-	if utils.Env("GITHUB_PROVIDER_ENABLED") == "true" {
-		if utils.Env("GITHUB_CLIENT_ID") == "" || utils.Env("GITHUB_CLIENT_SECRET") == "" {
-			panic("Github client id or secret is not set")
+	var authProviders AuthProviders
+	if utils.Env("AUTH") != "" {
+		if err := json.Unmarshal([]byte(utils.Env("AUTH")), &authProviders); err != nil {
+			panic(err)
 		}
-		authService.OAuthGithub = AuthProvider{
-			config: &oauth2.Config{
-				ClientID:     utils.Env("GITHUB_CLIENT_ID"),
-				ClientSecret: utils.Env("GITHUB_CLIENT_SECRET"),
-				RedirectURL:  utils.Env("APP_BASE_URL") + "/api/auth/github/callback",
-				Endpoint:     github.Endpoint,
-			},
-		}
-	}
-
-	if utils.Env("GOOGLE_PROVIDER_ENABLED") == "true" {
-		if utils.Env("GOOGLE_CLIENT_ID") == "" || utils.Env("GOOGLE_CLIENT_SECRET") == "" {
-			panic("Google client id or secret is not set")
-		}
-		authService.OAuthGoogle = AuthProvider{
-			config: &oauth2.Config{
-				ClientID:     utils.Env("GOOGLE_CLIENT_ID"),
-				ClientSecret: utils.Env("GOOGLE_CLIENT_SECRET"),
-				Endpoint:     google.Endpoint,
-				RedirectURL:  utils.Env("APP_BASE_URL") + "/api/auth/google/callback",
-				Scopes: []string{
-					"https://www.googleapis.com/auth/userinfo.email",
-					"https://www.googleapis.com/auth/userinfo.profile",
-				},
-			},
+		for _, provider := range authProviders.EnabledProviders {
+			switch provider {
+			case Github:
+				if authProviders.Providers.Github.ClientID == "" || authProviders.Providers.Github.ClientSecret == "" {
+					panic("Github client id or secret is not set")
+				}
+				authService.OAuthGithub = AuthProvider{
+					config: &oauth2.Config{
+						ClientID:     authProviders.Providers.Github.ClientID,
+						ClientSecret: authProviders.Providers.Github.ClientSecret,
+						RedirectURL:  utils.Env("APP_BASE_URL") + "/api/auth/github/callback",
+						Endpoint:     github.Endpoint,
+					},
+				}
+			case Google:
+				if authProviders.Providers.Google.ClientID == "" || authProviders.Providers.Google.ClientSecret == "" {
+					panic("Google client id or secret is not set")
+				}
+				authService.OAuthGoogle = AuthProvider{
+					config: &oauth2.Config{
+						ClientID:     authProviders.Providers.Google.ClientID,
+						ClientSecret: authProviders.Providers.Google.ClientSecret,
+						RedirectURL:  utils.Env("APP_BASE_URL") + "/api/auth/google/callback",
+						Endpoint:     google.Endpoint,
+						Scopes: []string{
+							"https://www.googleapis.com/auth/userinfo.email",
+							"https://www.googleapis.com/auth/userinfo.profile",
+						},
+					},
+				}
+			}
 		}
 	}
 
@@ -82,7 +110,7 @@ func New(app AppLike) *AuthService {
 }
 
 func (as *AuthService) Login(c fs.Context, _ any) (nil, err error) {
-
+	fmt.Println("provider", utils.Env("AUTH"))
 	switch c.Arg("provider") {
 	case Github:
 		return nil, as.LoginGithub(c, nil)
@@ -91,7 +119,6 @@ func (as *AuthService) Login(c fs.Context, _ any) (nil, err error) {
 	default:
 		return nil, errors.New("invalid provider")
 	}
-
 }
 
 func (as *AuthService) Callback(c fs.Context, _ any) (u *userservice.LoginResponse, err error) {
