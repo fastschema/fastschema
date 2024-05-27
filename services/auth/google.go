@@ -11,7 +11,7 @@ import (
 	userservice "github.com/fastschema/fastschema/services/user"
 )
 
-const oauthGoogleUrlAPI = "https://www.googleapis.com/oauth2/v2/userinfo?access_token="
+const oauthGoogleURLAPI = "https://www.googleapis.com/oauth2/v2/userinfo?access_token="
 
 type GoogleUserResponse struct {
 	ID      string `json:"id"`
@@ -25,7 +25,7 @@ func (as *AuthService) GetGoogleUserFromAccessCode(code string) (*GoogleUserResp
 	if err != nil {
 		return nil, fmt.Errorf("code exchange wrong: %s", err.Error())
 	}
-	response, err := http.Get(oauthGoogleUrlAPI + token.AccessToken)
+	response, err := http.Get(oauthGoogleURLAPI + token.AccessToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting user info: %s", err.Error())
 	}
