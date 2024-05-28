@@ -599,15 +599,17 @@ func (a *App) createResources() error {
 			Public: true,
 		}))
 
-	a.api.Group("auth").
-		Add(fs.NewResource("login", authService.Login, &fs.Meta{
-			Get:    "/:provider",
-			Public: true,
-		})).
-		Add(fs.NewResource("callback", authService.Callback, &fs.Meta{
-			Get:    "/:provider/callback",
-			Public: true,
-		}))
+	if utils.Env("AUTH") != "" {
+		a.api.Group("auth").
+			Add(fs.NewResource("login", authService.Login, &fs.Meta{
+				Get:    "/:provider",
+				Public: true,
+			})).
+			Add(fs.NewResource("callback", authService.Callback, &fs.Meta{
+				Get:    "/:provider/callback",
+				Public: true,
+			}))
+	}
 	a.api.Group("schema").
 		Add(fs.NewResource("list", schemaService.List, &fs.Meta{Get: "/"})).
 		Add(fs.NewResource("create", schemaService.Create, &fs.Meta{Post: "/"})).

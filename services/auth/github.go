@@ -7,20 +7,16 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	// "github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	userservice "github.com/fastschema/fastschema/services/user"
 
-	// "github.com/fastschema/fastschema/pkg/errors"
-	// "github.com/fastschema/fastschema/pkg/utils"
-	// userservice "github.com/fastschema/fastschema/services/user"
 	"golang.org/x/oauth2"
 )
 
-const (
-	GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
-	GITHUB_USER_URL         = "https://api.github.com/user"
-)
+// const (
+// 	GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
+// 	GITHUB_USER_URL         = "https://api.github.com/user"
+// )
 
 type GithubAccessTokenResponse struct {
 	Scope       string `json:"scope"`
@@ -51,7 +47,7 @@ func (as *AuthService) GetGithubAccessToken(code string) (string, error) {
 	requestJSON, _ := json.Marshal(requestBody)
 	req, err := http.NewRequest(
 		"POST",
-		GITHUB_ACCESS_TOKEN_URL,
+		as.AuthConfigs.Providers.Github.AccessTokenURL,
 		bytes.NewBuffer(requestJSON),
 	)
 
@@ -66,6 +62,7 @@ func (as *AuthService) GetGithubAccessToken(code string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 
@@ -84,7 +81,7 @@ func (as *AuthService) GetGithubAccessToken(code string) (string, error) {
 func (as *AuthService) GetGithubUser(accessToken string) (*GithubUserResponse, error) {
 	req, err := http.NewRequest(
 		"GET",
-		GITHUB_USER_URL,
+		as.AuthConfigs.Providers.Github.UserURL,
 		nil,
 	)
 
@@ -109,6 +106,7 @@ func (as *AuthService) GetGithubUser(accessToken string) (*GithubUserResponse, e
 	if err := json.Unmarshal(body, userResponse); err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	return userResponse, nil
 }
@@ -124,7 +122,7 @@ func (as *AuthService) GetGithubUserFromAccessCode(code string) (*GithubUserResp
 
 func (as *AuthService) LoginGithub(c fs.Context, _ any) (err error) {
 	url := as.OAuthGithub.config.AuthCodeURL(
-		"randomstate",
+		as.AuthConfigs.Providers.Github.StateCode,
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("scope", "user:email"),
 	)
@@ -136,7 +134,7 @@ func (as *AuthService) CallbackGithub(c fs.Context, _ any) (u *userservice.Login
 		return nil, fmt.Errorf("code is empty")
 	}
 
-	if c.Arg("state") != "randomstate" {
+	if c.Arg("state") != as.AuthConfigs.Providers.Github.StateCode {
 		return nil, fmt.Errorf("invalid oauth Github state")
 	}
 

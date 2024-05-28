@@ -1,10 +1,7 @@
 package authservice
 
 import (
-	// "errors"
-
 	"encoding/json"
-	"fmt"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
@@ -31,16 +28,20 @@ const (
 	Google = "google"
 )
 
-type AuthProviders struct {
+type AuthConfigs struct {
 	EnabledProviders []string `json:"enabled_providers"`
 	Providers        struct {
 		Github struct {
-			ClientID     string `json:"client_id"`
-			ClientSecret string `json:"client_secret"`
+			ClientID       string `json:"client_id"`
+			ClientSecret   string `json:"client_secret"`
+			AccessTokenURL string `json:"access_token_url"`
+			UserURL        string `json:"user_url"`
+			StateCode      string `json:"state_code"`
 		} `json:"github"`
 		Google struct {
 			ClientID     string `json:"client_id"`
 			ClientSecret string `json:"client_secret"`
+			StateCode    string `json:"state_code"`
 		} `json:"google"`
 		Twitter struct {
 			ConsumerKey    string `json:"consumer_key"`
@@ -59,41 +60,41 @@ type AuthService struct {
 	AppKey      func() string
 	OAuthGithub AuthProvider
 	OAuthGoogle AuthProvider
+	AuthConfigs AuthConfigs
 }
 
 func New(app AppLike) *AuthService {
-	authService := &AuthService{
+	as := &AuthService{
 		DB:     app.DB,
 		AppKey: app.Key,
 	}
 
-	var authProviders AuthProviders
 	if utils.Env("AUTH") != "" {
-		if err := json.Unmarshal([]byte(utils.Env("AUTH")), &authProviders); err != nil {
+		if err := json.Unmarshal([]byte(utils.Env("AUTH")), &as.AuthConfigs); err != nil {
 			panic(err)
 		}
-		for _, provider := range authProviders.EnabledProviders {
+		for _, provider := range as.AuthConfigs.EnabledProviders {
 			switch provider {
 			case Github:
-				if authProviders.Providers.Github.ClientID == "" || authProviders.Providers.Github.ClientSecret == "" {
+				if as.AuthConfigs.Providers.Github.ClientID == "" || as.AuthConfigs.Providers.Github.ClientSecret == "" {
 					panic("Github client id or secret is not set")
 				}
-				authService.OAuthGithub = AuthProvider{
+				as.OAuthGithub = AuthProvider{
 					config: &oauth2.Config{
-						ClientID:     authProviders.Providers.Github.ClientID,
-						ClientSecret: authProviders.Providers.Github.ClientSecret,
+						ClientID:     as.AuthConfigs.Providers.Github.ClientID,
+						ClientSecret: as.AuthConfigs.Providers.Github.ClientSecret,
 						RedirectURL:  utils.Env("APP_BASE_URL") + "/api/auth/github/callback",
 						Endpoint:     github.Endpoint,
 					},
 				}
 			case Google:
-				if authProviders.Providers.Google.ClientID == "" || authProviders.Providers.Google.ClientSecret == "" {
+				if as.AuthConfigs.Providers.Google.ClientID == "" || as.AuthConfigs.Providers.Google.ClientSecret == "" {
 					panic("Google client id or secret is not set")
 				}
-				authService.OAuthGoogle = AuthProvider{
+				as.OAuthGoogle = AuthProvider{
 					config: &oauth2.Config{
-						ClientID:     authProviders.Providers.Google.ClientID,
-						ClientSecret: authProviders.Providers.Google.ClientSecret,
+						ClientID:     as.AuthConfigs.Providers.Google.ClientID,
+						ClientSecret: as.AuthConfigs.Providers.Google.ClientSecret,
 						RedirectURL:  utils.Env("APP_BASE_URL") + "/api/auth/google/callback",
 						Endpoint:     google.Endpoint,
 						Scopes: []string{
@@ -106,11 +107,10 @@ func New(app AppLike) *AuthService {
 		}
 	}
 
-	return authService
+	return as
 }
 
 func (as *AuthService) Login(c fs.Context, _ any) (nil, err error) {
-	fmt.Println("provider", utils.Env("AUTH"))
 	switch c.Arg("provider") {
 	case Github:
 		return nil, as.LoginGithub(c, nil)

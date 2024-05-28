@@ -45,13 +45,12 @@ func (as *AuthService) GetGoogleUserFromAccessCode(code string) (*GoogleUserResp
 }
 
 func (as *AuthService) LoginGoogle(c fs.Context, _ any) (err error) {
-	url := as.OAuthGoogle.config.AuthCodeURL("randomstate")
-	fmt.Println("url", url)
+	url := as.OAuthGoogle.config.AuthCodeURL(as.AuthConfigs.Providers.Google.StateCode)
 	return c.Redirect(url)
 }
 
 func (as *AuthService) CallbackGoogle(c fs.Context, _ any) (u *userservice.LoginResponse, err error) {
-	if c.Arg("state") != "randomstate" {
+	if c.Arg("state") != as.AuthConfigs.Providers.Google.StateCode {
 		return nil, fmt.Errorf("invalid oauth google state")
 	}
 
@@ -60,8 +59,6 @@ func (as *AuthService) CallbackGoogle(c fs.Context, _ any) (u *userservice.Login
 	}
 
 	googleUser, err := as.GetGoogleUserFromAccessCode(c.Arg("code"))
-
-	fmt.Println("googleUser", googleUser)
 
 	if err != nil {
 		return nil, err
