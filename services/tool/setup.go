@@ -55,17 +55,13 @@ func Setup(
 		return err
 	}
 
-	_, err = db.Create[*fs.User](ctx, tx, schema.NewEntityFromMap(map[string]any{
+	utils.Must(db.Create[*fs.User](ctx, tx, fs.Map{
 		"username": username,
 		"email":    email,
 		"password": adminPassword,
 		"active":   true,
 		"roles":    []*schema.Entity{schema.NewEntity(adminRole.ID)},
 	}))
-
-	if err != nil {
-		return err
-	}
 
 	if err := tx.Commit(); err != nil {
 		return err
@@ -77,10 +73,8 @@ func Setup(
 }
 
 func CreateRole(ctx context.Context, dbc db.Client, roleData *fs.Role) (*fs.Role, error) {
-	role := schema.NewEntity().
+	return db.Create[*fs.Role](ctx, dbc, schema.NewEntity().
 		Set("name", roleData.Name).
 		Set("description", roleData.Description).
-		Set("root", roleData.Root)
-
-	return db.Create[*fs.Role](ctx, dbc, role)
+		Set("root", roleData.Root))
 }

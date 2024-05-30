@@ -9,7 +9,7 @@ import (
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/rclonefs"
-	rr "github.com/fastschema/fastschema/pkg/restresolver"
+	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	ms "github.com/fastschema/fastschema/services/file"
@@ -59,7 +59,7 @@ func createFileService(t *testing.T) (*ms.FileService, *rr.Server) {
 			Delete: "/",
 		}))
 	assert.NoError(t, resources.Init())
-	restResolver := rr.NewRestResolver(resources, logger.CreateMockLogger(true))
+	restResolver := rr.NewRestfulResolver(resources, logger.CreateMockLogger(true))
 
 	return fileService, restResolver.Server()
 }

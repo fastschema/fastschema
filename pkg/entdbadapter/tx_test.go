@@ -66,13 +66,15 @@ func TestTxCommit(t *testing.T) {
 	}, sb, dialectSql.OpenDB(dialect.MySQL, mdb)))
 
 	mock.ExpectBegin()
-	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery("SELECT 1").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectExec("SELECT 2").WillReturnResult(sqlmock.NewResult(2, 1))
 	mock.ExpectCommit()
 
 	tx := createTx(t, client, sb)
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 1", []any{}, nil))
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 2", []any{}, nil))
+	_, err1 := tx.Query(context.Background(), "SELECT 1", []any{})
+	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.NoError(t, tx.Commit())
 }
 
@@ -90,8 +92,10 @@ func TestTxRollback(t *testing.T) {
 	mock.ExpectRollback()
 
 	tx := createTx(t, client, sb)
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 1", []any{}, nil))
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 2", []any{}, nil))
+	_, err1 := tx.Exec(context.Background(), "SELECT 1", []any{})
+	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.NoError(t, tx.Rollback())
 }
 
@@ -109,7 +113,9 @@ func TestTxClose(t *testing.T) {
 	mock.ExpectClose()
 
 	tx := createTx(t, client, sb)
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 1", []any{}, nil))
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 2", []any{}, nil))
+	_, err1 := tx.Exec(context.Background(), "SELECT 1", []any{})
+	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.NoError(t, tx.Close())
 }

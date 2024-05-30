@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	schemaservice "github.com/fastschema/fastschema/services/schema"
@@ -62,7 +62,7 @@ func TestSchemaServiceUpdateError(t *testing.T) {
 	assert.Contains(t, response, `schema update data is required`)
 }
 
-func createUpdateTest(t *testing.T) (*testApp, *schemaservice.SchemaService, *restresolver.Server) {
+func createUpdateTest(t *testing.T) (*testApp, *schemaservice.SchemaService, *restfulresolver.Server) {
 	return createSchemaService(t, &testSchemaSeviceConfig{
 		extraSchemas: map[string]string{
 			"blog": testBlogJSON,
@@ -71,7 +71,7 @@ func createUpdateTest(t *testing.T) (*testApp, *schemaservice.SchemaService, *re
 	})
 }
 
-func addFieldDescriptionToBlog(t *testing.T, testApp *testApp, server *restresolver.Server) string {
+func addFieldDescriptionToBlog(t *testing.T, testApp *testApp, server *restfulresolver.Server) string {
 	newBlogJSON := strings.ReplaceAll(
 		testBlogJSON,
 		`"fields": [`,
@@ -91,7 +91,7 @@ func addFieldDescriptionToBlog(t *testing.T, testApp *testApp, server *restresol
 	return newBlogJSON
 }
 
-func addFieldCategoriesToBlog(t *testing.T, testApp *testApp, server *restresolver.Server) string {
+func addFieldCategoriesToBlog(t *testing.T, testApp *testApp, server *restfulresolver.Server) string {
 	newJSON := strings.ReplaceAll(
 		testBlogJSON,
 		`"fields": [`,
@@ -126,7 +126,7 @@ func addFieldCategoriesToBlog(t *testing.T, testApp *testApp, server *restresolv
 	return newJSON
 }
 
-func addFieldCategoryToBlog(t *testing.T, testApp *testApp, server *restresolver.Server) string {
+func addFieldCategoryToBlog(t *testing.T, testApp *testApp, server *restfulresolver.Server) string {
 	newJSON := strings.ReplaceAll(
 		testBlogJSON,
 		`"fields": [`,

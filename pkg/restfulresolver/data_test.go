@@ -1,4 +1,4 @@
-package restresolver_test
+package restfulresolver_test
 
 import (
 	"net/http"

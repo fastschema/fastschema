@@ -1,4 +1,4 @@
-package restresolver_test
+package restfulresolver_test
 
 import (
 	"errors"
@@ -7,27 +7,27 @@ import (
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMiddlewares(t *testing.T) {
 	mockLogger := logger.CreateMockLogger(true)
-	server := restresolver.New(restresolver.Config{
+	server := restfulresolver.New(restfulresolver.Config{
 		Logger: mockLogger,
 	})
 	server.Use(
-		restresolver.MiddlewareCookie,
-		restresolver.MiddlewareRequestID,
-		restresolver.CreateMiddlewareRequestLog([]*fs.StaticFs{}),
-		restresolver.MiddlewareCors,
-		restresolver.MiddlewareRecover,
+		restfulresolver.MiddlewareCookie,
+		restfulresolver.MiddlewareRequestID,
+		restfulresolver.CreateMiddlewareRequestLog([]*fs.StaticFs{}),
+		restfulresolver.MiddlewareCors,
+		restfulresolver.MiddlewareRecover,
 	)
-	server.Get("/test", func(c *restresolver.Context) error {
+	server.Get("/test", func(c *restfulresolver.Context) error {
 		return errors.New("test error")
 	})
-	server.Get("/panic", func(c *restresolver.Context) error {
+	server.Get("/panic", func(c *restfulresolver.Context) error {
 		panic("test panic")
 	})
 

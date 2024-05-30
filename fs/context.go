@@ -9,8 +9,8 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-// Resolver is a function that resolves a request
-type Resolver func(c Context) (any, error)
+// Handler is a function that resolves a request
+type Handler func(c Context) (any, error)
 
 // Context is the interface that defines the methods that a context must implement
 type Context interface {

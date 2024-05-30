@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
@@ -13,9 +14,11 @@ import (
 )
 
 type TestCategory struct {
-	_    any    `fs:"name=category;namespace=categories"`
-	ID   uint64 `json:"id,omitempty"`
-	Name string `json:"name"`
+	_         any        `fs:"name=category;namespace=categories"`
+	ID        uint64     `json:"id,omitempty"`
+	Name      string     `json:"name"`
+	CreatedAt *time.Time `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
 }
 
 type testPost struct {

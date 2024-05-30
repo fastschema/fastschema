@@ -79,10 +79,18 @@ func (d *Adapter) Commit() error {
 func (d *Adapter) Exec(
 	ctx context.Context,
 	query string,
-	args,
-	bindValue any,
-) error {
-	return d.driver.Exec(ctx, query, args, bindValue)
+	args any,
+) (sql.Result, error) {
+	return driverExec(d.driver, ctx, query, args)
+}
+
+// Query executes the query and bind the values to bindValue.
+func (d *Adapter) Query(
+	ctx context.Context,
+	query string,
+	args any,
+) ([]*schema.Entity, error) {
+	return driverQuery(d.driver, ctx, query, args)
 }
 
 // Close closes the underlying driver.

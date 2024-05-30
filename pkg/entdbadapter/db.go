@@ -37,9 +37,13 @@ type EntAdapter interface {
 	Exec(
 		ctx context.Context,
 		query string,
-		args,
-		bindValue any,
-	) error
+		args any,
+	) (sql.Result, error)
+	Query(
+		ctx context.Context,
+		query string,
+		args any,
+	) ([]*schema.Entity, error)
 	Hooks() *db.Hooks
 	IsTx() bool
 	Model(name string, types ...any) (db.Model, error)

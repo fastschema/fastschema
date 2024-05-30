@@ -9,7 +9,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
-	rr "github.com/fastschema/fastschema/pkg/restresolver"
+	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	rs "github.com/fastschema/fastschema/services/role"
@@ -202,7 +202,7 @@ func createRoleTest() *TestApp {
 		panic(err)
 	}
 
-	testApp.server = rr.NewRestResolver(testApp.resources, logger.CreateMockLogger()).Server()
+	testApp.server = rr.NewRestfulResolver(testApp.resources, logger.CreateMockLogger()).Server()
 
 	return testApp
 }

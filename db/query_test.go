@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,9 +14,9 @@ func TestQuery(t *testing.T) {
 	client, ctx := prepareTest()
 
 	for i := 1; i <= 5; i++ {
-		_, err := db.Create[TestCategory](ctx, client, schema.NewEntity().Set(
-			"name", fmt.Sprintf("category %d", i),
-		))
+		_, err := db.Create[TestCategory](ctx, client, fs.Map{
+			"name": fmt.Sprintf("category %d", i),
+		})
 		assert.NoError(t, err)
 	}
 
@@ -104,6 +105,20 @@ func TestQuery(t *testing.T) {
 		Where(db.EQ("id", 2)).
 		Only(ctx)
 	assert.NoError(t, err)
+
+	// Case 14: Query with schema.Entity: Invalid schema name
+	_, err = db.Query[*schema.Entity](client, "invalid").Get(ctx)
+	assert.ErrorContains(t, err, "model invalid not found")
+
+	// Case 15: Query with schema.Entity: No schema name
+	_, err = db.Query[*schema.Entity](client).Get(ctx)
+	assert.ErrorContains(t, err, "schema name is required for type schema.Entity")
+
+	// Case 16: Query with schema.Entity: Success
+	cats, err := db.Query[*schema.Entity](client, "category").Get(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, cats, 5)
+	assert.Equal(t, "category 1", cats[0].Get("name"))
 }
 
 type TestData struct {
