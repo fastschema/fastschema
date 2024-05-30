@@ -21,8 +21,8 @@ type User struct {
 	ProviderUsername string `json:"provider_username,omitempty" fs:"optional"`
 
 	RoleIDs []uint64 `json:"role_ids,omitempty"`
-	Roles   []*Role  `json:"roles,omitempty" fs:"type=relation" fs.relation:"{'type':'m2m','schema':'role','field':'users','owner':false}"`
-	Files   []*File  `json:"files,omitempty" fs:"type=relation" fs.relation:"{'type':'o2m','schema':'file','field':'user','owner':true}"`
+	Roles   []*Role  `json:"roles,omitempty" fs.relation:"{'type':'m2m','schema':'role','field':'users','owner':false}"`
+	Files   []*File  `json:"files,omitempty" fs.relation:"{'type':'o2m','schema':'file','field':'user','owner':true}"`
 
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`

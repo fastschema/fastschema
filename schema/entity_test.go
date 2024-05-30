@@ -730,3 +730,84 @@ func TestEntityToStructMarshalError(t *testing.T) {
 	_, err := BindEntity[StructType](entity)
 	assert.Error(t, err)
 }
+
+func TestNamedEntity(t *testing.T) {
+	entity := NamedEntity("test_entity")
+
+	// Assert that the entity has the correct name
+	assert.Equal(t, "test_entity", entity.Name())
+
+	// Assert that the entity is not empty
+	assert.True(t, entity.Empty())
+
+	// Assert that the entity has no keys
+	assert.Empty(t, entity.Keys())
+
+	// Assert that the entity is a string representation
+	assert.NotEmpty(t, entity.String())
+
+	// Assert that the entity is the oldest key/value pair
+	assert.Nil(t, entity.First())
+
+	// Assert that the entity can set a value
+	entity.Set("key", "value")
+	assert.Equal(t, "value", entity.Get("key"))
+
+	// Assert that the entity can delete a value
+	entity.Delete("key")
+	assert.Nil(t, entity.Get("key"))
+
+	// Assert that the entity can get a string value
+	assert.Equal(t, "default", entity.GetString("nonexistent", "default"))
+}
+
+func TestEntityName(t *testing.T) {
+	entity := NamedEntity("blog")
+	assert.Equal(t, "blog", entity.Name())
+
+	entity.Name("post")
+	assert.Equal(t, "post", entity.Name())
+}
+
+func TestEntityKeys(t *testing.T) {
+	entity := NamedEntity("User")
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("email", "john@example.com")
+
+	keys := entity.Keys()
+
+	assert.Equal(t, []string{"name", "age", "email"}, keys)
+}
+
+func TestEntityKeysEmptyEntity(t *testing.T) {
+	entity := NamedEntity("User")
+
+	keys := entity.Keys()
+
+	assert.Empty(t, keys)
+}
+
+func TestEntityKeysOrdered(t *testing.T) {
+	entity := NamedEntity("User")
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("email", "john@example.com")
+
+	keys := entity.Keys()
+
+	assert.Equal(t, "name", keys[0])
+	assert.Equal(t, "age", keys[1])
+	assert.Equal(t, "email", keys[2])
+}
+
+func TestEntityKeysDuplicateKeys(t *testing.T) {
+	entity := NamedEntity("User")
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("name", "Jane")
+
+	keys := entity.Keys()
+
+	assert.Equal(t, []string{"name", "age"}, keys)
+}

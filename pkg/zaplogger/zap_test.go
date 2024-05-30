@@ -15,7 +15,7 @@ func TestNewZapLogger(t *testing.T) {
 	logFile := t.TempDir() + "/zaplogger.log"
 	defer os.Remove(logFile)
 
-	config := &ZapConfig{
+	config := &logger.Config{
 		LogFile:    logFile,
 		CallerSkip: 1,
 	}
@@ -35,7 +35,7 @@ func TestNewZapLogger(t *testing.T) {
 }
 
 func TestZapLoggerWithContext(t *testing.T) {
-	zapLogger, err := NewZapLogger(&ZapConfig{})
+	zapLogger, err := NewZapLogger(&logger.Config{})
 	assert.NoError(t, err)
 	loggerWithContext := zapLogger.WithContext(logger.LogContext{"key": "value"})
 	zapLoggerWithContext, ok := loggerWithContext.(*ZapLogger)
@@ -46,7 +46,7 @@ func TestZapLoggerWithContext(t *testing.T) {
 
 func createLogger(t *testing.T) *ZapLogger {
 	logFile := t.TempDir() + "/zaplogger.log"
-	logger, _ := NewZapLogger(&ZapConfig{LogFile: logFile, DisableConsole: true})
+	logger, _ := NewZapLogger(&logger.Config{LogFile: logFile, DisableConsole: true})
 	return logger
 }
 

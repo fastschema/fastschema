@@ -1,19 +1,19 @@
-package restresolver_test
+package restfulresolver_test
 
 import (
 	"net/http/httptest"
 	"testing"
 
 	"github.com/fastschema/fastschema/fs"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRouterUse(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
+	server := restfulresolver.New(restfulresolver.Config{})
 	router := server.Group("user", nil)
-	router.Use(func(c *restresolver.Context) error {
+	router.Use(func(c *restfulresolver.Context) error {
 		c.Header("X-Test", "test")
 		return c.Next()
 	})
@@ -25,7 +25,7 @@ func TestRouterUse(t *testing.T) {
 	assert.Equal(t, 404, resp.StatusCode)
 	assert.Equal(t, "test", resp.Header.Get("X-Test"))
 
-	router.Group("profile", &fs.Resource{}, func(c *restresolver.Context) error {
+	router.Group("profile", &fs.Resource{}, func(c *restfulresolver.Context) error {
 		return c.JSON("profile")
 	})
 
@@ -38,9 +38,9 @@ func TestRouterUse(t *testing.T) {
 }
 
 func TestRouterMethods(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
+	server := restfulresolver.New(restfulresolver.Config{})
 	router := server.Group("user", nil)
-	methodsMap := map[string]func(path string, handler restresolver.Handler, resources ...*fs.Resource){
+	methodsMap := map[string]func(path string, handler restfulresolver.Handler, resources ...*fs.Resource){
 		"GET":     router.Get,
 		"HEAD":    router.Head,
 		"POST":    router.Post,
@@ -53,7 +53,7 @@ func TestRouterMethods(t *testing.T) {
 	}
 
 	for method, methodFunc := range methodsMap {
-		methodFunc("/test", func(c *restresolver.Context) error {
+		methodFunc("/test", func(c *restfulresolver.Context) error {
 			return c.JSON(method)
 		}, &fs.Resource{})
 

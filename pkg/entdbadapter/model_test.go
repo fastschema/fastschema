@@ -35,42 +35,6 @@ var userSchemaJSON = `{
   ]
 }`
 
-func TestModel(t *testing.T) {
-	userSchema := &schema.Schema{}
-	assert.Nil(t, json.Unmarshal([]byte(userSchemaJSON), userSchema))
-
-	// idField := &schema.Field{
-	// 	Name: "id",
-	// 	Type: schema.TypeUint64,
-	// 	DB: &schema.FieldDB{
-	// 		Increment: true,
-	// 	},
-	// }
-	// idEntColumn := entdbadapter.CreateEntColumn(idField)
-	// idColumn := &entdbadapter.Column{field: idField, entColumn: idEntColumn}
-
-	// nameField := &schema.Field{Name: "name"}
-	// nameEntColumn := entdbadapter.CreateEntColumn(nameField)
-	// nameColumn := &entdbadapter.Column{field: nameField, entColumn: nameEntColumn}
-
-	// model := &entdbadapter.Model{
-	// 	name:        "user",
-	// 	schema:      userSchema,
-	// 	entIDColumn: idEntColumn,
-	// 	columns:     []*entdbadapter.Column{idColumn, nameColumn},
-	// }
-
-	// assert.Equal(t, userSchema, model.Schema())
-	// assert.Equal(t, nameColumn, utils.Must(model.Column("name")))
-
-	// query := model.Query()
-	// assert.NotNil(t, query)
-
-	// mutation, err := model.Mutation()
-	// assert.NoError(t, err)
-	// assert.NotNil(t, mutation)
-}
-
 func TestModelName(t *testing.T) {
 	model := &Model{name: "user"}
 	assert.Equal(t, "user", model.Name())

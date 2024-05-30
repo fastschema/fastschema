@@ -30,9 +30,10 @@ func (m *FileService) FileListHook(query *db.QueryOption, entities []*schema.Ent
 
 	for _, entity := range entities {
 		path := entity.GetString("path")
-		disk := entity.GetString("disk")
-		if path != "" {
-			entity.Set("url", m.Disk(disk).URL(path))
+		disk := m.Disk(entity.GetString("disk"))
+
+		if path != "" && disk != nil {
+			entity.Set("url", disk.URL(path))
 		}
 	}
 

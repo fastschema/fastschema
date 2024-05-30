@@ -210,9 +210,9 @@ func (s *Schema) Validate() error {
 		schemaErrors = append(schemaErrors, "namespace is required")
 	}
 
-	if len(s.Fields) == 0 {
-		schemaErrors = append(schemaErrors, "fields is required")
-	}
+	// if len(s.Fields) == 0 {
+	// 	schemaErrors = append(schemaErrors, "fields is required")
+	// }
 
 	hasLabelField := false
 

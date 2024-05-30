@@ -108,7 +108,7 @@ func TestNewResource(t *testing.T) {
 
 	var c fs.Context = &testContext{}
 
-	resolver := r.Resolver()
+	resolver := r.Handler()
 	result, err := resolver(c)
 	assert.NoError(t, err, "Resolver should not return an error")
 	assert.Equal(t, (*TestResourceInput)(nil), result, "Resolver should return the input")
@@ -127,7 +127,7 @@ func TestNewResourceResolveError(t *testing.T) {
 	)
 	assert.NotNil(t, r, "Resource should not be nil")
 	var c fs.Context = &testContext{err: errors.New("error")}
-	resolver := r.Resolver()
+	resolver := r.Handler()
 	_, err := resolver(c)
 	assert.Error(t, err, "Resolver should return an error")
 }
@@ -217,7 +217,7 @@ func TestAddResource(t *testing.T) {
 
 func TestResourceResolver(t *testing.T) {
 	r := fs.NewResource("test", ResourceResolver1)
-	resolver := r.Resolver()
+	resolver := r.Handler()
 	assert.NotNil(t, resolver, "Resolver should not be nil")
 }
 
@@ -316,4 +316,94 @@ func TestResourceMarshalJSON(t *testing.T) {
 	result, err := rm.MarshalJSON()
 	assert.NoError(t, err, "MarshalJSON should not return an error")
 	assert.Equal(t, expected, string(result), "Marshalled JSON should match the expected value")
+}
+
+func TestResourceMethods(t *testing.T) {
+	signatures := fs.Signatures{"a", "a"}
+	meta := &fs.Meta{
+		Public:     true,
+		Signatures: signatures,
+	}
+
+	resolver := func(c fs.Context, _ string) (string, error) {
+		return "", nil
+	}
+
+	// No meta
+	r := fs.Get("getresource", resolver)
+	assert.NotNil(t, r)
+	assert.Equal(t, "getresource", r.Name())
+	assert.Equal(t, "getresource", r.Meta().Get)
+
+	// Get
+	r = fs.Get("getresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "getresource", r.Name())
+	assert.Equal(t, "getresource", r.Meta().Get)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
+
+	// Head
+	r = fs.Head("headresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "headresource", r.Name())
+	assert.Equal(t, "headresource", r.Meta().Head)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
+
+	// Post
+	r = fs.Post("Postresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "Postresource", r.Name())
+	assert.Equal(t, "Postresource", r.Meta().Post)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
+
+	// Put
+	r = fs.Put("Putresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "Putresource", r.Name())
+	assert.Equal(t, "Putresource", r.Meta().Put)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
+
+	// Delete
+	r = fs.Delete("Deleteresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "Deleteresource", r.Name())
+	assert.Equal(t, "Deleteresource", r.Meta().Delete)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
+
+	// Connect
+	r = fs.Connect("Connectresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "Connectresource", r.Name())
+	assert.Equal(t, "Connectresource", r.Meta().Connect)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
+
+	// Options
+	r = fs.Options("Optionsresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "Optionsresource", r.Name())
+	assert.Equal(t, "Optionsresource", r.Meta().Options)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
+
+	// Trace
+	r = fs.Trace("Traceresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "Traceresource", r.Name())
+	assert.Equal(t, "Traceresource", r.Meta().Trace)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
+
+	// Patch
+	r = fs.Patch("Patchresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "Patchresource", r.Name())
+	assert.Equal(t, "Patchresource", r.Meta().Patch)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
 }

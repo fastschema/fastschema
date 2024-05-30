@@ -349,7 +349,7 @@ func TestSchemaValidate(t *testing.T) {
 	s.Fields = []*Field{}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "fields is required")
+	assert.Contains(t, err.Error(), "label field 'name' is not found")
 
 	// Test missing field name
 	s.Fields = []*Field{

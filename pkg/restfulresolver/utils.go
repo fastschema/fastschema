@@ -1,4 +1,4 @@
-package restresolver
+package restfulresolver
 
 import (
 	"github.com/fastschema/fastschema/fs"

@@ -13,7 +13,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	userservice "github.com/fastschema/fastschema/services/user"
@@ -96,7 +96,7 @@ func TestUserService(t *testing.T) {
 		}))
 
 	assert.NoError(t, resources.Init())
-	server := restresolver.NewRestResolver(resources, logger.CreateMockLogger(true)).Server()
+	server := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(true)).Server()
 
 	// Case 1: Login User not found
 	req := httptest.NewRequest("POST", "/user/login", bytes.NewReader([]byte(`{"login": "user", "password": "user"}`)))

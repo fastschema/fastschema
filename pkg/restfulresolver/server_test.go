@@ -1,4 +1,4 @@
-package restresolver_test
+package restfulresolver_test
 
 import (
 	"encoding/json"
@@ -8,25 +8,25 @@ import (
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNew(t *testing.T) {
-	config := restresolver.Config{
+	config := restfulresolver.Config{
 		AppName:     "TestApp",
 		JSONEncoder: json.Marshal,
 		Logger:      logger.CreateMockLogger(true),
 	}
 
-	server := restresolver.New(config)
+	server := restfulresolver.New(config)
 	assert.NotNil(t, server.App)
 }
 
 func TestServerUse(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
-	server.Use(func(c *restresolver.Context) error {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Use(func(c *restfulresolver.Context) error {
 		c.Header("X-Test", "test")
 		return c.Next()
 	})
@@ -38,7 +38,7 @@ func TestServerUse(t *testing.T) {
 	assert.Equal(t, 404, resp.StatusCode)
 	assert.Equal(t, "test", resp.Header.Get("X-Test"))
 
-	server.Group("profile", &fs.Resource{}, func(c *restresolver.Context) error {
+	server.Group("profile", &fs.Resource{}, func(c *restfulresolver.Context) error {
 		return c.JSON("profile")
 	})
 
@@ -51,14 +51,14 @@ func TestServerUse(t *testing.T) {
 }
 
 func TestServerStatic(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
+	server := restfulresolver.New(restfulresolver.Config{})
 	prefix := "/static"
 	root := t.TempDir()
 
 	err := utils.WriteFile(root+"/index.html", "index")
 	assert.NoError(t, err)
 
-	config := restresolver.StaticConfig{
+	config := restfulresolver.StaticConfig{
 		Index:         "index.html",
 		Browse:        true,
 		MaxAge:        3600,
@@ -87,8 +87,8 @@ func TestServerStatic(t *testing.T) {
 }
 
 func TestServerMethods(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
-	methodsMap := map[string]func(path string, handler restresolver.Handler, resources ...*fs.Resource){
+	server := restfulresolver.New(restfulresolver.Config{})
+	methodsMap := map[string]func(path string, handler restfulresolver.Handler, resources ...*fs.Resource){
 		"GET":     server.Get,
 		"HEAD":    server.Head,
 		"POST":    server.Post,
@@ -101,7 +101,7 @@ func TestServerMethods(t *testing.T) {
 	}
 
 	for method, methodFunc := range methodsMap {
-		methodFunc("/test", func(c *restresolver.Context) error {
+		methodFunc("/test", func(c *restfulresolver.Context) error {
 			return c.JSON(method)
 		}, &fs.Resource{})
 
@@ -114,13 +114,13 @@ func TestServerMethods(t *testing.T) {
 }
 
 func TestServerListen(t *testing.T) {
-	config := restresolver.Config{
+	config := restfulresolver.Config{
 		Logger: logger.CreateMockLogger(true),
 	}
-	server := restresolver.New(config)
+	server := restfulresolver.New(config)
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		server2 := restresolver.New(config)
+		server2 := restfulresolver.New(config)
 		err := server2.Listen(":8080")
 		assert.Error(t, err)
 		assert.NoError(t, server.App.Shutdown())

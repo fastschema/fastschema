@@ -126,8 +126,13 @@ func (tx *Tx) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.
 }
 
 // Exec executes a query.
-func (tx *Tx) Exec(ctx context.Context, query string, args any, bindValue any) error {
-	return tx.driver.Exec(ctx, query, args, bindValue)
+func (tx *Tx) Exec(ctx context.Context, query string, args any) (sql.Result, error) {
+	return driverExec(tx.driver, ctx, query, args)
+}
+
+// Query executes a query.
+func (tx *Tx) Query(ctx context.Context, query string, args any) ([]*schema.Entity, error) {
+	return driverQuery(tx.driver, ctx, query, args)
 }
 
 // Close closes the transaction.

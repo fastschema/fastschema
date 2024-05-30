@@ -12,6 +12,7 @@ import (
 
 type DBQuery[T any] struct {
 	rType      reflect.Type
+	schemaName string
 	client     Client
 	predicates []*Predicate
 	limit      uint
@@ -20,35 +21,33 @@ type DBQuery[T any] struct {
 	order      []string
 }
 
-func BindStruct(data any, target any) error {
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		TagName: "json",
-		Result:  target,
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(func(from, to reflect.Type, data any) (any, error) {
-			if e, ok := data.(*schema.Entity); ok {
-				return e.ToMap(), nil
-			}
+func Query[T any](client Client, schemas ...string) *DBQuery[T] {
+	query := &DBQuery[T]{client: client}
 
-			return data, nil
-		}),
-	})
-	if err != nil {
-		return err
+	// if the schema name is specified, use the schema name
+	// otherwise, use the reflect type of the schema
+	if len(schemas) > 0 && schemas[0] != "" {
+		query.schemaName = schemas[0]
+	} else {
+		query.rType = utils.GetDereferencedType(new(T))
 	}
 
-	if err := decoder.Decode(data); err != nil {
-		return err
-	}
-
-	return nil
+	return query
 }
 
-func Query[T any](client Client) *DBQuery[T] {
-	var t T
-	return &DBQuery[T]{
-		client: client,
-		rType:  utils.GetDereferencedType(t),
+// Model returns the actual model of the query.
+func (q *DBQuery[T]) Model() (Model, error) {
+	if q.rType != nil && q.rType.String() == "schema.Entity" && q.schemaName == "" {
+		return nil, fmt.Errorf("schema name is required for type schema.Entity")
 	}
+
+	// if the schema name is not empty, use the schema name
+	if q.schemaName != "" {
+		return q.client.Model(q.schemaName)
+	}
+
+	// if the schema name is empty, use the reflect type of the schema
+	return q.client.Model("", q.rType)
 }
 
 // Limit sets the limit of the query.
@@ -83,7 +82,7 @@ func (q *DBQuery[T]) Where(predicates ...*Predicate) *DBQuery[T] {
 
 // Count returns the number of entities that match the query.
 func (q *DBQuery[T]) Count(ctx context.Context, options *CountOption) (int, error) {
-	model, err := q.client.Model("", q.rType)
+	model, err := q.Model()
 	if err != nil {
 		return 0, err
 	}
@@ -98,7 +97,7 @@ func (q *DBQuery[T]) Count(ctx context.Context, options *CountOption) (int, erro
 
 // Get returns the list of entities that match the query.
 func (q *DBQuery[T]) Get(ctx context.Context) ([]T, error) {
-	model, err := q.client.Model("", q.rType)
+	model, err := q.Model()
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +112,16 @@ func (q *DBQuery[T]) Get(ctx context.Context) ([]T, error) {
 		return nil, err
 	}
 
+	var t T
+	_, tIsEntity := any(t).(*schema.Entity)
+
 	result := make([]T, 0)
 	for _, e := range entities {
+		if tIsEntity {
+			result = append(result, any(e).(T))
+			continue
+		}
+
 		var record T
 		if err := BindStruct(e, &record); err != nil {
 			return nil, err
@@ -159,4 +166,27 @@ func (q *DBQuery[T]) Only(ctx context.Context) (t T, err error) {
 	}
 
 	return entities[0], nil
+}
+
+func BindStruct(src any, target any) error {
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  target,
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(func(from, to reflect.Type, data any) (any, error) {
+			if e, ok := data.(*schema.Entity); ok {
+				return e.ToMap(), nil
+			}
+
+			return data, nil
+		}),
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := decoder.Decode(src); err != nil {
+		return err
+	}
+
+	return nil
 }

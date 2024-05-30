@@ -14,11 +14,13 @@ func (rs *RoleService) Delete(c fs.Context, _ any) (any, error) {
 		return nil, errors.BadRequest("Can't delete default roles")
 	}
 
-	where := db.EQ("id", id)
-	if _, err := db.Query[*fs.Role](rs.DB()).Where(where).First(c.Context()); err != nil {
+	conditions := []*db.Predicate{
+		db.EQ("id", id),
+	}
+	if _, err := db.Query[*fs.Role](rs.DB()).Where(conditions...).First(c.Context()); err != nil {
 		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())
 	}
 
-	return db.Delete[*fs.Role](c.Context(), rs.DB(), where)
+	return db.Delete[*fs.Role](c.Context(), rs.DB(), conditions)
 }
