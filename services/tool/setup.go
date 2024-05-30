@@ -55,17 +55,13 @@ func Setup(
 		return err
 	}
 
-	_, err = db.Create[*fs.User](ctx, tx, fs.Map{
+	utils.Must(db.Create[*fs.User](ctx, tx, fs.Map{
 		"username": username,
 		"email":    email,
 		"password": adminPassword,
 		"active":   true,
 		"roles":    []*schema.Entity{schema.NewEntity(adminRole.ID)},
-	})
-
-	if err != nil {
-		return err
-	}
+	}))
 
 	if err := tx.Commit(); err != nil {
 		return err

@@ -12,7 +12,12 @@ import (
 	"github.com/google/uuid"
 )
 
-func getRowsColumns(rows *dialectsql.Rows) ([]string, []*sql.ColumnType, error) {
+type SQLColumnType interface {
+	ScanType() reflect.Type
+	DatabaseTypeName() string
+}
+
+func getRowsColumns(rows *dialectsql.Rows) ([]string, []SQLColumnType, error) {
 	columns, err := rows.Columns()
 	if err != nil {
 		return nil, nil, fmt.Errorf("[getRowsColumns] failed to get columns: %w", err)
@@ -23,10 +28,15 @@ func getRowsColumns(rows *dialectsql.Rows) ([]string, []*sql.ColumnType, error) 
 		return nil, nil, fmt.Errorf("[createRowsScanValues] failed to get column types: %w", err)
 	}
 
-	return columns, columnTypes, nil
+	sqlColumnTypes := make([]SQLColumnType, len(columnTypes))
+	for i, columnType := range columnTypes {
+		sqlColumnTypes[i] = columnType
+	}
+
+	return columns, sqlColumnTypes, nil
 }
 
-func createRowsScanValues(columns []string, columnTypes []*sql.ColumnType) []any {
+func createRowsScanValues(columns []string, columnTypes []SQLColumnType) []any {
 	values := make([]any, len(columns))
 	for i := range columnTypes {
 		scanType := columnTypes[i].ScanType()
