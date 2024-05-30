@@ -39,8 +39,8 @@ type Role struct {
 	Name        string        `json:"name,omitempty"`
 	Description string        `json:"description,omitempty" fs:"optional"`
 	Root        bool          `json:"root,omitempty" fs:"optional"`
-	Users       []*User       `json:"users,omitempty" fs:"type=relation" fs.relation:"{'type':'m2m','schema':'user','field':'roles','owner':true}"`
-	Permissions []*Permission `json:"permissions,omitempty" fs:"type=relation" fs.relation:"{'type':'o2m','schema':'permission','field':'role','owner':true}"`
+	Users       []*User       `json:"users,omitempty" fs.relation:"{'type':'m2m','schema':'user','field':'roles','owner':true}"`
+	Permissions []*Permission `json:"permissions,omitempty" fs.relation:"{'type':'o2m','schema':'permission','field':'role','owner':true}"`
 
 	CreatedAt *time.Time `json:"created_at,omitempty" fs:"default=NOW()"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`

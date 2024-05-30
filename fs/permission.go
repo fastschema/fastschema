@@ -12,7 +12,7 @@ type Permission struct {
 	RoleID    int        `json:"role_id,omitempty"`
 	Resource  string     `json:"resource,omitempty"`
 	Value     string     `json:"value,omitempty"`
-	Role      *Role      `json:"role,omitempty" fs:"type=relation" fs.relation:"{'type':'o2m','schema':'role','field':'permissions','owner':false,'fk_columns':{'target_column':'role_id'}}"`
+	Role      *Role      `json:"role,omitempty" fs.relation:"{'type':'o2m','schema':'role','field':'permissions','owner':false,'fk_columns':{'target_column':'role_id'}}"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`

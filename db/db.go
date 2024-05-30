@@ -64,7 +64,12 @@ func (c *Config) Clone() *Config {
 
 type Client interface {
 	Dialect() string
-	Exec(ctx context.Context, query string, args any, bindValue any) error
+	// Exec executes a query that does not return records. For example, in SQL, INSERT or UPDATE.
+	// It return a sql.Result and an error if any.
+	Exec(ctx context.Context, query string, args any) (sql.Result, error)
+	// Query executes a query that returns rows, typically a SELECT in SQL.
+	// It return a slice of *schema.Entity and an error if any.
+	Query(ctx context.Context, query string, args any) ([]*schema.Entity, error)
 	Rollback() error
 	Commit() error
 	CreateDBModel(s *schema.Schema, rs ...*schema.Relation) Model

@@ -1,4 +1,4 @@
-package restresolver_test
+package restfulresolver_test
 
 import (
 	"bytes"
@@ -13,28 +13,28 @@ import (
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRequestIDContextKeyString(t *testing.T) {
-	key := restresolver.RequestIDContextKey("test_key")
+	key := restfulresolver.RequestIDContextKey("test_key")
 	str := key.String()
 
 	assert.Equal(t, "test_key", str)
 }
 
 func TestContextResult(t *testing.T) {
-	c := &restresolver.Context{}
+	c := &restfulresolver.Context{}
 	result := &fs.Result{}
 	c.Result(result)
 	assert.Equal(t, result, c.Result())
 }
 
 func TestContextArgs(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
-	server.Get("/test/:param", func(c *restresolver.Context) error {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Get("/test/:param", func(c *restfulresolver.Context) error {
 		args := c.Args()
 		assert.Equal(t, map[string]string{"param": "param", "param1": "value1", "param2": "5"}, args)
 		assert.Equal(t, "value1", c.Arg("param1"))
@@ -53,8 +53,8 @@ func TestContextArgs(t *testing.T) {
 }
 
 func TestContextEntity(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
-	server.Post("/test", func(c *restresolver.Context) error {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Post("/test", func(c *restfulresolver.Context) error {
 		entity, err := c.Entity()
 		assert.NoError(t, err)
 		assert.Equal(t, "value", entity.Get("key"))
@@ -72,8 +72,8 @@ func TestContextEntity(t *testing.T) {
 }
 
 func TestContextEntityError(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
-	server.Post("/test", func(c *restresolver.Context) error {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Post("/test", func(c *restfulresolver.Context) error {
 		_, err := c.Entity()
 		assert.Error(t, err)
 		return err
@@ -88,8 +88,8 @@ func TestContextEntityError(t *testing.T) {
 }
 
 func TestContextParse(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
-	server.Post("/test", func(c *restresolver.Context) error {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Post("/test", func(c *restfulresolver.Context) error {
 		entity := map[string]any{}
 		err := c.Parse(&entity)
 		assert.NoError(t, err)
@@ -106,11 +106,11 @@ func TestContextParse(t *testing.T) {
 }
 
 func TestContextResource(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
+	server := restfulresolver.New(restfulresolver.Config{})
 	resource := fs.NewResource("test", func(c fs.Context, _ any) (*any, error) {
 		return nil, nil
 	})
-	server.Get("/test", func(c *restresolver.Context) error {
+	server.Get("/test", func(c *restfulresolver.Context) error {
 		assert.NotNil(t, c.Resource())
 		return nil
 	}, resource)
@@ -123,8 +123,8 @@ func TestContextResource(t *testing.T) {
 }
 
 func TestContextAuthToken(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
-	server.Get("/test", func(c *restresolver.Context) error {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Get("/test", func(c *restfulresolver.Context) error {
 		assert.Equal(t, "token", c.AuthToken())
 		return c.Redirect("/redirect")
 	})
@@ -148,10 +148,10 @@ func TestContextMethods(t *testing.T) {
 	resource := fs.NewResource("test_resource", func(c fs.Context, _ any) (*any, error) {
 		return nil, nil
 	})
-	server := restresolver.New(restresolver.Config{
+	server := restfulresolver.New(restfulresolver.Config{
 		Logger: logger.CreateMockLogger(true),
 	})
-	server.Get("/test", func(c *restresolver.Context) error {
+	server.Get("/test", func(c *restfulresolver.Context) error {
 		c.Value("test", "test_value")
 		assert.Equal(t, "test_value", c.Value("test"))
 		assert.Nil(t, c.User())
@@ -173,7 +173,7 @@ func TestContextMethods(t *testing.T) {
 		assert.NotNil(t, c.Context())
 		c.Status(201)
 		c.Header("response-header", "response-header-value")
-		c.Cookie("testcookiename", &restresolver.Cookie{
+		c.Cookie("testcookiename", &restfulresolver.Cookie{
 			Name:  "testcookiename",
 			Value: "testcookievalue",
 		})
@@ -222,14 +222,14 @@ func createTestImage(t *testing.T) string {
 }
 
 func TestContextFiles(t *testing.T) {
-	server := restresolver.New(restresolver.Config{})
-	server.Use(func(c *restresolver.Context) error {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Use(func(c *restfulresolver.Context) error {
 		assert.NotNil(t, c.Response().Header("Content-Type"))
 		c.Response().Header("custom-header", "custom-header-value")
 		assert.NoError(t, c.Next())
 		return nil
 	})
-	server.Post("/test", func(c *restresolver.Context) error {
+	server.Post("/test", func(c *restfulresolver.Context) error {
 		files, err := c.Files()
 
 		assert.NoError(t, err)

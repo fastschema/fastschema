@@ -4,6 +4,13 @@ import "fmt"
 
 type LogContext = map[string]any
 
+type Config struct {
+	Development    bool `json:"development"`
+	LogFile        string
+	CallerSkip     int
+	DisableConsole bool
+}
+
 type Logger interface {
 	Info(...any)
 	Infof(string, ...any)

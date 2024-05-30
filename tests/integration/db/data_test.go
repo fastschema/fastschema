@@ -155,11 +155,10 @@ func ClearDBData(client db.Client, tables ...string) {
 		return strings.TrimSpace(sql) != ""
 	})
 
-	if err := client.Exec(
+	if _, err := client.Exec(
 		Ctx(),
 		strings.Join(sqls, "; "),
 		[]any{},
-		nil,
 	); err != nil {
 		panic(err)
 	}

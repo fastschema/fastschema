@@ -1,4 +1,4 @@
-package restresolver
+package restfulresolver
 
 import (
 	"github.com/fastschema/fastschema/fs"
@@ -8,18 +8,18 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
 
-type RestSolver struct {
+type RestfulResolver struct {
 	resourceManager *fs.ResourcesManager
 	staticFSs       []*fs.StaticFs
 	server          *Server
 }
 
-func NewRestResolver(
+func NewRestfulResolver(
 	resourceManager *fs.ResourcesManager,
 	logger logger.Logger,
 	staticFSs ...*fs.StaticFs,
-) *RestSolver {
-	rs := &RestSolver{
+) *RestfulResolver {
+	rs := &RestfulResolver{
 		resourceManager: resourceManager,
 		staticFSs:       staticFSs,
 	}
@@ -27,7 +27,7 @@ func NewRestResolver(
 	return rs.init(logger)
 }
 
-func (r *RestSolver) init(logger logger.Logger) *RestSolver {
+func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 	middlewares := []Handler{
 		MiddlewareCors,
 		MiddlewareRecover,
@@ -84,15 +84,15 @@ func (r *RestSolver) init(logger logger.Logger) *RestSolver {
 	return r
 }
 
-func (r *RestSolver) Server() *Server {
+func (r *RestfulResolver) Server() *Server {
 	return r.server
 }
 
-func (r *RestSolver) Start(address string) error {
+func (r *RestfulResolver) Start(address string) error {
 	return r.server.Listen(address)
 }
 
-func (r *RestSolver) Shutdown() error {
+func (r *RestfulResolver) Shutdown() error {
 	return r.server.App.Shutdown()
 }
 
@@ -176,7 +176,7 @@ func registerResourceRoutes(
 					}
 				}
 
-				result := fs.NewResult(r.Resolver()(c))
+				result := fs.NewResult(r.Handler()(c))
 				if result.Error != nil && result.Error.Status != 0 {
 					c.Status(result.Error.Status)
 				}

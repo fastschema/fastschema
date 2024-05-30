@@ -19,10 +19,6 @@ func (ss *SchemaService) Create(c fs.Context, newSchemaData *schema.Schema) (*sc
 		return nil, errors.BadRequest("schema already exists")
 	}
 
-	if err := newSchemaData.Validate(); err != nil {
-		return nil, errors.UnprocessableEntity(err.Error())
-	}
-
 	// add the back reference field to the related schema
 	for _, field := range newSchemaData.Fields {
 		if !field.Type.IsRelationType() {
@@ -78,6 +74,10 @@ func (ss *SchemaService) Create(c fs.Context, newSchemaData *schema.Schema) (*sc
 		// add the back reference field to the related schema in the new schema builder
 		targetSchema.Fields = append(targetSchema.Fields, targetRelationField)
 		updateSchemas[targetSchema.Name] = targetSchema
+	}
+
+	if err := newSchemaData.Validate(); err != nil {
+		return nil, errors.UnprocessableEntity(err.Error())
 	}
 
 	if err := newSchemaData.SaveToFile(schemaFile); err != nil {

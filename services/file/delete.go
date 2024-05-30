@@ -8,15 +8,17 @@ import (
 )
 
 func (m *FileService) Delete(c fs.Context, fileIDs []uint64) (any, error) {
-	condition := db.In("id", utils.Map(fileIDs, func(id uint64) any {
-		return id
-	}))
-	files, err := db.Query[*fs.File](m.DB()).Where(condition).Get(c.Context())
+	conditions := []*db.Predicate{
+		db.In("id", utils.Map(fileIDs, func(id uint64) any {
+			return id
+		})),
+	}
+	files, err := db.Query[*fs.File](m.DB()).Where(conditions...).Get(c.Context())
 	if err != nil {
 		return nil, errors.InternalServerError("Failed to get files: %s", err)
 	}
 
-	if _, err := db.Delete[*fs.File](c.Context(), m.DB(), condition); err != nil {
+	if _, err := db.Delete[*fs.File](c.Context(), m.DB(), conditions); err != nil {
 		return nil, errors.InternalServerError("Failed to delete files: %s", err)
 	}
 
