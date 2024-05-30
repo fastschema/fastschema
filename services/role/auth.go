@@ -4,24 +4,24 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	jwt "github.com/golang-jwt/jwt/v4"
 )
 
-func (rs *RoleService) ParseUser(c app.Context) error {
+func (rs *RoleService) ParseUser(c fs.Context) error {
 	authToken := c.AuthToken()
 	jwtToken, err := jwt.ParseWithClaims(
 		authToken,
-		&app.UserJwtClaims{},
+		&fs.UserJwtClaims{},
 		func(token *jwt.Token) (any, error) {
 			return []byte(rs.AppKey()), nil
 		},
 	)
 
 	if err == nil {
-		if claims, ok := jwtToken.Claims.(*app.UserJwtClaims); ok && jwtToken.Valid {
+		if claims, ok := jwtToken.Claims.(*fs.UserJwtClaims); ok && jwtToken.Valid {
 			user := claims.User
 			user.Roles = rs.GetRolesFromIDs(user.RoleIDs)
 			c.Value("user", user)
@@ -31,7 +31,7 @@ func (rs *RoleService) ParseUser(c app.Context) error {
 	return c.Next()
 }
 
-func (rs *RoleService) Authorize(c app.Context) error {
+func (rs *RoleService) Authorize(c fs.Context) error {
 	resource := c.Resource()
 
 	if resource == nil {
@@ -48,7 +48,7 @@ func (rs *RoleService) Authorize(c app.Context) error {
 
 	user := c.User()
 	if user == nil {
-		user = app.GuestUser
+		user = fs.GuestUser
 	}
 
 	// Allow root user to access all routes.
@@ -57,7 +57,7 @@ func (rs *RoleService) Authorize(c app.Context) error {
 	}
 
 	// Allow white listed routes.
-	if resource.WhiteListed() {
+	if resource.IsPublic() {
 		return nil
 	}
 
@@ -72,7 +72,7 @@ func (rs *RoleService) Authorize(c app.Context) error {
 		permission := rs.GetPermission(role.ID, resourceID)
 
 		// if permission value is allow, then allow
-		if permission.Value == app.PermissionTypeAllow.String() {
+		if permission.Value == fs.PermissionTypeAllow.String() {
 			return nil
 		}
 	}

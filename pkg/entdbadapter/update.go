@@ -1,6 +1,7 @@
 package entdbadapter
 
 import (
+	"context"
 	"database/sql/driver"
 	"fmt"
 
@@ -11,7 +12,7 @@ import (
 )
 
 // Update updates the entity and returns the updated entity
-func (m *Mutation) Update(e *schema.Entity) (affected int, err error) {
+func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, err error) {
 	if m.model == nil || m.model.schema == nil {
 		return 0, fmt.Errorf("model or schema %s not found", m.model.name)
 	}
@@ -91,11 +92,11 @@ func (m *Mutation) Update(e *schema.Entity) (affected int, err error) {
 		})
 	}
 
-	if affected, err = sqlgraph.UpdateNodes(m.ctx, entAdapter.Driver(), m.updateSpec); err != nil {
+	if affected, err = sqlgraph.UpdateNodes(ctx, entAdapter.Driver(), m.updateSpec); err != nil {
 		return 0, err
 	}
 
-	if !m.skipTx {
+	if m.autoCommit {
 		if err = m.client.Commit(); err != nil {
 			return 0, err
 		}

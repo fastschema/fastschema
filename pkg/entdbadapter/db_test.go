@@ -9,7 +9,7 @@ import (
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/go-sql-driver/mysql"
@@ -18,32 +18,32 @@ import (
 )
 
 func TestNewEntClient(t *testing.T) {
-	_, err := NewEntClient(&app.DBConfig{
+	_, err := NewEntClient(&db.Config{
 		Driver: "invalid",
 	}, &schema.Builder{})
 	assert.Equal(t, `sql: unknown driver "invalid" (forgotten import?)`, err.Error())
 
-	_, err = NewEntClient(&app.DBConfig{
+	_, err = NewEntClient(&db.Config{
 		Driver: "mysql",
 	}, nil)
 	assert.Equal(t, `schema builder is required`, err.Error())
 
 	sql.Register("mysql2", &mysql.MySQLDriver{})
 
-	_, err = NewEntClient(&app.DBConfig{
+	_, err = NewEntClient(&db.Config{
 		Driver: "mysql2",
 	}, &schema.Builder{})
 	assert.Equal(t, `unsupported driver: mysql2`, err.Error())
 
 	sb := createSchemaBuilder()
-	dbClient, err := NewMockExpectClient(func(d *sql.DB) app.DBClient {
-		driver := utils.Must(NewEntClient(&app.DBConfig{
+	dbClient, err := NewMockExpectClient(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
 	}, nil, func(m sqlmock.Sqlmock) {
 		m.ExpectBegin()
-		m.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+		m.ExpectQuery("SELECT 1").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	}, false)
 	require.NoError(t, err)
 	client := dbClient.(EntAdapter)
@@ -59,11 +59,12 @@ func TestNewEntClient(t *testing.T) {
 	assert.Equal(t, false, client.IsTx())
 	assert.Equal(t, nil, client.Rollback())
 	assert.Equal(t, nil, client.Commit())
-	assert.Equal(t, nil, client.Exec(context.Background(), "SELECT 1", []any{}, nil))
+	_, err = client.Query(context.Background(), "SELECT 1", []any{})
+	assert.Equal(t, nil, err)
 }
 
 func TestNewClient(t *testing.T) {
-	config := &app.DBConfig{
+	config := &db.Config{
 		Driver: "sqlmock",
 	}
 
@@ -86,8 +87,8 @@ func TestAdapterReloadErrorTableNotFound(t *testing.T) {
 	newSchemaBuilder := createSchemaBuilder()
 
 	// Create a mock migration
-	migration := &app.Migration{
-		RenameTables: []*app.RenameItem{
+	migration := &db.Migration{
+		RenameTables: []*db.RenameItem{
 			{
 				Type:            "table",
 				From:            "old_table",
@@ -99,13 +100,13 @@ func TestAdapterReloadErrorTableNotFound(t *testing.T) {
 
 	// Create a mock adapter
 	adapter := &Adapter{
-		config: &app.DBConfig{
+		config: &db.Config{
 			Driver: "sqlmock",
 		},
 	}
 
 	// Call the Reload function
-	_, err := adapter.Reload(newSchemaBuilder, migration)
+	_, err := adapter.Reload(context.Background(), newSchemaBuilder, migration)
 	assert.Error(t, err)
 }
 
@@ -114,8 +115,8 @@ func TestAdapterReloadError(t *testing.T) {
 	newSchemaBuilder := createSchemaBuilder()
 
 	// Create a mock migration
-	migration := &app.Migration{
-		RenameTables: []*app.RenameItem{
+	migration := &db.Migration{
+		RenameTables: []*db.RenameItem{
 			{
 				Type:            "table",
 				From:            "user",
@@ -128,6 +129,6 @@ func TestAdapterReloadError(t *testing.T) {
 	// Create a mock adapter
 	adapter := createMockAdapter(t)
 	// Call the Reload function
-	_, err := adapter.Reload(newSchemaBuilder, migration)
+	_, err := adapter.Reload(context.Background(), newSchemaBuilder, migration)
 	require.Error(t, err)
 }

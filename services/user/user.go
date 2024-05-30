@@ -3,7 +3,8 @@ package userservice
 import (
 	"time"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -20,12 +21,12 @@ type LoginResponse struct {
 }
 
 type AppLike interface {
-	DB() app.DBClient
+	DB() db.Client
 	Key() string
 }
 
 type UserService struct {
-	DB     func() app.DBClient
+	DB     func() db.Client
 	AppKey func() string
 }
 
@@ -36,42 +37,39 @@ func New(app AppLike) *UserService {
 	}
 }
 
-func (u *UserService) Login(c app.Context, loginData *LoginData) (*LoginResponse, error) {
-	userModel, err := u.DB().Model("user")
-	if err != nil {
+func (u *UserService) Login(c fs.Context, loginData *LoginData) (*LoginResponse, error) {
+	user, err := db.Query[*fs.User](u.DB()).
+		Where(db.Or(
+			db.EQ("username", loginData.Login),
+			db.EQ("email", loginData.Login),
+		)).
+		Select(
+			"id",
+			"username",
+			"email",
+			"password",
+			"provider",
+			"provider_id",
+			"provider_username",
+			"active",
+			"roles",
+			schema.FieldCreatedAt,
+			schema.FieldUpdatedAt,
+			schema.FieldDeletedAt,
+		).
+		First(c.Context())
+	if err != nil && !db.IsNotFound(err) {
 		return nil, err
 	}
 
-	userEntity, err := userModel.Query(app.Or(
-		app.EQ("username", loginData.Login),
-		app.EQ("email", loginData.Login),
-	)).Select(
-		"id",
-		"username",
-		"email",
-		"password",
-		"provider",
-		"provider_id",
-		"provider_username",
-		"active",
-		"roles",
-		schema.FieldCreatedAt,
-		schema.FieldUpdatedAt,
-		schema.FieldDeletedAt,
-	).First()
-	if err != nil && !app.IsNotFound(err) {
-		return nil, err
-	}
-
-	if userEntity == nil {
+	if user == nil {
 		return nil, errors.Unauthorized("invalid login or password")
 	}
 
-	if err := utils.CheckHash(loginData.Password, userEntity.GetString("password", "")); err != nil {
+	if err := utils.CheckHash(loginData.Password, user.Password); err != nil {
 		return nil, errors.Unauthorized("invalid login or password")
 	}
 
-	user := app.EntityToUser(userEntity)
 	if !user.Active {
 		return nil, errors.Unauthorized("user is not active")
 	}
@@ -84,11 +82,11 @@ func (u *UserService) Login(c app.Context, loginData *LoginData) (*LoginResponse
 	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
 }
 
-func (u *UserService) Logout(c app.Context, _ *any) (*any, error) {
+func (u *UserService) Logout(c fs.Context, _ any) (*any, error) {
 	return nil, nil
 }
 
-func (u *UserService) Me(c app.Context, _ *any) (*app.User, error) {
+func (u *UserService) Me(c fs.Context, _ any) (*fs.User, error) {
 	user := c.User()
 
 	if user == nil {

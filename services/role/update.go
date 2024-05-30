@@ -1,13 +1,16 @@
 package roleservice
 
 import (
-	"github.com/fastschema/fastschema/app"
+	"context"
+
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
+func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 	tx, err := rs.DB().Tx(c.Context())
 	if err != nil {
 		return nil, errors.InternalServerError(err.Error())
@@ -25,7 +28,7 @@ func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
 			return
 		}
 
-		if err := rs.UpdateCache(); err != nil {
+		if err := rs.UpdateCache(c.Context()); err != nil {
 			c.Logger().Error(err.Error())
 		}
 	}()
@@ -37,36 +40,40 @@ func (rs *RoleService) Update(c app.Context, _ *any) (_ *app.Role, err error) {
 	}
 
 	updateRoleData.SetID(id)
-	roleModel, err := tx.Model("role")
-	if err != nil {
-		return nil, errors.InternalServerError(err.Error())
-	}
-
-	existingRole, err := roleModel.Query().
-		Where(app.EQ("id", id)).
+	existingRole, err := db.Query[*fs.Role](tx).
+		Where(db.EQ("id", id)).
 		Select("permissions").
-		First()
+		First(c.Context())
 	if err != nil {
-		e := utils.If(app.IsNotFound(err), errors.NotFound, errors.InternalServerError)
+		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())
 	}
 
 	if err := updateRolePermissions(
-		app.EntityToRole(existingRole),
+		c.Context(),
+		existingRole,
 		updateRoleData,
 		tx,
 	); err != nil {
 		return nil, err
 	}
 
-	if _, err := roleModel.Mutation().Where(app.EQ("id", id)).Update(updateRoleData); err != nil {
+	if _, err := db.Update[*fs.Role](c.Context(), tx, updateRoleData, []*db.Predicate{db.EQ("id", id)}); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	return app.EntityToRole(updateRoleData), nil
+	return db.Query[*fs.Role](tx).
+		Where(db.EQ("id", id)).
+		Select("permissions").
+		First(c.Context())
 }
 
-func updateRolePermissions(existingRole *app.Role, updateRoleData *schema.Entity, tx app.DBClient) error {
+func updateRolePermissions(
+	ctx context.Context,
+	existingRole *fs.Role,
+	updateRoleData *schema.Entity,
+	tx db.Client,
+) error {
 	currentPermissions := []string{}
 	for _, permission := range existingRole.Permissions {
 		currentPermissions = append(currentPermissions, permission.Resource)
@@ -77,27 +84,22 @@ func updateRolePermissions(existingRole *app.Role, updateRoleData *schema.Entity
 		return err
 	}
 
-	permissionModel, err := tx.Model("permission")
-	if err != nil {
-		return errors.InternalServerError(err.Error())
-	}
-
 	for _, permissionName := range added {
 		permissionEntity := schema.NewEntity().
 			Set("resource", permissionName).
 			Set("value", "allow").
 			Set("role_id", existingRole.ID)
 
-		if _, err := permissionModel.Create(permissionEntity); err != nil {
+		if _, err := db.Create[*fs.Permission](ctx, tx, permissionEntity); err != nil {
 			return errors.InternalServerError(err.Error())
 		}
 	}
 
 	for _, permissionName := range removed {
-		if _, err := permissionModel.Mutation().Where(app.And(
-			app.EQ("role_id", existingRole.ID),
-			app.EQ("resource", permissionName),
-		)).Delete(); err != nil {
+		if _, err := db.Delete[*fs.Permission](ctx, tx, []*db.Predicate{db.And(
+			db.EQ("role_id", existingRole.ID),
+			db.EQ("resource", permissionName),
+		)}); err != nil {
 			return errors.InternalServerError(err.Error())
 		}
 	}
@@ -139,7 +141,7 @@ func getPermissionsUpdate(currentRolePermissions []string, updateRoleData *schem
 	return addedPermissions, removedPermissions, nil
 }
 
-func rollback(tx app.DBClient, c app.Context) {
+func rollback(tx db.Client, c fs.Context) {
 	if err := tx.Rollback(); err != nil {
 		c.Logger().Error(err.Error())
 	}

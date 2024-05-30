@@ -1,13 +1,15 @@
 package db
 
 import (
+	"context"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -20,7 +22,11 @@ type dbConfig struct {
 
 type dbClient struct {
 	name   string
-	client app.DBClient
+	client db.Client
+}
+
+func Ctx() context.Context {
+	return context.Background()
 }
 
 func removeAllMigrationFiles(migrationDir string) {
@@ -51,9 +57,16 @@ func runTests(t *testing.T, clients []dbClient) {
 	}
 }
 
+var systemSchemas = []any{
+	fs.Role{},
+	fs.Permission{},
+	fs.User{},
+	fs.File{},
+}
+
 var tests = []struct {
 	name string
-	fn   func(t *testing.T, client app.DBClient)
+	fn   func(t *testing.T, client db.Client)
 }{
 	{"DBQueryNode", DBQueryNode},
 	{"DBCountNode", DBCountNode},
@@ -72,9 +85,9 @@ func TestMysql(t *testing.T) {
 		{"mariadb102", 33065},
 		{"mariadb103", 33066},
 	}, func(sc dbConfig) dbClient {
-		sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas"))
+		sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas", systemSchemas...))
 		removeAllMigrationFiles("../../../tests/data/migrations")
-		client := utils.Must(entdbadapter.NewEntClient(&app.DBConfig{
+		client := utils.Must(entdbadapter.NewEntClient(&db.Config{
 			Driver:       "mysql",
 			Name:         "fastschema",
 			User:         "root",
@@ -101,9 +114,9 @@ func TestPostgres(t *testing.T) {
 		{"postgres14", 54325},
 		{"postgres15", 54326},
 	}, func(sc dbConfig) dbClient {
-		sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas"))
+		sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas", systemSchemas...))
 		removeAllMigrationFiles("../../../tests/data/migrations")
-		client := utils.Must(entdbadapter.NewEntClient(&app.DBConfig{
+		client := utils.Must(entdbadapter.NewEntClient(&db.Config{
 			Driver:       "pgx",
 			Name:         "fastschema",
 			User:         "postgres",
@@ -122,9 +135,9 @@ func TestPostgres(t *testing.T) {
 }
 
 func TestSQLite(t *testing.T) {
-	sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas"))
+	sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas", systemSchemas...))
 	removeAllMigrationFiles("../../../tests/data/migrations")
-	client := utils.Must(entdbadapter.NewEntClient(&app.DBConfig{
+	client := utils.Must(entdbadapter.NewEntClient(&db.Config{
 		Driver:       "sqlite",
 		Name:         path.Join(t.TempDir(), "fastschema"),
 		MigrationDir: "../../../tests/data/migrations",

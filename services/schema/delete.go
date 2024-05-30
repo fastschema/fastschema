@@ -3,11 +3,11 @@ package schemaservice
 import (
 	"os"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 )
 
-func (ss *SchemaService) Delete(c app.Context, _ *any) (app.Map, error) {
+func (ss *SchemaService) Delete(c fs.Context, _ any) (fs.Map, error) {
 	schemaName := c.Arg("name")
 	s, err := ss.app.SchemaBuilder().Schema(schemaName)
 	if err != nil {
@@ -35,9 +35,9 @@ func (ss *SchemaService) Delete(c app.Context, _ *any) (app.Map, error) {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	if err := ss.app.Reload(nil); err != nil {
+	if err := ss.app.Reload(c.Context(), nil); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	return app.Map{"message": "Schema deleted"}, nil
+	return fs.Map{"message": "Schema deleted"}, nil
 }

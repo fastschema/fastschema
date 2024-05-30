@@ -1,12 +1,15 @@
 package schemaservice_test
 
 import (
+	"context"
 	"os"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	schemaservice "github.com/fastschema/fastschema/services/schema"
@@ -113,16 +116,16 @@ var (
 
 type testApp struct {
 	sb        *schema.Builder
-	db        app.DBClient
+	db        db.Client
 	schemaDir string
-	reloadFn  func(*app.Migration) error
+	reloadFn  func(*db.Migration) error
 }
 
 func (s *testApp) Schema(name string) *schema.Schema {
 	return utils.Must(s.sb.Schema(name))
 }
 
-func (s *testApp) DB() app.DBClient {
+func (s *testApp) DB() db.Client {
 	return s.db
 }
 
@@ -130,7 +133,7 @@ func (s *testApp) SchemaBuilder() *schema.Builder {
 	return s.sb
 }
 
-func (s *testApp) Reload(migration *app.Migration) error {
+func (s *testApp) Reload(ctx context.Context, migration *db.Migration) error {
 	s.sb = utils.Must(schema.NewBuilderFromDir(s.schemaDir))
 	s.db = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), s.sb))
 
@@ -144,15 +147,15 @@ func (s *testApp) Reload(migration *app.Migration) error {
 type testSchemaSeviceConfig struct {
 	extraSchemas map[string]string
 	schemaDir    string
-	reloadFn     func(*app.Migration) error
+	reloadFn     func(*db.Migration) error
 }
 
 func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	*testApp,
 	*schemaservice.SchemaService,
-	*restresolver.Server,
+	*restfulresolver.Server,
 ) {
-	var reloadFn func(*app.Migration) error
+	var reloadFn func(*db.Migration) error
 	schemaDir := t.TempDir()
 	schemas := map[string]string{
 		"category": testCategoryJSON,
@@ -179,21 +182,31 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	}
 
 	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))
-	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
+	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(migrationDir, sb))
 	testApp := &testApp{sb: sb, db: db, schemaDir: schemaDir, reloadFn: reloadFn}
 	schemaService := schemaservice.New(testApp)
 
-	resources := app.NewResourcesManager()
+	resources := fs.NewResourcesManager()
 	resources.Group("schema").
-		Add(app.NewResource("list", schemaService.List, app.Meta{app.GET: ""})).
-		Add(app.NewResource("create", schemaService.Create, app.Meta{app.POST: ""})).
-		Add(app.NewResource("detail", schemaService.Detail, app.Meta{app.GET: "/:name"})).
-		Add(app.NewResource("update", schemaService.Update, app.Meta{app.PUT: "/:name"})).
-		Add(app.NewResource("delete", schemaService.Delete, app.Meta{app.DELETE: "/:name"}))
+		Add(fs.NewResource("list", schemaService.List, &fs.Meta{
+			Get: "/",
+		})).
+		Add(fs.NewResource("create", schemaService.Create, &fs.Meta{
+			Post: "/",
+		})).
+		Add(fs.NewResource("detail", schemaService.Detail, &fs.Meta{
+			Get: "/:name",
+		})).
+		Add(fs.NewResource("update", schemaService.Update, &fs.Meta{
+			Put: "/:name",
+		})).
+		Add(fs.NewResource("delete", schemaService.Delete, &fs.Meta{
+			Delete: "/:name",
+		}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := restresolver.NewRestResolver(resources, app.CreateMockLogger(true))
+	restResolver := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(true))
 
 	return testApp, schemaService, restResolver.Server()
 }

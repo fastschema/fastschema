@@ -7,25 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-type ZapConfig struct {
-	Development    bool `json:"development"`
-	LogFile        string
-	CallerSkip     int
-	DisableConsole bool
-}
-
 type ZapLogger struct {
 	*zap.Logger
-	app.LogContext
-	config *ZapConfig
+	logger.LogContext
+	config *logger.Config
 }
 
-func NewZapLogger(config *ZapConfig) (_ *ZapLogger, err error) {
+func NewZapLogger(config *logger.Config) (_ *ZapLogger, err error) {
 	if config.LogFile != "" {
 		if err := os.MkdirAll(path.Dir(config.LogFile), 0755); err != nil {
 			return nil, err
@@ -88,13 +81,13 @@ func NewZapLogger(config *ZapConfig) (_ *ZapLogger, err error) {
 
 	return &ZapLogger{
 		Logger:     zapLogger,
-		LogContext: app.LogContext{},
+		LogContext: logger.LogContext{},
 		config:     config,
 	}, nil
 }
 
-func (l *ZapLogger) WithContext(context app.LogContext, callerSkips ...int) app.Logger {
-	callerSkips = append(callerSkips, 1)
+func (l *ZapLogger) WithContext(context logger.LogContext, callerSkips ...int) logger.Logger {
+	callerSkips = append(callerSkips, 0)
 	return &ZapLogger{
 		Logger:     l.Logger.WithOptions(zap.AddCallerSkip(callerSkips[0])),
 		LogContext: context,
@@ -147,7 +140,7 @@ func (l *ZapLogger) Fatal(params ...any) {
 	l.Logger.Fatal(msg, getZapFields(contexts...)...)
 }
 
-func getZapFields(contexts ...app.LogContext) []zapcore.Field {
+func getZapFields(contexts ...logger.LogContext) []zapcore.Field {
 	var contextFields []zapcore.Field
 	for _, context := range contexts {
 		for key, val := range context {

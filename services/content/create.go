@@ -1,13 +1,13 @@
 package contentservice
 
 import (
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (cs *ContentService) Create(c app.Context, _ *any) (*schema.Entity, error) {
+func (cs *ContentService) Create(c fs.Context, _ any) (*schema.Entity, error) {
 	schemaName := c.Arg("schema")
 	model, err := cs.DB().Model(schemaName)
 	if err != nil {
@@ -29,7 +29,7 @@ func (cs *ContentService) Create(c app.Context, _ *any) (*schema.Entity, error) 
 		entity.Set("password", hash)
 	}
 
-	if _, err := model.Create(entity); err != nil {
+	if _, err := model.Create(c.Context(), entity); err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 

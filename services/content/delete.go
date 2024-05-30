@@ -1,12 +1,14 @@
 package contentservice
 
 import (
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 )
 
-func (cs *ContentService) Delete(c app.Context, _ *any) (any, error) {
+func (cs *ContentService) Delete(c fs.Context, _ any) (any, error) {
 	model, err := cs.DB().Model(c.Arg("schema"))
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
@@ -14,16 +16,16 @@ func (cs *ContentService) Delete(c app.Context, _ *any) (any, error) {
 
 	id := c.ArgInt("id")
 
-	_, err = model.Query(app.EQ("id", id)).Only()
+	_, err = model.Query(db.EQ("id", id)).Only(c.Context())
 
 	if err != nil {
-		e := utils.If(app.IsNotFound(err), errors.NotFound, errors.InternalServerError)
+		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())
 	}
 
-	if _, err := model.Mutation().Where(app.EQ("id", id)).Delete(); err != nil {
+	if _, err := model.Mutation().Where(db.EQ("id", id)).Delete(c.Context()); err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	return nil, nil
+	return schema.NewEntity(uint64(id)), nil
 }

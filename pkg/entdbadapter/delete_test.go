@@ -1,6 +1,7 @@
 package entdbadapter
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"testing"
@@ -9,7 +10,7 @@ import (
 	dialectSql "entgo.io/ent/dialect/sql"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ func TestDeleteNodes(t *testing.T) {
 		{
 			Name:       "delete",
 			Schema:     "user",
-			Predicates: []*app.Predicate{app.EQ("id", 1)},
+			Predicates: []*db.Predicate{db.EQ("id", 1)},
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `users` WHERE `id` = ?")).
 					WithArgs(1).
@@ -30,9 +31,9 @@ func TestDeleteNodes(t *testing.T) {
 		{
 			Name:   "delete/multiple_conditions",
 			Schema: "user",
-			Predicates: []*app.Predicate{
-				app.And(app.GT("id", 1), app.LT("id", 10)),
-				app.Like("name", "%test%"),
+			Predicates: []*db.Predicate{
+				db.And(db.GT("id", 1), db.LT("id", 10)),
+				db.Like("name", "%test%"),
 			},
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `users` WHERE (`id` > ? AND `id` < ?) AND `name` LIKE ?")).
@@ -43,8 +44,8 @@ func TestDeleteNodes(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	MockRunDeleteTests(func(d *sql.DB) app.DBClient {
-		driver := utils.Must(NewEntClient(&app.DBConfig{
+	MockRunDeleteTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
@@ -60,7 +61,7 @@ func TestDeleteClientIsNotEntClient(t *testing.T) {
 		},
 		client: nil,
 	}
-	_, err := mut.Delete()
+	_, err := mut.Delete(context.Background())
 	assert.Equal(t, errors.New("client is not an ent adapter"), err)
 }
 
@@ -72,13 +73,13 @@ func TestDeleteInvalidOperator(t *testing.T) {
 			entIDColumn: &entSchema.Column{},
 		},
 		client: createMockAdapter(t),
-		predicates: []*app.Predicate{
+		predicates: []*db.Predicate{
 			{
 				Field:    "id",
-				Operator: app.OpInvalid,
+				Operator: db.OpInvalid,
 			},
 		},
 	}
-	_, err := mut.Delete()
+	_, err := mut.Delete(context.Background())
 	assert.Equal(t, errors.New("operator invalid not supported"), err)
 }

@@ -23,7 +23,7 @@ func TestRoleServiceCreate(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 400, resp.StatusCode)
+	assert.Equal(t, 500, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.Contains(t, response, "column role.invalid not found")
 

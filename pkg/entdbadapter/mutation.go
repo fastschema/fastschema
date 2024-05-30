@@ -1,28 +1,26 @@
 package entdbadapter
 
 import (
-	"context"
 	"database/sql/driver"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
 
 // Mutation holds the entity mutation data
 type Mutation struct {
-	ctx                    context.Context
-	skipTx                 bool
-	client                 app.DBClient
+	autoCommit             bool
+	client                 db.Client
 	model                  *Model
 	updateSpec             *sqlgraph.UpdateSpec
-	predicates             []*app.Predicate
+	predicates             []*db.Predicate
 	shouldUpdateTimestamps bool
 }
 
 // Where adds a predicate to the mutation
-func (m *Mutation) Where(predicates ...*app.Predicate) app.Mutation {
+func (m *Mutation) Where(predicates ...*db.Predicate) db.Mutator {
 	m.predicates = append(m.predicates, predicates...)
 	return m
 }

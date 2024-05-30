@@ -21,7 +21,10 @@ type SchemaDB struct {
 
 // Schema holds the node data.
 type Schema struct {
-	initialized      bool
+	initialized   bool
+	dbColumns     []string `json:"-"`
+	*SystemSchema `json:"-"`
+
 	Name             string    `json:"name"`
 	Namespace        string    `json:"namespace"`
 	LabelFieldName   string    `json:"label_field"`
@@ -30,8 +33,6 @@ type Schema struct {
 	IsSystemSchema   bool      `json:"is_system_schema,omitempty"`
 	IsJunctionSchema bool      `json:"is_junction_schema,omitempty"`
 	DB               *SchemaDB `json:"db,omitempty"`
-	// RelationsFKColumns map[string][]string `json:"-"`
-	DBColumns []string `json:"-"`
 }
 
 // NewSchemaFromJSON creates a new node from a json string.
@@ -74,35 +75,40 @@ func (s *Schema) Init(disableIDColumn bool) error {
 		return err
 	}
 
-	// s.RelationsFKColumns = map[string][]string{}
-
 	if !disableIDColumn {
-		s.Fields = append([]*Field{{
-			Name:          FieldID,
-			Type:          TypeUint64,
-			IsSystemField: true,
-			Label:         "ID",
-			DB: &FieldDB{
-				Attr:      "UNSIGNED",
-				Key:       "UNI",
-				Increment: true,
-			},
-			Unique:     true,
-			Filterable: true,
-			Sortable:   true,
-		}}, s.Fields...)
+		newIDField := &Field{}
+		newIDField.Name = FieldID
+		newIDField.Type = TypeUint64
+		newIDField.IsSystemField = true
+		newIDField.Label = "ID"
+		newIDField.DB = &FieldDB{
+			Attr:      "UNSIGNED",
+			Key:       "UNI",
+			Increment: true,
+		}
+		newIDField.Unique = true
+		newIDField.Filterable = true
+		newIDField.Sortable = true
+
+		existedIDField := s.Field(FieldID)
+		// If ID field already exists, merge the new ID field with the existing one
+		if existedIDField != nil {
+			MergeFields(existedIDField, newIDField)
+		} else {
+			s.Fields = append([]*Field{newIDField}, s.Fields...)
+		}
 	}
 
 	for _, f := range s.Fields {
 		f.Init(s.Name)
 		if !f.Type.IsRelationType() {
-			s.DBColumns = append(s.DBColumns, f.Name)
+			s.dbColumns = append(s.dbColumns, f.Name)
 		}
 	}
 
 	if !s.DisableTimestamp {
 		timeFields := [][4]string{
-			{FieldCreatedAt, "Created At", "false", "CURRENT_TIMESTAMP"},
+			{FieldCreatedAt, "Created At", "false", "NOW()"},
 			{FieldUpdatedAt, "Updated At", "true"},
 			{FieldDeletedAt, "Deleted At", "true"},
 		}
@@ -118,13 +124,18 @@ func (s *Schema) Init(disableIDColumn bool) error {
 				Sortable:      false,
 			}
 
-			if timeField[3] != "" {
-				tsField.Default = timeField[3]
+			if timeField[3] == "NOW()" {
+				tsField.Default = "CURRENT_TIMESTAMP"
 			}
 
-			s.DBColumns = append(s.DBColumns, timeField[0])
-			s.Fields = append(s.Fields, tsField)
-			tsField.Init()
+			existedTimeField := s.Field(timeField[0])
+			if existedTimeField != nil {
+				MergeFields(existedTimeField, tsField)
+			} else {
+				s.dbColumns = append(s.dbColumns, timeField[0])
+				s.Fields = append(s.Fields, tsField)
+				tsField.Init()
+			}
 		}
 	}
 
@@ -138,7 +149,7 @@ func (s *Schema) Clone() *Schema {
 		Namespace:        s.Namespace,
 		LabelFieldName:   s.LabelFieldName,
 		DisableTimestamp: s.DisableTimestamp,
-		DBColumns:        s.DBColumns,
+		dbColumns:        s.dbColumns,
 		IsSystemSchema:   s.IsSystemSchema,
 		IsJunctionSchema: s.IsJunctionSchema,
 	}
@@ -175,14 +186,14 @@ func (s *Schema) HasField(fieldName string) bool {
 }
 
 // Field return field by it's name
-func (s *Schema) Field(name string) (*Field, error) {
+func (s *Schema) Field(name string) *Field {
 	for _, f := range s.Fields {
 		if f.Name == name {
-			return f, nil
+			return f
 		}
 	}
 
-	return nil, fmt.Errorf("field %s.%s not found", s.Name, name)
+	return nil
 }
 
 // Validate inspects the fields of the schema for validation errors.
@@ -199,18 +210,15 @@ func (s *Schema) Validate() error {
 		schemaErrors = append(schemaErrors, "namespace is required")
 	}
 
-	if len(s.Fields) == 0 {
-		schemaErrors = append(schemaErrors, "fields is required")
-	}
+	// if len(s.Fields) == 0 {
+	// 	schemaErrors = append(schemaErrors, "fields is required")
+	// }
 
 	hasLabelField := false
 
 	for _, field := range s.Fields {
 		if s.LabelFieldName == field.Name {
 			hasLabelField = true
-		}
-		if strings.ToLower(field.Name) == FieldID {
-			schemaErrors = append(schemaErrors, fmt.Sprintf("field %s: field name can't be 'id'", field.Name))
 		}
 
 		if field.Name == "" {
@@ -256,7 +264,8 @@ func (s *Schema) Validate() error {
 		}
 	}
 
-	if s.LabelFieldName != "" && !hasLabelField {
+	// If schema is system schema, skip checking label field
+	if !s.IsSystemSchema && s.LabelFieldName != "" && !hasLabelField {
 		schemaErrors = append(schemaErrors, fmt.Sprintf("label field '%s' is not found", s.LabelFieldName))
 	}
 
@@ -265,4 +274,8 @@ func (s *Schema) Validate() error {
 	}
 
 	return nil
+}
+
+func ErrFieldNotFound(schemaName, fieldName string) error {
+	return fmt.Errorf("field %s.%s not found", schemaName, fieldName)
 }

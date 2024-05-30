@@ -18,7 +18,7 @@ type Builder struct {
 	relations []*Relation
 }
 
-func GetSchemasFromDir(dir string) (map[string]*Schema, error) {
+func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema, error) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil, err
 	}
@@ -30,15 +30,20 @@ func GetSchemasFromDir(dir string) (map[string]*Schema, error) {
 	}
 
 	schemas := make(map[string]*Schema)
-	coreSchemas := []string{UserSchema, PermissionSchema, RoleSchema, MediaSchema}
 
-	for _, coreSchema := range coreSchemas {
-		schema, err := NewSchemaFromJSON(coreSchema)
+	// Create system schemas
+	for _, systemSchema := range systemSchemaTypes {
+		systemSchema, err := CreateSchema(systemSchema)
 		if err != nil {
 			return nil, err
 		}
 
-		schemas[schema.Name] = schema
+		// Prevent duplicate system schemas
+		if _, ok := schemas[systemSchema.Name]; ok {
+			return nil, fmt.Errorf("system schema %s already exists", systemSchema.Name)
+		}
+
+		schemas[systemSchema.Name] = systemSchema
 	}
 
 	for _, jsonFile := range jsonFiles {
@@ -59,8 +64,23 @@ func GetSchemasFromDir(dir string) (map[string]*Schema, error) {
 }
 
 // NewBuilderFromSchemas creates a new schema from a map of schemas.
-func NewBuilderFromSchemas(dir string, schemas map[string]*Schema) (*Builder, error) {
+func NewBuilderFromSchemas(dir string, schemas map[string]*Schema, systemSchemaTypes ...any) (*Builder, error) {
 	b := &Builder{dir: dir, schemas: map[string]*Schema{}}
+
+	// Create system schemas
+	for _, systemSchema := range systemSchemaTypes {
+		systemSchema, err := CreateSchema(systemSchema)
+		if err != nil {
+			return nil, err
+		}
+
+		// Prevent duplicate system schemas
+		if _, ok := b.schemas[systemSchema.Name]; ok {
+			return nil, fmt.Errorf("system schema %s already exists", systemSchema.Name)
+		}
+
+		b.schemas[systemSchema.Name] = systemSchema
+	}
 
 	for _, schema := range schemas {
 		if err := schema.Init(false); err != nil {
@@ -74,8 +94,8 @@ func NewBuilderFromSchemas(dir string, schemas map[string]*Schema) (*Builder, er
 }
 
 // NewBuilderFromDir creates a new schema builder from a directory.
-func NewBuilderFromDir(dir string) (*Builder, error) {
-	schemas, err := GetSchemasFromDir(dir)
+func NewBuilderFromDir(dir string, systemSchemaTypes ...any) (*Builder, error) {
+	schemas, err := GetSchemasFromDir(dir, systemSchemaTypes...)
 	if err != nil {
 		return nil, err
 	}
@@ -238,15 +258,32 @@ func (b *Builder) CreateFKs() error {
 
 		// O2O and O2M relations
 		if relation.Type.IsO2O() || relation.Type.IsO2M() {
-			relation.CreateFKFields()
+			fkField := relation.CreateFKFields()
 
-			if relation.FKFields != nil {
-				schema.Fields = utils.SliceInsertBeforeElement(schema.Fields, relation.FKFields[0], func(f *Field) bool {
-					return f.Name == FieldCreatedAt
-				})
-				schema.DBColumns = utils.SliceInsertBeforeElement(schema.DBColumns, relation.GetTargetFKColumn(), func(c string) bool {
-					return c == FieldCreatedAt
-				})
+			// if relation.FKFields != nil {
+			if fkField != nil {
+				existedSchemaField := schema.Field(fkField.Name)
+				if existedSchemaField != nil {
+					MergeFields(existedSchemaField, fkField)
+				} else {
+					existedSchemaField = fkField
+					schema.Fields = utils.SliceInsertBeforeElement(
+						schema.Fields,
+						existedSchemaField,
+						func(f *Field) bool {
+							return f.Name == FieldCreatedAt
+						},
+					)
+					schema.dbColumns = utils.SliceInsertBeforeElement(
+						schema.dbColumns,
+						relation.GetTargetFKColumn(),
+						func(c string) bool {
+							return c == FieldCreatedAt
+						},
+					)
+				}
+
+				relation.FKFields = []*Field{existedSchemaField}
 			}
 		}
 	}

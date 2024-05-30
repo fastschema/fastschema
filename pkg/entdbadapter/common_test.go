@@ -1,13 +1,15 @@
 package entdbadapter
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	atlasSchema "ariga.io/atlas/sql/schema"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
@@ -120,7 +122,7 @@ func TestCreateEntColumn(t *testing.T) {
 }
 
 func TestCreateDBDSN(t *testing.T) {
-	config := &app.DBConfig{
+	config := &db.Config{
 		Driver: "mysql",
 		User:   "user",
 		Pass:   "pass",
@@ -147,13 +149,13 @@ func TestCreateDBDSN(t *testing.T) {
 func TestGetEntDialect(t *testing.T) {
 	tests := []struct {
 		name            string
-		config          *app.DBConfig
+		config          *db.Config
 		expectedDialect string
 		expectedError   error
 	}{
 		{
 			name: "Supported driver",
-			config: &app.DBConfig{
+			config: &db.Config{
 				Driver: "mysql",
 			},
 			expectedDialect: "mysql",
@@ -161,7 +163,7 @@ func TestGetEntDialect(t *testing.T) {
 		},
 		{
 			name: "Unsupported driver",
-			config: &app.DBConfig{
+			config: &db.Config{
 				Driver: "mongodb",
 			},
 			expectedDialect: "",
@@ -180,11 +182,11 @@ func TestGetEntDialect(t *testing.T) {
 
 func TestCreateRenameColumnsHook(t *testing.T) {
 	// Define sample rename tables and rename columns
-	renameTables := []*app.RenameItem{
+	renameTables := []*db.RenameItem{
 		{From: "old_table", To: "new_table"},
 		{From: "another_table", To: "renamed_table"},
 	}
-	renameColumns := []*app.RenameItem{
+	renameColumns := []*db.RenameItem{
 		{From: "old_column", To: "new_column"},
 		{From: "another_column", To: "renamed_column"},
 	}
@@ -277,4 +279,44 @@ func TestNOW(t *testing.T) {
 	unsupportedResult := NOW("unsupported")
 	assert.NotNil(t, unsupportedResult)
 	// Add assertions for the expected unsupported result
+}
+
+func TestCreateDebugFN(t *testing.T) {
+	mockLogger := logger.CreateMockLogger(true)
+	config := &db.Config{
+		LogQueries: true,
+		Logger:     mockLogger,
+	}
+
+	type TraceID string
+	ctx := context.WithValue(context.Background(), TraceID("trace_id"), "12345")
+	debugFn := CreateDebugFN(config)
+
+	debugFn(ctx, 1, 2, 3)
+	assert.Contains(t, mockLogger.Last().String(), "[1 2 3]")
+}
+
+func TestCloneMigrateTableWithNewName(t *testing.T) {
+	// Create a sample table
+	table := &atlasSchema.Table{
+		Name:        "table",
+		Schema:      &atlasSchema.Schema{},
+		Columns:     []*atlasSchema.Column{},
+		Indexes:     []*atlasSchema.Index{},
+		PrimaryKey:  &atlasSchema.Index{},
+		ForeignKeys: []*atlasSchema.ForeignKey{},
+		Attrs:       []atlasSchema.Attr{},
+	}
+
+	// Clone the table with a new name
+	clone := cloneMigrateTableWithNewName(table, "newTable")
+
+	// Verify that the cloned table has the same values as the original
+	assert.Equal(t, "newTable", clone.Name)
+	assert.Equal(t, table.Schema, clone.Schema)
+	assert.Equal(t, table.Columns, clone.Columns)
+	assert.Equal(t, table.Indexes, clone.Indexes)
+	assert.Equal(t, table.PrimaryKey, clone.PrimaryKey)
+	assert.Equal(t, table.ForeignKeys, clone.ForeignKeys)
+	assert.Equal(t, table.Attrs, clone.Attrs)
 }

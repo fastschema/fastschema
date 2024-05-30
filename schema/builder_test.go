@@ -10,7 +10,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewBuilderFromSchemasError(t *testing.T) {
+type testcategory struct {
+	Name  string      `json:"name"`
+	Posts []*testpost `json:"posts" fs.relation:"{'type':'o2m','schema':'testpost','field':'category','owner':true}"`
+}
+
+type testpost struct {
+	Name       string        `json:"name"`
+	CategoryID uint64        `json:"cat_id"`
+	Category   *testcategory `json:"category" fs.relation:"{'type':'o2m','schema':'testcategory','field':'posts','fk_columns':{'target_column':'cat_id'}}"`
+}
+
+func TestNewBuilderFromSchemasErrorInvalidSchema(t *testing.T) {
 	dir := t.TempDir()
 	schemas := map[string]*Schema{
 		"post": {
@@ -25,9 +36,19 @@ func TestNewBuilderFromSchemasError(t *testing.T) {
 		},
 	}
 
-	builder, err := NewBuilderFromSchemas(dir, schemas)
+	builder, err := NewBuilderFromSchemas(dir, schemas, testcategory{}, testpost{})
 	assert.Nil(t, builder)
-	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "label_field is required")
+}
+
+func TestNewBuilderFromSchemasErrorInvalidSystemSchema(t *testing.T) {
+	_, err := NewBuilderFromSchemas(t.TempDir(), nil, (*int)(nil))
+	assert.Contains(t, err.Error(), "can not create schema from invalid type *int")
+}
+
+func TestNewBuilderFromSchemasErrorDuplicateSchema(t *testing.T) {
+	_, err := NewBuilderFromSchemas(t.TempDir(), nil, testcategory{}, testpost{}, testcategory{})
+	assert.Contains(t, err.Error(), "testcategory already exists")
 }
 
 func TestNewBuilderFromSchemas(t *testing.T) {
@@ -46,17 +67,16 @@ func TestNewBuilderFromSchemas(t *testing.T) {
 		},
 	}
 
-	builder := utils.Must(NewBuilderFromSchemas(dir, schemas))
-
+	builder := utils.Must(NewBuilderFromSchemas(dir, schemas, testcategory{}, testpost{}))
 	assert.Equal(t, dir, builder.dir)
-	assert.Equal(t, len(schemas), len(builder.schemas))
+	assert.Equal(t, len(schemas)+2, len(builder.schemas))
 	for name, schema := range schemas {
 		assert.Equal(t, schema, builder.schemas[name])
 	}
 }
 
 func TestNewBuilderFromDir(t *testing.T) {
-	_, err := NewBuilderFromDir("../tests/invalid")
+	_, err := NewBuilderFromDir("../tests/invalid", testcategory{}, testpost{})
 	assert.Error(t, err)
 
 	tmpDir, err := os.MkdirTemp("../tests/", "testbuilder")
@@ -67,15 +87,15 @@ func TestNewBuilderFromDir(t *testing.T) {
 
 	invalidSchemaJSONFile1 := filepath.Join(tmpDir, "invalid2.json")
 	utils.WriteFile(invalidSchemaJSONFile1, "{}")
-	_, err = NewBuilderFromDir(tmpDir)
+	_, err = NewBuilderFromDir(tmpDir, testcategory{}, testpost{})
 	assert.Error(t, err)
 
 	invalidSchemaJSONFile2 := filepath.Join(tmpDir, "invalid1.json")
 	utils.WriteFile(invalidSchemaJSONFile2, "{")
-	_, err = NewBuilderFromDir(tmpDir)
+	_, err = NewBuilderFromDir(tmpDir, testcategory{}, testpost{})
 	assert.Error(t, err)
 
-	builder, err := NewBuilderFromDir("../tests/data/schemas")
+	builder, err := NewBuilderFromDir("../tests/data/schemas", testcategory{}, testpost{})
 	assert.Nil(t, err)
 	assert.NotNil(t, builder)
 
@@ -407,16 +427,6 @@ func TestCreateM2mJunctionSchemaError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestGetSchemasFromDirCoreSchemaError(t *testing.T) {
-	backupUserSchema := UserSchema
-	UserSchema = ""
-
-	_, err := GetSchemasFromDir("../tests/data/schemas")
-	assert.Error(t, err)
-
-	UserSchema = backupUserSchema
-}
-
 func TestSaveToDirPermissionError(t *testing.T) {
 	// make tmp dir read only
 	tmpDir, err := os.MkdirTemp("", "testsave")
@@ -442,4 +452,55 @@ func TestSaveToDirPermissionError(t *testing.T) {
 	// Save the schemas to the temporary directory
 	err = builder.SaveToDir(tmpDir)
 	assert.Error(t, err)
+}
+
+func TestGetSchemasFromDirError(t *testing.T) {
+	type Post struct {
+		Name string
+	}
+
+	// Case 1: Invalid system schema type
+	schemas, err := GetSchemasFromDir(t.TempDir(), "invalid")
+	assert.Nil(t, schemas)
+	assert.Contains(t, err.Error(), "can not create schema from invalid type string")
+
+	// Case 2: Duplicate schema name
+	schemas, err = GetSchemasFromDir(t.TempDir(), Post{}, Post{})
+	assert.Nil(t, schemas)
+	assert.Contains(t, err.Error(), "system schema post already exists")
+}
+
+func TestGetSchemasFromDirExtendsSystemSchemas(t *testing.T) {
+	type Post struct {
+		Name string
+	}
+
+	schemaDir := t.TempDir()
+	assert.NoError(t, os.WriteFile(schemaDir+"/post.json", []byte(`{
+		"name": "post",
+		"fields": [
+			{
+				"name": "slug",
+				"type": "string",
+				"label": "Slug"
+			}
+		]
+	}`), 0644))
+
+	schemas, err := GetSchemasFromDir(schemaDir, Post{})
+	assert.Nil(t, err)
+	assert.NotNil(t, schemas)
+	assert.Equal(t, 1, len(schemas))
+	assert.NotNil(t, schemas["post"])
+}
+
+func TestFKUseExistedField(t *testing.T) {
+	sb, err := NewBuilderFromDir(t.TempDir(), testcategory{}, testpost{})
+	assert.Nil(t, err)
+	postSchema, err := sb.Schema("testpost")
+	assert.Nil(t, err)
+	assert.NotNil(t, postSchema)
+	relation := sb.Relation("testpost.category-testcategory.posts")
+	assert.NotNil(t, relation)
+	assert.Equal(t, "cat_id", relation.FKColumns.TargetColumn)
 }

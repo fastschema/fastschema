@@ -3,7 +3,7 @@ package schemaservice
 import (
 	"fmt"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -11,16 +11,12 @@ import (
 	"golang.org/x/text/language"
 )
 
-func (ss *SchemaService) Create(c app.Context, newSchemaData *schema.Schema) (*schema.Schema, error) {
+func (ss *SchemaService) Create(c fs.Context, newSchemaData *schema.Schema) (*schema.Schema, error) {
 	schemaFile := fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), newSchemaData.Name)
 	updateSchemas := map[string]*schema.Schema{}
 
 	if utils.IsFileExists(schemaFile) {
 		return nil, errors.BadRequest("schema already exists")
-	}
-
-	if err := newSchemaData.Validate(); err != nil {
-		return nil, errors.UnprocessableEntity(err.Error())
 	}
 
 	// add the back reference field to the related schema
@@ -80,6 +76,10 @@ func (ss *SchemaService) Create(c app.Context, newSchemaData *schema.Schema) (*s
 		updateSchemas[targetSchema.Name] = targetSchema
 	}
 
+	if err := newSchemaData.Validate(); err != nil {
+		return nil, errors.UnprocessableEntity(err.Error())
+	}
+
 	if err := newSchemaData.SaveToFile(schemaFile); err != nil {
 		return nil, errors.InternalServerError("could not save schema")
 	}
@@ -91,7 +91,7 @@ func (ss *SchemaService) Create(c app.Context, newSchemaData *schema.Schema) (*s
 		}
 	}
 
-	if err := ss.app.Reload(nil); err != nil {
+	if err := ss.app.Reload(c.Context(), nil); err != nil {
 		c.Logger().Errorf("could not reload app: %s", err.Error())
 		return nil, errors.InternalServerError("could not reload app: %s", err.Error())
 	}

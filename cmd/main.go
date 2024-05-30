@@ -5,7 +5,7 @@ import (
 	"sort"
 
 	"github.com/fastschema/fastschema"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	toolservice "github.com/fastschema/fastschema/services/tool"
 	"github.com/urfave/cli/v2"
@@ -40,13 +40,14 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					fsApp := utils.Must(fastschema.New(&fastschema.AppConfig{
+					fs := utils.Must(fastschema.New(&fs.Config{
 						Dir: c.Args().Get(0),
 					}))
 
 					return toolservice.Setup(
-						fsApp.DB(),
-						fsApp.Logger(),
+						c.Context,
+						fs.DB(),
+						fs.Logger(),
 						c.String("username"), c.String("email"), c.String("password"),
 					)
 				},
@@ -55,17 +56,17 @@ func main() {
 				Name:  "start",
 				Usage: "Start the fastschema application",
 				Action: func(c *cli.Context) error {
-					fsApp := utils.Must(fastschema.New(&fastschema.AppConfig{
+					app := utils.Must(fastschema.New(&fs.Config{
 						Dir: c.Args().Get(0),
 					}))
 
-					fsApp.AddResource(
-						app.NewResource("home", func(c app.Context, _ *any) (any, error) {
+					app.AddResource(
+						fs.NewResource("home", func(c fs.Context, _ any) (any, error) {
 							return "Welcome to fastschema", nil
-						}, app.Meta{app.GET: ""}),
+						}, &fs.Meta{Get: "/"}),
 					)
 
-					return fsApp.Start()
+					return app.Start()
 				},
 			},
 		},

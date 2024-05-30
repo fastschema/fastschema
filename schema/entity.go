@@ -3,21 +3,95 @@ package schema
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/buger/jsonparser"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/mitchellh/mapstructure"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 )
 
 // Entity represents a single entity.
 type Entity struct {
+	// name is the name of the schema/model that the entity represents.
+	name string
 	data *orderedmap.OrderedMap[string, any]
+}
+
+// NamedEntity creates a new entity with the given model.
+func NamedEntity(name string) *Entity {
+	return &Entity{
+		name: name,
+		data: orderedmap.New[string, any](),
+	}
+}
+
+// NewEntity creates a new entity.
+func NewEntity(ids ...uint64) *Entity {
+	entity := &Entity{
+		data: orderedmap.New[string, any](),
+	}
+
+	if len(ids) > 0 {
+		entity.Set(FieldID, ids[0])
+	}
+
+	return entity
+}
+
+// NewEntityFromJSON creates a new entity from a JSON string.
+func NewEntityFromJSON(jsonData string) (*Entity, error) {
+	entity := NewEntity()
+	if err := entity.UnmarshalJSON([]byte(jsonData)); err != nil {
+		return nil, err
+	}
+
+	return entity, nil
+}
+
+// NewEntityFromMap creates a new entity from a map.
+func NewEntityFromMap(data map[string]any) *Entity {
+	entity := NewEntity()
+
+	for key, value := range data {
+		if valueMap, ok := value.(map[string]any); ok {
+			entity.Set(key, NewEntityFromMap(valueMap))
+			continue
+		}
+
+		entity.Set(key, value)
+	}
+
+	return entity
+}
+
+// Name returns the model name of the entity. If names is provided, it sets the model name to the first name in the list.
+func (e *Entity) Name(names ...string) string {
+	if len(names) > 0 {
+		e.name = names[0]
+	}
+	return e.name
 }
 
 // Empty returns true if the entity is empty.
 func (e *Entity) Empty() bool {
 	return e.data.Len() == 0
+}
+
+// Keys returns the keys of the entity.
+func (e *Entity) Keys() []string {
+	keys := make([]string, 0, e.data.Len())
+	for pair := e.data.Oldest(); pair != nil; pair = pair.Next() {
+		keys = append(keys, pair.Key)
+	}
+	return keys
+}
+
+// String returns the string representation of the entity.
+func (e *Entity) String() string {
+	str, _ := e.ToJSON()
+	return str
 }
 
 // First returns the oldest key/value pair in the entity.
@@ -222,47 +296,54 @@ func (e *Entity) ToMap() map[string]any {
 			continue
 		}
 
+		if entitiesValue, ok := pair.Value.([]*Entity); ok {
+			entityValues := []map[string]any{}
+			for _, entity := range entitiesValue {
+				entityValues = append(entityValues, entity.ToMap())
+			}
+
+			data[pair.Key] = entityValues
+			continue
+		}
+
 		data[pair.Key] = pair.Value
 	}
 
 	return data
 }
 
-// NewEntity creates a new entity.
-func NewEntity(ids ...uint64) *Entity {
-	entity := &Entity{
-		data: orderedmap.New[string, any](),
+// func EntityToStruct[T any](e *Entity) (T, error) {
+// 	var j T
+// 	jsonData, err := json.Marshal(e)
+// 	if err != nil {
+// 		return j, err
+// 	}
+
+// 	_ = json.Unmarshal(jsonData, &j)
+// 	return j, nil
+// }
+
+// BindEntity binds the fields of the given Entity to a target struct value.
+func BindEntity[T any](e *Entity) (result T, err error) {
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  &result,
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(func(from, to reflect.Type, data any) (any, error) {
+			if e, ok := data.(*Entity); ok {
+				return e.ToMap(), nil
+			}
+
+			return data, nil
+		}),
+	})
+
+	if err != nil {
+		return
 	}
 
-	if len(ids) > 0 {
-		entity.Set(FieldID, ids[0])
+	if err = decoder.Decode(e); err != nil {
+		return
 	}
 
-	return entity
-}
-
-// NewEntityFromJSON creates a new entity from a JSON string.
-func NewEntityFromJSON(jsonData string) (*Entity, error) {
-	entity := NewEntity()
-	if err := entity.UnmarshalJSON([]byte(jsonData)); err != nil {
-		return nil, err
-	}
-
-	return entity, nil
-}
-
-// NewEntityFromMap creates a new entity from a map.
-func NewEntityFromMap(data map[string]any) *Entity {
-	entity := NewEntity()
-
-	for key, value := range data {
-		if valueMap, ok := value.(map[string]any); ok {
-			entity.Set(key, NewEntityFromMap(valueMap))
-			continue
-		}
-
-		entity.Set(key, value)
-	}
-
-	return entity
+	return result, nil
 }

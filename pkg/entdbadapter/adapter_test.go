@@ -2,17 +2,19 @@ package entdbadapter
 
 import (
 	"database/sql/driver"
+	"reflect"
 	"testing"
 
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAdapterInit(t *testing.T) {
-	config := &app.DBConfig{Driver: "sqlmock"}
+	config := &db.Config{Driver: "sqlmock"}
 	adapter := &Adapter{
 		driver:        nil,
 		sqldb:         nil,
@@ -52,4 +54,24 @@ func TestAdapterCreateDBModel(t *testing.T) {
 	model := adapter.CreateDBModel(s, relations...)
 
 	assert.NotNil(t, model)
+}
+
+func TestModel(t *testing.T) {
+	adapter := createMockAdapter(t)
+
+	// case 1: model not found
+	type testStruct struct{}
+	_, err := adapter.Model("", &testStruct{})
+	assert.Error(t, err)
+
+	// case 2: model found
+	roleModel, err := adapter.Model("", &fs.Role{})
+	assert.NoError(t, err)
+	assert.NotNil(t, roleModel)
+
+	// case 3: using reflection
+	rtype := reflect.TypeOf(fs.Role{})
+	roleModel, err = adapter.Model("", rtype)
+	assert.NoError(t, err)
+	assert.NotNil(t, roleModel)
 }

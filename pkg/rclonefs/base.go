@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/fs"
 	rclonefs "github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/object"
 )
@@ -32,7 +32,7 @@ func (r *BaseRcloneDisk) Name() string {
 	return r.DiskName
 }
 
-func (r *BaseRcloneDisk) Put(ctx context.Context, file *app.File) (*app.File, error) {
+func (r *BaseRcloneDisk) Put(ctx context.Context, file *fs.File) (*fs.File, error) {
 	if file.Path == "" {
 		file.Path = r.UploadFilePath(file.Name)
 	}
@@ -55,7 +55,7 @@ func (r *BaseRcloneDisk) PutReader(
 	size uint64,
 	fileType,
 	dst string,
-) (*app.File, error) {
+) (*fs.File, error) {
 	objectInfo := object.NewStaticObjectInfo(
 		dst,
 		time.Now(),
@@ -71,7 +71,7 @@ func (r *BaseRcloneDisk) PutReader(
 		return nil, err
 	}
 
-	return &app.File{
+	return &fs.File{
 		Disk: r.DiskName,
 		Path: dst,
 		Type: fileType,
@@ -84,7 +84,7 @@ func (r *BaseRcloneDisk) PutMultipart(
 	ctx context.Context,
 	m *multipart.FileHeader,
 	dsts ...string,
-) (*app.File, error) {
+) (*fs.File, error) {
 	f, err := m.Open()
 
 	if err != nil {
@@ -118,7 +118,7 @@ func (r *BaseRcloneDisk) PutMultipart(
 }
 
 func (r *BaseRcloneDisk) IsAllowedMime(mime string) bool {
-	for _, allowedFileType := range app.AllowedFileTypes {
+	for _, allowedFileType := range fs.AllowedFileTypes {
 		allowedFileType = strings.Split(allowedFileType, ";")[0]
 		if allowedFileType == mime {
 			return true

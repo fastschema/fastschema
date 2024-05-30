@@ -1,10 +1,13 @@
 package toolservice_test
 
 import (
+	"context"
 	"os"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -15,36 +18,38 @@ import (
 func TestCreateRoleError(t *testing.T) {
 	sb := &schema.Builder{}
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
-	_, err := toolservice.CreateRole(db, &app.Role{
+	_, err := toolservice.CreateRole(context.Background(), db, &fs.Role{
 		Name:        "admin",
 		Description: "admin",
 		Root:        true,
 	})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), `model role not found`)
+	assert.Contains(t, err.Error(), `model Role not found`)
 }
 
 func TestSetup(t *testing.T) {
-	logger := app.CreateMockLogger(true)
+	logger := logger.CreateMockLogger(true)
 	// Case 1: Error when model user not found
 	sb := &schema.Builder{}
-	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
+	entDB := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	err := toolservice.Setup(
-		db,
+		context.Background(),
+		entDB,
 		logger,
 		"admin",
 		"admin@local.ltd",
 		"123",
 	)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), `model user not found`)
+	assert.Contains(t, err.Error(), `model User not found`)
 
-	sb = utils.Must(schema.NewBuilderFromDir(t.TempDir()))
-	db = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
+	sb = utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
+	entDB = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 
 	// Case 2: Invalid password
 	err = toolservice.Setup(
-		db,
+		context.Background(),
+		entDB,
 		logger,
 		"admin",
 		"admin@local.ltd",
@@ -56,22 +61,23 @@ func TestSetup(t *testing.T) {
 
 	// Case 3: Success
 	assert.NoError(t, toolservice.Setup(
-		db,
+		context.Background(),
+		entDB,
 		logger,
 		"admin",
 		"admin@local.ltd",
 		"123",
 	))
 
-	roleModel := utils.Must(db.Model("role"))
-	roleCount := utils.Must(roleModel.Query().Count(&app.CountOption{
+	roleModel := utils.Must(entDB.Model("role"))
+	roleCount := utils.Must(roleModel.Query().Count(context.Background(), &db.CountOption{
 		Unique: true,
 		Column: "id",
 	}))
 
 	assert.Equal(t, 3, roleCount)
-	userModel := utils.Must(db.Model("user"))
-	adminUser := utils.Must(userModel.Query(app.EQ("username", "admin")).First())
+	userModel := utils.Must(entDB.Model("user"))
+	adminUser := utils.Must(userModel.Query(db.EQ("username", "admin")).First(context.Background()))
 	assert.Equal(t, "admin", adminUser.Get("username"))
 	assert.Equal(t, "admin@local.ltd", adminUser.Get("email"))
 
@@ -80,7 +86,8 @@ func TestSetup(t *testing.T) {
 
 	// Case 4: User already exists
 	err = toolservice.Setup(
-		db,
+		context.Background(),
+		entDB,
 		logger,
 		"admin",
 		"admin@local.ltd",

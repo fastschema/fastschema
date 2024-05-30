@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"time"
 
 	atlasMigrate "ariga.io/atlas/sql/migrate"
@@ -12,11 +13,11 @@ import (
 	atlasSchema "ariga.io/atlas/sql/schema"
 	"ariga.io/atlas/sql/sqlite"
 	"entgo.io/ent/dialect"
-	entSql "entgo.io/ent/dialect/sql"
+	dialectsql "entgo.io/ent/dialect/sql"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -100,7 +101,7 @@ func createEntColumn(f *schema.Field) *entSchema.Column {
 }
 
 // CreateDBDSN create a DSN string for the database connection
-func CreateDBDSN(config *app.DBConfig) string {
+func CreateDBDSN(config *db.Config) string {
 	dsn := ""
 
 	if config.Driver == "mysql" {
@@ -139,7 +140,7 @@ func CreateDBDSN(config *app.DBConfig) string {
 	return dsn
 }
 
-func CreateDebugFN(config *app.DBConfig) func(ctx context.Context, i ...any) {
+func CreateDebugFN(config *db.Config) func(ctx context.Context, i ...any) {
 	return func(ctx context.Context, i ...any) {
 		if !config.LogQueries {
 			return
@@ -156,7 +157,7 @@ func CreateDebugFN(config *app.DBConfig) func(ctx context.Context, i ...any) {
 	}
 }
 
-func GetEntDialect(config *app.DBConfig) (string, error) {
+func GetEntDialect(config *db.Config) (string, error) {
 	entDialect, ok := dialectMap[config.Driver]
 	if !ok {
 		return "", fmt.Errorf("unsupported driver: %v", config.Driver)
@@ -166,8 +167,8 @@ func GetEntDialect(config *app.DBConfig) (string, error) {
 }
 
 func createRenameColumnsHook(
-	renameTables []*app.RenameItem,
-	renameColumns []*app.RenameItem,
+	renameTables []*db.RenameItem,
+	renameColumns []*db.RenameItem,
 ) entSchema.DiffHook {
 	return func(next entSchema.Differ) entSchema.Differ {
 		return entSchema.DiffFunc(func(current, desired *atlasSchema.Schema) ([]atlasSchema.Change, error) {
@@ -187,7 +188,7 @@ func createRenameColumnsHook(
 				}
 
 				// check if the new table is renamed from another table
-				matchedRenameTables := utils.Filter(renameTables, func(rt *app.RenameItem) bool {
+				matchedRenameTables := utils.Filter(renameTables, func(rt *db.RenameItem) bool {
 					return addTable.T.Name == rt.To
 				})
 
@@ -214,7 +215,7 @@ func createRenameColumnsHook(
 				for _, change := range changes {
 					if addColumn, ok := change.(*atlasSchema.AddColumn); ok {
 						// check if the new column is renamed from another column
-						matchedRenameFields := utils.Filter(renameColumns, func(rf *app.RenameItem) bool {
+						matchedRenameFields := utils.Filter(renameColumns, func(rf *db.RenameItem) bool {
 							return addColumn.C.Name == rf.To
 						})
 
@@ -254,7 +255,11 @@ func createRenameColumnsHook(
 	}
 }
 
-func getPlanForRenameTables(migrateDriver atlasMigrate.Driver, renameTables []*app.RenameItem) (*atlasMigrate.Plan, error) {
+func getPlanForRenameTables(
+	ctx context.Context,
+	migrateDriver atlasMigrate.Driver,
+	renameTables []*db.RenameItem,
+) (*atlasMigrate.Plan, error) {
 	if len(renameTables) == 0 {
 		return nil, nil
 	}
@@ -266,7 +271,7 @@ func getPlanForRenameTables(migrateDriver atlasMigrate.Driver, renameTables []*a
 		}
 	}
 
-	inspectedSchema, err := migrateDriver.InspectSchema(context.Background(), "", &atlasSchema.InspectOptions{
+	inspectedSchema, err := migrateDriver.InspectSchema(ctx, "", &atlasSchema.InspectOptions{
 		Tables: allTables,
 	})
 
@@ -289,7 +294,7 @@ func getPlanForRenameTables(migrateDriver atlasMigrate.Driver, renameTables []*a
 	}
 
 	return migrateDriver.PlanChanges(
-		context.Background(),
+		ctx,
 		"simulate_changes",
 		changes,
 	)
@@ -323,12 +328,79 @@ func cloneMigrateTableWithNewName(t *atlasSchema.Table, name string) *atlasSchem
 func NOW(dialect string) any {
 	switch dialect {
 	case "mysql":
-		return entSql.Expr("NOW()")
+		return dialectsql.Expr("NOW()")
 	case "pgx", "postgres":
-		return entSql.Expr("now()")
+		return dialectsql.Expr("now()")
 	case "sqlite", "sqlite3":
-		return entSql.Expr("datetime('now')")
+		return dialectsql.Expr("datetime('now')")
 	}
 
 	return time.Now().Format("2006-01-02 15:04:05")
+}
+
+func isDateTimeColumn(scanType reflect.Type, databaseTypeName string) bool {
+	isStructTime := scanType != nil && scanType.Kind() == reflect.Struct && scanType.String() == "time.Time"
+	isSQLTime := databaseTypeName == "DATETIME"
+	return isStructTime || isSQLTime
+}
+
+func driverExec(
+	driver dialect.Driver,
+	ctx context.Context,
+	query string,
+	args any,
+) (sql.Result, error) {
+	var result = new(sql.Result)
+	if err := driver.Exec(ctx, query, args, result); err != nil {
+		return nil, err
+	}
+
+	return *result, nil
+}
+
+func driverQuery(
+	driver dialect.Driver,
+	ctx context.Context,
+	query string,
+	args any,
+) ([]*schema.Entity, error) {
+	var rows = &dialectsql.Rows{}
+	if err := driver.Query(ctx, query, args, rows); err != nil {
+		return nil, err
+	}
+
+	columns, columnTypes, err := getRowsColumns(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	entities := []*schema.Entity{}
+	for rows.Next() {
+		values := createRowsScanValues(columns, columnTypes)
+		if err := rows.Scan(values...); err != nil {
+			return nil, err
+		}
+
+		entity := schema.NewEntity()
+		for i, column := range columns {
+			scanType := columnTypes[i].ScanType()
+			databaseTypeName := columnTypes[i].DatabaseTypeName()
+
+			if isDateTimeColumn(scanType, databaseTypeName) {
+				if value, ok := values[i].(*sql.NullTime); !ok {
+					return nil, fieldTypeError("Time", values[i])
+				} else if value.Valid {
+					entity.Set(column, value.Time)
+				}
+
+				continue
+			}
+
+			entity.Set(column, values[i])
+		}
+
+		entities = append(entities, entity)
+	}
+
+	return entities, nil
 }

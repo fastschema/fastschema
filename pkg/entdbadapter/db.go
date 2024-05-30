@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -21,30 +22,36 @@ type EntAdapter interface {
 	) (*sqlgraph.EdgeSpec, error)
 	NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, error)
 	Reload(
+		ctx context.Context,
 		newSchemaBuilder *schema.Builder,
-		migration *app.Migration,
-	) (_ app.DBClient, err error)
+		migration *db.Migration,
+	) (_ db.Client, err error)
 	Driver() dialect.Driver
-	CreateDBModel(s *schema.Schema, relations ...*schema.Relation) app.Model
+	CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.Model
 	Close() error
 	Commit() error
 	Rollback() error
-	Config() *app.DBConfig
+	Config() *db.Config
 	DB() *sql.DB
 	Dialect() string
 	Exec(
 		ctx context.Context,
 		query string,
-		args,
-		bindValue any,
-	) error
-	Hooks() *app.Hooks
+		args any,
+	) (sql.Result, error)
+	Query(
+		ctx context.Context,
+		query string,
+		args any,
+	) ([]*schema.Entity, error)
+	Hooks() *db.Hooks
 	IsTx() bool
-	Model(name string) (app.Model, error)
+	Model(name string, types ...any) (db.Model, error)
 	SchemaBuilder() *schema.Builder
-	Tx(ctx context.Context) (app.DBClient, error)
+	Tx(ctx context.Context) (db.Client, error)
 	Migrate(
-		migration *app.Migration,
+		ctx context.Context,
+		migration *db.Migration,
 		appendEntTables ...*entSchema.Table,
 	) (err error)
 	SetSQLDB(db *sql.DB)
@@ -52,7 +59,7 @@ type EntAdapter interface {
 }
 
 // NewClient creates a new ent client
-func NewClient(config *app.DBConfig, schemaBuilder *schema.Builder) (_ app.DBClient, err error) {
+func NewClient(config *db.Config, schemaBuilder *schema.Builder) (_ db.Client, err error) {
 	return NewEntClient(config, schemaBuilder)
 }
 
@@ -60,12 +67,12 @@ func NewClient(config *app.DBConfig, schemaBuilder *schema.Builder) (_ app.DBCli
 func NewTestClient(
 	migrationDir string,
 	schemaBuilder *schema.Builder,
-	hookFns ...func() *app.Hooks,
-) (_ app.DBClient, err error) {
-	hookFns = append(hookFns, func() *app.Hooks {
-		return &app.Hooks{}
+	hookFns ...func() *db.Hooks,
+) (_ db.Client, err error) {
+	hookFns = append(hookFns, func() *db.Hooks {
+		return &db.Hooks{}
 	})
-	return NewClient(&app.DBConfig{
+	return NewClient(&db.Config{
 		Driver:       "sqlite",
 		Name:         ":memory:",
 		MigrationDir: migrationDir,
@@ -76,10 +83,10 @@ func NewTestClient(
 
 // NewEntClient creates a new ent client
 func NewEntClient(
-	config *app.DBConfig,
+	config *db.Config,
 	schemaBuilder *schema.Builder,
 	useEntDrivers ...*dialectSql.Driver,
-) (_ app.DBClient, err error) {
+) (_ db.Client, err error) {
 	var (
 		db         *sql.DB
 		entDialect string
@@ -123,7 +130,7 @@ func NewEntClient(
 	}
 
 	if !config.IgnoreMigration {
-		if err = entAdapter.Migrate(nil); err != nil {
+		if err = entAdapter.Migrate(context.Background(), nil); err != nil {
 			return nil, err
 		}
 	}
@@ -132,9 +139,10 @@ func NewEntClient(
 }
 
 func (d *Adapter) Reload(
+	ctx context.Context,
 	newSchemaBuilder *schema.Builder,
-	migration *app.Migration,
-) (_ app.DBClient, err error) {
+	migration *db.Migration,
+) (_ db.Client, err error) {
 	renamedEntTables := make([]*entSchema.Table, 0)
 	newConfig := d.config.Clone()
 	newConfig.IgnoreMigration = true
@@ -210,7 +218,7 @@ func (d *Adapter) Reload(
 		return nil, fmt.Errorf("invalid adapter")
 	}
 
-	if err = newEntAdapter.Migrate(migration, renamedEntTables...); err != nil {
+	if err = newEntAdapter.Migrate(ctx, migration, renamedEntTables...); err != nil {
 		return nil, err
 	}
 
@@ -218,9 +226,9 @@ func (d *Adapter) Reload(
 }
 
 func NewDBAdapter(
-	config *app.DBConfig,
+	config *db.Config,
 	schemaBuilder *schema.Builder,
-) (app.DBClient, error) {
+) (db.Client, error) {
 	a := &Adapter{
 		driver:        nil,
 		sqldb:         nil,
@@ -230,10 +238,24 @@ func NewDBAdapter(
 		models:        make([]*Model, 0),
 		tables:        make([]*entSchema.Table, 0),
 		edgeSpec:      make(map[string]sqlgraph.EdgeSpec),
+		typesModels:   make(map[reflect.Type]*Model),
 	}
 
 	if err := a.init(); err != nil {
 		return nil, err
+	}
+
+	for _, s := range schemaBuilder.Schemas() {
+		if s == nil || s.SystemSchema == nil {
+			continue
+		}
+
+		typeModel, err := a.model(s.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		a.typesModels[s.SystemSchema.RType] = typeModel
 	}
 
 	return a, nil

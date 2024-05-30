@@ -1,6 +1,7 @@
 package entdbadapter
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -10,7 +11,7 @@ import (
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/google/uuid"
@@ -391,8 +392,8 @@ func TestCount(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	MockRunCountTests(func(d *sql.DB) app.DBClient {
-		client := utils.Must(NewEntClient(&app.DBConfig{
+	MockRunCountTests(func(d *sql.DB) db.Client {
+		client := utils.Must(NewEntClient(&db.Config{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return client
@@ -722,7 +723,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(11, "Group 11").
 						AddRow(22, "Group 22"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`groups` AS groups_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at` FROM `users` JOIN `groups_users` AS `t1` ON `t1`.`users` = `users`.`id` WHERE `t1`.`groups` IN (?, ?) ORDER BY `id` ASC")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`groups` AS groups_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `groups_users` AS `t1` ON `t1`.`users` = `users`.`id` WHERE `t1`.`groups` IN (?, ?) ORDER BY `id` ASC")).
 					WithArgs(11, 22).
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
 						AddRow(11, 1, "John").
@@ -777,7 +778,7 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "John").
 						AddRow(2, "Jane").
 						AddRow(3, "Bob"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`followers` AS followers_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`following` = `users`.`id` WHERE `t1`.`followers` IN (?, ?, ?) ORDER BY `id` ASC")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`followers` AS followers_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`following` = `users`.`id` WHERE `t1`.`followers` IN (?, ?, ?) ORDER BY `id` ASC")).
 					WithArgs(1, 2, 3).
 					WillReturnRows(mock.NewRows([]string{"followers_id", "id", "name"}).
 						AddRow(1, 2, "Jane").
@@ -805,7 +806,7 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "John").
 						AddRow(2, "Jane").
 						AddRow(3, "Bob"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`following` AS following_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`followers` = `users`.`id` WHERE `t1`.`following` IN (?, ?, ?) ORDER BY `id` ASC")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`following` AS following_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`followers` = `users`.`id` WHERE `t1`.`following` IN (?, ?, ?) ORDER BY `id` ASC")).
 					WithArgs(1, 2, 3).
 					WillReturnRows(mock.NewRows([]string{"following_id", "id", "name"}).
 						AddRow(1, 2, "Jane").
@@ -833,7 +834,7 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "John").
 						AddRow(2, "Jane").
 						AddRow(3, "Bob"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`friends` AS friends_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at` FROM `users` JOIN `friends_user` AS `t1` ON `t1`.`user` = `users`.`id` WHERE `t1`.`user` IN (?, ?, ?) ORDER BY `id` ASC")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`friends` AS friends_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `friends_user` AS `t1` ON `t1`.`user` = `users`.`id` WHERE `t1`.`user` IN (?, ?, ?) ORDER BY `id` ASC")).
 					WithArgs(1, 2, 3).
 					WillReturnRows(mock.NewRows([]string{"friends_id", "id", "name"}).
 						AddRow(1, 2, "Jane").
@@ -970,8 +971,8 @@ func TestQuery(t *testing.T) {
 	}
 
 	sb := createSchemaBuilder()
-	MockRunQueryTests(func(d *sql.DB) app.DBClient {
-		client := utils.Must(NewEntClient(&app.DBConfig{
+	MockRunQueryTests(func(d *sql.DB) db.Client {
+		client := utils.Must(NewEntClient(&db.Config{
 			Driver: "sqlmock",
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return client
@@ -984,7 +985,7 @@ func TestFirstOnly(t *testing.T) {
 	assert.NotNil(t, d)
 	assert.NotNil(t, mock)
 	sb := createSchemaBuilder()
-	client := utils.Must(NewEntClient(&app.DBConfig{
+	client := utils.Must(NewEntClient(&db.Config{
 		Driver: "sqlmock",
 	}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 
@@ -1011,26 +1012,26 @@ func TestFirstOnly(t *testing.T) {
 		WithArgs("user5").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}))
 
-	query1 := utils.Must(client.Model("user")).Query(app.EQ("name", "user1"))
-	user1, err := query1.First()
+	query1 := utils.Must(client.Model("user")).Query(db.EQ("name", "user1"))
+	user1, err := query1.First(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, "user1", user1.Get("name"))
 
-	query2 := utils.Must(client.Model("user")).Query(app.EQ("name", "user2"))
-	_, err = query2.First()
+	query2 := utils.Must(client.Model("user")).Query(db.EQ("name", "user2"))
+	_, err = query2.First(context.Background())
 	assert.Equal(t, "no entities found", err.Error())
 
-	query3 := utils.Must(client.Model("user")).Query(app.EQ("name", "user3"))
-	user3, err := query3.Only()
+	query3 := utils.Must(client.Model("user")).Query(db.EQ("name", "user3"))
+	user3, err := query3.Only(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, "user3", user3.Get("name"))
 
-	query4 := utils.Must(client.Model("user")).Query(app.EQ("name", "user4"))
-	_, err = query4.Only()
+	query4 := utils.Must(client.Model("user")).Query(db.EQ("name", "user4"))
+	_, err = query4.Only(context.Background())
 	assert.Equal(t, "more than one entity found", err.Error())
 
-	query5 := utils.Must(client.Model("user")).Query(app.EQ("name", "user5"))
-	_, err = query5.Only()
+	query5 := utils.Must(client.Model("user")).Query(db.EQ("name", "user5"))
+	_, err = query5.Only(context.Background())
 	assert.Equal(t, "no entities found", err.Error())
 }
 
@@ -1040,11 +1041,11 @@ func TestQueryOptions(t *testing.T) {
 		offset:     0,
 		fields:     []string{"column1", "column2"},
 		order:      []string{"order1", "order2"},
-		predicates: []*app.Predicate{app.EQ("column1", "value1"), app.EQ("column2", "value2")},
+		predicates: []*db.Predicate{db.EQ("column1", "value1"), db.EQ("column2", "value2")},
 		model:      &Model{},
 	}
 
-	expected := &app.QueryOption{
+	expected := &db.QueryOption{
 		Limit:      q.limit,
 		Offset:     q.offset,
 		Columns:    q.fields,
@@ -1085,6 +1086,6 @@ func TestScanValuesError(t *testing.T) {
 
 func TestCountClientIsNotEntAdapter(t *testing.T) {
 	q := &Query{}
-	_, err := q.Count(&app.CountOption{})
+	_, err := q.Count(context.Background(), &db.CountOption{})
 	assert.EqualError(t, err, "client is not an ent adapter")
 }

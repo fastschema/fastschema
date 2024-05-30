@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +32,7 @@ func createTestSchemaBuilder(t *testing.T) *schema.Builder {
 	return sb
 }
 
-func createTx(t *testing.T, client app.DBClient, sb *schema.Builder) *Tx {
+func createTx(t *testing.T, client db.Client, sb *schema.Builder) *Tx {
 	tx := utils.Must(NewTx(context.Background(), client))
 	assert.Equal(t, sb, tx.SchemaBuilder())
 	assert.NotNil(t, utils.Must(tx.Model("car")))
@@ -61,18 +61,20 @@ func TestTxCommit(t *testing.T) {
 	sb := createTestSchemaBuilder(t)
 	mdb, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	client := utils.Must(NewEntClient(&app.DBConfig{
+	client := utils.Must(NewEntClient(&db.Config{
 		Driver: "sqlmock",
 	}, sb, dialectSql.OpenDB(dialect.MySQL, mdb)))
 
 	mock.ExpectBegin()
-	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery("SELECT 1").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectExec("SELECT 2").WillReturnResult(sqlmock.NewResult(2, 1))
 	mock.ExpectCommit()
 
 	tx := createTx(t, client, sb)
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 1", []any{}, nil))
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 2", []any{}, nil))
+	_, err1 := tx.Query(context.Background(), "SELECT 1", []any{})
+	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.NoError(t, tx.Commit())
 }
 
@@ -80,7 +82,7 @@ func TestTxRollback(t *testing.T) {
 	sb := createTestSchemaBuilder(t)
 	mdb, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	client := utils.Must(NewEntClient(&app.DBConfig{
+	client := utils.Must(NewEntClient(&db.Config{
 		Driver: "sqlmock",
 	}, sb, dialectSql.OpenDB(dialect.MySQL, mdb)))
 
@@ -90,8 +92,10 @@ func TestTxRollback(t *testing.T) {
 	mock.ExpectRollback()
 
 	tx := createTx(t, client, sb)
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 1", []any{}, nil))
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 2", []any{}, nil))
+	_, err1 := tx.Exec(context.Background(), "SELECT 1", []any{})
+	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.NoError(t, tx.Rollback())
 }
 
@@ -99,7 +103,7 @@ func TestTxClose(t *testing.T) {
 	sb := createTestSchemaBuilder(t)
 	mdb, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	client := utils.Must(NewEntClient(&app.DBConfig{
+	client := utils.Must(NewEntClient(&db.Config{
 		Driver: "sqlmock",
 	}, sb, dialectSql.OpenDB(dialect.MySQL, mdb)))
 
@@ -109,7 +113,9 @@ func TestTxClose(t *testing.T) {
 	mock.ExpectClose()
 
 	tx := createTx(t, client, sb)
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 1", []any{}, nil))
-	assert.Nil(t, tx.Exec(context.Background(), "SELECT 2", []any{}, nil))
+	_, err1 := tx.Exec(context.Background(), "SELECT 1", []any{})
+	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.NoError(t, tx.Close())
 }

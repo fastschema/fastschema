@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +19,6 @@ func TestSchema(t *testing.T) {
 	assert.NoError(t, s.Init(false))
 	assert.NoError(t, s.Init(false))
 	assert.True(t, s.initialized)
-	// assert.Equal(t, map[string][]string{}, s.RelationsFKColumns)
 	assert.Equal(t, &Field{
 		Name:  FieldID,
 		Type:  TypeUint64,
@@ -34,12 +32,12 @@ func TestSchema(t *testing.T) {
 		Filterable:    true,
 		Sortable:      true,
 		IsSystemField: true,
-	}, utils.Must(s.Field(FieldID)))
-	assert.True(t, len(s.DBColumns) > 0)
+	}, s.Field(FieldID))
+	assert.True(t, len(s.dbColumns) > 0)
 
-	assert.NotNil(t, utils.Must(s.Field(FieldCreatedAt)))
-	assert.NotNil(t, utils.Must(s.Field(FieldUpdatedAt)))
-	assert.NotNil(t, utils.Must(s.Field(FieldDeletedAt)))
+	assert.NotNil(t, s.Field(FieldCreatedAt))
+	assert.NotNil(t, s.Field(FieldUpdatedAt))
+	assert.NotNil(t, s.Field(FieldDeletedAt))
 
 	s2, err := NewSchemaFromJSONFile("../tests/data/schemas/user.json")
 	assert.NoError(t, err)
@@ -47,8 +45,8 @@ func TestSchema(t *testing.T) {
 
 	s2.DisableTimestamp = true
 	assert.NoError(t, s2.Init(true))
-	_, err = s2.Field(FieldID)
-	assert.Error(t, err)
+	f := s2.Field(FieldID)
+	assert.Nil(t, f)
 }
 
 func TestSchemaClone(t *testing.T) {
@@ -57,7 +55,7 @@ func TestSchemaClone(t *testing.T) {
 		Namespace:        "schema",
 		LabelFieldName:   "name",
 		DisableTimestamp: false,
-		DBColumns:        []string{"column1", "column2"},
+		dbColumns:        []string{"column1", "column2"},
 		IsSystemSchema:   true,
 		IsJunctionSchema: false,
 		Fields: []*Field{
@@ -81,7 +79,7 @@ func TestSchemaClone(t *testing.T) {
 	assert.Equal(t, s.Namespace, clone.Namespace)
 	assert.Equal(t, s.LabelFieldName, clone.LabelFieldName)
 	assert.Equal(t, s.DisableTimestamp, clone.DisableTimestamp)
-	assert.Equal(t, s.DBColumns, clone.DBColumns)
+	assert.Equal(t, s.dbColumns, clone.dbColumns)
 	assert.Equal(t, s.IsSystemSchema, clone.IsSystemSchema)
 	assert.Equal(t, s.IsJunctionSchema, clone.IsJunctionSchema)
 
@@ -94,13 +92,116 @@ func TestSchemaClone(t *testing.T) {
 	}
 }
 
+func TestNewSchemaFromJSON(t *testing.T) {
+	// Case 1: Invalid JSON
+	jsonData := `invalid`
+	schema, err := NewSchemaFromJSON(jsonData)
+	assert.Error(t, err)
+	assert.Nil(t, schema)
+
+	// Case 2: Success
+	jsonData = `{
+		"name": "test",
+		"namespace": "test_namespace",
+		"label_field": "name",
+		"disable_timestamp": false,
+		"fields": [
+			{
+				"name": "id",
+				"type": "uint64",
+				"label": "ID"
+			},
+			{
+				"name": "name",
+				"type": "string",
+				"label": "Name",
+				"unique": true,
+				"sortable": true
+			},
+			{
+				"name": "created_at",
+				"type": "time",
+				"label": "Created At",
+				"default": "NOW()"
+			}
+		]
+	}`
+
+	// expectedSchema := &Schema{
+	// 	Name:             "test",
+	// 	Namespace:        "test_namespace",
+	// 	LabelFieldName:   "name",
+	// 	DisableTimestamp: true,
+	// 	Fields: []*Field{
+	// 		{
+	// 			Name:          "id",
+	// 			Type:          TypeUint64,
+	// 			Label:         "ID",
+	// 			IsSystemField: true,
+	// 			Unique:        true,
+	// 			Filterable:    true,
+	// 			Sortable:      true,
+	// 			DB: &FieldDB{
+	// 				Attr:      "UNSIGNED",
+	// 				Key:       "UNI",
+	// 				Increment: true,
+	// 			},
+	// 		},
+	// 		{
+	// 			Name:          "name",
+	// 			Type:          TypeString,
+	// 			Label:         "Name",
+	// 			Unique:        true,
+	// 			Sortable:      true,
+	// 			IsSystemField: false,
+	// 		},
+	// 	},
+	// 	IsSystemSchema:   false,
+	// 	IsJunctionSchema: false,
+	// }
+
+	schema, err = NewSchemaFromJSON(jsonData)
+	assert.NoError(t, err)
+	assert.NoError(t, schema.Init(false))
+	assert.Equal(t, "test", schema.Name)
+	assert.Equal(t, "test_namespace", schema.Namespace)
+	assert.Equal(t, "name", schema.LabelFieldName)
+	assert.False(t, schema.DisableTimestamp)
+	assert.Equal(t, 5, len(schema.Fields))
+
+	assert.Equal(t, "id", schema.Fields[0].Name)
+	assert.Equal(t, TypeUint64, schema.Fields[0].Type)
+	assert.Equal(t, "ID", schema.Fields[0].Label)
+	assert.True(t, schema.Fields[0].IsSystemField)
+	assert.True(t, schema.Fields[0].Unique)
+	assert.True(t, schema.Fields[0].Sortable)
+	assert.Equal(t, "UNSIGNED", schema.Fields[0].DB.Attr)
+	assert.Equal(t, "UNI", schema.Fields[0].DB.Key)
+	assert.True(t, schema.Fields[0].DB.Increment)
+
+	assert.Equal(t, "name", schema.Fields[1].Name)
+	assert.Equal(t, TypeString, schema.Fields[1].Type)
+	assert.Equal(t, "Name", schema.Fields[1].Label)
+	assert.False(t, schema.Fields[1].IsSystemField)
+	assert.True(t, schema.Fields[1].Unique)
+	assert.True(t, schema.Fields[1].Sortable)
+
+	assert.Equal(t, "created_at", schema.Fields[2].Name)
+	assert.Equal(t, TypeTime, schema.Fields[2].Type)
+	assert.Equal(t, "Created At", schema.Fields[2].Label)
+	assert.True(t, schema.Fields[2].IsSystemField)
+	assert.False(t, schema.Fields[2].Unique)
+	assert.False(t, schema.Fields[2].Sortable)
+	assert.Equal(t, "CURRENT_TIMESTAMP", schema.Fields[2].Default)
+}
+
 func TestSaveToFile(t *testing.T) {
 	s := &Schema{
 		Name:             "user",
 		Namespace:        "schema",
 		LabelFieldName:   "name",
 		DisableTimestamp: false,
-		DBColumns:        []string{"column1", "column2"},
+		dbColumns:        []string{"column1", "column2"},
 		IsSystemSchema:   true,
 		IsJunctionSchema: false,
 		Fields: []*Field{
@@ -164,7 +265,7 @@ func TestSchemaHasField(t *testing.T) {
 		Namespace:        "schema",
 		LabelFieldName:   "name",
 		DisableTimestamp: false,
-		DBColumns:        []string{"column1", "column2"},
+		dbColumns:        []string{"column1", "column2"},
 		IsSystemSchema:   true,
 		IsJunctionSchema: false,
 		Fields: []*Field{
@@ -206,8 +307,8 @@ func TestSchemaValidate(t *testing.T) {
 		Namespace:        "schema",
 		LabelFieldName:   "name",
 		DisableTimestamp: false,
-		DBColumns:        []string{"column1", "column2"},
-		IsSystemSchema:   true,
+		dbColumns:        []string{"column1", "column2"},
+		IsSystemSchema:   false,
 		IsJunctionSchema: false,
 		Fields: []*Field{
 			{
@@ -248,19 +349,7 @@ func TestSchemaValidate(t *testing.T) {
 	s.Fields = []*Field{}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "fields is required")
-
-	// Test invalid field names
-	s.Fields = []*Field{
-		{
-			Name:  "id",
-			Type:  TypeString,
-			Label: "label1",
-		},
-	}
-	err = s.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "field id: field name can't be 'id'")
+	assert.Contains(t, err.Error(), "label field 'name' is not found")
 
 	// Test missing field name
 	s.Fields = []*Field{
@@ -393,4 +482,10 @@ func TestSchemaValidate(t *testing.T) {
 	err = s.Validate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "label field 'nonexistent' is not found")
+}
+
+func TestErrFieldNotFound(t *testing.T) {
+	err := ErrFieldNotFound("user", "field1")
+	assert.Error(t, err)
+	assert.Equal(t, "field user.field1 not found", err.Error())
 }

@@ -9,12 +9,17 @@ import (
 	"io"
 	"math"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/hjson/hjson-go/v4"
+	"github.com/iancoleman/strcase"
 	"golang.org/x/crypto/argon2"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Random string generation
@@ -437,4 +442,121 @@ func MergeErrorMessages(errs ...error) error {
 	}
 
 	return errors.New(strings.Join(messages, ", "))
+}
+
+// Capitalize the first letter of the given string
+func Capitalize(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// Title converts a string to title case
+func Title(s string) string {
+	s = Capitalize(s)
+	// replace underscores with spaces
+	s = strings.ReplaceAll(s, "_", " ")
+	// replace dashes with spaces
+	s = strings.ReplaceAll(s, "-", " ")
+	// replace multiple spaces with a single space
+	s = regexp.MustCompile(`\s+`).ReplaceAllString(s, " ")
+
+	return cases.Title(language.English).String(s)
+}
+
+// ToSnakeCase converts a string from capital case to snake case
+//
+//		For example:
+//	 	"ToSnakeCase" -> "create_snake_case"
+//	 	"userID" -> "user_id"
+//	 	"HTTPResponse" -> "http_response"
+func ToSnakeCase(s string) string {
+	return strcase.ToSnake(s)
+}
+
+// GetStructFieldName returns the name of a struct field based on the provided reflect.StructField and tag name.
+//
+//	If no tag name is provided, it defaults to "json".
+//	If the field name is "-", it returns an empty string.
+func GetStructFieldName(field reflect.StructField, fromTags ...string) string {
+	if len(fromTags) == 0 {
+		fromTags = []string{"json"}
+	}
+	fieldName := field.Name
+	fieldTag := field.Tag.Get(fromTags[0])
+
+	if fieldTag != "" {
+		fieldName = strings.TrimSpace(strings.Split(fieldTag, ",")[0])
+		if fieldName == "-" {
+			fieldName = ""
+		}
+	}
+
+	return fieldName
+}
+
+// ParseStructFieldTag parses the struct field tag and returns a map of tag key-value pairs.
+//
+//	For example, if the struct tag is:
+//	`fs:"name=title;label=Title;multiple;unique;optional;sortable;filterable;size=255"`,
+//	then ParseStructFieldTag(field, "fs") will return:
+//	{
+//		"name": "title",
+//		"label": "Title",
+//		"multiple": "",
+//		"unique": "",
+//		"optional": "",
+//		"sortable": "",
+//		"filterable": "",
+//		"size": "255",
+//	}
+func ParseStructFieldTag(field reflect.StructField, tagName string) map[string]string {
+	tag := field.Tag.Get(tagName)
+	tagMap := map[string]string{}
+	props := Map(strings.Split(tag, ";"), strings.TrimSpace)
+
+	for _, prop := range props {
+		parts := strings.Split(prop, "=")
+		propName := strings.TrimSpace(parts[0])
+
+		if propName == "" {
+			continue
+		}
+
+		if len(parts) == 1 {
+			parts = append(parts, "")
+		}
+
+		tagMap[propName] = strings.TrimSpace(parts[1])
+	}
+
+	return tagMap
+}
+
+// ParseHJSON parses the given input byte slice as HJSON and returns the result as type T.
+func ParseHJSON[T any](input []byte) (T, error) {
+	var v T
+	err := hjson.Unmarshal(input, &v)
+	return v, err
+}
+
+// CreateSwaggerUIPage creates a simple HTML page that serves the Swagger UI
+func CreateSwaggerUIPage(specURL string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Fastschema Open OAS 3.1</title>
+	<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+<script>window.onload = () => {
+	window.ui = SwaggerUIBundle({url: '%s',dom_id: '#swagger-ui'});
+};</script>
+</body>
+</html>`, specURL)
 }

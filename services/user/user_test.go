@@ -2,15 +2,18 @@ package userservice_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
 	"os"
 	"testing"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	userservice "github.com/fastschema/fastschema/services/user"
@@ -20,10 +23,10 @@ import (
 
 type testApp struct {
 	sb *schema.Builder
-	db app.DBClient
+	db db.Client
 }
 
-func (s testApp) DB() app.DBClient {
+func (s testApp) DB() db.Client {
 	return s.db
 }
 
@@ -32,16 +35,16 @@ func (s testApp) Key() string {
 }
 
 func TestUserService(t *testing.T) {
-	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir()))
+	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	testApp := &testApp{sb: sb, db: db}
 	userService := userservice.New(testApp)
 
 	roleModel := utils.Must(db.Model("role"))
 	userModel := utils.Must(db.Model("user"))
-	utils.Must(roleModel.CreateFromJSON(`{"name": "user"}`))
+	utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "user"}`))
 
-	utils.Must(userModel.CreateFromJSON(fmt.Sprintf(
+	utils.Must(userModel.CreateFromJSON(context.Background(), fmt.Sprintf(
 		`{
 			"username": "user01",
 			"password": "%s",
@@ -50,7 +53,7 @@ func TestUserService(t *testing.T) {
 		}`,
 		utils.Must(utils.GenerateHash("user01")),
 	)))
-	utils.Must(userModel.CreateFromJSON(fmt.Sprintf(
+	utils.Must(userModel.CreateFromJSON(context.Background(), fmt.Sprintf(
 		`{
 			"username": "user02",
 			"password": "%s",
@@ -60,21 +63,21 @@ func TestUserService(t *testing.T) {
 		utils.Must(utils.GenerateHash("user02")),
 	)))
 
-	resources := app.NewResourcesManager()
-	resources.Middlewares = []app.Middleware{func(c app.Context) error {
+	resources := fs.NewResourcesManager()
+	resources.Middlewares = []fs.Middleware{func(c fs.Context) error {
 		authToken := c.AuthToken()
 		jwtToken, err := jwt.ParseWithClaims(
 			authToken,
-			&app.UserJwtClaims{},
+			&fs.UserJwtClaims{},
 			func(token *jwt.Token) (any, error) {
 				return []byte("test"), nil
 			},
 		)
 
 		if err == nil {
-			if claims, ok := jwtToken.Claims.(*app.UserJwtClaims); ok && jwtToken.Valid {
+			if claims, ok := jwtToken.Claims.(*fs.UserJwtClaims); ok && jwtToken.Valid {
 				user := claims.User
-				user.Roles = []*app.Role{{ID: 1, Name: "user"}}
+				user.Roles = []*fs.Role{{ID: 1, Name: "user"}}
 				c.Value("user", user)
 			}
 		}
@@ -82,12 +85,18 @@ func TestUserService(t *testing.T) {
 		return c.Next()
 	}}
 	resources.Group("user").
-		Add(app.NewResource("logout", userService.Logout, app.Meta{app.POST: "/logout"}, true)).
-		Add(app.NewResource("me", userService.Me, true)).
-		Add(app.NewResource("login", userService.Login, app.Meta{app.POST: "/login"}, true))
+		Add(fs.NewResource("logout", userService.Logout, &fs.Meta{
+			Post:   "/logout",
+			Public: true,
+		})).
+		Add(fs.NewResource("me", userService.Me, &fs.Meta{Public: true})).
+		Add(fs.NewResource("login", userService.Login, &fs.Meta{
+			Post:   "/login",
+			Public: true,
+		}))
 
 	assert.NoError(t, resources.Init())
-	server := restresolver.NewRestResolver(resources, app.CreateMockLogger(true)).Server()
+	server := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(true)).Server()
 
 	// Case 1: Login User not found
 	req := httptest.NewRequest("POST", "/user/login", bytes.NewReader([]byte(`{"login": "user", "password": "user"}`)))

@@ -1,13 +1,36 @@
 package contentservice
 
 import (
+	"math"
 	"strings"
 
-	"github.com/fastschema/fastschema/app"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/fastschema/fastschema/schema"
 )
 
-func (cs *ContentService) List(c app.Context, _ *any) (*app.Pagination, error) {
+// Pagination is a struct that contains pagination info and the data
+type Pagination struct {
+	Total       uint             `json:"total"`
+	PerPage     uint             `json:"per_page"`
+	CurrentPage uint             `json:"current_page"`
+	LastPage    uint             `json:"last_page"`
+	Items       []*schema.Entity `json:"items"`
+}
+
+// NewPagination creates a new pagination struct
+func NewPagination(total, perPage, currentPage uint, items []*schema.Entity) *Pagination {
+	return &Pagination{
+		Total:       total,
+		PerPage:     perPage,
+		CurrentPage: currentPage,
+		LastPage:    uint(math.Ceil(float64(total) / float64(perPage))),
+		Items:       items,
+	}
+}
+
+func (cs *ContentService) List(c fs.Context, _ any) (*Pagination, error) {
 	schemaName := c.Arg("schema")
 	model, err := cs.DB().Model(schemaName)
 	if err != nil {
@@ -15,7 +38,7 @@ func (cs *ContentService) List(c app.Context, _ *any) (*app.Pagination, error) {
 	}
 
 	filter := c.Arg("filter")
-	predicates, err := app.CreatePredicatesFromFilterObject(
+	predicates, err := db.CreatePredicatesFromFilterObject(
 		cs.DB().SchemaBuilder(),
 		model.Schema(),
 		filter,
@@ -30,7 +53,7 @@ func (cs *ContentService) List(c app.Context, _ *any) (*app.Pagination, error) {
 	page := uint(c.ArgInt("page", 1))
 	limit := uint(c.ArgInt("limit", 10))
 	offset := (page - 1) * limit
-	total, err := model.Query(predicates...).Count(&app.CountOption{})
+	total, err := model.Query(predicates...).Count(c.Context(), &db.CountOption{})
 
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
@@ -53,5 +76,5 @@ func (cs *ContentService) List(c app.Context, _ *any) (*app.Pagination, error) {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	return app.NewPagination(uint(total), limit, page, records), nil
+	return NewPagination(uint(total), limit, page, records), nil
 }

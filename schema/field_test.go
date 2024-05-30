@@ -1,8 +1,10 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -22,23 +24,23 @@ func TestField(t *testing.T) {
 	assert.Equal(t, "UNSIGNED", uint64Field.DB.Attr)
 }
 
-func TestFieldInitTypeMedia(t *testing.T) {
+func TestFieldInitTypeFile(t *testing.T) {
 	schemaName := "testSchema"
 	field := &Field{
-		Type: TypeMedia,
-		Name: "mediaField",
+		Type: TypeFile,
+		Name: "fileField",
 	}
 
 	field.Init(schemaName)
 
 	assert.NotNil(t, field.DB)
-	assert.Equal(t, TypeMedia, field.Type)
+	assert.Equal(t, TypeFile, field.Type)
 	assert.Equal(t, false, field.DB.Increment)
 
 	assert.NotNil(t, field.Relation)
 	assert.Equal(t, utils.If(field.IsMultiple, M2M, O2M), field.Relation.Type)
 	assert.Equal(t, false, field.Relation.Owner)
-	assert.Equal(t, "media", field.Relation.TargetSchemaName)
+	assert.Equal(t, "file", field.Relation.TargetSchemaName)
 	assert.Equal(t, fmt.Sprintf("%s_%s", schemaName, field.Name), field.Relation.TargetFieldName)
 	assert.Nil(t, field.Relation.BackRef)
 }
@@ -265,5 +267,245 @@ func TestFieldClone(t *testing.T) {
 	for i := range field.Enums {
 		assert.Equal(t, field.Enums[i].Value, clonedField.Enums[i].Value)
 		assert.Equal(t, field.Enums[i].Label, clonedField.Enums[i].Label)
+	}
+}
+
+func TestErrInvalidFieldValue(t *testing.T) {
+	fieldName := "testField"
+	value := "invalidValue"
+	err := errors.New("test error")
+
+	expectedError := fmt.Sprintf("invalid field value: %s=%#v - %s", fieldName, value, err.Error())
+	result := ErrInvalidFieldValue(fieldName, value, err)
+	assert.EqualError(t, result, expectedError)
+
+	// Test with no error input
+	expectedError = fmt.Sprintf("invalid field value: %s=%#v", fieldName, value)
+	result = ErrInvalidFieldValue(fieldName, value)
+	assert.EqualError(t, result, expectedError)
+}
+
+func TestStringToFieldValue(t *testing.T) {
+	type testInfo struct {
+		Field  *Field
+		Input  string
+		Expect any
+		Error  string
+	}
+	var createTest = func(fieldType FieldType, input string, expect any, errs ...string) *testInfo {
+		ti := &testInfo{
+			Field:  &Field{Name: fieldType.String(), Type: fieldType},
+			Input:  input,
+			Expect: expect,
+		}
+
+		if len(errs) > 0 {
+			ti.Error = errs[0]
+		}
+
+		return ti
+	}
+
+	tests := []*testInfo{
+		createTest(TypeBool, "true", true),
+		createTest(TypeBool, "false", false),
+		createTest(TypeBool, "invalid", nil, "invalid field value: bool"),
+		createTest(TypeInt, "1", 1),
+		createTest(TypeInt, "invalid", nil, "invalid field value: int"),
+		createTest(TypeInt8, "1", int8(1)),
+		createTest(TypeInt8, "invalid", nil, "invalid field value: int8"),
+		createTest(TypeInt16, "1", int16(1)),
+		createTest(TypeInt16, "invalid", nil, "invalid field value: int16"),
+		createTest(TypeInt32, "1", int32(1)),
+		createTest(TypeInt32, "invalid", nil, "invalid field value: int32"),
+		createTest(TypeInt64, "1", int64(1)),
+		createTest(TypeInt64, "invalid", nil, "invalid field value: int64"),
+		createTest(TypeUint, "1", uint(1)),
+		createTest(TypeUint, "invalid", nil, "invalid field value: uint"),
+		createTest(TypeUint8, "1", uint8(1)),
+		createTest(TypeUint8, "invalid", nil, "invalid field value: uint8"),
+		createTest(TypeUint16, "1", uint16(1)),
+		createTest(TypeUint16, "invalid", nil, "invalid field value: uint16"),
+		createTest(TypeUint32, "1", uint32(1)),
+		createTest(TypeUint32, "invalid", nil, "invalid field value: uint32"),
+		createTest(TypeUint64, "1", uint64(1)),
+		createTest(TypeUint64, "invalid", nil, "invalid field value: uint64"),
+		createTest(TypeFloat32, "1.5", float32(1.5)),
+		createTest(TypeFloat32, "invalid", nil, "invalid field value: float32"),
+		createTest(TypeFloat64, "1.5", float64(1.5)),
+		createTest(TypeFloat64, "invalid", nil, "invalid field value: float64"),
+		createTest(TypeTime, "NOW()", "NOW()"),
+		createTest(TypeTime, "2024-05-19T16:45:01Z", time.Date(2024, 5, 19, 16, 45, 1, 0, time.UTC)),
+		createTest(TypeTime, "2024-05-19T16:45:01-07:00", time.Date(2024, 5, 19, 16, 45, 1, 0, time.FixedZone("", -7*60*60))),
+		createTest(TypeTime, "invalid", nil, "invalid field value: time"),
+		createTest(TypeString, `string`, "string"),
+	}
+
+	t.Run("StringToFieldValue", func(t *testing.T) {
+		for _, test := range tests {
+			t.Logf("Test: %s = %s", test.Field.Type, test.Input)
+			value, err := StringToFieldValue[any](test.Field, test.Input)
+			if test.Error != "" {
+				assert.Nil(t, value)
+				assert.Contains(t, err.Error(), test.Error)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, test.Expect, value)
+			}
+		}
+	})
+
+	// Test invalid generic type
+	t.Run("StringToFieldValueInvalidType", func(t *testing.T) {
+		_, err := StringToFieldValue[int](tests[0].Field, tests[0].Input)
+		assert.Contains(t, err.Error(), "can't convert")
+	})
+}
+
+func TestMergeFields(t *testing.T) {
+	f1 := &Field{
+		Type:          TypeInt,
+		Name:          "age",
+		Label:         "Age",
+		IsMultiple:    false,
+		Size:          10,
+		Unique:        true,
+		Optional:      false,
+		Default:       0,
+		Sortable:      true,
+		Filterable:    true,
+		IsSystemField: false,
+		Relation: &Relation{
+			SchemaName:       "user",
+			TargetSchemaName: "address",
+			TargetFieldName:  "address_id",
+		},
+		DB: &FieldDB{
+			Attr:      "UNSIGNED",
+			Collation: "utf8mb4_unicode_ci",
+			Increment: true,
+			Key:       "PRI",
+		},
+		Enums: []*FieldEnum{
+			{
+				Value: "1",
+				Label: "One",
+			},
+			{
+				Value: "2",
+				Label: "Two",
+			},
+		},
+	}
+
+	f2 := &Field{
+		Type:          TypeString,
+		Name:          "name",
+		Label:         "Name",
+		IsMultiple:    true,
+		Size:          20,
+		Unique:        false,
+		Optional:      true,
+		Default:       "John",
+		Sortable:      false,
+		Filterable:    false,
+		IsSystemField: true,
+		Relation: &Relation{
+			SchemaName:       "user",
+			TargetSchemaName: "address",
+			TargetFieldName:  "address_id",
+		},
+		DB: &FieldDB{
+			Attr:      "UNSIGNED",
+			Collation: "utf8mb4_unicode_ci",
+			Increment: true,
+			Key:       "PRI",
+		},
+		Enums: []*FieldEnum{
+			{
+				Value: "3",
+				Label: "Three",
+			},
+			{
+				Value: "4",
+				Label: "Four",
+			},
+		},
+		Renderer: &FieldRenderer{
+			Class: "text",
+			Settings: map[string]any{
+				"rows": 5,
+			},
+		},
+	}
+
+	expectedField := &Field{
+		Type:          TypeString,
+		Name:          "name",
+		Label:         "Name",
+		IsMultiple:    true,
+		Size:          20,
+		Unique:        false,
+		Optional:      true,
+		Default:       "John",
+		Sortable:      false,
+		Filterable:    false,
+		IsSystemField: true,
+		Relation: &Relation{
+			SchemaName:       "user",
+			TargetSchemaName: "address",
+			TargetFieldName:  "address_id",
+		},
+		DB: &FieldDB{
+			Attr:      "UNSIGNED",
+			Collation: "utf8mb4_unicode_ci",
+			Increment: true,
+			Key:       "PRI",
+		},
+		Enums: []*FieldEnum{
+			{
+				Value: "3",
+				Label: "Three",
+			},
+			{
+				Value: "4",
+				Label: "Four",
+			},
+		},
+		Renderer: &FieldRenderer{
+			Class: "text",
+			Settings: map[string]any{
+				"rows": 5,
+			},
+		},
+	}
+
+	MergeFields(f1, f2)
+
+	assert.Equal(t, expectedField.Type, f1.Type)
+	assert.Equal(t, expectedField.Name, f1.Name)
+	assert.Equal(t, expectedField.Label, f1.Label)
+	assert.Equal(t, expectedField.IsMultiple, f1.IsMultiple)
+	assert.Equal(t, expectedField.Size, f1.Size)
+	assert.Equal(t, expectedField.Unique, f1.Unique)
+	assert.Equal(t, expectedField.Optional, f1.Optional)
+	assert.Equal(t, expectedField.Default, f1.Default)
+	assert.Equal(t, expectedField.Sortable, f1.Sortable)
+	assert.Equal(t, expectedField.Filterable, f1.Filterable)
+	assert.Equal(t, expectedField.IsSystemField, f1.IsSystemField)
+
+	assert.Equal(t, expectedField.Relation.Type, f1.Relation.Type)
+	assert.Equal(t, expectedField.Relation.TargetSchemaName, f1.Relation.TargetSchemaName)
+	assert.Equal(t, expectedField.Relation.TargetFieldName, f1.Relation.TargetFieldName)
+
+	assert.Equal(t, expectedField.DB.Attr, f1.DB.Attr)
+	assert.Equal(t, expectedField.DB.Collation, f1.DB.Collation)
+	assert.Equal(t, expectedField.DB.Increment, f1.DB.Increment)
+	assert.Equal(t, expectedField.DB.Key, f1.DB.Key)
+
+	assert.Len(t, f1.Enums, len(expectedField.Enums))
+	for i := range expectedField.Enums {
+		assert.Equal(t, expectedField.Enums[i].Value, f1.Enums[i].Value)
+		assert.Equal(t, expectedField.Enums[i].Label, f1.Enums[i].Label)
 	}
 }

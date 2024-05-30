@@ -42,7 +42,6 @@ func TestRelation(t *testing.T) {
 	assert.Equal(t, field.Name, relation.FieldName)
 	assert.Equal(t, "post.owner-user.id", relation.Name)
 	assert.Equal(t, "owner_id", relation.GetTargetFKColumn())
-	// assert.Equal(t, map[string][]string{"owner": {"owner_id"}}, schema.RelationsFKColumns)
 	assert.Equal(t, "user.id-post.owner", relation.GetBackRefName())
 	assert.Equal(t, false, relation.IsSameType())
 	assert.Equal(t, true, relation.HasFKs())
