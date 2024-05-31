@@ -13,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/openapi"
@@ -34,6 +35,47 @@ import (
 
 //go:embed all:dash/*
 var embedDashStatic embed.FS
+
+var createAuthProvidersFn = map[string]fs.CreateAuthProviderFunc{
+	"github": auth.NewGithubAuthProvider,
+	"google": auth.NewGoogleAuthProvider,
+}
+
+type AppConfig struct {
+	Dir               string
+	AppKey            string
+	Port              string
+	BaseURL           string
+	DashURL           string
+	APIBaseName       string
+	DashBaseName      string
+	Logger            logger.Logger
+	DB                db.Client
+	StorageConfig     *fs.StorageConfig
+	AuthConfig        *fs.AuthConfig
+	HideResourcesInfo bool
+	SystemSchemaTypes []any // types to build the system schemas
+}
+
+func (ac *AppConfig) Clone() *AppConfig {
+	c := &AppConfig{
+		Dir:               ac.Dir,
+		AppKey:            ac.AppKey,
+		Port:              ac.Port,
+		BaseURL:           ac.BaseURL,
+		DashURL:           ac.DashURL,
+		APIBaseName:       ac.APIBaseName,
+		DashBaseName:      ac.DashBaseName,
+		Logger:            ac.Logger,
+		DB:                ac.DB,
+		StorageConfig:     ac.StorageConfig.Clone(),
+		AuthConfig:        ac.AuthConfig.Clone(),
+		HideResourcesInfo: ac.HideResourcesInfo,
+		SystemSchemaTypes: append([]any{}, ac.SystemSchemaTypes...),
+	}
+
+	return c
+}
 
 type App struct {
 	config          *fs.Config
@@ -57,13 +99,15 @@ type App struct {
 	startupMessages []string
 	statics         []*fs.StaticFs
 	openAPISpec     []byte
+	authProviders   map[string]fs.AuthProvider
 }
 
 func New(config *fs.Config) (_ *App, err error) {
 	a := &App{
-		config: config.Clone(),
-		disks:  []fs.Disk{},
-		roles:  []*fs.Role{},
+		config:        config.Clone(),
+		disks:         []fs.Disk{},
+		roles:         []*fs.Role{},
+		authProviders: map[string]fs.AuthProvider{},
 		hooks: &fs.Hooks{
 			DBHooks: &db.Hooks{},
 		},
@@ -94,6 +138,10 @@ func (a *App) init() (err error) {
 	}
 
 	if err = a.getDefaultLogger(); err != nil {
+		return err
+	}
+
+	if err := a.getAuthProviders(); err != nil {
 		return err
 	}
 
@@ -350,6 +398,10 @@ func (a *App) Disk(names ...string) fs.Disk {
 	return nil
 }
 
+func (a *App) GetAuthProvider(name string) fs.AuthProvider {
+	return a.authProviders[name]
+}
+
 func (a *App) AddResource(resource *fs.Resource) {
 	a.resources.Add(resource)
 }
@@ -525,6 +577,33 @@ func (a *App) getDefaultDisk() (err error) {
 	return nil
 }
 
+func (a *App) getAuthProviders() (err error) {
+	if a.config.AuthConfig == nil {
+		return nil
+	}
+
+	for name, config := range a.config.AuthConfig.Providers {
+		if !utils.Contains(a.config.AuthConfig.EnabledProviders, name) {
+			continue
+		}
+
+		redirectURL := fmt.Sprintf("%s/auth/%s/callback", a.config.BaseURL, name)
+		createProviderFn, ok := createAuthProvidersFn[name]
+		if !ok {
+			return fmt.Errorf("auth provider [%s] is not supported", name)
+		}
+
+		provider, err := createProviderFn(config, redirectURL)
+		if err != nil {
+			return err
+		}
+
+		a.authProviders[name] = provider
+	}
+
+	return nil
+}
+
 func (a *App) createSchemaBuilder() (err error) {
 	if a.schemaBuilder, err = schema.NewBuilderFromDir(
 		a.schemasDir,
@@ -570,16 +649,21 @@ func (a *App) createResources() error {
 			Public: true,
 		}))
 
-	if utils.Env("AUTH") != "" {
-		a.api.Group("auth").
-			Add(fs.NewResource("login", authService.Login, &fs.Meta{
-				Get:    "/:provider",
-				Public: true,
-			})).
-			Add(fs.NewResource("callback", authService.Callback, &fs.Meta{
-				Get:    "/:provider/callback",
-				Public: true,
-			}))
+	if len(a.authProviders) > 0 {
+		a.api.Group("auth", &fs.Meta{
+			Prefix: "/auth/:provider",
+			Args: fs.Args{
+				"provider": {
+					Required:    true,
+					Type:        fs.TypeString,
+					Description: "The auth provider name",
+					Example:     "google",
+				},
+			},
+		}).Add(
+			fs.Get("login", authService.Login, &fs.Meta{Public: true}),
+			fs.Get("callback", authService.Callback, &fs.Meta{Public: true}),
+		)
 	}
 	a.api.Group("schema").
 		Add(fs.NewResource("list", schemaService.List, &fs.Meta{Get: "/"})).
@@ -744,6 +828,12 @@ func (a *App) prepareConfig() (err error) {
 
 	if a.config.DashURL == "" {
 		a.config.DashURL = fmt.Sprintf("%s/%s", a.config.BaseURL, a.config.DashBaseName)
+	}
+
+	if a.config.AuthConfig == nil && utils.Env("AUTH") != "" {
+		if err := json.Unmarshal([]byte(utils.Env("AUTH")), &a.config.AuthConfig); err != nil {
+			return err
+		}
 	}
 
 	if a.config.AppKey == "" {

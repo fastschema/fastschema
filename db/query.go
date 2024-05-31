@@ -149,7 +149,7 @@ func (q *DBQuery[T]) First(ctx context.Context) (t T, err error) {
 	return entities[0], nil
 }
 
-// Only returns the matched entity or an error if there is more than one.
+// Only returns the matched entity or an error if there is more than one or no entity found.
 func (q *DBQuery[T]) Only(ctx context.Context) (t T, err error) {
 	entities, err := q.Get(ctx)
 
