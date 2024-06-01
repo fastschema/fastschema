@@ -1,26 +1,40 @@
-# Introduction
+<p align="center">
+  <a href="https://fastschema.com">
+    <picture>
+      <source height="125" media="(prefers-color-scheme: light)" srcset="https://fastschema.com/fastschema-logo-small.svg">
+      <img height="125" alt="FastSchema" src="https://fastschema.com/fastschema-logo-small.svg">
+    </picture>
+  </a>
+</p>
 
-[![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/fastschema/fastschema#section-readme)
-[![go report card](https://goreportcard.com/badge/github.com/fastschema/fastschema "go report card")](https://goreportcard.com/report/github.com/fastschema/fastschema)
-[![codecov](https://codecov.io/gh/fastschema/fastschema/graph/badge.svg?token=TPU5QN6E4Z)](https://codecov.io/gh/fastschema/fastschema)
-[![test status](https://github.com/fastschema/fastschema/actions/workflows/ci.yml/badge.svg "test status")](https://github.com/fastschema/fastschema/actions)
-[![MIT license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/fastschema/fastschema#section-readme" target="_blank" rel="noopener">
+    <img src="https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white" alt="Go.Dev reference" />
+  </a>
+  <a href="https://goreportcard.com/report/github.com/fastschema/fastschema" target="_blank" rel="noopener">
+    <img src="https://goreportcard.com/badge/github.com/fastschema/fastschema" alt="go report card" />
+  </a>
+  <a href="https://codecov.io/gh/fastschema/fastschema" target="_blank" rel="noopener">
+    <img src="https://codecov.io/gh/fastschema/fastschema/graph/badge.svg?token=TPU5QN6E4Z" alt="codecov" />
+  </a>
+  <a href="https://github.com/fastschema/fastschema/actions" target="_blank" rel="noopener">
+    <img src="https://github.com/fastschema/fastschema/actions/workflows/ci.yml/badge.svg" alt="test status" />
+  </a>
+  <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">
+    <img src="https://img.shields.io/badge/license-MIT-brightgreen.svg" alt="MIT license" />
+  </a>
+</p>
 
-FastSchema is an open-source headless Content Management System (CMS) designed to simplify the creation and management of structured content. By leveraging schema definitions, FastSchema automates the generation of databases and provides CRUD (Create, Read, Update, Delete) APIs effortlessly.
+_FastSchema is a Go web framework and headless CMS for building dynamic web applications. Designed to simplify the creation and management of structured content, FastSchema automates the generation of databases and provides CRUD APIs effortlessly._
 
 ## Try it out
 
-You can try out FastSchema by running FastSchema in a Docker container.
-
-### Pull the Docker Image:
-
-```bash
-docker pull ghcr.io/fastschema/fastschema:latest
-```
+Launch a headless CMS in seconds or utilize as a web framework.
 
 ### Run the Docker Container:
 
 ```bash
+docker pull ghcr.io/fastschema/fastschema:latest
 docker run \
   -p 8000:8000 \
   -v ./data:/fastschema/data \
@@ -35,266 +49,117 @@ docker run \
 > Visit the following URL to setup the app: http://localhost:8000/dash/setup/?token=lUDRgoTUUNDsjCcitgGFTqwMZQPmYvlU
 ```
 
-Now you can access to the FastSchema setup page by visiting [http://localhost:8000/setup?token=\{token\}](http://localhost:8000?token=\{token\}) (The setup token is displayed in the terminal).
+Now you can access to the FastSchema setup page by visiting [http://localhost:8000/setup?token=\{token\}](http://localhost:8000?token={token}) (The setup token is displayed in the terminal).
 
 > **Note:** FastSchema is currently in beta and under active development. We welcome feedback, contributions, and suggestions from the community to help improve the platform and make it more robust and feature-rich.
 
-
 ## Overview
 
-At the core of FastSchema lies its schema definition, a blueprint that outlines the structure of your content. This schema acts as the foundation upon which FastSchema builds your database tables and API endpoints, streamlining the development process and allowing you to focus on creating rich, dynamic content.
+FastSchema core features are built on top of `schema`, a blueprint that outlines the structure of your content. This schema acts as the foundation upon which FastSchema builds your database tables and API endpoints, streamlining the development process and allowing you to focus on creating rich, dynamic content.
 
 <p style="text-align: center;">
-  <img src="https://fastschema.com/img/fastschema.png" alt="FastSchema Overview" />
+  <img src="https://fastschema.com/static/images/fastschema.png" alt="FastSchema Overview" />
 </p>
 
-## Features
+## Use Cases
 
-Fastschema offers a comprehensive suite of features designed to streamline and simplify the process of building and managing dynamic web applications. Whether you're a developer, designer, or content creator, our platform provides the tools you need to create, deploy, and maintain powerful web experiences with ease.
+- **A Headless CMS (No-Code Solution)**
 
-- Automated Database Generation.
-- RESTful API Generation.
-- Dynamic Content Modeling.
-- Built-in File Management.
-- Built-in Admin Control Panel.
-- Database Support: MySQL, PostgreSQL, SQLite.
-- Role-Based Access Control.
+  FastSchema is an ideal solution for building headless CMS applications that require dynamic content modeling without writing a line of code.
 
+  It is designed to support API-first development, allowing you to define your content models and generate RESTful APIs effortlessly.
 
+  With two line of commands, you can create a new project, define your content models, and start creating content instantly.
 
-FastSchema simplifies the process of building and managing structured content, providing developers with a powerful toolset to create dynamic, data-driven applications. With its schema-driven approach, automated database generation, and CRUD API creation, FastSchema accelerates development workflows and empowers teams to focus on delivering exceptional digital experiences.
+- **A Framework for web development**
 
-Get started with FastSchema today and revolutionize the way you manage content in your applications!
+  FastSchema is designed to be used as a framework for building web applications. It provides a set of tools and packages that simplify the development process.
 
-## Documentation
+  `Resource` is a core concept that represents an access point to your data. By defining resources, you can create custom endpoints and customize the behavior of your APIs.
 
-For more information on how to get started with FastSchema, check out our [documentation](https://fastschema.com).
+  `Hooks` are functions that are executed before or after an operation is performed on a resource. A `Hook` can be a `resolver hook`, `database hook`, or `application hook`. They allow you to add custom logic to your APIs and extend the functionality of FastSchema.
 
-### Schema Definition
+  `ORM` is a powerful tool that simplifies the interaction with your database. It provides a set of methods for querying, creating, updating, and deleting records in your database.
 
-The schema definition is structured JSON that encapsulates the characteristics of your content model. Let's take a closer look at a sample schema definition:
-
-**post.json**
-
-```json
-{
-  "name": "post",
-  "namespace": "posts",
-  "label_field": "name",
-  "fields": [
-    {
-      "type": "string",
-      "name": "name",
-      "label": "Name",
-      "sortable": true
-    },
-    {
-      "type": "relation",
-      "name": "category",
-      "label": "Category",
-      "renderer": {},
-      "relation": {
-        "schema": "category",
-        "field": "posts",
-        "type": "o2m"
-      },
-    }
-  ]
-}
-```
-
-**category.json**
-
-```json
-{
-  "name": "category",
-  "namespace": "categories",
-  "label_field": "name",
-  "fields": [
-    {
-      "type": "string",
-      "name": "name",
-      "label": "Name",
-      "optional": true,
-      "sortable": true
-    },
-    {
-      "type": "text",
-      "name": "content",
-      "label": "Content",
-      "renderer": {
-        "class": "editor"
-      },
-      "optional": true,
-      "sortable": true
-    },
-    {
-      "type": "relation",
-      "name": "posts",
-      "label": "Posts",
-      "optional": true,
-      "relation": {
-        "schema": "post",
-        "field": "category",
-        "type": "o2m",
-        "owner": true,
-        "optional": true
-      }
-    }
-  ]
-}
-```
-
-### Example
-
-#### Query
-
-```
-GET /api/users/?sort=-age&select=name,email,groups.name&filter={filterObject}
-```
-
-```json
-{
-  "name": {
-    "$like": "test%",
-    "$neq": "test2"
-  },
-  "$or": [
-    {
-      "email": {
-        "$neq": "test",
-        "$like": "test%"
-      },
-      "age": {
-        "$lt": 10
-      }
-    },
-    {
-      "age": 5
-    },
-    {
-      "$and": [
-        {
-          "name": {
-            "$neq": "test2"
-          }
-        },
-        {
-          "age": 5
-        }
-      ]
-    }
-  ]
-}
-
-```
-
-#### Update
-
-```
-PUT /api/users/1
-```
-
-```json
-{
-  "name": "John Doe",
-  "age": 30,
-  "room": { "id": 2 },
-  "pets": [ { "id": 2 }, { "id": 3 } ],
-  "groups": [ { "id": 4 }, { "id": 5 } ],
-  "$set": {
-    "bio": "Hello World",
-    "address": "123 Main St",
-    "sub_room": { "id": 2 },
-    "sub_pets": [ { "id": 2 }, { "id": 3 } ],
-    "sub_groups": [ { "id": 4 }, { "id": 5 } ]
-  },
-  "$clear": {
-    "bio": true,
-    "address": true,
-    "room": true,
-    "sub_pets": true,
-    "sub_groups": true,
-    "pets": [ { "id": 2 }, { "id": 3 } ],
-    "groups": [ { "id": 4 }, { "id": 5 } ]
-  },
-  "$add": {
-    "pets": [ { "id": 2 }, { "id": 3 } ],
-    "groups": [ { "id": 4 }, { "id": 5 } ],
-    "age": 1,
-    "salary": 1000
-  },
-  "$expr": {
-    "bio": "LOWER(`bio`)",
-    "address": "CONCAT(`address`, ' ', `city`, ' ', `state`, ' ', `zip`)"
-  }
-}
-```
-
-## Extend
-
-FastSchema is a flexible and extensible application that allows you to customize and extend its functionality to meet your specific requirements. This guide provides an overview of the different ways you can extend FastSchema, including customizing the API, adding new features, and integrating with third-party services.
-
-### Using FastSchema as a module
+## Web Framework
 
 ```go
 package main
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/fastschema/fastschema"
-	"github.com/fastschema/fastschema/app"
-	"github.com/fastschema/fastschema/schema"
+	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 )
 
 func main() {
-	newApp, err := fastschema.New(&fastschema.AppConfig{})
+	app, _ := fastschema.New(&fs.Config{
+		SystemSchemas: []any{Tag{}, Blog{}},
+	})
 
-	if err != nil {
-		panic(err)
-	}
+	app.API().Add(fs.Post("/blogvote", func(c fs.Context, vote *Payload) (*Response, error) {
+		_, err := db.Mutation[Blog](app.DB()).
+			Where(db.EQ("id", vote.ID)).
+			Update(c.Context(), fs.Map{
+				"$expr": fs.Map{"vote": "vote + 1"},
+			})
 
-	newApp.AddResource(
-		app.NewResource("home", func(c app.Context, _ any) (any, error) {
-			return "Welcome to fastschema", nil
-		}, app.Meta{Get: "/"}),
-	)
+		return &Response{
+			Success: err == nil,
+			Message: fmt.Sprintf("Vote for %d: %v", vote.ID, err),
+		}, nil
+	}))
 
-	newApp.OnAfterDBContentList(
-    func(query *app.QueryOptions, entities []*schema.Entity) ([]*schema.Entity, error) {
-      if query.Model.Schema().Name != "file" {
-        return entities, nil
-      }
-
-      for _, entity := range entities {
-        entity.Set("custom", true)
-      }
-
-      return entities, nil
-    },
-  )
-
-	newApp.Start()
+	log.Fatal(app.Start())
 }
 ```
+
+## Features
+
+Fastschema offers a comprehensive suite of features designed to streamline and simplify the process of building and managing dynamic web applications.
+
+- **Automated Database Generation:** FastSchema automatically generates the necessary database tables based on your schema definition with flexible relationships model, eliminating the need for manual setup.
+
+- **RESTful API Generation:** RESTful APIs are automatically generated based on the schema definition. Whenever you create or update a schema, the corresponding API endpoints are updated accordingly.
+
+- **Dynamic Content Modeling:** Easily create and modify content models through the intuitive admin UI, with changes reflected instantly in the schema definition file.
+
+- **Built-in File Management:** FastSchema provides a built-in file manager to manage media assets, enabling you to upload, organize, and serve files seamlessly.
+
+- **Built-in Admin Control Panel:** FastSchema comes with a built-in admin control panel that allows you to manage content, users, manage permissions, and more.
+
+- **Database Support:** MySQL, PostgreSQL, SQLite.
+
+- **Role-Based Access Control:** Define roles and permissions to control access to content and features.
+
+- **OpenAPI Specification (OAS) Generation:** FastSchema automatically generates OpenAPI Specification (OAS) documentation for your APIs, making it easy to understand and consume your APIs.
+
+- **Extensible and Flexible:** Extend and customize FastSchema with Go code, build extensive features by leveraging the power of Resources, Hooks, ORM, and more.
+
+## Documentation
+
+For more information on how to get started with FastSchema, check out our [documentation](https://fastschema.com).
 
 
 ## Roadmap
 
-* [ ] Improve documentation and testing.
-* [ ] Add auth provider.
-* [ ] Plugin system.
-* [ ] OpenAPI generator.
-* [ ] Real-time updates.
-* [ ] GraphQL support.
-* [ ] Webhooks.
-* [ ] Client SDKs.
-
+- [x] Improve documentation and testing.
+- [ ] Add auth provider.
+- [ ] Plugin system.
+- [x] OpenAPI generator.
+- [ ] Real-time updates.
+- [ ] GraphQL support.
+- [ ] Webhooks.
+- [ ] Client SDKs.
 
 ## Testing
 
 FastSchema comes with a suite of automated tests to ensure the stability and reliability of the platform.
 
-*Fastschema come with integration tests that require a database connection. You can use the following command to create DB containers.*
+_Fastschema come with integration tests that require a database connection. You can use the following command to create DB containers._
 
 ```bash
 cd tests/integration
@@ -312,21 +177,6 @@ You can skip the integration tests by running tests for packages only.
 ```bash
 ./tests/test.sh ./schema
 ```
-
-
-## Known Issues
-
-### Rename M2M field
-
-Rename M2M field is depend on the column rename. Fastschema migrations is built on top of the Ent migrations.
-Ent use ariga.io/atlast and it cause error with sqlite (ariga.io/atlas@v0.21.1/sql/sqlite/migrate.go.modifyTable).
-
-Currently, Atlas sqlite driver need to perform copyRows to a temporary table. But it use the `new` column name to copy the rows. This column is not existed in the table, because it's not renamed yet. This will cause the error: `SQL logic error: no such column:`.
-
-The problem seem to be fixed in this PR: https://github.com/ariga/atlas/pull/2672
-
-
-```bash
 
 ## Dependencies
 
