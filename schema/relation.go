@@ -138,6 +138,7 @@ func (r *Relation) CreateFKFields() *Field {
 	fk := r.GetTargetFKColumn()
 	fkField := &Field{
 		IsSystemField: true,
+		IsLocked:      true,
 		Type:          TypeUint64,
 		Name:          fk,
 		Label:         fk,

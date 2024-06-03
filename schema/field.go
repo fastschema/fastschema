@@ -26,7 +26,10 @@ type Field struct {
 	Relation   *Relation      `json:"relation,omitempty"`   // relation of the field.
 	DB         *FieldDB       `json:"db,omitempty"`         // db config for the field.
 
+	// SystemField is field created from Go code, not from user schema.
 	IsSystemField bool `json:"is_system_field,omitempty"` // Is a system field.
+	// Lock flag to prevent the field from being modified from API.
+	IsLocked bool `json:"is_locked,omitempty"` // Is a locked field.
 }
 
 // Init initializes the field.
@@ -62,6 +65,7 @@ func (f *Field) Clone() *Field {
 		Sortable:      f.Sortable,
 		Filterable:    f.Filterable,
 		IsSystemField: f.IsSystemField,
+		IsLocked:      f.IsLocked,
 		Relation:      f.Relation.Clone(),
 		DB:            f.DB.Clone(),
 	}
@@ -207,6 +211,7 @@ func MergeFields(f1, f2 *Field) {
 	f1.Sortable = f2.Sortable
 	f1.Filterable = f2.Filterable
 	f1.IsSystemField = f2.IsSystemField
+	f1.IsLocked = f2.IsLocked
 }
 
 func ErrInvalidFieldValue(fieldName string, value any, errs ...error) error {
