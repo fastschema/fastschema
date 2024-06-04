@@ -14,8 +14,9 @@ coverage:
 
 # Ignoring Paths
 ignore:
-  - dash
   - cmd
+  - dash
+  - examples
   - tests
 
 # Pull request comments:
