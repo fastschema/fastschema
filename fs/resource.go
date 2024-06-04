@@ -3,15 +3,12 @@ package fs
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
-
-var resourceNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_:/]+$`)
 
 type StaticFs struct {
 	Root       http.FileSystem
@@ -493,11 +490,6 @@ func (r *Resource) Init() error {
 	// check empty resource name
 	if r.name == "" {
 		return errors.New("Resource name cannot be empty")
-	}
-
-	// check resource name to match resourceNameRegexp
-	if !resourceNameRegexp.MatchString(r.name) {
-		return fmt.Errorf("Resource name must match %s, got %s", resourceNameRegexp.String(), r.name)
 	}
 
 	// check current resource and all sub resources to prevent duplicate resource id

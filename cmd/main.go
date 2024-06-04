@@ -60,12 +60,6 @@ func main() {
 						Dir: c.Args().Get(0),
 					}))
 
-					app.AddResource(
-						fs.NewResource("home", func(c fs.Context, _ any) (any, error) {
-							return "Welcome to fastschema", nil
-						}, &fs.Meta{Get: "/"}),
-					)
-
 					return app.Start()
 				},
 			},

@@ -437,6 +437,14 @@ func (a *App) getDefaultDBClient() (err error) {
 		}
 	}
 
+	if !utils.Contains(db.SupportDrivers, a.config.DBConfig.Driver) {
+		return fmt.Errorf("unsupported database driver: %s", a.config.DBConfig.Driver)
+	}
+
+	if a.config.DBConfig.MigrationDir == "" {
+		a.config.DBConfig.MigrationDir = a.migrationDir
+	}
+
 	// If driver is sqlite and the DB_NAME (file path) is not set,
 	// Set the DB_NAME to the default sqlite db file path.
 	if a.config.DBConfig.Driver == "sqlite" && a.config.DBConfig.Name == "" {
@@ -479,7 +487,7 @@ func (a *App) getDefaultDisk() (err error) {
 
 	defaultDiskName := a.config.StorageConfig.DefaultDisk
 	if defaultDiskName == "" {
-		defaultDiskName = utils.Env("STORAGE_DEFAULT_DISK", "public")
+		defaultDiskName = utils.Env("STORAGE_DEFAULT_DISK", "")
 	}
 
 	storageDisksConfig := a.config.StorageConfig.DisksConfig
@@ -491,6 +499,9 @@ func (a *App) getDefaultDisk() (err error) {
 
 	// if threre is no disk config, add a default disk
 	if storageDisksConfig == nil {
+		if defaultDiskName == "" {
+			defaultDiskName = "public"
+		}
 		storageDisksConfig = []*fs.DiskConfig{{
 			Name:       "public",
 			Driver:     "local",

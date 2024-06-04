@@ -49,20 +49,16 @@ func TestMangerInitError(t *testing.T) {
 }
 
 func TestResourceInitErrorName(t *testing.T) {
-	r1 := fs.NewResource("test-aaa", ResourceResolver1)
-	err := r1.Init()
-	assert.Error(t, err, "Init should return an error")
-
 	r2 := fs.NewResource("test", ResourceResolver1)
 	r2Sub1 := fs.NewResource("sub1", ResourceResolver1)
 	r2Sub2 := fs.NewResource("sub1", ResourceResolver1)
 	r2.Add(r2Sub1)
 	r2.Add(r2Sub2)
-	err = r2.Init()
+	err := r2.Init()
 	assert.Error(t, err, "Init should return an error")
 
 	r2.Remove(r2Sub2)
-	r2Sub2 = fs.NewResource("sub-2", ResourceResolver1)
+	r2Sub2 = fs.NewResource("", ResourceResolver1)
 	r2.Add(r2Sub2)
 	err = r2.Init()
 	assert.Error(t, err, "Init should return an error")

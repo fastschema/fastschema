@@ -90,7 +90,11 @@ func (e *Entity) Keys() []string {
 
 // String returns the string representation of the entity.
 func (e *Entity) String() string {
-	str, _ := e.ToJSON()
+	str, err := e.ToJSON()
+	if err != nil {
+		return fmt.Errorf("cannot convert entity to string: %w", err).Error()
+	}
+
 	return str
 }
 
