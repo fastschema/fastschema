@@ -487,7 +487,7 @@ func (a *App) getDefaultDisk() (err error) {
 
 	defaultDiskName := a.config.StorageConfig.DefaultDisk
 	if defaultDiskName == "" {
-		defaultDiskName = utils.Env("STORAGE_DEFAULT_DISK", "public")
+		defaultDiskName = utils.Env("STORAGE_DEFAULT_DISK", "")
 	}
 
 	storageDisksConfig := a.config.StorageConfig.DisksConfig
@@ -499,6 +499,9 @@ func (a *App) getDefaultDisk() (err error) {
 
 	// if threre is no disk config, add a default disk
 	if storageDisksConfig == nil {
+		if defaultDiskName == "" {
+			defaultDiskName = "public"
+		}
 		storageDisksConfig = []*fs.DiskConfig{{
 			Name:       "public",
 			Driver:     "local",

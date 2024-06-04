@@ -482,7 +482,7 @@ func TestFastSchemaCustomConfiguration(t *testing.T) {
 			Driver: "sqlite",
 		},
 		StorageConfig: &fs.StorageConfig{
-			DefaultDisk: "local_public",
+			// DefaultDisk: "local_public",
 			DisksConfig: []*fs.DiskConfig{
 				{
 					Name:       "local_public",
@@ -505,7 +505,7 @@ func TestFastSchemaCustomConfiguration(t *testing.T) {
 	assert.NotNil(t, app.DB())
 
 	go func() {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		err := app.Shutdown()
 		assert.NoError(t, err)
 	}()
