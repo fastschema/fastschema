@@ -510,5 +510,5 @@ func TestFastSchemaCustomConfiguration(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	app.Start()
+	_ = app.Start()
 }
