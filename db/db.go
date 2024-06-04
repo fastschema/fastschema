@@ -13,6 +13,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// SupportDrivers returns list of supported drivers.
+var SupportDrivers = []string{"mysql", "pgx", "sqlite"}
+
 type Hooks struct {
 	PostDBGet []PostDBGet
 }

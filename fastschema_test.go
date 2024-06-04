@@ -472,3 +472,43 @@ func TestFastschemaStart(t *testing.T) {
 
 	assert.NoError(t, a.Start())
 }
+
+func TestFastSchemaCustomConfiguration(t *testing.T) {
+	clearEnvs(t)
+	config := &fs.Config{
+		HideResourcesInfo: false,
+		Dir:               t.TempDir(),
+		DBConfig: &db.Config{
+			Driver: "sqlite",
+		},
+		StorageConfig: &fs.StorageConfig{
+			DefaultDisk: "local_public",
+			DisksConfig: []*fs.DiskConfig{
+				{
+					Name:       "local_public",
+					Driver:     "local",
+					Root:       "./public",
+					BaseURL:    "http://localhost:8000/files",
+					PublicPath: "/files", // This will expose the files in the public path
+				},
+				{
+					Name:   "local_private",
+					Driver: "local",
+					Root:   "./private",
+				},
+			},
+		},
+	}
+	app, err := fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.DB())
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		err := app.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	app.Start()
+}

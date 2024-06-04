@@ -437,6 +437,14 @@ func (a *App) getDefaultDBClient() (err error) {
 		}
 	}
 
+	if !utils.Contains(db.SupportDrivers, a.config.DBConfig.Driver) {
+		return fmt.Errorf("unsupported database driver: %s", a.config.DBConfig.Driver)
+	}
+
+	if a.config.DBConfig.MigrationDir == "" {
+		a.config.DBConfig.MigrationDir = a.migrationDir
+	}
+
 	// If driver is sqlite and the DB_NAME (file path) is not set,
 	// Set the DB_NAME to the default sqlite db file path.
 	if a.config.DBConfig.Driver == "sqlite" && a.config.DBConfig.Name == "" {

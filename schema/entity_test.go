@@ -759,6 +759,10 @@ func TestNamedEntity(t *testing.T) {
 
 	// Assert that the entity can get a string value
 	assert.Equal(t, "default", entity.GetString("nonexistent", "default"))
+
+	// Assert that entity String() returns an error
+	entity.Set("key", make(chan int))
+	assert.Contains(t, entity.String(), "cannot convert entity to string")
 }
 
 func TestEntityName(t *testing.T) {
