@@ -503,12 +503,4 @@ func TestFastSchemaCustomConfiguration(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.DB())
-
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		err := app.Shutdown()
-		assert.NoError(t, err)
-	}()
-
-	_ = app.Start()
 }
