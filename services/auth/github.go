@@ -1,150 +1,150 @@
 package authservice
 
-import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
+// import (
+// 	"bytes"
+// 	"encoding/json"
+// 	"fmt"
+// 	"io/ioutil"
+// 	"net/http"
 
-	"github.com/fastschema/fastschema/fs"
-	userservice "github.com/fastschema/fastschema/services/user"
+// 	"github.com/fastschema/fastschema/fs"
+// 	userservice "github.com/fastschema/fastschema/services/user"
 
-	"golang.org/x/oauth2"
-)
-
-// const (
-// 	GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
-// 	GITHUB_USER_URL         = "https://api.github.com/user"
+// 	"golang.org/x/oauth2"
 // )
 
-type GithubAccessTokenResponse struct {
-	Scope       string `json:"scope"`
-	TokenType   string `json:"token_type"`
-	AccessToken string `json:"access_token"`
-}
+// // const (
+// // 	GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
+// // 	GITHUB_USER_URL         = "https://api.github.com/user"
+// // )
 
-type GithubUserResponse struct {
-	Login     string `json:"login"`
-	ID        int    `json:"id"`
-	AvatarURL string `json:"avatar_url"`
-	Name      string `json:"name"`
-	Blog      string `json:"blog"`
-	Email     string `json:"email"`
-	Bio       string `json:"bio"`
-}
+// type GithubAccessTokenResponse struct {
+// 	Scope       string `json:"scope"`
+// 	TokenType   string `json:"token_type"`
+// 	AccessToken string `json:"access_token"`
+// }
 
-func (as *AuthService) Name() string {
-	return "github"
-}
+// type GithubUserResponse struct {
+// 	Login     string `json:"login"`
+// 	ID        int    `json:"id"`
+// 	AvatarURL string `json:"avatar_url"`
+// 	Name      string `json:"name"`
+// 	Blog      string `json:"blog"`
+// 	Email     string `json:"email"`
+// 	Bio       string `json:"bio"`
+// }
 
-func (as *AuthService) GetGithubAccessToken(code string) (string, error) {
-	requestBody := map[string]string{
-		"code":          code,
-		"client_id":     as.OAuthGithub.config.ClientID,
-		"client_secret": as.OAuthGithub.config.ClientSecret,
-	}
-	requestJSON, _ := json.Marshal(requestBody)
-	req, err := http.NewRequest(
-		"POST",
-		as.AuthConfigs.Providers.Github.AccessTokenURL,
-		bytes.NewBuffer(requestJSON),
-	)
+// func (as *AuthService) Name() string {
+// 	return "github"
+// }
 
-	if err != nil {
-		return "", err
-	}
+// func (as *AuthService) GetGithubAccessToken(code string) (string, error) {
+// 	requestBody := map[string]string{
+// 		"code":          code,
+// 		"client_id":     as.OAuthGithub.config.ClientID,
+// 		"client_secret": as.OAuthGithub.config.ClientSecret,
+// 	}
+// 	requestJSON, _ := json.Marshal(requestBody)
+// 	req, err := http.NewRequest(
+// 		"POST",
+// 		as.AuthConfigs.Providers.Github.AccessTokenURL,
+// 		bytes.NewBuffer(requestJSON),
+// 	)
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
+// 	req.Header.Set("Content-Type", "application/json")
+// 	req.Header.Set("Accept", "application/json")
 
-	body, err := ioutil.ReadAll(resp.Body)
+// 	resp, err := http.DefaultClient.Do(req)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	defer resp.Body.Close()
 
-	if err != nil {
-		return "", err
-	}
+// 	body, err := ioutil.ReadAll(resp.Body)
 
-	var accessTokenResponse GithubAccessTokenResponse
-	if err := json.Unmarshal(body, &accessTokenResponse); err != nil {
-		return "", err
-	}
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	return accessTokenResponse.AccessToken, nil
-}
+// 	var accessTokenResponse GithubAccessTokenResponse
+// 	if err := json.Unmarshal(body, &accessTokenResponse); err != nil {
+// 		return "", err
+// 	}
 
-func (as *AuthService) GetGithubUser(accessToken string) (*GithubUserResponse, error) {
-	req, err := http.NewRequest(
-		"GET",
-		as.AuthConfigs.Providers.Github.UserURL,
-		nil,
-	)
+// 	return accessTokenResponse.AccessToken, nil
+// }
 
-	if err != nil {
-		return nil, err
-	}
+// func (as *AuthService) GetGithubUser(accessToken string) (*GithubUserResponse, error) {
+// 	req, err := http.NewRequest(
+// 		"GET",
+// 		as.AuthConfigs.Providers.Github.UserURL,
+// 		nil,
+// 	)
 
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", accessToken))
-	resp, err := http.DefaultClient.Do(req)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	if err != nil {
-		return nil, err
-	}
+// 	req.Header.Set("Authorization", fmt.Sprintf("token %s", accessToken))
+// 	resp, err := http.DefaultClient.Do(req)
 
-	body, err := ioutil.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	if err != nil {
-		return nil, err
-	}
+// 	body, err := ioutil.ReadAll(resp.Body)
 
-	userResponse := &GithubUserResponse{}
-	if err := json.Unmarshal(body, userResponse); err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return userResponse, nil
-}
+// 	userResponse := &GithubUserResponse{}
+// 	if err := json.Unmarshal(body, userResponse); err != nil {
+// 		return nil, err
+// 	}
+// 	defer resp.Body.Close()
 
-func (as *AuthService) GetGithubUserFromAccessCode(code string) (*GithubUserResponse, error) {
-	accessToken, err := as.GetGithubAccessToken(code)
-	if err != nil {
-		return nil, err
-	}
+// 	return userResponse, nil
+// }
 
-	return as.GetGithubUser(accessToken)
-}
+// func (as *AuthService) GetGithubUserFromAccessCode(code string) (*GithubUserResponse, error) {
+// 	accessToken, err := as.GetGithubAccessToken(code)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-func (as *AuthService) LoginGithub(c fs.Context, _ any) (err error) {
-	url := as.OAuthGithub.config.AuthCodeURL(
-		as.AuthConfigs.Providers.Github.StateCode,
-		oauth2.AccessTypeOffline,
-		oauth2.SetAuthURLParam("scope", "user:email"),
-	)
-	return c.Redirect(url)
-}
+// 	return as.GetGithubUser(accessToken)
+// }
 
-func (as *AuthService) CallbackGithub(c fs.Context, _ any) (u *userservice.LoginResponse, err error) {
-	if c.Arg("code") == "" {
-		return nil, fmt.Errorf("code is empty")
-	}
+// func (as *AuthService) LoginGithub(c fs.Context, _ any) (err error) {
+// 	url := as.OAuthGithub.config.AuthCodeURL(
+// 		as.AuthConfigs.Providers.Github.StateCode,
+// 		oauth2.AccessTypeOffline,
+// 		oauth2.SetAuthURLParam("scope", "user:email"),
+// 	)
+// 	return c.Redirect(url)
+// }
 
-	if c.Arg("state") != as.AuthConfigs.Providers.Github.StateCode {
-		return nil, fmt.Errorf("invalid oauth Github state")
-	}
+// func (as *AuthService) CallbackGithub(c fs.Context, _ any) (u *userservice.LoginResponse, err error) {
+// 	if c.Arg("code") == "" {
+// 		return nil, fmt.Errorf("code is empty")
+// 	}
 
-	githubUser, err := as.GetGithubUserFromAccessCode(c.Arg("code"))
+// 	if c.Arg("state") != as.AuthConfigs.Providers.Github.StateCode {
+// 		return nil, fmt.Errorf("invalid oauth Github state")
+// 	}
 
-	if err != nil {
-		return nil, err
-	}
-	providerUsers := ProviderUsers{
-		Github: *githubUser,
-	}
-	return as.processLoginResponse(c, providerUsers, Github)
-}
+// 	githubUser, err := as.GetGithubUserFromAccessCode(c.Arg("code"))
+
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	providerUsers := ProviderUsers{
+// 		Github: *githubUser,
+// 	}
+// 	return as.processLoginResponse(c, providerUsers, Github)
+// }

@@ -13,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/openapi"
@@ -34,6 +35,10 @@ import (
 
 //go:embed all:dash/*
 var embedDashStatic embed.FS
+var createAuthProvidersFn = map[string]fs.CreateAuthProviderFunc{
+	"github": auth.NewGithubAuthProvider,
+	"google": auth.NewGoogleAuthProvider,
+}
 
 type App struct {
 	config          *fs.Config
@@ -57,13 +62,15 @@ type App struct {
 	startupMessages []string
 	statics         []*fs.StaticFs
 	openAPISpec     []byte
+	authProviders   map[string]fs.AuthProvider
 }
 
 func New(config *fs.Config) (_ *App, err error) {
 	a := &App{
-		config: config.Clone(),
-		disks:  []fs.Disk{},
-		roles:  []*fs.Role{},
+		config:        config.Clone(),
+		disks:         []fs.Disk{},
+		roles:         []*fs.Role{},
+		authProviders: map[string]fs.AuthProvider{},
 		hooks: &fs.Hooks{
 			DBHooks: &db.Hooks{},
 		},
@@ -94,6 +101,10 @@ func (a *App) init() (err error) {
 	}
 
 	if err = a.getDefaultLogger(); err != nil {
+		return err
+	}
+
+	if err := a.getAuthProviders(); err != nil {
 		return err
 	}
 
@@ -192,6 +203,10 @@ func (a *App) init() (err error) {
 
 func (a *App) Config() *fs.Config {
 	return a.config
+}
+
+func (a *App) GetAuthProvider(name string) fs.AuthProvider {
+	return a.authProviders[name]
 }
 
 func (a *App) Key() string {
@@ -547,6 +562,33 @@ func (a *App) createSchemaBuilder() (err error) {
 	return nil
 }
 
+func (a *App) getAuthProviders() (err error) {
+	if a.config.AuthConfig == nil {
+		return nil
+	}
+
+	for name, config := range a.config.AuthConfig.Providers {
+		if !utils.Contains(a.config.AuthConfig.EnabledProviders, name) {
+			continue
+		}
+
+		redirectURL := fmt.Sprintf("%s/auth/%s/callback", a.config.BaseURL, name)
+		createProviderFn, ok := createAuthProvidersFn[name]
+		if !ok {
+			return fmt.Errorf("auth provider [%s] is not supported", name)
+		}
+
+		provider, err := createProviderFn(config, redirectURL)
+		if err != nil {
+			return err
+		}
+
+		a.authProviders[name] = provider
+	}
+
+	return nil
+}
+
 func (a *App) createResources() error {
 	userService := us.New(a)
 	roleService := rs.New(a)
@@ -581,17 +623,23 @@ func (a *App) createResources() error {
 			Public: true,
 		}))
 
-	if utils.Env("AUTH") != "" {
-		a.api.Group("auth").
-			Add(fs.NewResource("login", authService.Login, &fs.Meta{
-				Get:    "/:provider",
-				Public: true,
-			})).
-			Add(fs.NewResource("callback", authService.Callback, &fs.Meta{
-				Get:    "/:provider/callback",
-				Public: true,
-			}))
+	if len(a.authProviders) > 0 {
+		a.api.Group("auth", &fs.Meta{
+			Prefix: "/auth/:provider",
+			Args: fs.Args{
+				"provider": {
+					Required:    true,
+					Type:        fs.TypeString,
+					Description: "The auth provider name",
+					Example:     "google",
+				},
+			},
+		}).Add(
+			fs.Get("login", authService.Login, &fs.Meta{Public: true}),
+			fs.Get("callback", authService.Callback, &fs.Meta{Public: true}),
+		)
 	}
+
 	a.api.Group("schema").
 		Add(fs.NewResource("list", schemaService.List, &fs.Meta{Get: "/"})).
 		Add(fs.NewResource("create", schemaService.Create, &fs.Meta{Post: "/"})).
@@ -770,6 +818,13 @@ func (a *App) prepareConfig() (err error) {
 			a.startupMessages,
 			fmt.Sprintf("APP_KEY is not set. A new key is generated and saved to %s", envFile),
 		)
+	}
+
+	if a.config.AuthConfig == nil && utils.Env("AUTH") != "" {
+		fmt.Println(utils.Env("AUTH"))
+		if err := json.Unmarshal([]byte(utils.Env("AUTH")), &a.config.AuthConfig); err != nil {
+			return err
+		}
 	}
 
 	return nil
