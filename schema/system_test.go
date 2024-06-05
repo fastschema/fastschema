@@ -80,7 +80,7 @@ func TestCreateSchemaFieldTagEnums(t *testing.T) {
 	// Case 1: Invalid enum values
 	type Category1 struct {
 		Name     string `json:"name"`
-		Statuses string `json:"statuses" fs:"type=enum" fs.enums:"invalid"`
+		Statuses string `json:"statuses" fs.enums:"invalid"`
 	}
 
 	ss, err := schema.CreateSchema(Category1{})
@@ -90,7 +90,7 @@ func TestCreateSchemaFieldTagEnums(t *testing.T) {
 	// Case 2: Success
 	type Category2 struct {
 		Name     string `json:"name"`
-		Statuses string `json:"statuses" fs:"type=enum" fs.enums:"[{'value':'active','label':'Active'},{'value':'inactive','label':'Inactive'}]"`
+		Statuses string `json:"statuses" fs.enums:"[{'value':'active','label':'Active'},{'value':'inactive','label':'Inactive'}]"`
 	}
 
 	ss, err = schema.CreateSchema(Category2{})
@@ -121,7 +121,7 @@ func TestCreateSchemaFieldTagRelation(t *testing.T) {
 	// Case 1: Invalid enum values
 	type Category1 struct {
 		Name  string `json:"name"`
-		Posts string `json:"statuses" fs:"type=relation" fs.relation:"invalid"`
+		Posts string `json:"statuses" fs.relation:"invalid"`
 	}
 
 	ss, err := schema.CreateSchema(Category1{})
@@ -131,7 +131,7 @@ func TestCreateSchemaFieldTagRelation(t *testing.T) {
 	// Case 2: Success
 	type Category2 struct {
 		Name  string `json:"name"`
-		Posts string `json:"posts" fs:"type=relation" fs.relation:"{'type':'o2m','schema':'post','field':'category','owner':true,'optional':true}"`
+		Posts string `json:"posts" fs.relation:"{'type':'o2m','schema':'post','field':'category','owner':true,'optional':true}"`
 	}
 
 	ss, err = schema.CreateSchema(Category2{})
@@ -396,10 +396,10 @@ func TestCreateSchemaWithComplexField(t *testing.T) {
 		IgnoreSliceInt [][]int    // This field will be ignored
 		SliceUint32    [][]uint32 `json:"slice_uint32" fs:"type=json"`
 		SliceString    []string   `json:"slice_string" fs:"type=json"`
-		Enum           string     `json:"enum" fs:"type=enum" fs.enums:"[{'value':'k1','label':'Value 1'},{'value':'k2','label':'Value 2'}]"`
+		Enum           string     `json:"enum" fs.enums:"[{'value':'k1','label':'Value 1'},{'value':'k2','label':'Value 2'}]"`
 		IgnoreLanguage Language   `json:"ignore_language"`
-		Language       Language   `json:"language" fs:"type=relation" fs.relation:"{'type':'o2m','schema':'language','field':'categories'}"`
-		Posts          []*Post    `json:"posts" fs:"type=relation" fs.relation:"{'type':'o2m','owner':true,'optional':true,'schema':'post','field':'category'}"`
+		Language       Language   `json:"language" fs.relation:"{'type':'o2m','schema':'language','field':'categories'}"`
+		Posts          []*Post    `json:"posts" fs.relation:"{'type':'o2m','owner':true,'optional':true,'schema':'post','field':'category'}"`
 		IgnorePosts    []*Post    `ignore_json:"posts"`
 	}
 

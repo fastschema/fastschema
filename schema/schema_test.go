@@ -32,6 +32,7 @@ func TestSchema(t *testing.T) {
 		Filterable:    true,
 		Sortable:      true,
 		IsSystemField: true,
+		IsLocked:      true,
 	}, s.Field(FieldID))
 	assert.True(t, len(s.dbColumns) > 0)
 
@@ -126,39 +127,6 @@ func TestNewSchemaFromJSON(t *testing.T) {
 			}
 		]
 	}`
-
-	// expectedSchema := &Schema{
-	// 	Name:             "test",
-	// 	Namespace:        "test_namespace",
-	// 	LabelFieldName:   "name",
-	// 	DisableTimestamp: true,
-	// 	Fields: []*Field{
-	// 		{
-	// 			Name:          "id",
-	// 			Type:          TypeUint64,
-	// 			Label:         "ID",
-	// 			IsSystemField: true,
-	// 			Unique:        true,
-	// 			Filterable:    true,
-	// 			Sortable:      true,
-	// 			DB: &FieldDB{
-	// 				Attr:      "UNSIGNED",
-	// 				Key:       "UNI",
-	// 				Increment: true,
-	// 			},
-	// 		},
-	// 		{
-	// 			Name:          "name",
-	// 			Type:          TypeString,
-	// 			Label:         "Name",
-	// 			Unique:        true,
-	// 			Sortable:      true,
-	// 			IsSystemField: false,
-	// 		},
-	// 	},
-	// 	IsSystemSchema:   false,
-	// 	IsJunctionSchema: false,
-	// }
 
 	schema, err = NewSchemaFromJSON(jsonData)
 	assert.NoError(t, err)
@@ -349,7 +317,7 @@ func TestSchemaValidate(t *testing.T) {
 	s.Fields = []*Field{}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "fields is required")
+	assert.Contains(t, err.Error(), "label field 'name' is not found")
 
 	// Test missing field name
 	s.Fields = []*Field{

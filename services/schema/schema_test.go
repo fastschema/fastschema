@@ -9,7 +9,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	schemaservice "github.com/fastschema/fastschema/services/schema"
@@ -153,7 +153,7 @@ type testSchemaSeviceConfig struct {
 func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	*testApp,
 	*schemaservice.SchemaService,
-	*restresolver.Server,
+	*restfulresolver.Server,
 ) {
 	var reloadFn func(*db.Migration) error
 	schemaDir := t.TempDir()
@@ -182,7 +182,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	}
 
 	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))
-	sb := utils.Must(schema.NewBuilderFromDir(schemaDir))
+	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(migrationDir, sb))
 	testApp := &testApp{sb: sb, db: db, schemaDir: schemaDir, reloadFn: reloadFn}
 	schemaService := schemaservice.New(testApp)
@@ -206,7 +206,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 		}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := restresolver.NewRestResolver(resources, logger.CreateMockLogger(true))
+	restResolver := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(true))
 
 	return testApp, schemaService, restResolver.Server()
 }

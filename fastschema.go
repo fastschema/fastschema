@@ -17,7 +17,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/openapi"
 	"github.com/fastschema/fastschema/pkg/rclonefs"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/pkg/zaplogger"
 	"github.com/fastschema/fastschema/schema"
@@ -35,42 +35,8 @@ import (
 //go:embed all:dash/*
 var embedDashStatic embed.FS
 
-type AppConfig struct {
-	Dir               string
-	AppKey            string
-	Port              string
-	BaseURL           string
-	DashURL           string
-	APIBaseName       string
-	DashBaseName      string
-	Logger            logger.Logger
-	DB                db.Client
-	StorageConfig     *fs.StorageConfig
-	HideResourcesInfo bool
-	SystemSchemaTypes []any // types to build the system schemas
-}
-
-func (ac *AppConfig) Clone() *AppConfig {
-	c := &AppConfig{
-		Dir:               ac.Dir,
-		AppKey:            ac.AppKey,
-		Port:              ac.Port,
-		BaseURL:           ac.BaseURL,
-		DashURL:           ac.DashURL,
-		APIBaseName:       ac.APIBaseName,
-		DashBaseName:      ac.DashBaseName,
-		Logger:            ac.Logger,
-		DB:                ac.DB,
-		StorageConfig:     ac.StorageConfig.Clone(),
-		HideResourcesInfo: ac.HideResourcesInfo,
-		SystemSchemaTypes: append([]any{}, ac.SystemSchemaTypes...),
-	}
-
-	return c
-}
-
 type App struct {
-	config          *AppConfig
+	config          *fs.Config
 	cwd             string
 	dir             string
 	envFile         string
@@ -80,7 +46,7 @@ type App struct {
 	schemasDir      string
 	migrationDir    string
 	schemaBuilder   *schema.Builder
-	restResolver    *restresolver.RestSolver
+	restResolver    *restfulresolver.RestfulResolver
 	resources       *fs.ResourcesManager
 	api             *fs.Resource
 	hooks           *fs.Hooks
@@ -93,7 +59,7 @@ type App struct {
 	openAPISpec     []byte
 }
 
-func New(config *AppConfig) (_ *App, err error) {
+func New(config *fs.Config) (_ *App, err error) {
 	a := &App{
 		config: config.Clone(),
 		disks:  []fs.Disk{},
@@ -224,7 +190,7 @@ func (a *App) init() (err error) {
 	return nil
 }
 
-func (a *App) Config() *AppConfig {
+func (a *App) Config() *fs.Config {
 	return a.config
 }
 
@@ -311,7 +277,7 @@ func (a *App) Start() error {
 		a.resources.Print()
 	}
 
-	a.restResolver = restresolver.NewRestResolver(a.resources, a.Logger(), a.statics...)
+	a.restResolver = restfulresolver.NewRestfulResolver(a.resources, a.Logger(), a.statics...)
 
 	fmt.Printf("\n")
 	for _, msg := range a.startupMessages {
@@ -453,34 +419,44 @@ func (a *App) getDefaultDBClient() (err error) {
 		return nil
 	}
 
-	dbConfig := &db.Config{
-		Driver:       utils.Env("DB_DRIVER", "sqlite"),
-		Name:         utils.Env("DB_NAME"),
-		User:         utils.Env("DB_USER"),
-		Pass:         utils.Env("DB_PASS"),
-		Host:         utils.Env("DB_HOST"),
-		Port:         utils.Env("DB_PORT"),
-		LogQueries:   utils.Env("DB_LOGGING", "false") == "true",
-		Logger:       a.Logger(),
-		MigrationDir: a.migrationDir,
-		Hooks: func() *db.Hooks {
-			return &db.Hooks{
-				PostDBGet: a.hooks.DBHooks.PostDBGet,
-			}
-		},
+	if a.config.DBConfig == nil {
+		a.config.DBConfig = &db.Config{
+			Driver:       utils.Env("DB_DRIVER", "sqlite"),
+			Name:         utils.Env("DB_NAME"),
+			User:         utils.Env("DB_USER"),
+			Pass:         utils.Env("DB_PASS"),
+			Host:         utils.Env("DB_HOST", "localhost"),
+			Port:         utils.Env("DB_PORT"),
+			LogQueries:   utils.Env("DB_LOGGING", "false") == "true",
+			Logger:       a.Logger(),
+			MigrationDir: a.migrationDir,
+			Hooks: func() *db.Hooks {
+				return &db.Hooks{
+					PostDBGet: a.hooks.DBHooks.PostDBGet,
+				}
+			},
+		}
+	}
+
+	if !utils.Contains(db.SupportDrivers, a.config.DBConfig.Driver) {
+		return fmt.Errorf("unsupported database driver: %s", a.config.DBConfig.Driver)
+	}
+
+	if a.config.DBConfig.MigrationDir == "" {
+		a.config.DBConfig.MigrationDir = a.migrationDir
 	}
 
 	// If driver is sqlite and the DB_NAME (file path) is not set,
 	// Set the DB_NAME to the default sqlite db file path.
-	if dbConfig.Driver == "sqlite" && dbConfig.Name == "" {
-		dbConfig.Name = path.Join(a.dataDir, "fastschema.db")
+	if a.config.DBConfig.Driver == "sqlite" && a.config.DBConfig.Name == "" {
+		a.config.DBConfig.Name = path.Join(a.dataDir, "fastschema.db")
 		a.startupMessages = append(
 			a.startupMessages,
-			fmt.Sprintf("Using default sqlite db file: %s", dbConfig.Name),
+			fmt.Sprintf("Using default sqlite db file: %s", a.config.DBConfig.Name),
 		)
 	}
 
-	if a.config.DB, err = entdbadapter.NewClient(dbConfig, a.schemaBuilder); err != nil {
+	if a.config.DB, err = entdbadapter.NewClient(a.config.DBConfig, a.schemaBuilder); err != nil {
 		return err
 	}
 
@@ -493,10 +469,13 @@ func (a *App) getDefaultDBClient() (err error) {
 
 func (a *App) getDefaultLogger() (err error) {
 	if a.config.Logger == nil {
-		a.config.Logger, err = zaplogger.NewZapLogger(&zaplogger.ZapConfig{
-			Development: true,
-			LogFile:     path.Join(a.dir, "data/logs/app.log"),
-		})
+		if a.config.LoggerConfig == nil {
+			a.config.LoggerConfig = &logger.Config{
+				Development: utils.Env("APP_ENV", "development") == "development",
+				LogFile:     path.Join(a.logDir, "app.log"),
+			}
+		}
+		a.config.Logger, err = zaplogger.NewZapLogger(a.config.LoggerConfig)
 	}
 
 	return err
@@ -509,7 +488,7 @@ func (a *App) getDefaultDisk() (err error) {
 
 	defaultDiskName := a.config.StorageConfig.DefaultDisk
 	if defaultDiskName == "" {
-		defaultDiskName = utils.Env("STORAGE_DEFAULT_DISK")
+		defaultDiskName = utils.Env("STORAGE_DEFAULT_DISK", "")
 	}
 
 	storageDisksConfig := a.config.StorageConfig.DisksConfig
@@ -521,8 +500,11 @@ func (a *App) getDefaultDisk() (err error) {
 
 	// if threre is no disk config, add a default disk
 	if storageDisksConfig == nil {
+		if defaultDiskName == "" {
+			defaultDiskName = "public"
+		}
 		storageDisksConfig = []*fs.DiskConfig{{
-			Name:       "local_public",
+			Name:       "public",
 			Driver:     "local",
 			PublicPath: "/files",
 			BaseURL:    fmt.Sprintf("%s/files", a.config.BaseURL),
@@ -557,7 +539,7 @@ func (a *App) getDefaultDisk() (err error) {
 func (a *App) createSchemaBuilder() (err error) {
 	if a.schemaBuilder, err = schema.NewBuilderFromDir(
 		a.schemasDir,
-		append(fs.SystemSchemaTypes, a.config.SystemSchemaTypes...)...,
+		append(fs.SystemSchemaTypes, a.config.SystemSchemas...)...,
 	); err != nil {
 		return err
 	}

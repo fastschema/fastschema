@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"time"
 
 	atlasMigrate "ariga.io/atlas/sql/migrate"
@@ -12,7 +13,7 @@ import (
 	atlasSchema "ariga.io/atlas/sql/schema"
 	"ariga.io/atlas/sql/sqlite"
 	"entgo.io/ent/dialect"
-	entSql "entgo.io/ent/dialect/sql"
+	dialectsql "entgo.io/ent/dialect/sql"
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -327,12 +328,79 @@ func cloneMigrateTableWithNewName(t *atlasSchema.Table, name string) *atlasSchem
 func NOW(dialect string) any {
 	switch dialect {
 	case "mysql":
-		return entSql.Expr("NOW()")
+		return dialectsql.Expr("NOW()")
 	case "pgx", "postgres":
-		return entSql.Expr("now()")
+		return dialectsql.Expr("now()")
 	case "sqlite", "sqlite3":
-		return entSql.Expr("datetime('now')")
+		return dialectsql.Expr("datetime('now')")
 	}
 
 	return time.Now().Format("2006-01-02 15:04:05")
+}
+
+func isDateTimeColumn(scanType reflect.Type, databaseTypeName string) bool {
+	isStructTime := scanType != nil && scanType.Kind() == reflect.Struct && scanType.String() == "time.Time"
+	isSQLTime := databaseTypeName == "DATETIME"
+	return isStructTime || isSQLTime
+}
+
+func driverExec(
+	driver dialect.Driver,
+	ctx context.Context,
+	query string,
+	args any,
+) (sql.Result, error) {
+	var result = new(sql.Result)
+	if err := driver.Exec(ctx, query, args, result); err != nil {
+		return nil, err
+	}
+
+	return *result, nil
+}
+
+func driverQuery(
+	driver dialect.Driver,
+	ctx context.Context,
+	query string,
+	args any,
+) ([]*schema.Entity, error) {
+	var rows = &dialectsql.Rows{}
+	if err := driver.Query(ctx, query, args, rows); err != nil {
+		return nil, err
+	}
+
+	columns, columnTypes, err := getRowsColumns(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	entities := []*schema.Entity{}
+	for rows.Next() {
+		values := createRowsScanValues(columns, columnTypes)
+		if err := rows.Scan(values...); err != nil {
+			return nil, err
+		}
+
+		entity := schema.NewEntity()
+		for i, column := range columns {
+			scanType := columnTypes[i].ScanType()
+			databaseTypeName := columnTypes[i].DatabaseTypeName()
+
+			if isDateTimeColumn(scanType, databaseTypeName) {
+				if value, ok := values[i].(*sql.NullTime); !ok {
+					return nil, fieldTypeError("Time", values[i])
+				} else if value.Valid {
+					entity.Set(column, value.Time)
+				}
+
+				continue
+			}
+
+			entity.Set(column, values[i])
+		}
+
+		entities = append(entities, entity)
+	}
+
+	return entities, nil
 }

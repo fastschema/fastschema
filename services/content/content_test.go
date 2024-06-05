@@ -8,7 +8,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
-	rr "github.com/fastschema/fastschema/pkg/restresolver"
+	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	cs "github.com/fastschema/fastschema/services/content"
@@ -61,7 +61,7 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 		}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := rr.NewRestResolver(resources, logger.CreateMockLogger(true))
+	restResolver := rr.NewRestfulResolver(resources, logger.CreateMockLogger(true))
 
 	return contentService, restResolver.Server()
 }

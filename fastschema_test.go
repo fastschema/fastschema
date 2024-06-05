@@ -16,7 +16,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
-	"github.com/fastschema/fastschema/pkg/restresolver"
+	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +47,7 @@ func clearEnvs(t *testing.T) {
 // Case 1: Test app custom dir with absolute path
 func TestFastSchemaCustomDirAbsolute(t *testing.T) {
 	clearEnvs(t)
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 	}
@@ -64,7 +64,7 @@ func TestFastSchemaCustomDirAbsolute(t *testing.T) {
 // Case 2: Test app custom dir with relative path
 func TestFastSchemaCustomDirRelative(t *testing.T) {
 	clearEnvs(t)
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               "./",
 	}
@@ -77,7 +77,7 @@ func TestFastSchemaCustomDirRelative(t *testing.T) {
 // Case 3: Test app custom dir with empty path
 func TestFastSchemaCustomDirDefault(t *testing.T) {
 	clearEnvs(t)
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 	}
 	app, err := fastschema.New(config)
@@ -88,7 +88,7 @@ func TestFastSchemaCustomDirDefault(t *testing.T) {
 
 func TestFastSchemaPrepareConfig(t *testing.T) {
 	clearEnvs(t)
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 	}
@@ -117,7 +117,7 @@ func TestFastSchemaPrepareConfig(t *testing.T) {
 
 func TestFastschema(t *testing.T) {
 	clearEnvs(t)
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 	}
@@ -134,7 +134,7 @@ func TestFastschema(t *testing.T) {
 	assert.NotNil(t, app.Hooks())
 	assert.NotEmpty(t, app.Key())
 	assert.NotEmpty(t, app.Disk())
-	assert.NotNil(t, app.Disk("local_public"))
+	assert.NotNil(t, app.Disk("public"))
 	assert.Nil(t, app.Disk("invalid"))
 }
 
@@ -142,13 +142,13 @@ func TestFastschemaDisk(t *testing.T) {
 	clearEnvs(t)
 
 	// Case 1: Default disk
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 	}
 	a := utils.Must(fastschema.New(config))
 	assert.Len(t, a.Disks(), 1)
-	assert.Equal(t, "local_public", a.Disks()[0].Name())
+	assert.Equal(t, "public", a.Disks()[0].Name())
 	assert.Equal(t, path.Join(config.Dir, "data", "public"), a.Disk().Root())
 
 	// Case 2: Invalid disks env
@@ -165,7 +165,7 @@ func TestFastschemaDisk(t *testing.T) {
 
 	// Case 4: Invalid disks config (has no root)
 	clearEnvs(t)
-	_, err = fastschema.New(&fastschema.AppConfig{
+	_, err = fastschema.New(&fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		StorageConfig: &fs.StorageConfig{
@@ -182,7 +182,7 @@ func TestFastschemaDisk(t *testing.T) {
 
 func TestFastschemaLogger(t *testing.T) {
 	clearEnvs(t)
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 	}
@@ -191,7 +191,7 @@ func TestFastschemaLogger(t *testing.T) {
 	assert.NotNil(t, a)
 	assert.NotNil(t, a.Logger())
 
-	config = &fastschema.AppConfig{
+	config = &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		Logger:            logger.CreateMockLogger(true),
@@ -205,7 +205,7 @@ func TestFastschemaLogger(t *testing.T) {
 
 func TestFastschemaDBClient(t *testing.T) {
 	clearEnvs(t)
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 	}
@@ -216,7 +216,7 @@ func TestFastschemaDBClient(t *testing.T) {
 
 	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
-	config = &fastschema.AppConfig{
+	config = &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		DB:                db,
@@ -227,7 +227,7 @@ func TestFastschemaDBClient(t *testing.T) {
 	assert.NotNil(t, a.DB())
 
 	t.Setenv("DB_DRIVER", "invalid")
-	config = &fastschema.AppConfig{
+	config = &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 	}
@@ -245,7 +245,7 @@ func TestFastschemaDBClient(t *testing.T) {
 
 	sb = utils.Must(schema.NewBuilderFromSchemas(t.TempDir(), schemas))
 	db = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
-	config = &fastschema.AppConfig{
+	config = &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		DB:                db,
@@ -256,7 +256,7 @@ func TestFastschemaDBClient(t *testing.T) {
 
 func TestFastschemaReload(t *testing.T) {
 	clearEnvs(t)
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 	}
@@ -273,7 +273,7 @@ func TestFastschemaSetup(t *testing.T) {
 	ctx := context.Background()
 	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
 	tdb := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		DB:                tdb,
@@ -287,7 +287,7 @@ func TestFastschemaSetup(t *testing.T) {
 	clearEnvs(t)
 	sb = utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
 	tdb = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
-	config = &fastschema.AppConfig{
+	config = &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		DB:                tdb,
@@ -295,7 +295,7 @@ func TestFastschemaSetup(t *testing.T) {
 	a, err = fastschema.New(config)
 	assert.NoError(t, err)
 
-	_, err = db.Create[*fs.Role](ctx, a.DB(), schema.NewEntity().Set("name", "admin"))
+	_, err = db.Create[*fs.Role](ctx, a.DB(), fs.Map{"name": "admin"})
 	assert.NoError(t, err)
 
 	setupToken, err := a.SetupToken(ctx)
@@ -311,7 +311,7 @@ func TestFastschemaResources(t *testing.T) {
 	entDB := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb, func() *db.Hooks {
 		return a.Hooks().DBHooks
 	}))
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		DB:                entDB,
@@ -321,7 +321,7 @@ func TestFastschemaResources(t *testing.T) {
 	assert.NotNil(t, a)
 
 	a.AddMiddlewares(func(c fs.Context) error {
-		restContext, ok := c.(*restresolver.Context)
+		restContext, ok := c.(*restfulresolver.Context)
 		assert.True(t, ok)
 
 		if restContext.Path() == "/error" {
@@ -361,7 +361,7 @@ func TestFastschemaResources(t *testing.T) {
 	assert.True(t, len(a.API().Resources()) > 0)
 
 	assert.NoError(t, resources.Init())
-	server := restresolver.NewRestResolver(resources, logger.CreateMockLogger(false)).Server()
+	server := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(false)).Server()
 
 	req := httptest.NewRequest("GET", "/test", nil)
 	resp := utils.Must(server.Test(req))
@@ -451,7 +451,7 @@ func TestFastschemaStart(t *testing.T) {
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb, func() *db.Hooks {
 		return &db.Hooks{}
 	}))
-	config := &fastschema.AppConfig{
+	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		DB:                db,
@@ -471,4 +471,36 @@ func TestFastschemaStart(t *testing.T) {
 	}()
 
 	assert.NoError(t, a.Start())
+}
+
+func TestFastSchemaCustomConfiguration(t *testing.T) {
+	clearEnvs(t)
+	config := &fs.Config{
+		HideResourcesInfo: false,
+		Dir:               t.TempDir(),
+		DBConfig: &db.Config{
+			Driver: "sqlite",
+		},
+		StorageConfig: &fs.StorageConfig{
+			// DefaultDisk: "local_public",
+			DisksConfig: []*fs.DiskConfig{
+				{
+					Name:       "local_public",
+					Driver:     "local",
+					Root:       "./public",
+					BaseURL:    "http://localhost:8000/files",
+					PublicPath: "/files", // This will expose the files in the public path
+				},
+				{
+					Name:   "local_private",
+					Driver: "local",
+					Root:   "./private",
+				},
+			},
+		},
+	}
+	app, err := fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.DB())
 }

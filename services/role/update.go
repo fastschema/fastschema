@@ -58,7 +58,7 @@ func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 		return nil, err
 	}
 
-	if _, err := db.Update[*fs.Role](c.Context(), tx, updateRoleData, db.EQ("id", id)); err != nil {
+	if _, err := db.Update[*fs.Role](c.Context(), tx, updateRoleData, []*db.Predicate{db.EQ("id", id)}); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
@@ -96,10 +96,10 @@ func updateRolePermissions(
 	}
 
 	for _, permissionName := range removed {
-		if _, err := db.Delete[*fs.Permission](ctx, tx, db.And(
+		if _, err := db.Delete[*fs.Permission](ctx, tx, []*db.Predicate{db.And(
 			db.EQ("role_id", existingRole.ID),
 			db.EQ("resource", permissionName),
-		)); err != nil {
+		)}); err != nil {
 			return errors.InternalServerError(err.Error())
 		}
 	}

@@ -43,7 +43,7 @@ func TestNewEntClient(t *testing.T) {
 		return driver
 	}, nil, func(m sqlmock.Sqlmock) {
 		m.ExpectBegin()
-		m.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+		m.ExpectQuery("SELECT 1").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	}, false)
 	require.NoError(t, err)
 	client := dbClient.(EntAdapter)
@@ -59,7 +59,8 @@ func TestNewEntClient(t *testing.T) {
 	assert.Equal(t, false, client.IsTx())
 	assert.Equal(t, nil, client.Rollback())
 	assert.Equal(t, nil, client.Commit())
-	assert.Equal(t, nil, client.Exec(context.Background(), "SELECT 1", []any{}, nil))
+	_, err = client.Query(context.Background(), "SELECT 1", []any{})
+	assert.Equal(t, nil, err)
 }
 
 func TestNewClient(t *testing.T) {

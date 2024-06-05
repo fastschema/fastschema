@@ -29,7 +29,7 @@ type File struct {
 	Type      string     `json:"type,omitempty"`
 	Size      uint64     `json:"size,omitempty"`
 	UserID    uint64     `json:"user_id,omitempty"`
-	User      *User      `json:"user,omitempty" fs:"type=relation" fs.relation:"{'type':'o2m','schema':'user','field':'files','owner':false,'fk_columns':{'target_column':'user_id'}}"`
+	User      *User      `json:"user,omitempty" fs.relation:"{'type':'o2m','schema':'user','field':'files','owner':false,'fk_columns':{'target_column':'user_id'}}"`
 	URL       string     `json:"url,omitempty" fs:"-"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`

@@ -6,7 +6,6 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
-	"github.com/fastschema/fastschema/schema"
 )
 
 func (m *FileService) Upload(c fs.Context, _ any) (_ fs.Map, err error) {
@@ -45,11 +44,12 @@ func (m *FileService) Upload(c fs.Context, _ any) (_ fs.Map, err error) {
 }
 
 func (m *FileService) saveFile(ctx context.Context, file *fs.File, userID uint64) (*fs.File, error) {
-	return db.Create[*fs.File](ctx, m.DB(), schema.NewEntity().
-		Set("disk", file.Disk).
-		Set("name", file.Name).
-		Set("path", file.Path).
-		Set("type", file.Type).
-		Set("size", file.Size).
-		Set("user_id", userID))
+	return db.Create[*fs.File](ctx, m.DB(), fs.Map{
+		"disk":    file.Disk,
+		"name":    file.Name,
+		"path":    file.Path,
+		"type":    file.Type,
+		"size":    file.Size,
+		"user_id": userID,
+	})
 }

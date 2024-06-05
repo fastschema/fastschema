@@ -3,7 +3,6 @@ package fs
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/fastschema/fastschema/pkg/errors"
@@ -11,16 +10,14 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-var resourceNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_:/]+$`)
-
 type StaticFs struct {
 	Root       http.FileSystem
 	BasePath   string
 	PathPrefix string
 }
 
-// ResolverFn is a function that generates a resolver function
-type ResolverFn[Input, Output any] func(c Context, input Input) (Output, error)
+// HandlerFn is a function that generates a resolver function
+type HandlerFn[Input, Output any] func(c Context, input Input) (Output, error)
 
 // Middleware is a function that can be used to add middleware to a resource
 type Middleware func(c Context) error
@@ -76,7 +73,7 @@ type Resource struct {
 	group      bool
 	resources  []*Resource
 	name       string
-	resolver   Resolver
+	handler    Handler
 	meta       *Meta
 	signatures Signatures
 }
@@ -93,13 +90,13 @@ func NewResourcesManager() *ResourcesManager {
 	}
 }
 
-// NewResource creates a new resource with the given name, solverGenerator and meta
+// NewResource creates a new resource with the given name, handler and meta
 //
-//	solverGenerator is a function that generates a resolver function.
+//	handler is a function that takes a context and an input and returns an output and an error
 //	If the solver input type is not "any", the input will be parsed from the context
 func NewResource[Input, Output any](
 	name string,
-	resolver ResolverFn[Input, Output],
+	handler HandlerFn[Input, Output],
 	metas ...*Meta,
 ) *Resource {
 	var inputValue Input
@@ -110,7 +107,7 @@ func NewResource[Input, Output any](
 		name:       name,
 		signatures: []any{inputValue, outputValue},
 		resources:  make([]*Resource, 0),
-		resolver: func(ctx Context) (any, error) {
+		handler: func(ctx Context) (any, error) {
 			var input Input
 			if parseInput {
 				if err := ctx.Parse(&input); err != nil {
@@ -118,7 +115,7 @@ func NewResource[Input, Output any](
 				}
 			}
 
-			return resolver(ctx, input)
+			return handler(ctx, input)
 		},
 	}
 
@@ -127,6 +124,113 @@ func NewResource[Input, Output any](
 	}
 
 	return resource
+}
+
+// {method: "GET", path: meta.Get},
+// {method: "HEAD", path: meta.Head},
+// {method: "POST", path: meta.Post},
+// {method: "PUT", path: meta.Put},
+// {method: "DELETE", path: meta.Delete},
+// {method: "CONNECT", path: meta.Connect},
+// {method: "OPTIONS", path: meta.Options},
+// {method: "TRACE", path: meta.Trace},
+// {method: "PATCH", path: meta.Patch},
+
+func createResourceWithMethod[Input, Output any](
+	name string,
+	method string,
+	resolver HandlerFn[Input, Output],
+	metas ...*Meta,
+) *Resource {
+	if len(metas) == 0 {
+		metas = append(metas, &Meta{})
+	}
+
+	switch method {
+	case "GET":
+		if metas[0].Get == "" {
+			metas[0].Get = name
+		}
+	case "HEAD":
+		if metas[0].Head == "" {
+			metas[0].Head = name
+		}
+	case "POST":
+		if metas[0].Post == "" {
+			metas[0].Post = name
+		}
+	case "PUT":
+		if metas[0].Put == "" {
+			metas[0].Put = name
+		}
+	case "DELETE":
+		if metas[0].Delete == "" {
+			metas[0].Delete = name
+		}
+	case "CONNECT":
+		if metas[0].Connect == "" {
+			metas[0].Connect = name
+		}
+	case "OPTIONS":
+		if metas[0].Options == "" {
+			metas[0].Options = name
+		}
+	case "TRACE":
+		if metas[0].Trace == "" {
+			metas[0].Trace = name
+		}
+	case "PATCH":
+		if metas[0].Patch == "" {
+			metas[0].Patch = name
+		}
+	}
+
+	return NewResource(name, resolver, metas...)
+}
+
+// Get is a shortcut to create a new resource with rest method GET and using name as the get path
+func Get[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "GET", handler, metas...)
+}
+
+// Head is a shortcut to create a new resource with rest method HEAD and using name as the head path
+func Head[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "HEAD", handler, metas...)
+}
+
+// Post is a shortcut to create a new resource with rest method POST and using name as the post path
+func Post[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "POST", handler, metas...)
+}
+
+// Put is a shortcut to create a new resource with rest method PUT and using name as the put path
+func Put[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "PUT", handler, metas...)
+}
+
+// Delete is a shortcut to create a new resource with rest method DELETE and using name as the delete path
+func Delete[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "DELETE", handler, metas...)
+}
+
+// Connect is a shortcut to create a new resource with rest method CONNECT and using name as the connect path
+func Connect[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "CONNECT", handler, metas...)
+}
+
+// Options is a shortcut to create a new resource with rest method OPTIONS and using name as the options path
+func Options[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "OPTIONS", handler, metas...)
+}
+
+// Trace is a shortcut to create a new resource with rest method TRACE and using name as the trace path
+func Trace[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "TRACE", handler, metas...)
+}
+
+// Patch is a shortcut to create a new resource with rest method PATCH and using name as the patch path
+func Patch[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "PATCH", handler, metas...)
 }
 
 func (r *Resource) generateID(parentID string) string {
@@ -159,7 +263,7 @@ func (r *Resource) Clone() *Resource {
 	clone := &Resource{
 		id:         r.id,
 		name:       r.name,
-		resolver:   r.resolver,
+		handler:    r.handler,
 		signatures: r.signatures,
 		group:      r.group,
 	}
@@ -179,10 +283,10 @@ func (r *Resource) Clone() *Resource {
 // extras can be used to pass additional information to the resource. Currently supported extras are:
 //   - *Meta: used to pass meta information to the resource, example: &Meta{"rest.POST": "/login"}
 //   - *Signature: used to pass input and output signatures to the resource, example: &Signature{Input: LoginData{}, Output: LoginResponse{}}
-func (r *Resource) AddResource(name string, resolver Resolver, metas ...*Meta) (self *Resource) {
+func (r *Resource) AddResource(name string, handler Handler, metas ...*Meta) (self *Resource) {
 	resource := &Resource{
 		name:       name,
-		resolver:   resolver,
+		handler:    handler,
 		signatures: []any{},
 	}
 
@@ -237,9 +341,9 @@ func (r *Resource) Name() string {
 	return r.name
 }
 
-// Resolver returns the resolver of the resource
-func (r *Resource) Resolver() Resolver {
-	return r.resolver
+// Handler returns the resolver of the resource
+func (r *Resource) Handler() Handler {
+	return r.handler
 }
 
 // Meta returns the meta of the resource
@@ -386,11 +490,6 @@ func (r *Resource) Init() error {
 	// check empty resource name
 	if r.name == "" {
 		return errors.New("Resource name cannot be empty")
-	}
-
-	// check resource name to match resourceNameRegexp
-	if !resourceNameRegexp.MatchString(r.name) {
-		return fmt.Errorf("Resource name must match %s, got %s", resourceNameRegexp.String(), r.name)
 	}
 
 	// check current resource and all sub resources to prevent duplicate resource id

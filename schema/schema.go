@@ -80,6 +80,7 @@ func (s *Schema) Init(disableIDColumn bool) error {
 		newIDField.Name = FieldID
 		newIDField.Type = TypeUint64
 		newIDField.IsSystemField = true
+		newIDField.IsLocked = true
 		newIDField.Label = "ID"
 		newIDField.DB = &FieldDB{
 			Attr:      "UNSIGNED",
@@ -116,6 +117,7 @@ func (s *Schema) Init(disableIDColumn bool) error {
 		for _, timeField := range timeFields {
 			tsField := &Field{
 				IsSystemField: true,
+				IsLocked:      true,
 				Type:          TypeTime,
 				Name:          timeField[0],
 				Label:         timeField[1],
@@ -210,9 +212,9 @@ func (s *Schema) Validate() error {
 		schemaErrors = append(schemaErrors, "namespace is required")
 	}
 
-	if len(s.Fields) == 0 {
-		schemaErrors = append(schemaErrors, "fields is required")
-	}
+	// if len(s.Fields) == 0 {
+	// 	schemaErrors = append(schemaErrors, "fields is required")
+	// }
 
 	hasLabelField := false
 

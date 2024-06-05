@@ -12,13 +12,13 @@ import (
 
 type testcategory struct {
 	Name  string      `json:"name"`
-	Posts []*testpost `json:"posts" fs:"type=relation" fs.relation:"{'type':'o2m','schema':'testpost','field':'category','owner':true}"`
+	Posts []*testpost `json:"posts" fs.relation:"{'type':'o2m','schema':'testpost','field':'category','owner':true}"`
 }
 
 type testpost struct {
 	Name       string        `json:"name"`
 	CategoryID uint64        `json:"cat_id"`
-	Category   *testcategory `json:"category" fs:"type=relation" fs.relation:"{'type':'o2m','schema':'testcategory','field':'posts','fk_columns':{'target_column':'cat_id'}}"`
+	Category   *testcategory `json:"category" fs.relation:"{'type':'o2m','schema':'testcategory','field':'posts','fk_columns':{'target_column':'cat_id'}}"`
 }
 
 func TestNewBuilderFromSchemasErrorInvalidSchema(t *testing.T) {

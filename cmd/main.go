@@ -40,7 +40,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					fs := utils.Must(fastschema.New(&fastschema.AppConfig{
+					fs := utils.Must(fastschema.New(&fs.Config{
 						Dir: c.Args().Get(0),
 					}))
 
@@ -56,15 +56,9 @@ func main() {
 				Name:  "start",
 				Usage: "Start the fastschema application",
 				Action: func(c *cli.Context) error {
-					app := utils.Must(fastschema.New(&fastschema.AppConfig{
+					app := utils.Must(fastschema.New(&fs.Config{
 						Dir: c.Args().Get(0),
 					}))
-
-					app.AddResource(
-						fs.NewResource("home", func(c fs.Context, _ *any) (any, error) {
-							return "Welcome to fastschema", nil
-						}, &fs.Meta{Get: "/"}),
-					)
 
 					return app.Start()
 				},
