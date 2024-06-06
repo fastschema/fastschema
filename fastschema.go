@@ -572,7 +572,7 @@ func (a *App) getAuthProviders() (err error) {
 			continue
 		}
 
-		redirectURL := fmt.Sprintf("%s/auth/%s/callback", a.config.BaseURL, name)
+		redirectURL := fmt.Sprintf("%s/%s/auth/%s/callback", a.config.BaseURL, a.config.APIBaseName, name)
 		createProviderFn, ok := createAuthProvidersFn[name]
 		if !ok {
 			return fmt.Errorf("auth provider [%s] is not supported", name)
