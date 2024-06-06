@@ -35,7 +35,7 @@ import (
 
 //go:embed all:dash/*
 var embedDashStatic embed.FS
-var createAuthProvidersFn = map[string]fs.CreateAuthProviderFunc{
+var createAuthProviderFuncs = map[string]fs.CreateAuthProviderFunc{
 	"github": auth.NewGithubAuthProvider,
 	"google": auth.NewGoogleAuthProvider,
 }
@@ -104,7 +104,7 @@ func (a *App) init() (err error) {
 		return err
 	}
 
-	if err := a.getAuthProviders(); err != nil {
+	if err := a.createAuthProviders(); err != nil {
 		return err
 	}
 
@@ -562,7 +562,7 @@ func (a *App) createSchemaBuilder() (err error) {
 	return nil
 }
 
-func (a *App) getAuthProviders() (err error) {
+func (a *App) createAuthProviders() (err error) {
 	if a.config.AuthConfig == nil {
 		return nil
 	}
@@ -573,7 +573,7 @@ func (a *App) getAuthProviders() (err error) {
 		}
 
 		redirectURL := fmt.Sprintf("%s/%s/auth/%s/callback", a.config.BaseURL, a.config.APIBaseName, name)
-		createProviderFn, ok := createAuthProvidersFn[name]
+		createProviderFn, ok := createAuthProviderFuncs[name]
 		if !ok {
 			return fmt.Errorf("auth provider [%s] is not supported", name)
 		}
@@ -821,7 +821,6 @@ func (a *App) prepareConfig() (err error) {
 	}
 
 	if a.config.AuthConfig == nil && utils.Env("AUTH") != "" {
-		fmt.Println(utils.Env("AUTH"))
 		if err := json.Unmarshal([]byte(utils.Env("AUTH")), &a.config.AuthConfig); err != nil {
 			return err
 		}

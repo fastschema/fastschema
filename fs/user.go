@@ -11,7 +11,7 @@ import (
 type User struct {
 	_        any    `json:"-" fs:"label_field=username"`
 	ID       uint64 `json:"id,omitempty"`
-	Username string `json:"username,omitempty"` // needs to set fs:"optional" to be able to create a user without a username
+	Username string `json:"username,omitempty"`
 	Email    string `json:"email,omitempty" fs:"optional"`
 	Password string `json:"password,omitempty" fs:"optional"`
 

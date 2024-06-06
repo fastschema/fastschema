@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/utils"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -53,14 +54,13 @@ func (as *GoogleAuthProvider) Name() string {
 }
 
 func (as *GoogleAuthProvider) Login(c fs.Context) (_ any, err error) {
-	url := as.oauth.AuthCodeURL(c.Cookies("UUID"))
+	state := utils.RandomString(16)
+	url := as.oauth.AuthCodeURL(state)
 	return nil, c.Redirect(url)
 }
 
 func (as *GoogleAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
-	if c.Arg("state") != c.Cookies("UUID") {
-		return nil, fmt.Errorf("invalid oauth google state")
-	}
+	// should check c.Arg("state") for invalid oauth Google state
 	if c.Arg("code") == "" {
 		return nil, fmt.Errorf("code is empty")
 	}

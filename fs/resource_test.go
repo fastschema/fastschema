@@ -83,18 +83,17 @@ func (c *testContext) Parse(input any) error {
 
 	return nil
 }
-func (c *testContext) Context() context.Context         { return nil }
-func (c *testContext) Args() map[string]string          { return nil }
-func (c *testContext) Arg(string, ...string) string     { return "" }
-func (c *testContext) ArgInt(string, ...int) int        { return 0 }
-func (c *testContext) Entity() (*schema.Entity, error)  { return nil, nil }
-func (c *testContext) Resource() *fs.Resource           { return nil }
-func (c *testContext) AuthToken() string                { return "" }
-func (c *testContext) Next() error                      { return nil }
-func (c *testContext) Result(...*fs.Result) *fs.Result  { return nil }
-func (c *testContext) Files() ([]*fs.File, error)       { return nil, nil }
-func (c *testContext) Redirect(string) error            { return nil }
-func (c *testContext) Cookies(string, ...string) string { return "" }
+func (c *testContext) Context() context.Context        { return nil }
+func (c *testContext) Args() map[string]string         { return nil }
+func (c *testContext) Arg(string, ...string) string    { return "" }
+func (c *testContext) ArgInt(string, ...int) int       { return 0 }
+func (c *testContext) Entity() (*schema.Entity, error) { return nil, nil }
+func (c *testContext) Resource() *fs.Resource          { return nil }
+func (c *testContext) AuthToken() string               { return "" }
+func (c *testContext) Next() error                     { return nil }
+func (c *testContext) Result(...*fs.Result) *fs.Result { return nil }
+func (c *testContext) Files() ([]*fs.File, error)      { return nil, nil }
+func (c *testContext) Redirect(string) error           { return nil }
 
 func TestNewResource(t *testing.T) {
 	r := fs.NewResource(
