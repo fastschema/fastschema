@@ -30,6 +30,7 @@ type Context interface {
 	Result(...*Result) *Result
 	Files() ([]*File, error)
 	Redirect(string) error
+	Cookies(key string, defaultValue ...string) string
 }
 
 type HTTPResponse struct {

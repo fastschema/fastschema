@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/fastschema/fastschema/fs"
-	"github.com/fastschema/fastschema/pkg/utils"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
@@ -61,9 +60,8 @@ func (ga *GithubAuthProvider) Name() string {
 }
 
 func (ga *GithubAuthProvider) Login(c fs.Context) (_ any, err error) {
-	state := utils.RandomString(16) // should replace with a cookie from context
 	rediectURL := ga.oauth.AuthCodeURL(
-		state,
+		c.Cookies("UUID"),
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("scope", "user:email"),
 	)
@@ -71,7 +69,9 @@ func (ga *GithubAuthProvider) Login(c fs.Context) (_ any, err error) {
 }
 
 func (ga *GithubAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
-	// should check c.Arg("state") for invalid oauth Github state
+	if c.Arg("state") != c.Cookies("UUID") {
+		return nil, fmt.Errorf("invalid oauth github state")
+	}
 	if c.Arg("code") == "" {
 		return nil, fmt.Errorf("code is empty")
 	}
