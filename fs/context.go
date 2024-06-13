@@ -48,10 +48,10 @@ func NewResult(data any, err error) *Result {
 	result := &Result{Data: data}
 
 	if err != nil {
-		if err, ok := err.(*errors.Error); !ok {
+		if _, ok := err.(*errors.Error); !ok {
 			result.Error = errors.From(err)
 		} else {
-			result.Error = err
+			result.Error = err.(*errors.Error)
 		}
 
 		return result
