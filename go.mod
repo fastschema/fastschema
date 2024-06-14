@@ -3,7 +3,7 @@ module github.com/fastschema/fastschema
 go 1.22.3
 
 require (
-	ariga.io/atlas v0.23.0
+	ariga.io/atlas v0.24.0
 	entgo.io/ent v0.13.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/buger/jsonparser v1.1.1
@@ -98,7 +98,7 @@ require (
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20240312152122-5f08fbb34913 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
-	github.com/zclconf/go-cty v1.14.2 // indirect
+	github.com/zclconf/go-cty v1.14.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 // indirect
 	golang.org/x/mod v0.17.0 // indirect
