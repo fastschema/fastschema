@@ -36,3 +36,13 @@ func TestContentServiceDelete(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 }
+
+func TestContentServiceDeleteRootUser(t *testing.T) {
+	_, server := createContentService(t)
+
+	req := httptest.NewRequest("DELETE", "/content/user/1", nil)
+	resp := utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 400, resp.StatusCode)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"message":"Cannot delete root user."`)
+}

@@ -5,7 +5,13 @@ run:
 
 linters-settings:
   errcheck:
-    ignore: fmt:.*,Read|Write|Close|Exec,io:Copy
+    exclude-functions:
+      - "fmt:.*"
+      - "Read"
+      - "Write"
+      - "Close"
+      - "Exec"
+      - "io:Copy"
   dupl:
     threshold: 100
   funlen:

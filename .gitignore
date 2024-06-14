@@ -6,3 +6,6 @@ tests/data/migrations/*
 /data/
 
 dist/
+
+.idea/
+**/.DS_Store
