@@ -53,15 +53,17 @@ type Config struct {
 
 func (c *Config) Clone() *Config {
 	return &Config{
-		Driver:       c.Driver,
-		Name:         c.Name,
-		Host:         c.Host,
-		Port:         c.Port,
-		User:         c.User,
-		Pass:         c.Pass,
-		Logger:       c.Logger,
-		LogQueries:   c.LogQueries,
-		MigrationDir: c.MigrationDir,
+		Driver:          c.Driver,
+		Name:            c.Name,
+		Host:            c.Host,
+		Port:            c.Port,
+		User:            c.User,
+		Pass:            c.Pass,
+		Logger:          c.Logger,
+		LogQueries:      c.LogQueries,
+		MigrationDir:    c.MigrationDir,
+		IgnoreMigration: c.IgnoreMigration,
+		Hooks:           c.Hooks,
 	}
 }
 

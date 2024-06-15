@@ -202,18 +202,16 @@ func (a *App) Dir() string {
 }
 
 func (a *App) Reload(ctx context.Context, migration *db.Migration) (err error) {
-	if a.DB() != nil {
-		if err = a.DB().Close(); err != nil {
-			return err
-		}
-	}
-
 	if err = a.createSchemaBuilder(); err != nil {
 		return err
 	}
 
 	newDB, err := a.DB().Reload(ctx, a.schemaBuilder, migration)
 	if err != nil {
+		return err
+	}
+
+	if a.DB() != nil && a.DB().Close() != nil {
 		return err
 	}
 

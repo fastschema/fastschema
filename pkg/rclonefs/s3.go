@@ -17,6 +17,7 @@ type RcloneS3Config struct {
 	Region          string              `json:"region"`
 	Endpoint        string              `json:"endpoint"`
 	ChunkSize       rclonefs.SizeSuffix `json:"chunk_size"`
+	CopyCutoff      rclonefs.SizeSuffix `json:"copy_cutoff"`
 	AccessKeyID     string              `json:"access_key_id"`
 	SecretAccessKey string              `json:"secret_access_key"`
 	BaseURL         string              `json:"base_url"`
@@ -31,6 +32,10 @@ type RcloneS3 struct {
 func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 	if config.ChunkSize < rclonefs.SizeSuffix(1024*1024*5) {
 		config.ChunkSize = rclonefs.SizeSuffix(1024 * 1024 * 5)
+	}
+
+	if config.CopyCutoff < rclonefs.SizeSuffixBase {
+		config.CopyCutoff = rclonefs.SizeSuffixBase
 	}
 
 	rs3 := &RcloneS3{
@@ -48,13 +53,13 @@ func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 	cfgMap.Set("region", config.Region)
 	cfgMap.Set("endpoint", config.Endpoint)
 	cfgMap.Set("chunk_size", config.ChunkSize.String())
+	cfgMap.Set("copy_cutoff", config.CopyCutoff.String())
 	cfgMap.Set("access_key_id", config.AccessKeyID)
 	cfgMap.Set("secret_access_key", config.SecretAccessKey)
 	cfgMap.Set("acl", config.ACL)
 	cfgMap.Set("bucket_acl", config.ACL)
 
 	fsDriver, err := s3.NewFs(context.Background(), "s3", config.Bucket, cfgMap)
-
 	if err != nil {
 		return nil, err
 	}
