@@ -452,7 +452,7 @@ func TestFastschemaStart(t *testing.T) {
 		return &db.Hooks{}
 	}))
 	config := &fs.Config{
-		HideResourcesInfo: true,
+		HideResourcesInfo: false,
 		Dir:               t.TempDir(),
 		DB:                db,
 		Port:              "8080",
@@ -503,4 +503,28 @@ func TestFastSchemaCustomConfiguration(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.DB())
+}
+
+func TestFastSchemaGetAuthProvider(t *testing.T) {
+	clearEnvs(t)
+	config := &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+		AuthConfig: &fs.AuthConfig{
+			EnabledProviders: []string{"github"},
+			Providers: map[string]map[string]string{
+				"github": {
+					"client_id":     "test",
+					"client_secret": "test",
+				},
+			},
+		},
+	}
+	app, err := fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+
+	provider := app.GetAuthProvider("github")
+	assert.NotNil(t, provider)
+	assert.Equal(t, "github", provider.Name())
 }

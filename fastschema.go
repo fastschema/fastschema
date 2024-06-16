@@ -35,9 +35,10 @@ import (
 
 //go:embed all:dash/*
 var embedDashStatic embed.FS
-var createAuthProviderFuncs = map[string]fs.CreateAuthProviderFunc{
-	"github": auth.NewGithubAuthProvider,
-	"google": auth.NewGoogleAuthProvider,
+
+func init() {
+	fs.RegisterAuthProviderMaker("github", auth.NewGithubAuthProvider)
+	fs.RegisterAuthProviderMaker("google", auth.NewGoogleAuthProvider)
 }
 
 type App struct {
@@ -571,12 +572,7 @@ func (a *App) createAuthProviders() (err error) {
 		}
 
 		redirectURL := fmt.Sprintf("%s/%s/auth/%s/callback", a.config.BaseURL, a.config.APIBaseName, name)
-		createProviderFn, ok := createAuthProviderFuncs[name]
-		if !ok {
-			return fmt.Errorf("auth provider [%s] is not supported", name)
-		}
-
-		provider, err := createProviderFn(config, redirectURL)
+		provider, err := fs.CreateAuthProvider(name, config, redirectURL)
 		if err != nil {
 			return err
 		}
@@ -628,7 +624,7 @@ func (a *App) createResources() error {
 				"provider": {
 					Required:    true,
 					Type:        fs.TypeString,
-					Description: "The auth provider name",
+					Description: "The auth provider name. Available providers: " + strings.Join(fs.AuthProviders(), ", "),
 					Example:     "google",
 				},
 			},
