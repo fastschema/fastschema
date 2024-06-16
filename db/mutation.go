@@ -174,7 +174,7 @@ func typesToEntity(t any) (*schema.Entity, error) {
 	case map[string]any:
 		entity = schema.NewEntityFromMap(data)
 	default:
-		return nil, errors.BadRequest("invalid mutation data")
+		return nil, errors.BadRequest("mutation data must be an entity or a map")
 	}
 
 	return entity, nil

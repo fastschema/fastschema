@@ -722,7 +722,8 @@ func TestAppendFile(t *testing.T) {
 func TestIsFileExists(t *testing.T) {
 	// Test case 1: Existing file
 	filePath1 := t.TempDir() + "testfile.txt"
-	WriteFile(filePath1, "Hello, World!")
+	err := WriteFile(filePath1, "Hello, World!")
+	assert.NoError(t, err)
 	result1 := IsFileExists(filePath1)
 	assert.True(t, result1)
 
@@ -735,10 +736,11 @@ func TestIsFileExists(t *testing.T) {
 func TestCopyFile(t *testing.T) {
 	src := t.TempDir() + "testfile.txt"
 	dst := t.TempDir() + "testfile2.txt"
-	WriteFile(src, "Hello, World!")
+	err := WriteFile(src, "Hello, World!")
+	assert.NoError(t, err)
 
 	// Test case 1: Successful file copy
-	err := CopyFile(src, dst)
+	err = CopyFile(src, dst)
 	assert.NoError(t, err)
 
 	// Test case 2: Source file does not exist

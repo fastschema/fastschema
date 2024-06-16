@@ -8,13 +8,26 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
+func isDeletable(id int, schemaName string) error {
+	if schemaName == "user" && id == 1 {
+		return errors.BadRequest("Cannot delete root user.")
+	}
+
+	return nil
+}
+
 func (cs *ContentService) Delete(c fs.Context, _ any) (any, error) {
-	model, err := cs.DB().Model(c.Arg("schema"))
+	schemaName := c.Arg("schema")
+	id := c.ArgInt("id")
+
+	if err := isDeletable(id, schemaName); err != nil {
+		return nil, err
+	}
+
+	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
-
-	id := c.ArgInt("id")
 
 	_, err = model.Query(db.EQ("id", id)).Only(c.Context())
 
