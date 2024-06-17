@@ -29,6 +29,7 @@ type Context interface {
 	Next() error
 	Result(...*Result) *Result
 	Files() ([]*File, error)
+	Redirect(string) error
 }
 
 type HTTPResponse struct {
