@@ -24,7 +24,7 @@ require (
 	github.com/rclone/rclone v1.67.0
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
-	github.com/valyala/fasthttp v1.54.0
+	github.com/valyala/fasthttp v1.55.0
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.24.0
