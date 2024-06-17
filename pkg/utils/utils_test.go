@@ -4,10 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -722,7 +726,8 @@ func TestAppendFile(t *testing.T) {
 func TestIsFileExists(t *testing.T) {
 	// Test case 1: Existing file
 	filePath1 := t.TempDir() + "testfile.txt"
-	WriteFile(filePath1, "Hello, World!")
+	err := WriteFile(filePath1, "Hello, World!")
+	assert.NoError(t, err)
 	result1 := IsFileExists(filePath1)
 	assert.True(t, result1)
 
@@ -735,10 +740,11 @@ func TestIsFileExists(t *testing.T) {
 func TestCopyFile(t *testing.T) {
 	src := t.TempDir() + "testfile.txt"
 	dst := t.TempDir() + "testfile2.txt"
-	WriteFile(src, "Hello, World!")
+	err := WriteFile(src, "Hello, World!")
+	assert.NoError(t, err)
 
 	// Test case 1: Successful file copy
-	err := CopyFile(src, dst)
+	err = CopyFile(src, dst)
 	assert.NoError(t, err)
 
 	// Test case 2: Source file does not exist
@@ -1050,4 +1056,55 @@ func TestParseHJSON(t *testing.T) {
 		Age:   30,
 		Email: "john@example.com",
 	}, result)
+}
+func TestSendRequest(t *testing.T) {
+	type TR struct {
+		Message string `json:"message"`
+	}
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+	// Case 1: Missing protocol scheme
+	_, err := SendRequest[TR]("GET", "://example.local", headers, nil)
+	assert.ErrorContains(t, err, "missing protocol scheme")
+
+	// Case 2: Timeout
+	backUpClient := http.DefaultClient
+	http.DefaultClient = &http.Client{
+		Transport: &http.Transport{
+			Dial: func(network, addr string) (net.Conn, error) {
+				return net.DialTimeout(network, addr, time.Millisecond)
+			},
+		},
+	}
+	_, err = SendRequest[TR]("GET", "http://example.local", headers, nil)
+	assert.ErrorContains(t, err, "timeout")
+	http.DefaultClient = backUpClient
+
+	// Case 3: Access token server error
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer errorServer.Close()
+	_, err = SendRequest[TR]("GET", errorServer.URL, headers, nil)
+	assert.ErrorContains(t, err, "request failed with status code")
+
+	// Case 4: Invalid JSON response
+	errorServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`invalid json`))
+	}))
+	defer errorServer.Close()
+	_, err = SendRequest[TR]("GET", errorServer.URL, headers, nil)
+	assert.ErrorContains(t, err, "invalid character")
+
+	// Case 5: Successful request
+	successServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"message": "success"}`))
+	}))
+	defer successServer.Close()
+	resp, err := SendRequest[TR]("GET", successServer.URL, headers, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, TR{Message: "success"}, resp)
 }

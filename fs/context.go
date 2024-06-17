@@ -29,6 +29,7 @@ type Context interface {
 	Next() error
 	Result(...*Result) *Result
 	Files() ([]*File, error)
+	Redirect(string) error
 }
 
 type HTTPResponse struct {
@@ -48,7 +49,7 @@ func NewResult(data any, err error) *Result {
 	result := &Result{Data: data}
 
 	if err != nil {
-		if !errors.Is(err, &errors.Error{}) {
+		if _, ok := err.(*errors.Error); !ok {
 			result.Error = errors.From(err)
 		} else {
 			result.Error = err.(*errors.Error)

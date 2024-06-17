@@ -13,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/openapi"
@@ -21,6 +22,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/pkg/zaplogger"
 	"github.com/fastschema/fastschema/schema"
+	as "github.com/fastschema/fastschema/services/auth"
 	cs "github.com/fastschema/fastschema/services/content"
 	ms "github.com/fastschema/fastschema/services/file"
 	rs "github.com/fastschema/fastschema/services/role"
@@ -33,6 +35,11 @@ import (
 
 //go:embed all:dash/*
 var embedDashStatic embed.FS
+
+func init() {
+	fs.RegisterAuthProviderMaker("github", auth.NewGithubAuthProvider)
+	fs.RegisterAuthProviderMaker("google", auth.NewGoogleAuthProvider)
+}
 
 type App struct {
 	config          *fs.Config
@@ -56,13 +63,15 @@ type App struct {
 	startupMessages []string
 	statics         []*fs.StaticFs
 	openAPISpec     []byte
+	authProviders   map[string]fs.AuthProvider
 }
 
 func New(config *fs.Config) (_ *App, err error) {
 	a := &App{
-		config: config.Clone(),
-		disks:  []fs.Disk{},
-		roles:  []*fs.Role{},
+		config:        config.Clone(),
+		disks:         []fs.Disk{},
+		roles:         []*fs.Role{},
+		authProviders: map[string]fs.AuthProvider{},
 		hooks: &fs.Hooks{
 			DBHooks: &db.Hooks{},
 		},
@@ -93,6 +102,10 @@ func (a *App) init() (err error) {
 	}
 
 	if err = a.getDefaultLogger(); err != nil {
+		return err
+	}
+
+	if err := a.createAuthProviders(); err != nil {
 		return err
 	}
 
@@ -193,6 +206,10 @@ func (a *App) Config() *fs.Config {
 	return a.config
 }
 
+func (a *App) GetAuthProvider(name string) fs.AuthProvider {
+	return a.authProviders[name]
+}
+
 func (a *App) Key() string {
 	return a.config.AppKey
 }
@@ -202,18 +219,16 @@ func (a *App) Dir() string {
 }
 
 func (a *App) Reload(ctx context.Context, migration *db.Migration) (err error) {
-	if a.DB() != nil {
-		if err = a.DB().Close(); err != nil {
-			return err
-		}
-	}
-
 	if err = a.createSchemaBuilder(); err != nil {
 		return err
 	}
 
 	newDB, err := a.DB().Reload(ctx, a.schemaBuilder, migration)
 	if err != nil {
+		return err
+	}
+
+	if a.DB() != nil && a.DB().Close() != nil {
 		return err
 	}
 
@@ -546,6 +561,28 @@ func (a *App) createSchemaBuilder() (err error) {
 	return nil
 }
 
+func (a *App) createAuthProviders() (err error) {
+	if a.config.AuthConfig == nil {
+		return nil
+	}
+
+	for name, config := range a.config.AuthConfig.Providers {
+		if !utils.Contains(a.config.AuthConfig.EnabledProviders, name) {
+			continue
+		}
+
+		redirectURL := fmt.Sprintf("%s/%s/auth/%s/callback", a.config.BaseURL, a.config.APIBaseName, name)
+		provider, err := fs.CreateAuthProvider(name, config, redirectURL)
+		if err != nil {
+			return err
+		}
+
+		a.authProviders[name] = provider
+	}
+
+	return nil
+}
+
 func (a *App) createResources() error {
 	userService := us.New(a)
 	roleService := rs.New(a)
@@ -553,6 +590,7 @@ func (a *App) createResources() error {
 	schemaService := ss.New(a)
 	contentService := cs.New(a)
 	toolService := ts.New(a)
+	authService := as.New(a)
 
 	a.hooks.DBHooks.PostDBGet = append(a.hooks.DBHooks.PostDBGet, fileService.FileListHook)
 	a.hooks.PreResolve = append(a.hooks.PreResolve, roleService.Authorize)
@@ -578,6 +616,23 @@ func (a *App) createResources() error {
 			Post:   "/login",
 			Public: true,
 		}))
+
+	if len(a.authProviders) > 0 {
+		a.api.Group("auth", &fs.Meta{
+			Prefix: "/auth/:provider",
+			Args: fs.Args{
+				"provider": {
+					Required:    true,
+					Type:        fs.TypeString,
+					Description: "The auth provider name. Available providers: " + strings.Join(fs.AuthProviders(), ", "),
+					Example:     "google",
+				},
+			},
+		}).Add(
+			fs.Get("login", authService.Login, &fs.Meta{Public: true}),
+			fs.Get("callback", authService.Callback, &fs.Meta{Public: true}),
+		)
+	}
 
 	a.api.Group("schema").
 		Add(fs.NewResource("list", schemaService.List, &fs.Meta{Get: "/"})).
@@ -757,6 +812,12 @@ func (a *App) prepareConfig() (err error) {
 			a.startupMessages,
 			fmt.Sprintf("APP_KEY is not set. A new key is generated and saved to %s", envFile),
 		)
+	}
+
+	if a.config.AuthConfig == nil && utils.Env("AUTH") != "" {
+		if err := json.Unmarshal([]byte(utils.Env("AUTH")), &a.config.AuthConfig); err != nil {
+			return err
+		}
 	}
 
 	return nil

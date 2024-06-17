@@ -32,6 +32,7 @@ func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 		MiddlewareCors,
 		MiddlewareRecover,
 		MiddlewareRequestID,
+		MiddlewareCookie,
 		CreateMiddlewareRequestLog(r.staticFSs),
 	}
 	r.server = New(Config{

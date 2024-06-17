@@ -5,7 +5,10 @@ run:
 
 linters-settings:
   errcheck:
-    ignore: fmt:.*,Read|Write|Close|Exec,io:Copy
+    exclude-functions:
+      - github.com/fastschema/fastschema/pkg/utils.WriteFile
+      - io.Copy
+      - (*ariga.io/atlas/sql/migrate.Planner).WritePlan
   dupl:
     threshold: 100
   funlen:
