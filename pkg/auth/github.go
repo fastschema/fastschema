@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strconv"
 
 	"github.com/fastschema/fastschema/fs"
@@ -14,9 +12,6 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 )
-
-const GithubLoginOauthURL = "https://github.com/login/oauth/access_token"
-const GithubUserURL = "https://api.github.com/user"
 
 type GithubAccessTokenResponse struct {
 	Scope       string `json:"scope"`
@@ -35,25 +30,36 @@ type GithubUserResponse struct {
 }
 
 type GithubAuthProvider struct {
-	oauth *oauth2.Config
+	oauth          *oauth2.Config
+	accessTokenURL string
+	userInfoURL    string
 }
 
-func NewGithubAuthProvider(
-	config map[string]string,
-	redirectURL string,
-) (fs.AuthProvider, error) {
+func NewGithubAuthProvider(config Config, redirectURL string) (fs.AuthProvider, error) {
 	if config["client_id"] == "" || config["client_secret"] == "" {
 		return nil, fmt.Errorf("github client id or secret is not set")
 	}
 
-	return &GithubAuthProvider{
+	githubAuthProvider := &GithubAuthProvider{
+		accessTokenURL: config["access_token_url"],
+		userInfoURL:    config["user_info_url"],
 		oauth: &oauth2.Config{
 			ClientID:     config["client_id"],
 			ClientSecret: config["client_secret"],
 			RedirectURL:  redirectURL,
 			Endpoint:     github.Endpoint,
 		},
-	}, nil
+	}
+
+	if githubAuthProvider.accessTokenURL == "" {
+		githubAuthProvider.accessTokenURL = "https://github.com/login/oauth/access_token"
+	}
+
+	if githubAuthProvider.userInfoURL == "" {
+		githubAuthProvider.userInfoURL = "https://api.github.com/user"
+	}
+
+	return githubAuthProvider, nil
 }
 
 func (ga *GithubAuthProvider) Name() string {
@@ -73,7 +79,7 @@ func (ga *GithubAuthProvider) Login(c fs.Context) (_ any, err error) {
 func (ga *GithubAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 	// should check c.Arg("state") for invalid oauth Github state
 	if c.Arg("code") == "" {
-		return nil, fmt.Errorf("code is empty")
+		return nil, fmt.Errorf("github auth: callback code is empty")
 	}
 
 	githubUser, err := ga.getUser(c.Arg("code"))
@@ -100,57 +106,36 @@ func (ga *GithubAuthProvider) getUser(code string) (*GithubUserResponse, error) 
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", GithubUserURL, nil)
+	userResponse, err := utils.SendRequest[GithubUserResponse](
+		"GET",
+		ga.userInfoURL,
+		Config{"Authorization": fmt.Sprintf("token %s", accessToken)},
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", accessToken))
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	userResponse := &GithubUserResponse{}
-	if err := json.Unmarshal(body, userResponse); err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	return userResponse, nil
+	return &userResponse, nil
 }
 
 func (ga *GithubAuthProvider) getAccessToken(code string) (string, error) {
-	requestBody, _ := json.Marshal(map[string]string{
+	requestBody, _ := json.Marshal(Config{
 		"code":          code,
 		"client_id":     ga.oauth.ClientID,
 		"client_secret": ga.oauth.ClientSecret,
 	})
-	req, err := http.NewRequest("POST", GithubLoginOauthURL, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return "", err
-	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	accessTokenResponse, err := utils.SendRequest[GithubAccessTokenResponse](
+		"POST",
+		ga.accessTokenURL,
+		Config{
+			"Content-Type": "application/json",
+			"Accept":       "application/json",
+		},
+		bytes.NewBuffer(requestBody),
+	)
 	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	var accessTokenResponse GithubAccessTokenResponse
-	if err := json.Unmarshal(body, &accessTokenResponse); err != nil {
 		return "", err
 	}
 

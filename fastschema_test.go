@@ -507,7 +507,22 @@ func TestFastSchemaCustomConfiguration(t *testing.T) {
 
 func TestFastSchemaGetAuthProvider(t *testing.T) {
 	clearEnvs(t)
+	// Case 1: Error
 	config := &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+		AuthConfig: &fs.AuthConfig{
+			EnabledProviders: []string{"github"},
+			Providers: map[string]map[string]string{
+				"github": {},
+			},
+		},
+	}
+	app, err := fastschema.New(config)
+	assert.Error(t, err)
+	assert.Nil(t, app)
+
+	config = &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		AuthConfig: &fs.AuthConfig{
@@ -517,10 +532,14 @@ func TestFastSchemaGetAuthProvider(t *testing.T) {
 					"client_id":     "test",
 					"client_secret": "test",
 				},
+				"google": {
+					"client_id":     "test",
+					"client_secret": "test",
+				},
 			},
 		},
 	}
-	app, err := fastschema.New(config)
+	app, err = fastschema.New(config)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 
