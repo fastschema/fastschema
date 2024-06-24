@@ -261,8 +261,8 @@ github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdh
 github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/ncw/swift/v2 v2.0.2 h1:jx282pcAKFhmoZBSdMcCRFn9VWkoBIRsCpe+yZq7vEk=
 github.com/ncw/swift/v2 v2.0.2/go.mod h1:z0A9RVdYPjNjXVo2pDOPxZ4eu3oarO1P91fTItcb+Kg=
-github.com/ogen-go/ogen v1.2.1 h1:C5A0lvUMu2wl+eWIxnpXMWnuOJ26a2FyzR1CIC2qG0M=
-github.com/ogen-go/ogen v1.2.1/go.mod h1:P2zQdEu8UqaVRfD5GEFvl+9q63VjMLvDquq1wVbyInM=
+github.com/ogen-go/ogen v1.2.2 h1:fFqZzRacbdnOQeqep4efVeqj7/4hI1mlimrY8rn970A=
+github.com/ogen-go/ogen v1.2.2/go.mod h1:S8X2dBfTKlpy+pcGLXP+aLLzvUAXAvtONtuovrN3+gw=
 github.com/oracle/oci-go-sdk/v65 v65.67.1 h1:gNmvMT61SgLMmKfWOkzLdXN1NwYRFUWIxEXgJogQFGc=
 github.com/oracle/oci-go-sdk/v65 v65.67.1/go.mod h1:IBEV9l1qBzUpo7zgGaRUhbB05BVfcDGYRFBCPlTcPp0=
 github.com/otiai10/copy v1.14.0 h1:dCI/t1iTdYGtkvCuBG2BgR6KZa83PTclw4U5n2wAllU=
