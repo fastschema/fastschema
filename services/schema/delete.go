@@ -3,30 +3,51 @@ package schemaservice
 import (
 	"os"
 
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 )
 
 func (ss *SchemaService) Delete(c fs.Context, _ any) (fs.Map, error) {
 	schemaName := c.Arg("name")
-	s, err := ss.app.SchemaBuilder().Schema(schemaName)
+	currentSchema, err := ss.app.SchemaBuilder().Schema(schemaName)
 	if err != nil {
 		return nil, errors.NotFound(err.Error())
 	}
 
-	// check if the schema has any relation
-	// if it has, then we can't delete it
-	// skip relation type check if the relation type is bi-directional
-	hasRelation := false
-	for _, field := range s.Fields {
+	// remove relation fields if the field type is relation
+	updateFields := utils.Filter(currentSchema.Fields, func(field *schema.Field) bool {
 		if field.Type.IsRelationType() && field.Relation.TargetSchemaName != schemaName {
-			hasRelation = true
-			break
+			return false
 		}
-	}
+		return true
+	})
 
-	if hasRelation {
-		return nil, errors.BadRequest("schema has relation, can't delete")
+	// update the schema with the new fields without the relation fields
+	if len(updateFields) > 0 {
+		updateData := &SchemaUpdateData{
+			Data: &schema.Schema{
+				Name:           currentSchema.Name,
+				Fields:         updateFields,
+				Namespace:      currentSchema.Namespace,
+				LabelFieldName: currentSchema.LabelFieldName,
+			},
+			RenameFields: []*db.RenameItem{},
+			RenameTables: []*db.RenameItem{},
+		}
+
+		su := &SchemaUpdate{
+			updateData:           updateData,
+			currentSchemaBuilder: ss.app.SchemaBuilder(),
+			updateSchemas:        map[string]*schema.Schema{},
+			currentSchema:        currentSchema,
+		}
+
+		if err := su.update(); err != nil {
+			return nil, errors.InternalServerError(err.Error())
+		}
 	}
 
 	// delete the schema file
