@@ -17,16 +17,18 @@ func (ss *SchemaService) Delete(c fs.Context, _ any) (fs.Map, error) {
 		return nil, errors.NotFound(err.Error())
 	}
 
+	hasRelation := false
 	// remove relation fields if the field type is relation
 	updateFields := utils.Filter(currentSchema.Fields, func(field *schema.Field) bool {
 		if field.Type.IsRelationType() && field.Relation.TargetSchemaName != schemaName {
+			hasRelation = true
 			return false
 		}
 		return true
 	})
 
 	// update the schema with the new fields without the relation fields
-	if len(updateFields) > 0 {
+	if hasRelation {
 		updateData := &SchemaUpdateData{
 			Data: &schema.Schema{
 				Name:           currentSchema.Name,
