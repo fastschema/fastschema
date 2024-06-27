@@ -11,7 +11,6 @@ import (
 )
 
 func TestSchemaServiceDelete(t *testing.T) {
-
 	_, _, server := createSchemaService(t, nil)
 
 	// Case 1: schema not found
@@ -89,5 +88,4 @@ func TestSchemaServiceDeleteWithRelationsField(t *testing.T) {
 	// check blogs field was deleted in target schema
 	categoryFieldBlogs := testApp.Schema("category").Field("blogs")
 	assert.Nil(t, categoryFieldBlogs)
-
 }
