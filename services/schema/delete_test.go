@@ -11,6 +11,7 @@ import (
 )
 
 func TestSchemaServiceDelete(t *testing.T) {
+
 	_, _, server := createSchemaService(t, nil)
 
 	// Case 1: schema not found
@@ -66,4 +67,27 @@ func TestSchemaServiceDelete(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
+}
+
+// case: delete schema with relations
+func TestSchemaServiceDeleteWithRelationsField(t *testing.T) {
+	testApp, _, server := createSchemaService(t, &testSchemaSeviceConfig{
+		extraSchemas: map[string]string{
+			"blog": testBlogJSON,
+			"tag":  testTagJSON,
+		},
+	})
+	// add relation field
+	addFieldCategoryToBlog(t, testApp, server)
+	req := httptest.NewRequest("DELETE", "/schema/blog", nil)
+	resp := utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 200, resp.StatusCode)
+	response := utils.Must(utils.ReadCloserToString(resp.Body))
+	assert.NotEmpty(t, response)
+
+	// check blogs field was deleted in target schema
+	categoryFieldBlogs := testApp.Schema("category").Field("blogs")
+	assert.Nil(t, categoryFieldBlogs)
+
 }
