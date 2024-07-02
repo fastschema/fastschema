@@ -30,6 +30,7 @@ type Context interface {
 	Result(...*Result) *Result
 	Files() ([]*File, error)
 	Redirect(string) error
+	WSClient() WSClient
 }
 
 type HTTPResponse struct {

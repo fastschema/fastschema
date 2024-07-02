@@ -52,6 +52,47 @@ func TestDeleteNodes(t *testing.T) {
 	}, sb, t, tests)
 }
 
+func TestDeleteNodesHookError(t *testing.T) {
+	tests := []MockTestDeleteData{
+		{
+			Name:         "delete",
+			Schema:       "user",
+			Predicates:   []*db.Predicate{db.EQ("id", 1)},
+			WantErr:      true,
+			WantAffected: 1,
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `id` = ?")).
+					WithArgs(1).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John"))
+				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `users` WHERE `id` = ?")).
+					WithArgs(1).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+			},
+		},
+	}
+
+	sb := createSchemaBuilder()
+	MockRunDeleteTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
+			Driver: "sqlmock",
+			Hooks: func() *db.Hooks {
+				return &db.Hooks{
+					PostDBDelete: []db.PostDBDelete{
+						func(schema *schema.Schema, predicates []*db.Predicate, originalEntities []*schema.Entity, affected int) error {
+							assert.Greater(t, len(predicates), 0)
+							assert.Greater(t, len(originalEntities), 0)
+							assert.Greater(t, affected, 0)
+							return errors.New("hook error")
+						},
+					},
+				}
+			},
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
+		return driver
+	}, sb, t, tests)
+}
+
 func TestDeleteClientIsNotEntClient(t *testing.T) {
 	mut := &Mutation{
 		model: &Model{

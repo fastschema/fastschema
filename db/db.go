@@ -16,11 +16,38 @@ import (
 // SupportDrivers returns list of supported drivers.
 var SupportDrivers = []string{"mysql", "pgx", "sqlite"}
 
-type Hooks struct {
-	PostDBGet []PostDBGet
-}
+type PostDBGet = func(
+	query *QueryOption,
+	entities []*schema.Entity,
+) ([]*schema.Entity, error)
 
-type PostDBGet = func(query *QueryOption, entities []*schema.Entity) ([]*schema.Entity, error)
+type PostDBCreate = func(
+	schema *schema.Schema,
+	id uint64,
+	dataCreate *schema.Entity,
+) error
+
+type PostDBUpdate = func(
+	schema *schema.Schema,
+	predicates []*Predicate,
+	updateData *schema.Entity,
+	originalEntities []*schema.Entity,
+	affected int,
+) error
+
+type PostDBDelete = func(
+	schema *schema.Schema,
+	predicates []*Predicate,
+	originalEntities []*schema.Entity,
+	affected int,
+) error
+
+type Hooks struct {
+	PostDBGet    []PostDBGet
+	PostDBCreate []PostDBCreate
+	PostDBUpdate []PostDBUpdate
+	PostDBDelete []PostDBDelete
+}
 
 type RenameItem struct {
 	Type            string `json:"type"` // "column" or "table"

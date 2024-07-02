@@ -146,6 +146,10 @@ func (c *Context) Logger() logger.Logger {
 	return c.logger.WithContext(logger.LogContext{requestID: c.ID()}, 0)
 }
 
+func (c *Context) WSClient() fs.WSClient {
+	return nil
+}
+
 func (c *Context) User() *fs.User {
 	if user, ok := c.Locals("user").(*fs.User); ok {
 		return user

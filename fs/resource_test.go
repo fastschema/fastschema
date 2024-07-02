@@ -94,6 +94,7 @@ func (c *testContext) Next() error                     { return nil }
 func (c *testContext) Result(...*fs.Result) *fs.Result { return nil }
 func (c *testContext) Files() ([]*fs.File, error)      { return nil, nil }
 func (c *testContext) Redirect(string) error           { return nil }
+func (c *testContext) WSClient() fs.WSClient           { return nil }
 
 func TestNewResource(t *testing.T) {
 	r := fs.NewResource(
@@ -401,6 +402,14 @@ func TestResourceMethods(t *testing.T) {
 	assert.NotNil(t, r)
 	assert.Equal(t, "Patchresource", r.Name())
 	assert.Equal(t, "Patchresource", r.Meta().Patch)
+	assert.True(t, r.IsPublic())
+	assert.Equal(t, signatures, r.Meta().Signatures)
+
+	// WS
+	r = fs.WS("WSresource", resolver, meta)
+	assert.NotNil(t, r)
+	assert.Equal(t, "WSresource", r.Name())
+	assert.Equal(t, "WSresource", r.Meta().WS)
 	assert.True(t, r.IsPublic())
 	assert.Equal(t, signatures, r.Meta().Signatures)
 }

@@ -6,6 +6,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -80,6 +81,19 @@ func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err 
 	if m.autoCommit {
 		if err = m.client.Commit(); err != nil {
 			return 0, err
+		}
+	}
+
+	var hooks = &db.Hooks{}
+	if m.client != nil {
+		hooks = m.client.Hooks()
+	}
+
+	if e.ID() > 0 && len(hooks.PostDBCreate) > 0 {
+		for _, hook := range hooks.PostDBCreate {
+			if err = hook(m.model.schema, e.ID(), e); err != nil {
+				return 0, err
+			}
 		}
 	}
 

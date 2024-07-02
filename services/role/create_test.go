@@ -10,26 +10,31 @@ import (
 )
 
 func TestRoleServiceCreate(t *testing.T) {
-	testApp := createRoleTest()
+	testApp := createTestApp()
 	// Case 1: No payload
-	req := httptest.NewRequest("POST", "/role", nil)
-	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	req := httptest.NewRequest("POST", "/api/role", nil)
 	resp := utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
 
-	// Case 2: Invalid payload
-	req = httptest.NewRequest("POST", "/role", bytes.NewReader([]byte(`{"name": "New role", "invalid": "test"}`)))
-	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	// Case 2: Invalid payload data
+	req = httptest.NewRequest("POST", "/api/role", bytes.NewReader([]byte(`{"name":`)))
+	resp = utils.Must(testApp.server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 400, resp.StatusCode)
+	response := utils.Must(utils.ReadCloserToString(resp.Body))
+	assert.Contains(t, response, "Malformed JSON error")
+
+	// Case 3: Invalid payload column
+	req = httptest.NewRequest("POST", "/api/role", bytes.NewReader([]byte(`{"name": "New role", "invalid": "test"}`)))
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 500, resp.StatusCode)
-	response := utils.Must(utils.ReadCloserToString(resp.Body))
+	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.Contains(t, response, "column role.invalid not found")
 
-	// Case 3: Success
-	req = httptest.NewRequest("POST", "/role", bytes.NewReader([]byte(`{"name": "New role"}`)))
-	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	// Case 4: Success
+	req = httptest.NewRequest("POST", "/api/role", bytes.NewReader([]byte(`{"name": "New role"}`)))
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)

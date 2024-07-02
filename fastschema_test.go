@@ -281,7 +281,7 @@ func TestFastschemaSetup(t *testing.T) {
 	a, err := fastschema.New(config)
 	assert.NoError(t, err)
 	assert.NotNil(t, a)
-	assert.NotEmpty(t, utils.Must(a.SetupToken(ctx)))
+	assert.NotEmpty(t, utils.Must(a.GetSetupToken(ctx)))
 
 	// no need to setup
 	clearEnvs(t)
@@ -298,7 +298,7 @@ func TestFastschemaSetup(t *testing.T) {
 	_, err = db.Create[*fs.Role](ctx, a.DB(), fs.Map{"name": "admin"})
 	assert.NoError(t, err)
 
-	setupToken, err := a.SetupToken(ctx)
+	setupToken, err := a.GetSetupToken(ctx)
 	assert.NoError(t, err)
 	assert.Empty(t, setupToken)
 }
@@ -361,7 +361,10 @@ func TestFastschemaResources(t *testing.T) {
 	assert.True(t, len(a.API().Resources()) > 0)
 
 	assert.NoError(t, resources.Init())
-	server := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(false)).Server()
+	server := restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
+		ResourceManager: resources,
+		Logger:          logger.CreateMockLogger(true),
+	}).Server()
 
 	req := httptest.NewRequest("GET", "/test", nil)
 	resp := utils.Must(server.Test(req))
@@ -390,7 +393,7 @@ func TestFastschemaResources(t *testing.T) {
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Invalid setup data or token`)
 
 	// Setup success
-	setupToken := utils.Must(a.SetupToken(context.Background()))
+	setupToken := utils.Must(a.GetSetupToken(context.Background()))
 	req = httptest.NewRequest("POST", "/api/setup", bytes.NewReader([]byte(`{
 		"token":"`+setupToken+`",
 		"username":"admin",

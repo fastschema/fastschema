@@ -171,6 +171,7 @@ func TestContextMethods(t *testing.T) {
 		assert.Equal(t, "/test", c.Path())
 		assert.NotNil(t, "test_resource", c.RouteName())
 		assert.NotNil(t, c.Context())
+		assert.Nil(t, c.WSClient())
 		c.Status(201)
 		c.Header("response-header", "response-header-value")
 		c.Cookie("testcookiename", &restfulresolver.Cookie{
