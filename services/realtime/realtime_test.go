@@ -3,7 +3,6 @@ package realtimeservice_test
 import (
 	"fmt"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -83,11 +82,9 @@ func createTestApp(t *testing.T) (*testApp, *rs.RealtimeService) {
 }
 
 type mockWSClient struct {
-	mu                sync.Mutex
-	expectMethodError string
-	closing           bool
-	message           chan []byte
 	id                string
+	expectMethodError string
+	message           chan []byte
 }
 
 func newMockWSClient(expectMethodErrors ...string) *mockWSClient {
@@ -125,22 +122,6 @@ func (m *mockWSClient) Close(msgs ...string) error {
 		return fmt.Errorf("close error")
 	}
 	return nil
-}
-
-func (m *mockWSClient) Lock(lock bool) {
-	if lock {
-		m.mu.Lock()
-	} else {
-		m.mu.Unlock()
-	}
-}
-
-func (m *mockWSClient) Closing() bool {
-	return m.closing
-}
-
-func (m *mockWSClient) SetClosing(closing bool) {
-	m.closing = closing
 }
 
 func (m *mockWSClient) IsCloseNormal(err error) bool {
@@ -204,7 +185,6 @@ func TestBroadCast(t *testing.T) {
 	// Broadcast on closing client
 	client2 := newMockWSClient()
 	service.AddClient(client2, "testtopic", &testSerializer{})
-	client2.SetClosing(true)
 	service.Broadcast([]string{"testtopic"}, nil)
 
 	// Broadcast serializer return empty message
