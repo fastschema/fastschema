@@ -348,6 +348,41 @@ func TestFastschemaResources(t *testing.T) {
 		return entities, nil
 	})
 
+	a.OnPostDBCreate(func(schema *schema.Schema, id uint64, dataCreate *schema.Entity) error {
+		assert.NotNil(t, schema)
+		assert.NotNil(t, dataCreate)
+		assert.Greater(t, id, uint64(0))
+		return nil
+	})
+
+	a.OnPostDBUpdate(func(
+		schema *schema.Schema,
+		predicates []*db.Predicate,
+		updateData *schema.Entity,
+		originalEntities []*schema.Entity,
+		affected int,
+	) error {
+		assert.NotNil(t, schema)
+		assert.NotNil(t, updateData)
+		assert.Greater(t, affected, 0)
+		return nil
+	})
+
+	a.OnPostDBDelete(func(schema *schema.Schema, predicates []*db.Predicate, originalEntities []*schema.Entity, affected int) error {
+		assert.NotNil(t, schema)
+		assert.Greater(t, affected, 0)
+		return nil
+	})
+
+	hooks := a.Hooks()
+	assert.NotNil(t, hooks)
+	assert.NotNil(t, hooks.DBHooks)
+	// All db hooks expected 2 includes: the default one and the one we added in the test
+	assert.Len(t, hooks.DBHooks.PostDBGet, 2)
+	assert.Len(t, hooks.DBHooks.PostDBCreate, 2)
+	assert.Len(t, hooks.DBHooks.PostDBUpdate, 2)
+	assert.Len(t, hooks.DBHooks.PostDBDelete, 2)
+
 	a.AddResource(fs.NewResource("test", func(c fs.Context, _ any) (any, error) {
 		return "test", nil
 	}, &fs.Meta{Public: true}))
