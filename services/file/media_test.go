@@ -59,7 +59,10 @@ func createFileService(t *testing.T) (*ms.FileService, *rr.Server) {
 			Delete: "/",
 		}))
 	assert.NoError(t, resources.Init())
-	restResolver := rr.NewRestfulResolver(resources, logger.CreateMockLogger(true))
+	restResolver := rr.NewRestfulResolver(&rr.ResolverConfig{
+		ResourceManager: resources,
+		Logger:          logger.CreateMockLogger(true),
+	})
 
 	return fileService, restResolver.Server()
 }

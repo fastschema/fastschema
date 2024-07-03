@@ -9,7 +9,9 @@ import (
 
 func (rs *RoleService) Detail(c fs.Context, _ any) (*fs.Role, error) {
 	roleID := c.ArgInt("id")
-	role, err := db.Query[*fs.Role](rs.DB()).Where(db.EQ("id", roleID)).First(c.Context())
+	role, err := db.Query[*fs.Role](rs.DB()).Where(db.EQ("id", roleID)).
+		Select("permissions").
+		First(c.Context())
 	if err != nil {
 		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())

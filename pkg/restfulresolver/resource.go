@@ -3,84 +3,60 @@ package restfulresolver
 import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
-	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
 
 type RestfulResolver struct {
-	resourceManager *fs.ResourcesManager
-	staticFSs       []*fs.StaticFs
-	server          *Server
+	config *ResolverConfig
+	server *Server
 }
 
-func NewRestfulResolver(
-	resourceManager *fs.ResourcesManager,
-	logger logger.Logger,
-	staticFSs ...*fs.StaticFs,
-) *RestfulResolver {
+type ResolverConfig struct {
+	ResourceManager *fs.ResourcesManager
+	Logger          logger.Logger
+	StaticFSs       []*fs.StaticFs
+}
+
+func NewRestfulResolver(config *ResolverConfig) *RestfulResolver {
 	rs := &RestfulResolver{
-		resourceManager: resourceManager,
-		staticFSs:       staticFSs,
+		config: config,
 	}
 
-	return rs.init(logger)
+	return rs.init(config.Logger)
 }
 
 func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
-	middlewares := []Handler{
-		MiddlewareCors,
-		MiddlewareRecover,
-		MiddlewareRequestID,
-		MiddlewareCookie,
-		CreateMiddlewareRequestLog(r.staticFSs),
-	}
 	r.server = New(Config{
 		AppName: "fastschema",
 		Logger:  logger,
 	})
+	r.server.Use(append([]Handler{
+		MiddlewareCors,
+		MiddlewareRecover,
+		MiddlewareRequestID,
+		MiddlewareCookie,
+		CreateMiddlewareRequestLog(r.config.StaticFSs),
+	}, TransformMiddlewares(r.config.ResourceManager.Middlewares)...)...)
 
-	for _, middleware := range r.resourceManager.Middlewares {
-		middlewares = append(middlewares, func(c *Context) error {
-			if err := middleware(c); err != nil {
-				fiberError, ok := err.(*fiber.Error)
-				if ok {
-					err = errors.GetErrorByStatus(fiberError.Code, err)
-				}
-
-				result := fs.NewResult(nil, err)
-
-				if result.Error != nil && result.Error.Status != 0 {
-					c.Status(result.Error.Status)
-				}
-
-				return c.JSON(result)
-			}
-
-			return nil
-		})
-	}
-
-	r.server.Use(middlewares...)
-
-	for _, staticResource := range r.staticFSs {
+	// Static files
+	for _, staticResource := range r.config.StaticFSs {
 		r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
 			Root:       staticResource.Root,
 			PathPrefix: staticResource.PathPrefix,
 		}))
 	}
 
-	manager := r.server.Group(r.resourceManager.Name(), nil)
-
 	var getHooks = func() *fs.Hooks {
 		return &fs.Hooks{}
 	}
 
-	if r.resourceManager.Hooks != nil {
-		getHooks = r.resourceManager.Hooks
+	if r.config.ResourceManager.Hooks != nil {
+		getHooks = r.config.ResourceManager.Hooks
 	}
 
-	registerResourceRoutes(r.resourceManager.Resources(), manager, getHooks)
+	manager := r.server.Group(r.config.ResourceManager.Name(), nil)
+	RegisterResourceRoutes(r.config.ResourceManager.Resources(), manager, getHooks)
 
 	return r
 }
@@ -97,16 +73,17 @@ func (r *RestfulResolver) Shutdown() error {
 	return r.server.App.Shutdown()
 }
 
-type MethodData struct {
-	Path    string
-	Handler func(path string, handler Handler, resources ...*fs.Resource)
-}
-
-func registerResourceRoutes(
+func RegisterResourceRoutes(
 	resources []*fs.Resource,
 	router *Router,
 	getHooks func() *fs.Hooks,
 ) {
+	var hooks *fs.Hooks
+
+	if getHooks != nil {
+		hooks = getHooks()
+	}
+
 	for _, r := range resources {
 		if r.IsGroup() {
 			groupPrefix := r.Name()
@@ -115,114 +92,91 @@ func registerResourceRoutes(
 			}
 
 			group := router.Group(groupPrefix, r)
-			registerResourceRoutes(r.Resources(), group, getHooks)
-
+			RegisterResourceRoutes(r.Resources(), group, getHooks)
 			continue
 		}
 
 		meta := r.Meta()
-		path := r.Name()
-		handler := router.Get
+		httpHandlers := []MethodData{{
+			Path:    r.Name(),
+			Handler: router.Get,
+		}}
 
 		if meta != nil {
-			methods := []MethodData{{
-				Path:    meta.Get,
-				Handler: router.Get,
-			}, {
-				Path:    meta.Head,
-				Handler: router.Head,
-			}, {
-				Path:    meta.Post,
-				Handler: router.Post,
-			}, {
-				Path:    meta.Put,
-				Handler: router.Put,
-			}, {
-				Path:    meta.Delete,
-				Handler: router.Delete,
-			}, {
-				Path:    meta.Connect,
-				Handler: router.Connect,
-			}, {
-				Path:    meta.Options,
-				Handler: router.Options,
-			}, {
-				Path:    meta.Trace,
-				Handler: router.Trace,
-			}, {
-				Path:    meta.Patch,
-				Handler: router.Patch,
-			}}
+			metaHandlers := CreateHTTPHandlers(router, meta)
+			if len(metaHandlers) > 0 {
+				httpHandlers = metaHandlers
+			}
 
-			for _, method := range methods {
-				if method.Path != "" {
-					handler = method.Handler
-					path = method.Path
-				}
+			if meta.WS != "" {
+				WSResourceHandler(r, hooks, router)
 			}
 		}
 
-		hooks := getHooks()
+		// Register all available methods
+		for _, methodHandler := range httpHandlers {
+			httpResourceHandler(r, hooks, methodHandler)
+		}
+	}
+}
 
-		func(r *fs.Resource) {
-			handler(path, func(c *Context) error {
-				for _, hook := range hooks.PreResolve {
-					if err := hook(c); err != nil {
-						result := fs.NewResult(nil, err)
-						if result.Error != nil && result.Error.Status != 0 {
-							c.Status(result.Error.Status)
-						}
-
-						return c.JSON(result)
-					}
-				}
-
-				result := fs.NewResult(r.Handler()(c))
+func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodData) {
+	methodHandler.Handler(methodHandler.Path, func(c *Context) error {
+		for _, hook := range hooks.PreResolve {
+			if err := hook(c); err != nil {
+				result := fs.NewResult(nil, err)
 				if result.Error != nil && result.Error.Status != 0 {
 					c.Status(result.Error.Status)
 				}
 
-				c.Result(result)
+				return c.JSON(result)
+			}
+		}
 
-				for _, hook := range hooks.PostResolve {
-					if err := hook(c); err != nil {
-						result := fs.NewResult(nil, err)
+		result := fs.NewResult(r.Handler()(c))
+		if result.Error != nil && result.Error.Status != 0 {
+			c.Status(result.Error.Status)
+		}
 
-						if result.Error != nil && result.Error.Status != 0 {
-							c.Status(result.Error.Status)
-						}
+		c.Result(result)
 
-						return c.JSON(result)
-					}
-				}
+		for _, hook := range hooks.PostResolve {
+			if err := hook(c); err != nil {
+				result := fs.NewResult(nil, err)
 
-				// Send raw bytes
-				bytes, ok := result.Data.([]byte)
-				if ok {
-					return c.Send(bytes)
-				}
-
-				// Send http response
-				httpResponse, ok := result.Data.(*fs.HTTPResponse)
-				if ok {
-					status := httpResponse.StatusCode
-					if status == 0 {
-						status = fiber.StatusOK
-					}
-
-					if httpResponse.Header != nil {
-						for key, values := range httpResponse.Header {
-							for _, value := range values {
-								c.Set(key, value)
-							}
-						}
-					}
-
-					return c.Status(status).Send(httpResponse.Body)
+				if result.Error != nil && result.Error.Status != 0 {
+					c.Status(result.Error.Status)
 				}
 
 				return c.JSON(result)
-			}, r)
-		}(r)
-	}
+			}
+		}
+
+		// Send raw bytes
+		bytes, ok := result.Data.([]byte)
+		if ok {
+			return c.Send(bytes)
+		}
+
+		// Send http response
+		httpResponse, ok := result.Data.(*fs.HTTPResponse)
+		if ok {
+			status := httpResponse.StatusCode
+			if status == 0 {
+				status = fiber.StatusOK
+			}
+
+			if httpResponse.Header != nil {
+				for key, values := range httpResponse.Header {
+					for _, value := range values {
+						c.Set(key, value)
+					}
+				}
+			}
+
+			return c.Status(status).Send(httpResponse.Body)
+		}
+
+		return c.JSON(result)
+	}, r)
 }
