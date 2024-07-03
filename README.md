@@ -139,6 +139,8 @@ Fastschema offers a comprehensive suite of features designed to streamline and s
 
 - **Extensible and Flexible:** Extend and customize FastSchema with Go code, build extensive features by leveraging the power of Resources, Hooks, ORM, and more.
 
+- **Real-time Updates:** FastSchema supports real-time updates, allowing you to build dynamic web applications that update in real-time without the need for manual refresh.
+
 ## Documentation
 
 For more information on how to get started with FastSchema, check out our [documentation](https://fastschema.com).
@@ -147,13 +149,14 @@ For more information on how to get started with FastSchema, check out our [docum
 ## Roadmap
 
 - [x] Improve documentation and testing.
-- [ ] Add auth provider.
-- [ ] Plugin system.
+- [x] Add auth provider.
 - [x] OpenAPI generator.
-- [ ] Real-time updates.
+- [x] Real-time updates.
+- [ ] Plugin system.
 - [ ] GraphQL support.
 - [ ] Webhooks.
 - [ ] Client SDKs.
+  - [x] JavaScript SDK.
 
 ## Testing
 

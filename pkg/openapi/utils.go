@@ -223,6 +223,7 @@ func FlattenResources(resources []*fs.Resource, prefix string, args fs.Args) ([]
 			{method: "OPTIONS", path: meta.Options},
 			{method: "TRACE", path: meta.Trace},
 			{method: "PATCH", path: meta.Patch},
+			{method: "WS", path: meta.WS},
 		}
 
 		for _, method := range methodPaths {
@@ -232,14 +233,20 @@ func FlattenResources(resources []*fs.Resource, prefix string, args fs.Args) ([]
 
 			noMethod = false
 			path := JoinPaths(prefix, method.path)
-			infos = append(infos, &ResourceInfo{
+			info := &ResourceInfo{
 				ID:         resource.ID(),
 				Signatures: resource.Signature(),
 				Method:     method.method,
 				Path:       path,
 				Args:       args,
 				Public:     resource.IsPublic(),
-			})
+			}
+
+			if method.method == "WS" {
+				info.Method = "GET"
+			}
+
+			infos = append(infos, info)
 		}
 
 		// if there is no method, use get as default

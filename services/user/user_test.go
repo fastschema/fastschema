@@ -96,7 +96,10 @@ func TestUserService(t *testing.T) {
 		}))
 
 	assert.NoError(t, resources.Init())
-	server := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(true)).Server()
+	server := restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
+		ResourceManager: resources,
+		Logger:          logger.CreateMockLogger(true),
+	}).Server()
 
 	// Case 1: Login User not found
 	req := httptest.NewRequest("POST", "/user/login", bytes.NewReader([]byte(`{"login": "user", "password": "user"}`)))

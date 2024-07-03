@@ -9,9 +9,8 @@ import (
 )
 
 func TestRoleServiceList(t *testing.T) {
-	testApp := createRoleTest()
-	req := httptest.NewRequest("GET", "/role", nil)
-	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	testApp := createTestApp()
+	req := httptest.NewRequest("GET", "/api/role", nil)
 	resp := utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)

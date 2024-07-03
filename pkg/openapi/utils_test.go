@@ -366,6 +366,7 @@ func TestFlattenResources(t *testing.T) {
 		Options: "/options",
 		Trace:   "/trace",
 		Patch:   "/patch",
+		WS:      "/ws",
 	})
 
 	r2 := fs.NewResource("r2", func(c fs.Context, _ any) (any, error) {
@@ -472,6 +473,14 @@ func TestFlattenResources(t *testing.T) {
 			ID:         "root.r1",
 			Path:       "/patch",
 			Method:     "PATCH",
+			Signatures: []any{nil, nil},
+			Args:       fs.Args{},
+			Public:     false,
+		},
+		{
+			ID:         "root.r1",
+			Path:       "/ws",
+			Method:     "GET",
 			Signatures: []any{nil, nil},
 			Args:       fs.Args{},
 			Public:     false,

@@ -7,6 +7,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -20,6 +21,12 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 	entAdapter, ok := m.client.(EntAdapter)
 	if !ok {
 		return 0, fmt.Errorf("client is not an ent adapter")
+	}
+
+	var hooks = &db.Hooks{}
+	var originalEntities []*schema.Entity
+	if m.client != nil {
+		hooks = m.client.Hooks()
 	}
 
 	m.updateSpec = &sqlgraph.UpdateSpec{
@@ -49,6 +56,13 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 		}
 		m.updateSpec.Predicate = func(s *sql.Selector) {
 			s.Where(sql.And(sqlPredicatesFn(s)...))
+		}
+
+		if len(hooks.PostDBUpdate) > 0 {
+			originalEntities, err = m.model.Query(m.predicates...).Select("id").Get(ctx)
+			if err != nil {
+				return 0, err
+			}
 		}
 	}
 
@@ -99,6 +113,14 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 	if m.autoCommit {
 		if err = m.client.Commit(); err != nil {
 			return 0, err
+		}
+	}
+
+	if len(originalEntities) > 0 && len(hooks.PostDBUpdate) > 0 {
+		for _, hook := range hooks.PostDBUpdate {
+			if err := hook(m.model.schema, m.predicates, e, originalEntities, affected); err != nil {
+				return 0, err
+			}
 		}
 	}
 

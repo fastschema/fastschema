@@ -3,8 +3,15 @@ package restfulresolver
 import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/gofiber/fiber/v2"
 )
+
+type MethodData struct {
+	Path    string
+	Handler func(path string, handler Handler, resources ...*fs.Resource)
+}
 
 func TransformHandlers(
 	r *fs.Resource,
@@ -24,7 +31,33 @@ func TransformHandlers(
 	return fiberHandlers
 }
 
-func CreateContext(r *fs.Resource, c *fiber.Ctx, logger logger.Logger) *Context {
+func TransformMiddlewares(inputs []fs.Middleware) []Handler {
+	middlewares := make([]Handler, 0)
+	for _, middleware := range inputs {
+		middlewares = append(middlewares, func(c *Context) error {
+			if err := middleware(c); err != nil {
+				fiberError, ok := err.(*fiber.Error)
+				if ok {
+					err = errors.GetErrorByStatus(fiberError.Code, err)
+				}
+
+				result := fs.NewResult(nil, err)
+
+				if result.Error != nil && result.Error.Status != 0 {
+					c.Status(result.Error.Status)
+				}
+
+				return c.JSON(result)
+			}
+
+			return nil
+		})
+	}
+
+	return middlewares
+}
+
+func CreateContext(r *fs.Resource, c *fiber.Ctx, logger logger.Logger, wsClients ...fs.WSClient) *Context {
 	args := make(map[string]string)
 	allParams := c.AllParams()
 	queries := c.Queries()
@@ -39,12 +72,14 @@ func CreateContext(r *fs.Resource, c *fiber.Ctx, logger logger.Logger) *Context 
 		}
 	}
 
-	return &Context{
+	ctx := &Context{
 		Ctx:      c,
 		args:     args,
 		resource: r,
 		logger:   logger,
 	}
+
+	return ctx
 }
 
 func GetHandlerInfo(handler Handler, logger logger.Logger, resources ...*fs.Resource) (string, []fiber.Handler) {
@@ -58,4 +93,37 @@ func GetHandlerInfo(handler Handler, logger logger.Logger, resources ...*fs.Reso
 	handlers := TransformHandlers(r, []Handler{handler}, logger)
 
 	return name, handlers
+}
+
+func CreateHTTPHandlers(router *Router, meta *fs.Meta) []MethodData {
+	return utils.Filter([]MethodData{{
+		Path:    meta.Get,
+		Handler: router.Get,
+	}, {
+		Path:    meta.Head,
+		Handler: router.Head,
+	}, {
+		Path:    meta.Post,
+		Handler: router.Post,
+	}, {
+		Path:    meta.Put,
+		Handler: router.Put,
+	}, {
+		Path:    meta.Delete,
+		Handler: router.Delete,
+	}, {
+		Path:    meta.Connect,
+		Handler: router.Connect,
+	}, {
+		Path:    meta.Options,
+		Handler: router.Options,
+	}, {
+		Path:    meta.Trace,
+		Handler: router.Trace,
+	}, {
+		Path:    meta.Patch,
+		Handler: router.Patch,
+	}}, func(m MethodData) bool {
+		return m.Path != ""
+	})
 }

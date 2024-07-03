@@ -13,24 +13,21 @@ import (
 )
 
 func TestRoleServiceUpdate(t *testing.T) {
-	testApp := createRoleTest()
+	testApp := createTestApp()
 	// Case 1: Invalid Payload
-	req := httptest.NewRequest("PUT", "/role/2", nil)
-	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	req := httptest.NewRequest("PUT", "/api/role/2", nil)
 	resp := utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
 
 	// Case 2: Invalid ID
-	req = httptest.NewRequest("PUT", "/role/9999", bytes.NewReader([]byte(`{"name": "user role"}`)))
-	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	req = httptest.NewRequest("PUT", "/api/role/9999", bytes.NewReader([]byte(`{"name": "user role"}`)))
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 404, resp.StatusCode)
 
 	// Case 3: Valid Payload, update role only
-	req = httptest.NewRequest("PUT", "/role/2", bytes.NewReader([]byte(`{"name": "user role"}`)))
-	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	req = httptest.NewRequest("PUT", "/api/role/2", bytes.NewReader([]byte(`{"name": "user role"}`)))
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
@@ -42,7 +39,7 @@ func TestRoleServiceUpdate(t *testing.T) {
 	// This test perform:
 	// 	- Remove content.detail
 	// 	- Add content.meta, content.view
-	req = httptest.NewRequest("PUT", "/role/2", bytes.NewReader([]byte(`{
+	req = httptest.NewRequest("PUT", "/api/role/2", bytes.NewReader([]byte(`{
 		"name": "user role",
 		"permissions": [
 			"content.list",
@@ -50,7 +47,6 @@ func TestRoleServiceUpdate(t *testing.T) {
 			"content.view"
 		]
 	}`)))
-	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)

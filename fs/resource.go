@@ -126,16 +126,6 @@ func NewResource[Input, Output any](
 	return resource
 }
 
-// {method: "GET", path: meta.Get},
-// {method: "HEAD", path: meta.Head},
-// {method: "POST", path: meta.Post},
-// {method: "PUT", path: meta.Put},
-// {method: "DELETE", path: meta.Delete},
-// {method: "CONNECT", path: meta.Connect},
-// {method: "OPTIONS", path: meta.Options},
-// {method: "TRACE", path: meta.Trace},
-// {method: "PATCH", path: meta.Patch},
-
 func createResourceWithMethod[Input, Output any](
 	name string,
 	method string,
@@ -182,6 +172,10 @@ func createResourceWithMethod[Input, Output any](
 	case "PATCH":
 		if metas[0].Patch == "" {
 			metas[0].Patch = name
+		}
+	case "WS":
+		if metas[0].WS == "" {
+			metas[0].WS = name
 		}
 	}
 
@@ -231,6 +225,11 @@ func Trace[Input, Output any](name string, handler HandlerFn[Input, Output], met
 // Patch is a shortcut to create a new resource with rest method PATCH and using name as the patch path
 func Patch[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
 	return createResourceWithMethod(name, "PATCH", handler, metas...)
+}
+
+// WS is a shortcut to create a new resource with rest method WS and using name as the ws path
+func WS[Input, Output any](name string, handler HandlerFn[Input, Output], metas ...*Meta) *Resource {
+	return createResourceWithMethod(name, "WS", handler, metas...)
 }
 
 func (r *Resource) generateID(parentID string) string {

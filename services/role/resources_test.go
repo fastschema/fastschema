@@ -9,12 +9,11 @@ import (
 )
 
 func TestRoleServiceResources(t *testing.T) {
-	testApp := createRoleTest()
-	req := httptest.NewRequest("GET", "/role/resources", nil)
-	req.Header.Set("Authorization", "Bearer "+testApp.adminToken)
+	testApp := createTestApp()
+	req := httptest.NewRequest("GET", "/api/role/resources", nil)
 	resp := utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 200, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
+	assert.Equal(t, 200, resp.StatusCode)
 	assert.Contains(t, response, `content.blog.create`)
 }
