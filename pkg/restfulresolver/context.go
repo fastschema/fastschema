@@ -84,14 +84,23 @@ func (c *Context) Resource() *fs.Resource {
 }
 
 func (c *Context) AuthToken() string {
+	// get token from header Authorization
 	bearer := c.Header("Authorization")
-
 	if len(bearer) >= 7 && bearer[:7] == "Bearer " {
 		bearer = bearer[7:]
 	}
 
+	// get token from cookie
 	if bearer == "" {
 		bearer = c.Cookie("token")
+	}
+
+	// get token from websocket subprotocol
+	if bearer == "" {
+		subProtocol := c.Header("Sec-WebSocket-Protocol")
+		if len(subProtocol) >= 14 && subProtocol[:14] == "Authorization," {
+			bearer = subProtocol[14:]
+		}
 	}
 
 	return bearer

@@ -129,6 +129,7 @@ func TestContextAuthToken(t *testing.T) {
 		return c.Redirect("/redirect")
 	})
 
+	// Test auth token from Authorization header
 	req := httptest.NewRequest("GET", "/test", nil)
 	req.Header.Set("Authorization", "Bearer token")
 	resp, err := server.Test(req)
@@ -136,9 +137,18 @@ func TestContextAuthToken(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 302, resp.StatusCode)
 
+	// Test auth token from cookie
 	req2 := httptest.NewRequest("GET", "/test", nil)
 	req2.Header.Set("Cookie", "token=token")
 	resp, err = server.Test(req2)
+	defer closeResponse(t, resp)
+	assert.NoError(t, err)
+	assert.Equal(t, 302, resp.StatusCode)
+
+	// Test auth token from Sec-WebSocket-Protocol header
+	req3 := httptest.NewRequest("GET", "/test", nil)
+	req3.Header.Set("Sec-WebSocket-Protocol", "Authorization,token")
+	resp, err = server.Test(req3)
 	defer closeResponse(t, resp)
 	assert.NoError(t, err)
 	assert.Equal(t, 302, resp.StatusCode)
