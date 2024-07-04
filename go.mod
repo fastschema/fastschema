@@ -8,7 +8,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/buger/jsonparser v1.1.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/fasthttp/websocket v1.5.9
+	github.com/fasthttp/websocket v1.5.10
 	github.com/fatih/color v1.17.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gofiber/contrib/websocket v1.3.2
@@ -105,7 +105,7 @@ require (
 	github.com/rfjakob/eme v1.1.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/savsgio/gotils v0.0.0-20240303185622-093b76447511 // indirect
+	github.com/savsgio/gotils v0.0.0-20240704082632-aef3928b8a38 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shirou/gopsutil/v3 v3.24.5 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
