@@ -3,15 +3,15 @@ module github.com/fastschema/fastschema
 go 1.22.3
 
 require (
-	ariga.io/atlas v0.24.0
+	ariga.io/atlas v0.24.1
 	entgo.io/ent v0.13.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/buger/jsonparser v1.1.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/fasthttp/websocket v1.5.8
+	github.com/fasthttp/websocket v1.5.9
 	github.com/fatih/color v1.17.0
 	github.com/go-sql-driver/mysql v1.8.1
-	github.com/gofiber/contrib/websocket v1.3.1
+	github.com/gofiber/contrib/websocket v1.3.2
 	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/google/uuid v1.6.0
