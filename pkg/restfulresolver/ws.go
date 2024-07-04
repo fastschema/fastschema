@@ -187,6 +187,8 @@ func WSResourceHandler(r *fs.Resource, hooks *fs.Hooks, router *Router) {
 			if _, err := r.Handler()(c); err != nil {
 				router.logger.Error(err)
 			}
+		}, websocket.Config{
+			Subprotocols: []string{"Authorization"},
 		})
 
 		return handler(ctx)
