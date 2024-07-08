@@ -5,6 +5,7 @@ import (
 	"path"
 
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/miniofs"
 )
 
 func NewFromConfig(diskConfigs []*fs.DiskConfig, localRoot string) ([]fs.Disk, error) {
@@ -55,6 +56,14 @@ func NewFromConfig(diskConfigs []*fs.DiskConfig, localRoot string) ([]fs.Disk, e
 			}
 
 			disks = append(disks, localDisk)
+		case "minio":
+			minioDisk, err := miniofs.NewMinioDisk(diskConfig)
+
+			if err != nil {
+				return nil, err
+			}
+
+			disks = append(disks, minioDisk)
 		}
 	}
 
