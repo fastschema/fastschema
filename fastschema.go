@@ -673,6 +673,9 @@ func (a *App) createResources() error {
 		Add(fs.NewResource("delete", contentService.Delete, &fs.Meta{
 			Delete: "/:id",
 			Args:   fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
+		})).
+		Add(fs.NewResource("bulk-delete", contentService.BulkDelete, &fs.Meta{
+			Post: "/bulk-delete",
 		}))
 
 	a.api.Group("role").

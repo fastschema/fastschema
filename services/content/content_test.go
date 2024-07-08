@@ -36,6 +36,46 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 				"name": "name",
 				"label": "Name",
 				"sortable": true
+			},
+			{
+				"type": "relation",
+				"name": "tags",
+				"label": "Tags",
+				"optional": true,
+				"sortable": true,
+				"relation": {
+					"schema": "tag",
+					"field": "blogs",
+					"type": "o2o",
+					"owner": true,
+					"fk_columns": null,
+					"optional": false
+				}
+			}
+		]
+	}`)
+	utils.WriteFile(schemaDir+"/tag.json", `{
+		"name": "tag",
+		"namespace": "tags",
+		"label_field": "name",
+		"fields": [
+			{
+				"type": "string",
+				"name": "name",
+				"label": "Name",
+				"sortable": true
+			},
+			{
+				"type": "relation",
+				"name": "blogs",
+				"label": "Blogs",
+				"relation": {
+					"schema": "blog",
+					"field": "tags",
+					"type": "o2o",
+					"fk_columns": null,
+					"optional": false
+				}
 			}
 		]
 	}`)
@@ -58,6 +98,9 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 		})).
 		Add(fs.NewResource("delete", contentService.Delete, &fs.Meta{
 			Delete: "/:schema/:id",
+		})).
+		Add(fs.NewResource("bulk-delete", contentService.BulkDelete, &fs.Meta{
+			Post: "/:schema/bulk-delete",
 		}))
 
 	assert.NoError(t, resources.Init())
