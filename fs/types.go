@@ -38,6 +38,9 @@ type Meta struct {
 	Trace   string `json:"trace,omitempty"`   // Only use for restful method TRACE
 	Patch   string `json:"patch,omitempty"`   // Only use for restful method PATCH
 
+	// WS
+	WS string `json:"ws,omitempty"` // Only use for websocket
+
 	Prefix     string     `json:"prefix,omitempty"` // Only use for group resource
 	Args       Args       `json:"args,omitempty"`
 	Public     bool       `json:"public,omitempty"`
@@ -86,6 +89,8 @@ func (m *Meta) Clone() *Meta {
 		Options: m.Options,
 		Trace:   m.Trace,
 		Patch:   m.Patch,
+
+		WS: m.WS,
 
 		Prefix: m.Prefix,
 		Args:   m.Args.Clone(),

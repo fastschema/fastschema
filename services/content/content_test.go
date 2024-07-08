@@ -104,7 +104,10 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 		}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := rr.NewRestfulResolver(resources, logger.CreateMockLogger(true))
+	restResolver := rr.NewRestfulResolver(&rr.ResolverConfig{
+		ResourceManager: resources,
+		Logger:          logger.CreateMockLogger(true),
+	})
 
 	return contentService, restResolver.Server()
 }

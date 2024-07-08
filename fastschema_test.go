@@ -281,7 +281,7 @@ func TestFastschemaSetup(t *testing.T) {
 	a, err := fastschema.New(config)
 	assert.NoError(t, err)
 	assert.NotNil(t, a)
-	assert.NotEmpty(t, utils.Must(a.SetupToken(ctx)))
+	assert.NotEmpty(t, utils.Must(a.GetSetupToken(ctx)))
 
 	// no need to setup
 	clearEnvs(t)
@@ -298,7 +298,7 @@ func TestFastschemaSetup(t *testing.T) {
 	_, err = db.Create[*fs.Role](ctx, a.DB(), fs.Map{"name": "admin"})
 	assert.NoError(t, err)
 
-	setupToken, err := a.SetupToken(ctx)
+	setupToken, err := a.GetSetupToken(ctx)
 	assert.NoError(t, err)
 	assert.Empty(t, setupToken)
 }
@@ -348,6 +348,41 @@ func TestFastschemaResources(t *testing.T) {
 		return entities, nil
 	})
 
+	a.OnPostDBCreate(func(schema *schema.Schema, id uint64, dataCreate *schema.Entity) error {
+		assert.NotNil(t, schema)
+		assert.NotNil(t, dataCreate)
+		assert.Greater(t, id, uint64(0))
+		return nil
+	})
+
+	a.OnPostDBUpdate(func(
+		schema *schema.Schema,
+		predicates []*db.Predicate,
+		updateData *schema.Entity,
+		originalEntities []*schema.Entity,
+		affected int,
+	) error {
+		assert.NotNil(t, schema)
+		assert.NotNil(t, updateData)
+		assert.Greater(t, affected, 0)
+		return nil
+	})
+
+	a.OnPostDBDelete(func(schema *schema.Schema, predicates []*db.Predicate, originalEntities []*schema.Entity, affected int) error {
+		assert.NotNil(t, schema)
+		assert.Greater(t, affected, 0)
+		return nil
+	})
+
+	hooks := a.Hooks()
+	assert.NotNil(t, hooks)
+	assert.NotNil(t, hooks.DBHooks)
+	// All db hooks expected 2 includes: the default one and the one we added in the test
+	assert.Len(t, hooks.DBHooks.PostDBGet, 2)
+	assert.Len(t, hooks.DBHooks.PostDBCreate, 2)
+	assert.Len(t, hooks.DBHooks.PostDBUpdate, 2)
+	assert.Len(t, hooks.DBHooks.PostDBDelete, 2)
+
 	a.AddResource(fs.NewResource("test", func(c fs.Context, _ any) (any, error) {
 		return "test", nil
 	}, &fs.Meta{Public: true}))
@@ -361,7 +396,10 @@ func TestFastschemaResources(t *testing.T) {
 	assert.True(t, len(a.API().Resources()) > 0)
 
 	assert.NoError(t, resources.Init())
-	server := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(false)).Server()
+	server := restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
+		ResourceManager: resources,
+		Logger:          logger.CreateMockLogger(true),
+	}).Server()
 
 	req := httptest.NewRequest("GET", "/test", nil)
 	resp := utils.Must(server.Test(req))
@@ -390,7 +428,7 @@ func TestFastschemaResources(t *testing.T) {
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Invalid setup data or token`)
 
 	// Setup success
-	setupToken := utils.Must(a.SetupToken(context.Background()))
+	setupToken := utils.Must(a.GetSetupToken(context.Background()))
 	req = httptest.NewRequest("POST", "/api/setup", bytes.NewReader([]byte(`{
 		"token":"`+setupToken+`",
 		"username":"admin",

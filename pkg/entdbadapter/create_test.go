@@ -96,6 +96,40 @@ func TestMockCreateNode(t *testing.T) {
 	}, sb, t, tests)
 }
 
+func TestMockCreateNodeHookError(t *testing.T) {
+	tests := []MockTestCreateData{
+		{
+			Name:        "fields",
+			Schema:      "user",
+			InputJSON:   `{ "name": "User 1", "age": 10 }`,
+			ExpectError: "hook error",
+			Expect: func(m sqlmock.Sqlmock) {
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`) VALUES (?, ?)")).
+					WithArgs("User 1", float64(10)).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+			},
+		},
+	}
+
+	sb := createSchemaBuilder()
+	MockRunCreateTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
+			Driver: "sqlmock",
+			Hooks: func() *db.Hooks {
+				return &db.Hooks{
+					PostDBCreate: []db.PostDBCreate{
+						func(schema *schema.Schema, id uint64, dataCreate *schema.Entity) error {
+							assert.Greater(t, id, uint64(0))
+							return errors.New("hook error")
+						},
+					},
+				}
+			},
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
+		return driver
+	}, sb, t, tests)
+}
+
 func TestMockCreateNodeEdges(t *testing.T) {
 	tests := []MockTestCreateData{
 		{

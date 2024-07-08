@@ -17,28 +17,16 @@ import (
 )
 
 type TestApp struct {
-	sb                *schema.Builder
-	db                db.Client
-	resources         *fs.ResourcesManager
-	adminUser         *fs.User
-	normalUser        *fs.User
-	inactiveUser      *fs.User
-	roleService       *rs.RoleService
-	roleModel         db.Model
-	server            *rr.Server
-	adminToken        string
-	normalUserToken   string
-	inactiveUserToken string
+	sb          *schema.Builder
+	db          db.Client
+	resources   *fs.ResourcesManager
+	roleService *rs.RoleService
+	roleModel   db.Model
+	server      *rr.Server
 }
 
 func (s TestApp) DB() db.Client {
 	return s.db
-}
-
-func (s TestApp) Roles() []*fs.Role {
-	return utils.Must(
-		db.Query[*fs.Role](s.db).Select("id", "name", "root", "permissions").Get(context.Background()),
-	)
 }
 
 func (s TestApp) Key() string {
@@ -53,7 +41,7 @@ func (s TestApp) Resources() *fs.ResourcesManager {
 	return s.resources
 }
 
-func createRoleTest() *TestApp {
+func createTestApp() *TestApp {
 	schemaDir := utils.Must(os.MkdirTemp("", "schema"))
 	utils.WriteFile(schemaDir+"/blog.json", `{
 		"name": "blog",
@@ -115,41 +103,10 @@ func createRoleTest() *TestApp {
 		roleModel: roleModel,
 	}
 
-	testApp.adminUser = &fs.User{
-		ID:       1,
-		Username: "adminuser",
-		Active:   true,
-		Roles:    []*fs.Role{fs.RoleAdmin},
-		RoleIDs:  []uint64{1},
-	}
-	testApp.normalUser = &fs.User{
-		ID:       2,
-		Username: "normaluser",
-		Active:   true,
-		Roles:    []*fs.Role{fs.RoleUser},
-		RoleIDs:  []uint64{2},
-	}
-	testApp.inactiveUser = &fs.User{
-		ID:       3,
-		Username: "inactiveuser",
-		Active:   false,
-		Roles:    []*fs.Role{fs.RoleUser},
-		RoleIDs:  []uint64{2},
-	}
-
-	testApp.adminToken, _, _ = testApp.adminUser.JwtClaim(testApp.Key())
-	testApp.normalUserToken, _, _ = testApp.normalUser.JwtClaim(testApp.Key())
-	testApp.inactiveUserToken, _, _ = testApp.inactiveUser.JwtClaim(testApp.Key())
-
 	testApp.roleService = rs.New(testApp)
 	testApp.resources = fs.NewResourcesManager()
-	testApp.resources.Hooks = func() *fs.Hooks {
-		return &fs.Hooks{
-			PreResolve: []fs.Middleware{testApp.roleService.Authorize},
-		}
-	}
-	testApp.resources.Middlewares = append(testApp.resources.Middlewares, testApp.roleService.ParseUser)
-	testApp.resources.Group("role").
+	apiGroup := testApp.resources.Group("api", &fs.Meta{Prefix: "/api"})
+	apiGroup.Group("role").
 		Add(fs.NewResource("list", testApp.roleService.List, &fs.Meta{
 			Get: "/",
 		})).
@@ -169,46 +126,20 @@ func createRoleTest() *TestApp {
 			Delete: "/:id",
 		}))
 
-	testApp.resources.Group("content").
-		Add(fs.NewResource("list", func(c fs.Context, _ any) (any, error) {
-			return "blog list", nil
-		}, &fs.Meta{
-			Get: "/:schema",
-		})).
-		Add(fs.NewResource("detail", func(c fs.Context, _ any) (any, error) {
-			return "blog detail", nil
-		}, &fs.Meta{
-			Get: "/:schema/:id",
-		})).
-		Add(fs.NewResource("meta", func(c fs.Context, _ any) (any, error) {
-			return "blog meta", nil
-		}, &fs.Meta{
-			Get: "/:schema/meta",
-		}))
-
-	testApp.resources.
-		Add(
-			fs.NewResource("testuser", func(c fs.Context, _ any) (any, error) {
-				return c.User(), nil
-			}, &fs.Meta{Public: true}),
-		).
-		Add(
-			fs.NewResource("test", func(c fs.Context, _ any) (any, error) {
-				return "test response", nil
-			}, &fs.Meta{Public: true}),
-		)
-
 	if err := testApp.resources.Init(); err != nil {
 		panic(err)
 	}
 
-	testApp.server = rr.NewRestfulResolver(testApp.resources, logger.CreateMockLogger()).Server()
+	testApp.server = rr.NewRestfulResolver(&rr.ResolverConfig{
+		ResourceManager: testApp.resources,
+		Logger:          logger.CreateMockLogger(true),
+	}).Server()
 
 	return testApp
 }
 
 func TestNewRoleService(t *testing.T) {
-	testApp := createRoleTest()
+	testApp := createTestApp()
 	assert.NotNil(t, testApp)
 	assert.NotNil(t, testApp.roleService)
 	assert.NotNil(t, testApp.server)

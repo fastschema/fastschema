@@ -1,23 +1,24 @@
 package authservice
 
 import (
+	"strings"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
-	"github.com/fastschema/fastschema/pkg/errors"
-	"github.com/fastschema/fastschema/schema"
-	userservice "github.com/fastschema/fastschema/services/user"
 )
 
 type AppLike interface {
 	DB() db.Client
 	Key() string
 	GetAuthProvider(string) fs.AuthProvider
+	Roles() []*fs.Role
 }
 
 type AuthService struct {
 	DB              func() db.Client
 	AppKey          func() string
 	GetAuthProvider func(string) fs.AuthProvider
+	Roles           func() []*fs.Role
 }
 
 func New(app AppLike) *AuthService {
@@ -25,68 +26,45 @@ func New(app AppLike) *AuthService {
 		DB:              app.DB,
 		AppKey:          app.Key,
 		GetAuthProvider: app.GetAuthProvider,
+		Roles:           app.Roles,
 	}
 }
 
-func (as *AuthService) Login(c fs.Context, _ any) (_ any, err error) {
-	provider := as.GetAuthProvider(c.Arg("provider"))
-	if provider == nil {
-		return nil, errors.NotFound("invalid provider")
-	}
+func (as *AuthService) GetRolesFromIDs(ids []uint64) []*fs.Role {
+	result := []*fs.Role{}
 
-	return provider.Login(c)
-}
-
-func (as *AuthService) Callback(c fs.Context, _ any) (u *userservice.LoginResponse, err error) {
-	provider := as.GetAuthProvider(c.Arg("provider"))
-	if provider == nil {
-		return nil, errors.NotFound("invalid provider")
-	}
-
-	user, err := provider.Callback(c)
-	if err != nil {
-		return nil, errors.InternalServerError(err.Error())
-	}
-
-	return as.createUser(c, user)
-}
-
-func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*userservice.LoginResponse, error) {
-	userExisted, err := db.Query[*fs.User](as.DB()).
-		Where(db.And(
-			db.EQ("provider", providerUser.Provider),
-			db.EQ("provider_id", providerUser.ProviderID),
-		)).
-		Only(c.Context())
-
-	if err != nil {
-		// There is an error other than not found error
-		if !db.IsNotFound(err) {
-			return nil, err
+	for _, role := range as.Roles() {
+		for _, id := range ids {
+			if role.ID == id {
+				result = append(result, role)
+			}
 		}
+	}
 
-		// The error is not found, create a new user
-		if userExisted, err = db.Create[*fs.User](c.Context(), as.DB(), fs.Map{
-			"provider":          providerUser.Provider,
-			"provider_id":       providerUser.ProviderID,
-			"provider_username": providerUser.ProviderUsername,
-			"username":          providerUser.Username,
-			"email":             providerUser.Email,
-			"active":            true,
-			"roles":             []*schema.Entity{schema.NewEntity(fs.RoleUser.ID)},
-		}); err != nil {
-			return nil, err
+	return result
+}
+
+func (as *AuthService) GetPermission(roleID uint64, resource string) *fs.Permission {
+	matchedRole := &fs.Role{
+		ID:          roleID,
+		Permissions: []*fs.Permission{},
+	}
+
+	for _, role := range as.Roles() {
+		if role.ID == roleID {
+			matchedRole = role
 		}
-
-		// Set the role of the user
-		userExisted.RoleIDs = []uint64{fs.RoleUser.ID}
-		userExisted.Roles = []*fs.Role{fs.RoleUser}
 	}
 
-	jwtToken, exp, err := userExisted.JwtClaim(as.AppKey())
-	if err != nil {
-		return nil, err
+	for _, permission := range matchedRole.Permissions {
+		allowWildcard := strings.HasSuffix(permission.Resource, ".*") &&
+			strings.HasPrefix(resource, permission.Resource[:len(permission.Resource)-2])
+		allowExact := permission.Resource == resource
+
+		if allowWildcard || allowExact {
+			return permission
+		}
 	}
 
-	return &userservice.LoginResponse{Token: jwtToken, Expires: exp}, nil
+	return &fs.Permission{}
 }

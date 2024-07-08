@@ -37,7 +37,10 @@ func TestToolServiceError(t *testing.T) {
 		}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(true))
+	restResolver := restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
+		ResourceManager: resources,
+		Logger:          logger.CreateMockLogger(true),
+	})
 	server := restResolver.Server()
 
 	req := httptest.NewRequest("GET", "/tool/stats", nil)
@@ -60,7 +63,10 @@ func TestToolService(t *testing.T) {
 		}))
 
 	assert.NoError(t, resources.Init())
-	restResolver := restfulresolver.NewRestfulResolver(resources, logger.CreateMockLogger(true))
+	restResolver := restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
+		ResourceManager: resources,
+		Logger:          logger.CreateMockLogger(true),
+	})
 	server := restResolver.Server()
 
 	req := httptest.NewRequest("GET", "/tool/stats", nil)

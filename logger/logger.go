@@ -1,6 +1,10 @@
 package logger
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+	"time"
+)
 
 type LogContext = map[string]any
 
@@ -34,6 +38,7 @@ func (m MockLoggerMessage) String() string {
 }
 
 type MockLogger struct {
+	mu       sync.RWMutex
 	Silence  bool
 	Messages []*MockLoggerMessage
 }
@@ -52,6 +57,9 @@ func (l *MockLogger) WithContext(context LogContext, callerSkips ...int) Logger 
 }
 
 func (l *MockLogger) Last() MockLoggerMessage {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	if len(l.Messages) == 0 {
 		return MockLoggerMessage{}
 	}
@@ -59,8 +67,11 @@ func (l *MockLogger) Last() MockLoggerMessage {
 }
 
 func (l *MockLogger) Info(params ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if !l.Silence {
-		fmt.Println(params...)
+		printLog(params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Info", Params: params})
 }
@@ -71,22 +82,31 @@ func (l *MockLogger) Infof(msg string, params ...any) {
 }
 
 func (l *MockLogger) Debug(params ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if !l.Silence {
-		fmt.Println(params...)
+		printLog(params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Debug", Params: params})
 }
 
 func (l *MockLogger) Warn(params ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if !l.Silence {
-		fmt.Println(params...)
+		printLog(params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Warn", Params: params})
 }
 
 func (l *MockLogger) Error(params ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if !l.Silence {
-		fmt.Println(params...)
+		printLog(params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Error", Params: params})
 }
@@ -97,22 +117,37 @@ func (l *MockLogger) Errorf(msg string, params ...any) {
 }
 
 func (l *MockLogger) DPanic(params ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if !l.Silence {
-		fmt.Println(params...)
+		printLog(params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "DPanic", Params: params})
 }
 
 func (l *MockLogger) Panic(params ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if !l.Silence {
-		fmt.Println(params...)
+		printLog(params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Panic", Params: params})
 }
 
 func (l *MockLogger) Fatal(params ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if !l.Silence {
-		fmt.Println(params...)
+		printLog(params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Fatal", Params: params})
+}
+
+func printLog(a ...any) {
+	timeStr := time.Now().Format(time.RFC3339Nano)
+	a = append([]any{timeStr}, a...)
+	fmt.Println(a...)
 }
