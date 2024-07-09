@@ -96,11 +96,11 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 		Add(fs.NewResource("update", contentService.Update, &fs.Meta{
 			Put: "/:schema/:id",
 		})).
+		Add(fs.NewResource("bulk-delete", contentService.BulkDelete, &fs.Meta{
+			Delete: "/:schema/delete",
+		})).
 		Add(fs.NewResource("delete", contentService.Delete, &fs.Meta{
 			Delete: "/:schema/:id",
-		})).
-		Add(fs.NewResource("bulk-delete", contentService.BulkDelete, &fs.Meta{
-			Post: "/:schema/bulk-delete",
 		}))
 
 	assert.NoError(t, resources.Init())
