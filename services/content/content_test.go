@@ -48,7 +48,8 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 					"field": "blogs",
 					"type": "o2m",
 					"fk_columns": null,
-					"optional": false
+					"optional": false,
+					"on_delete": "restrict"
 				}
 			}
 		]

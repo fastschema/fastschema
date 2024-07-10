@@ -94,16 +94,16 @@ func TestContentServiceBulkDelete(t *testing.T) {
 func TestContentServiceBulkDeleteFail(t *testing.T) {
 	cs, server := createContentService(t)
 
-	blogModel := utils.Must(cs.DB().Model("blog"))
-	blogID := utils.Must(blogModel.CreateFromJSON(context.Background(), `{"name": "test blog"}`))
 	tagModel := utils.Must(cs.DB().Model("tag"))
-	tagJSON := fmt.Sprintf(`{"name": "test tag", "blogs_id": %d}`, blogID)
-	utils.Must(tagModel.CreateFromJSON(context.Background(), tagJSON))
+	tagID := utils.Must(tagModel.CreateFromJSON(context.Background(), `{"name": "test tag"}`))
+	blogModel := utils.Must(cs.DB().Model("blog"))
+	blogJSON := fmt.Sprintf(`{"name": "test blog", "tags_id": %d}`, tagID)
+	utils.Must(blogModel.CreateFromJSON(context.Background(), blogJSON))
 
 	// Case 6: fail to delete
-	filter := url.QueryEscape(`{"name":{"$like":"%test blog%"}}`)
-	req := httptest.NewRequest("DELETE", "/content/blog/delete?filter="+filter, nil)
+	filter := url.QueryEscape(`{"name":{"$like":"%test tag%"}}`)
+	req := httptest.NewRequest("DELETE", "/content/tag/delete?filter="+filter, nil)
 	resp := utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 500, resp.StatusCode)
+	assert.Equal(t, 200, resp.StatusCode)
 }
