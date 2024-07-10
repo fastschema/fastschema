@@ -27,9 +27,8 @@ func TestNewS3(t *testing.T) {
 
 	rs3, ok := disk.(*RcloneS3)
 	assert.True(t, ok)
-	assert.Equal(t, config.Name, rs3.DiskName)
+	assert.Equal(t, config.Name, rs3.Disk)
 	assert.Equal(t, config.Root, rs3.Root())
-	assert.Equal(t, config.Root, rs3.BaseRcloneDisk.Root)
 	assert.Equal(t, config.Provider, rs3.config.Provider)
 	assert.Equal(t, config.Region, rs3.config.Region)
 	assert.Equal(t, config.Endpoint, rs3.config.Endpoint)
@@ -50,7 +49,7 @@ func TestRcloneS3URL(t *testing.T) {
 		ChunkSize:       1024 * 1024,
 		AccessKeyID:     "access_key_id",
 		SecretAccessKey: "secret_access_key",
-		BaseURL:         "base_url",
+		BaseURL:         "http://base_url",
 		ACL:             "acl",
 	}
 

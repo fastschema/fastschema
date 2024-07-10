@@ -3,13 +3,9 @@ package rclonefs
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
-	"path"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,18 +14,15 @@ import (
 	"github.com/rclone/rclone/fs/object"
 )
 
-var filenameRemoveCharsRegexp = regexp.MustCompile(`[^a-zA-Z0-9_\-\.]`)
-var dashRegexp = regexp.MustCompile(`\-+`)
+// var filenameRemoveCharsRegexp = regexp.MustCompile(`[^a-zA-Z0-9_\-\.]`)
+// var dashRegexp = regexp.MustCompile(`\-+`)
 
 type BaseRcloneDisk struct {
 	rclonefs.Fs
-	DiskName string `json:"name"`
-	Root     string
-	GetURL   func(string) string
-}
-
-func (r *BaseRcloneDisk) Name() string {
-	return r.DiskName
+	Disk           string `json:"name"`
+	GetURL         func(string) string
+	UploadFilePath func(string) string
+	IsAllowedMime  func(string) bool
 }
 
 func (r *BaseRcloneDisk) Put(ctx context.Context, file *fs.File) (*fs.File, error) {
@@ -72,7 +65,7 @@ func (r *BaseRcloneDisk) PutReader(
 	}
 
 	return &fs.File{
-		Disk: r.DiskName,
+		Disk: r.Disk,
 		Path: dst,
 		Type: fileType,
 		Size: uint64(rs.Size()),
@@ -115,30 +108,6 @@ func (r *BaseRcloneDisk) PutMultipart(
 	}
 
 	return r.PutReader(ctx, f, uint64(m.Size), fileType, dst)
-}
-
-func (r *BaseRcloneDisk) IsAllowedMime(mime string) bool {
-	for _, allowedFileType := range fs.AllowedFileTypes {
-		allowedFileType = strings.Split(allowedFileType, ";")[0]
-		if allowedFileType == mime {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (r *BaseRcloneDisk) UploadFilePath(filename string) string {
-	now := time.Now()
-	filename = filenameRemoveCharsRegexp.ReplaceAllString(filename, "-")
-	filename = dashRegexp.ReplaceAllString(filename, "-")
-	filename = strings.ReplaceAll(filename, "-.", ".")
-	return path.Join(
-		r.Root,
-		strconv.Itoa(now.Year()),
-		fmt.Sprintf("%02d", int(now.Month())),
-		fmt.Sprintf("%d_%s", now.UnixMicro(), filename),
-	)
 }
 
 func (r *BaseRcloneDisk) Delete(ctx context.Context, filePath string) error {

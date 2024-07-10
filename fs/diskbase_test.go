@@ -2,6 +2,8 @@ package fs
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDiskBase_Name(t *testing.T) {
@@ -30,4 +32,13 @@ func TestDiskBase_IsAllowedMime(t *testing.T) {
 			t.Errorf("Expected %t for mime type %s, got %t", test.expected, test.mime, allowed)
 		}
 	}
+}
+
+func TestBaseRcloneDiskName(t *testing.T) {
+	r := &DiskBase{
+		DiskName: "mydisk",
+	}
+
+	name := r.Name()
+	assert.Equal(t, "mydisk", name)
 }
