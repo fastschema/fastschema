@@ -1,7 +1,6 @@
 package contentservice
 
 import (
-	"encoding/json"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
