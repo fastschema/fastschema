@@ -72,4 +72,3 @@ func (cs *ContentService) BulkUpdate(c fs.Context, _ any) (int, error) {
 
 	return updatedCount, nil
 }
-
