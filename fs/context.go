@@ -37,6 +37,7 @@ type HTTPResponse struct {
 	StatusCode int
 	Body       []byte
 	Header     http.Header
+	File       string
 }
 
 // Result is a struct that contains the result of a resolver

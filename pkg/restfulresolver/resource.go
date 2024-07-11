@@ -174,6 +174,10 @@ func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodDa
 				}
 			}
 
+			if httpResponse.File != "" {
+				return c.SendFile(httpResponse.File)
+			}
+
 			return c.Status(status).Send(httpResponse.Body)
 		}
 

@@ -82,7 +82,11 @@ func (a *App) createResources() error {
 			Delete: "/:name",
 			Args:   fs.Args{"name": createArg(fs.TypeString, "The schema name")},
 		})).
-		Add(fs.NewResource("upload", schemaService.Upload, &fs.Meta{Post: "/upload"}))
+		Add(fs.NewResource("upload", schemaService.Upload, &fs.Meta{Post: "/upload"})).
+		Add(fs.NewResource("download", schemaService.Download, &fs.Meta{
+			Get:  "/download/:name",
+			Args: fs.Args{"name": createArg(fs.TypeString, "The schema name")},
+		}))
 
 	a.api.Group("content", &fs.Meta{
 		Prefix: "/content/:schema",
