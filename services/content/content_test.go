@@ -46,10 +46,7 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 				"relation": {
 					"schema": "tag",
 					"field": "blogs",
-					"type": "o2m",
-					"fk_columns": null,
-					"optional": false,
-					"on_delete": "restrict"
+					"type": "o2m"
 				}
 			}
 		]
@@ -73,9 +70,7 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 					"schema": "blog",
 					"field": "tags",
 					"type": "o2m",
-					"owner": true,
-					"fk_columns": null,
-					"optional": false
+					"owner": true
 				}
 			}
 		]
