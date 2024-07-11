@@ -99,9 +99,15 @@ func (a *App) createResources() error {
 			Args: fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
 		})).
 		Add(fs.NewResource("create", contentService.Create, &fs.Meta{Post: "/"})).
+		Add(fs.NewResource("bulk-update", contentService.BulkUpdate, &fs.Meta{
+			Put: "/update",
+		})).
 		Add(fs.NewResource("update", contentService.Update, &fs.Meta{
 			Put:  "/:id",
 			Args: fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
+		})).
+		Add(fs.NewResource("bulk-delete", contentService.BulkDelete, &fs.Meta{
+			Delete: "/delete",
 		})).
 		Add(fs.NewResource("delete", contentService.Delete, &fs.Meta{
 			Delete: "/:id",
