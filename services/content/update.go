@@ -62,7 +62,7 @@ func (cs *ContentService) BulkUpdate(c fs.Context, _ any) (int, error) {
 	if err != nil {
 		return 0, errors.BadRequest(err.Error())
 	}
-	if isEmptyJSON(entity) {
+	if entity.Empty() {
 		return 0, nil
 	}
 
@@ -74,10 +74,3 @@ func (cs *ContentService) BulkUpdate(c fs.Context, _ any) (int, error) {
 	return updatedCount, nil
 }
 
-func isEmptyJSON(entity any) bool {
-	entityBytes, err := json.Marshal(entity)
-	if err != nil {
-		return false
-	}
-	return string(entityBytes) == "{}"
-}
