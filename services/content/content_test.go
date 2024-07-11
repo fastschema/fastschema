@@ -53,6 +53,9 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 		Add(fs.NewResource("create", contentService.Create, &fs.Meta{
 			Post: "/:schema",
 		})).
+		Add(fs.NewResource("bulk-update", contentService.BulkUpdate, &fs.Meta{
+			Put: "/:schema/update",
+		})).
 		Add(fs.NewResource("update", contentService.Update, &fs.Meta{
 			Put: "/:schema/:id",
 		})).
