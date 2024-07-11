@@ -20,6 +20,7 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/jinzhu/inflection v1.0.0
 	github.com/joho/godotenv v1.5.1
+	github.com/minio/minio-go/v7 v7.0.73
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/ogen-go/ogen v1.2.2
 	github.com/otiai10/copy v1.14.0
@@ -66,10 +67,12 @@ require (
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-faster/jx v1.1.0 // indirect
 	github.com/go-faster/yaml v0.4.6 // indirect
+	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
 	github.com/go-resty/resty/v2 v2.13.1 // indirect
+	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/pprof v0.0.0-20240509144519-723abb6459b7 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -88,6 +91,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
+	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
@@ -104,6 +108,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rfjakob/eme v1.1.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/rs/xid v1.5.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20240704082632-aef3928b8a38 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
