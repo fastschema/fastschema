@@ -32,7 +32,7 @@ func (ss *SchemaService) Download(c fs.Context, _ any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	fileContentType := http.DetectContentType(tempBuffer) // Get file header
+	// fileContentType := http.DetectContentType(tempBuffer) // Get file header
 
 	fileStat, _ := openFile.Stat()                     // Get info from file
 	fileSize := strconv.FormatInt(fileStat.Size(), 10) // Get file size as a string
@@ -41,8 +41,9 @@ func (ss *SchemaService) Download(c fs.Context, _ any) (any, error) {
 
 	// Set the headers
 	header := make(http.Header)
-	header.Set("Content-Type", fileContentType+";"+filename)
+	header.Set("Content-Type", "application/json")
 	header.Set("Content-Length", fileSize)
+	header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 
 	_, err = openFile.Seek(0, 0)
 	if err != nil {
