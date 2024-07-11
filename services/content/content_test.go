@@ -36,6 +36,42 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 				"name": "name",
 				"label": "Name",
 				"sortable": true
+			},
+			{
+				"type": "relation",
+				"name": "tags",
+				"label": "Tags",
+				"optional": true,
+				"sortable": true,
+				"relation": {
+					"schema": "tag",
+					"field": "blogs",
+					"type": "o2m"
+				}
+			}
+		]
+	}`)
+	utils.WriteFile(schemaDir+"/tag.json", `{
+		"name": "tag",
+		"namespace": "tags",
+		"label_field": "name",
+		"fields": [
+			{
+				"type": "string",
+				"name": "name",
+				"label": "Name",
+				"sortable": true
+			},
+			{
+				"type": "relation",
+				"name": "blogs",
+				"label": "Blogs",
+				"relation": {
+					"schema": "blog",
+					"field": "tags",
+					"type": "o2m",
+					"owner": true
+				}
 			}
 		]
 	}`)
@@ -58,6 +94,9 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 		})).
 		Add(fs.NewResource("update", contentService.Update, &fs.Meta{
 			Put: "/:schema/:id",
+		})).
+		Add(fs.NewResource("bulk-delete", contentService.BulkDelete, &fs.Meta{
+			Delete: "/:schema/delete",
 		})).
 		Add(fs.NewResource("delete", contentService.Delete, &fs.Meta{
 			Delete: "/:schema/:id",
