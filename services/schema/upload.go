@@ -17,6 +17,15 @@ func (ss *SchemaService) Upload(c fs.Context, _ any) (fs.Map, error) {
 		return nil, err
 	}
 
+	// check if total files size > 5MB
+	totalSize := 0
+	for _, file := range files {
+		totalSize += int(file.Size)
+	}
+	if totalSize > 5*1024*1024 {
+		return nil, errors.BadRequest("total files size should be less than 5MB")
+	}
+
 	// upload files to tmp dir
 	randomTpmSchemaDir := utils.RandomString(16)
 	tmpDir := fmt.Sprintf("%s/%s", ss.app.Disk().Root(), randomTpmSchemaDir)

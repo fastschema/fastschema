@@ -84,8 +84,9 @@ func (a *App) createResources() error {
 		})).
 		Add(fs.NewResource("upload", schemaService.Upload, &fs.Meta{Post: "/upload"})).
 		Add(fs.NewResource("download", schemaService.Download, &fs.Meta{
-			Get:  "/download/:name",
-			Args: fs.Args{"name": createArg(fs.TypeString, "The schema name")},
+			Get: "/download/:names",
+			// Public: true,
+			Args: fs.Args{"names": createArg(fs.TypeString, "The schemas name")},
 		}))
 
 	a.api.Group("content", &fs.Meta{
