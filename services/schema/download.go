@@ -20,12 +20,15 @@ func (ss *SchemaService) Download(c fs.Context, _ any) (any, error) {
 
 	randomTpmSchemaDir := utils.RandomString(16)
 	tmpDir := fmt.Sprintf("%s/%s", ss.app.Disk().Root(), randomTpmSchemaDir)
-	os.Mkdir(tmpDir, os.ModePerm)
+	err := os.Mkdir(tmpDir, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
 	// defer os.RemoveAll(tmpDir)
 	archiveFilePath := fmt.Sprintf("%s/schemas.zip", tmpDir)
 	archive, err := os.Create(archiveFilePath)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	for i := 0; i < len(schemaNames); i++ {
@@ -39,15 +42,15 @@ func (ss *SchemaService) Download(c fs.Context, _ any) (any, error) {
 		zipWriter := zip.NewWriter(archive)
 		openFile, err := os.Open(schemaFile)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 		w1, err := zipWriter.Create(fmt.Sprintf("%s.json", s.Name))
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		if _, err := io.Copy(w1, openFile); err != nil {
-			panic(err)
+			return nil, err
 		}
 
 		openFile.Close()
