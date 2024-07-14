@@ -173,7 +173,7 @@ func (a *App) Reload(ctx context.Context, migration *db.Migration) (err error) {
 		return err
 	}
 
-	newDB, err := a.DB().Reload(ctx, a.schemaBuilder, migration)
+	newDB, err := a.DB().Reload(ctx, a.schemaBuilder, migration, a.config.DBConfig.DisableForeignKeys)
 	if err != nil {
 		return err
 	}

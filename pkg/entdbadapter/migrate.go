@@ -15,6 +15,7 @@ import (
 func (d *Adapter) Migrate(
 	ctx context.Context,
 	migration *db.Migration,
+	disableForeignKeys bool,
 	appendEntTables ...*entSchema.Table,
 ) (err error) {
 	tables := d.tables
@@ -73,6 +74,7 @@ func (d *Adapter) Migrate(
 		entSchema.WithDialect(d.driver.Dialect()),          // Ent dialect to use
 		entSchema.WithFormatter(atlasMigrate.DefaultFormatter),
 		entSchema.WithDropIndex(true),
+		entSchema.WithForeignKeys(!disableForeignKeys),
 		applyHook,
 		entSchema.WithDiffHook(
 			createRenameColumnsHook(renameTables, renameFields),
