@@ -106,7 +106,7 @@ func TestAdapterReloadErrorTableNotFound(t *testing.T) {
 	}
 
 	// Call the Reload function
-	_, err := adapter.Reload(context.Background(), newSchemaBuilder, migration)
+	_, err := adapter.Reload(context.Background(), newSchemaBuilder, migration, false)
 	assert.Error(t, err)
 }
 
@@ -129,6 +129,6 @@ func TestAdapterReloadError(t *testing.T) {
 	// Create a mock adapter
 	adapter := createMockAdapter(t)
 	// Call the Reload function
-	_, err := adapter.Reload(context.Background(), newSchemaBuilder, migration)
+	_, err := adapter.Reload(context.Background(), newSchemaBuilder, migration, false)
 	require.Error(t, err)
 }

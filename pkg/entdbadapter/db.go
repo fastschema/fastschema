@@ -25,6 +25,7 @@ type EntAdapter interface {
 		ctx context.Context,
 		newSchemaBuilder *schema.Builder,
 		migration *db.Migration,
+		disableForeignKeys bool,
 	) (_ db.Client, err error)
 	Driver() dialect.Driver
 	CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.Model
@@ -52,6 +53,7 @@ type EntAdapter interface {
 	Migrate(
 		ctx context.Context,
 		migration *db.Migration,
+		disableForeignKeys bool,
 		appendEntTables ...*entSchema.Table,
 	) (err error)
 	SetSQLDB(db *sql.DB)
@@ -130,7 +132,7 @@ func NewEntClient(
 	}
 
 	if !config.IgnoreMigration {
-		if err = entAdapter.Migrate(context.Background(), nil); err != nil {
+		if err = entAdapter.Migrate(context.Background(), nil, config.DisableForeignKeys); err != nil {
 			return nil, err
 		}
 	}
@@ -142,6 +144,7 @@ func (d *Adapter) Reload(
 	ctx context.Context,
 	newSchemaBuilder *schema.Builder,
 	migration *db.Migration,
+	disableForeignKeys bool,
 ) (_ db.Client, err error) {
 	renamedEntTables := make([]*entSchema.Table, 0)
 	newConfig := d.config.Clone()
@@ -218,7 +221,7 @@ func (d *Adapter) Reload(
 		return nil, fmt.Errorf("invalid adapter")
 	}
 
-	if err = newEntAdapter.Migrate(ctx, migration, renamedEntTables...); err != nil {
+	if err = newEntAdapter.Migrate(ctx, migration, disableForeignKeys, renamedEntTables...); err != nil {
 		return nil, err
 	}
 
