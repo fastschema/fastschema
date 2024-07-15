@@ -7,6 +7,7 @@ import (
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/valyala/fasthttp"
 )
 
 // Handler is a function that resolves a request
@@ -31,6 +32,21 @@ type Context interface {
 	Files() ([]*File, error)
 	Redirect(string) error
 	WSClient() WSClient
+	Response() *Response
+	Header(key string, vals ...string) string
+}
+
+type Response struct {
+	*fasthttp.Response
+}
+
+func (r *Response) Header(key string, vals ...string) string {
+	if len(vals) > 0 {
+		r.Response.Header.Add(key, vals[0])
+		return vals[0]
+	}
+
+	return string(r.Response.Header.Peek(key))
 }
 
 type HTTPResponse struct {

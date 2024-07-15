@@ -10,7 +10,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-func (ss *SchemaService) Upload(c fs.Context, _ any) (fs.Map, error) {
+func (ss *SchemaService) Import(c fs.Context, _ any) (fs.Map, error) {
 	// upload to tmp dir
 	files, err := c.Files()
 	if err != nil {

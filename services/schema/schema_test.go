@@ -216,11 +216,11 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 		Add(fs.NewResource("delete", schemaService.Delete, &fs.Meta{
 			Delete: "/:name",
 		})).
-		Add(fs.NewResource("reload", schemaService.Upload, &fs.Meta{
-			Post: "/upload",
+		Add(fs.NewResource("import", schemaService.Import, &fs.Meta{
+			Post: "/import",
 		})).
-		Add(fs.NewResource("download", schemaService.Download, &fs.Meta{
-			Get: "/download/:name",
+		Add(fs.NewResource("export", schemaService.Export, &fs.Meta{
+			Get: "/export/:names",
 		}))
 
 	assert.NoError(t, resources.Init())

@@ -12,7 +12,6 @@ import (
 
 	// "github.com/fastschema/fastschema/app/server"
 	"github.com/gofiber/fiber/v2"
-	"github.com/valyala/fasthttp"
 )
 
 const requestID = "request_id"
@@ -134,8 +133,8 @@ func (c *Context) Path() string {
 	return c.Ctx.Path()
 }
 
-func (c *Context) Response() *Response {
-	return &Response{c.Ctx.Response()}
+func (c *Context) Response() *fs.Response {
+	return &fs.Response{c.Ctx.Response()}
 }
 
 func (c *Context) Context() context.Context {
@@ -258,17 +257,4 @@ func (c *Context) Files() ([]*fs.File, error) {
 	}
 
 	return files, nil
-}
-
-type Response struct {
-	*fasthttp.Response
-}
-
-func (r *Response) Header(key string, vals ...string) string {
-	if len(vals) > 0 {
-		r.Response.Header.Add(key, vals[0])
-		return vals[0]
-	}
-
-	return string(r.Response.Header.Peek(key))
 }

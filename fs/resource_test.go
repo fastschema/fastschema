@@ -95,6 +95,10 @@ func (c *testContext) Result(...*fs.Result) *fs.Result { return nil }
 func (c *testContext) Files() ([]*fs.File, error)      { return nil, nil }
 func (c *testContext) Redirect(string) error           { return nil }
 func (c *testContext) WSClient() fs.WSClient           { return nil }
+func (c *testContext) Response() *fs.Response          { return nil }
+func (c *testContext) Header(key string, vals ...string) string {
+	return ""
+}
 
 func TestNewResource(t *testing.T) {
 	r := fs.NewResource(
