@@ -81,6 +81,7 @@ func (tx *Tx) SetDriver(driver dialect.Driver) {
 func (tx *Tx) Migrate(
 	ctx context.Context,
 	migration *db.Migration,
+	disableForeignKeys bool,
 	appendEntTables ...*entSchema.Table,
 ) (err error) {
 	return nil
