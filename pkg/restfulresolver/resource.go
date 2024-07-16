@@ -178,6 +178,10 @@ func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodDa
 				return c.SendFile(httpResponse.File)
 			}
 
+			if httpResponse.Stream != nil {
+				return c.SendStream(httpResponse.Stream)
+			}
+
 			return c.Status(status).Send(httpResponse.Body)
 		}
 

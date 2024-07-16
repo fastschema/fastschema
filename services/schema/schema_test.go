@@ -32,6 +32,21 @@ var (
 			}
 		]
 	}`
+
+	testCategoryJSONToImport = `{
+		"name": "category_import",
+		"namespace": "categories_import",
+		"label_field": "name",
+		"fields": [
+			{
+				"type": "string",
+				"name": "name",
+				"label": "Name",
+				"unique": true,
+				"sortable": true
+			}
+		]
+	}`
 	testBlogJSON = `{
 		"name": "blog",
 		"namespace": "blogs",
