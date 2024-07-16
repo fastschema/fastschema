@@ -1,12 +1,13 @@
 package fs
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDiskBase_Name(t *testing.T) {
+func TestDiskBaseName(t *testing.T) {
 	db := DiskBase{DiskName: "TestDisk"}
 	expected := "TestDisk"
 	if name := db.Name(); name != expected {
@@ -14,7 +15,7 @@ func TestDiskBase_Name(t *testing.T) {
 	}
 }
 
-func TestDiskBase_IsAllowedMime(t *testing.T) {
+func TestDiskBaseIsAllowedMime(t *testing.T) {
 	db := DiskBase{}
 
 	tests := []struct {
@@ -41,4 +42,23 @@ func TestBaseRcloneDiskName(t *testing.T) {
 
 	name := r.Name()
 	assert.Equal(t, "mydisk", name)
+}
+
+func TestDiskBaseUploadFilePath(t *testing.T) {
+	db := DiskBase{
+		DiskName: "TestDisk",
+		Root:     "/path/to/root",
+	}
+
+	tests := []string{
+		"file.jpg",
+		"document.pdf",
+		"script.sh",
+	}
+
+	for _, test := range tests {
+		path := db.UploadFilePath(test)
+		assert.True(t, strings.HasSuffix(path, "_"+test))
+		assert.True(t, strings.HasPrefix(path, "/path/to/root"))
+	}
 }

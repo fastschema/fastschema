@@ -75,7 +75,7 @@ func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 		cfgMap.Set("force_path_style", "true")
 	}
 
-	fsDriver, err := s3.NewFs(context.Background(), "s3", config.Bucket, cfgMap)
+	fsDriver, err := s3.NewFs(context.Background(), config.Name, config.Bucket, cfgMap)
 	if err != nil {
 		return nil, err
 	}

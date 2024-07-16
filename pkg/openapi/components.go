@@ -49,37 +49,38 @@ var PrimitiveToOgenTypeMaps = map[reflect.Kind]func() *ogen.Schema{
 	reflect.String:     ogen.String,
 }
 
+var unAuthorizedSchema = &ogen.Schema{
+	Type:        "object",
+	Description: "Unauthorized Error Response",
+	Properties: []ogen.Property{
+		{
+			Name: "code",
+			Schema: &ogen.Schema{
+				Type:    "integer",
+				Format:  "int32",
+				Default: []byte("401"),
+				// Example: []byte("401"),
+			},
+		},
+		{
+			Name: "message",
+			Schema: &ogen.Schema{
+				Type:    "string",
+				Default: []byte(`"Unauthorized"`),
+				// Example: []byte(`"Unauthorized"`),
+			},
+		},
+	},
+}
 var unAuthorizedResponse = &ogen.Response{
 	Description: "Unauthorized",
 	Content: map[string]ogen.Media{
 		ir.EncodingJSON.String(): {
-			Schema: &ogen.Schema{
-				Type:        "object",
-				Description: "Unauthorized Error Response",
-				Properties: []ogen.Property{
-					{
-						Name: "code",
-						Schema: &ogen.Schema{
-							Type:    "integer",
-							Format:  "int32",
-							Default: []byte("401"),
-							// Example: []byte("401"),
-						},
-					},
-					{
-						Name: "message",
-						Schema: &ogen.Schema{
-							Type:    "string",
-							Default: []byte(`"Unauthorized"`),
-							// Example: []byte(`"Unauthorized"`),
-						},
-					},
-				},
-			},
+			Schema: ogen.NewSchema().AddRequiredProperties(unAuthorizedSchema.ToProperty("error")),
 			Examples: map[string]*ogen.Example{
 				"example": {
 					Summary: "Unauthorized example",
-					Value:   []byte(`{"code": 401, "message": "Unauthorized"}`),
+					Value:   []byte(`{"error": {"code": 401, "message": "Unauthorized"}}`),
 				},
 			},
 		},

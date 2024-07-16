@@ -189,6 +189,9 @@ func TestBaseRcloneDiskDelete(t *testing.T) {
 	assert.NotEmpty(t, newFile.Path)
 	assert.NotEmpty(t, newFile.URL)
 
+	err = r.Delete(ctx, "/non/existing/file")
+	assert.Error(t, err)
+
 	err = r.Delete(ctx, newFile.Path)
 	assert.NoError(t, err)
 }
