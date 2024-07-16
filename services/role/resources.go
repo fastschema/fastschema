@@ -33,7 +33,7 @@ func (rs *RoleService) ResourcesList(c fs.Context, _ any) ([]*fs.Resource, error
 	contentGroup := apiGroup.Group("content")
 	realtimeContentGroup := apiGroup.Group("realtime").Group("content")
 	for _, schema := range schemas {
-		if utils.Contains(ignoreContentSchemas, schema.Name) {
+		if utils.Contains(ignoreContentSchemas, schema.Name) || schema.IsJunctionSchema {
 			continue
 		}
 
@@ -52,6 +52,12 @@ func (rs *RoleService) ResourcesList(c fs.Context, _ any) ([]*fs.Resource, error
 		})
 		contentSchemaGroup.AddResource("delete", nil, &fs.Meta{
 			Delete: "/:id",
+		})
+		contentSchemaGroup.AddResource("bulk-update", nil, &fs.Meta{
+			Put: "/update",
+		})
+		contentSchemaGroup.AddResource("bulk-delete", nil, &fs.Meta{
+			Delete: "/delete",
 		})
 
 		realtimeSchemaGroup := realtimeContentGroup.Group(schema.Name)

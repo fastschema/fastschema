@@ -18,15 +18,24 @@ type RcloneLocalConfig struct {
 }
 
 type RcloneLocal struct {
+	*fs.DiskBase
 	*BaseRcloneDisk
 	config *RcloneLocalConfig
 }
 
 func NewLocal(config *RcloneLocalConfig) (fs.Disk, error) {
+	diskBase := &fs.DiskBase{
+		DiskName: config.Name,
+		Root:     config.Root,
+	}
+
 	rl := &RcloneLocal{
-		config: config,
+		config:   config,
+		DiskBase: diskBase,
 		BaseRcloneDisk: &BaseRcloneDisk{
-			DiskName: config.Name,
+			Disk:           config.Name,
+			UploadFilePath: diskBase.UploadFilePath,
+			IsAllowedMime:  diskBase.IsAllowedMime,
 		},
 	}
 
@@ -38,7 +47,7 @@ func NewLocal(config *RcloneLocalConfig) (fs.Disk, error) {
 
 	cfgMap := configmap.New()
 	cfgMap.Set("root", rl.config.Root)
-	fsDriver, err := local.NewFs(context.Background(), rl.DiskName, rl.config.Root, cfgMap)
+	fsDriver, err := local.NewFs(context.Background(), rl.Disk, rl.config.Root, cfgMap)
 
 	if err != nil {
 		return nil, err

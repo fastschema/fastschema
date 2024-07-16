@@ -18,14 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBaseRcloneDiskName(t *testing.T) {
-	r := &BaseRcloneDisk{
-		DiskName: "mydisk",
-	}
-
-	name := r.Name()
-	assert.Equal(t, "mydisk", name)
-}
 func TestBaseRcloneDiskPut(t *testing.T) {
 	ctx := context.TODO()
 	tmpDir := t.TempDir()
@@ -36,13 +28,21 @@ func TestBaseRcloneDiskPut(t *testing.T) {
 	fsDriver, err := local.NewFs(context.Background(), "test_local_disk", tmpDir, cfgMap)
 	assert.NoError(t, err)
 
+	// Create a mock DiskBase instance
+	b := &fs.DiskBase{
+		DiskName: "test_local_disk",
+		Root:     tmpDir,
+	}
+
 	// Create a mock BaseRcloneDisk instance
 	r := &BaseRcloneDisk{
-		DiskName: "test_local_disk",
-		Fs:       fsDriver,
+		Disk: "test_local_disk",
+		Fs:   fsDriver,
 		GetURL: func(path string) string {
 			return "http://localhost:8080/" + path
 		},
+		UploadFilePath: b.UploadFilePath,
+		IsAllowedMime:  b.IsAllowedMime,
 	}
 
 	// Create a mock file1
@@ -133,13 +133,21 @@ func TestBaseRcloneDiskPutMultipart(t *testing.T) {
 	fsDriver, err := local.NewFs(context.Background(), "test_local_disk", tmpDir, cfgMap)
 	assert.NoError(t, err)
 
+	// Create a mock DiskBase instance
+	b := &fs.DiskBase{
+		DiskName: "test_local_disk",
+		Root:     tmpDir,
+	}
+
 	// Create a mock BaseRcloneDisk instance
 	r := &BaseRcloneDisk{
-		DiskName: "test_local_disk",
-		Fs:       fsDriver,
+		Disk: "test_local_disk",
+		Fs:   fsDriver,
 		GetURL: func(path string) string {
 			return "http://localhost:8080/" + path
 		},
+		UploadFilePath: b.UploadFilePath,
+		IsAllowedMime:  b.IsAllowedMime,
 	}
 
 	newFile, err := r.PutMultipart(ctx, mockFileHeader(t, tmpFile), tmpFile)
@@ -158,13 +166,21 @@ func TestBaseRcloneDiskDelete(t *testing.T) {
 	fsDriver, err := local.NewFs(context.Background(), "test_local_disk", tmpDir, cfgMap)
 	assert.NoError(t, err)
 
+	// Create a mock DiskBase instance
+	b := &fs.DiskBase{
+		DiskName: "test_local_disk",
+		Root:     tmpDir,
+	}
+
 	// Create a mock BaseRcloneDisk instance
 	r := &BaseRcloneDisk{
-		DiskName: "test_local_disk",
-		Fs:       fsDriver,
+		Disk: "test_local_disk",
+		Fs:   fsDriver,
 		GetURL: func(path string) string {
 			return "http://localhost:8080/" + path
 		},
+		UploadFilePath: b.UploadFilePath,
+		IsAllowedMime:  b.IsAllowedMime,
 	}
 
 	newFile, err := r.PutMultipart(ctx, mockFileHeader(t, tmpFile))
@@ -172,6 +188,9 @@ func TestBaseRcloneDiskDelete(t *testing.T) {
 	assert.Equal(t, "test_local_disk", newFile.Disk)
 	assert.NotEmpty(t, newFile.Path)
 	assert.NotEmpty(t, newFile.URL)
+
+	err = r.Delete(ctx, "/non/existing/file")
+	assert.Error(t, err)
 
 	err = r.Delete(ctx, newFile.Path)
 	assert.NoError(t, err)

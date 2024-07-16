@@ -15,6 +15,6 @@ func TestAdapterMigrateErrorConnection(t *testing.T) {
 	migration := &db.Migration{}            // Replace with your migration definition
 	appendEntTables := []*entSchema.Table{} // Replace with additional ent tables if needed
 
-	err := adapter.Migrate(context.Background(), migration, appendEntTables...)
+	err := adapter.Migrate(context.Background(), migration, false, appendEntTables...)
 	assert.Error(t, err)
 }
