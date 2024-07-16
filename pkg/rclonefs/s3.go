@@ -2,6 +2,10 @@ package rclonefs
 
 import (
 	"context"
+	"fmt"
+	"net/url"
+	"path"
+	"strings"
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/rclone/rclone/backend/s3"
@@ -25,6 +29,7 @@ type RcloneS3Config struct {
 }
 
 type RcloneS3 struct {
+	*fs.DiskBase
 	*BaseRcloneDisk
 	config *RcloneS3Config
 }
@@ -38,11 +43,18 @@ func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 		config.CopyCutoff = rclonefs.SizeSuffixBase
 	}
 
+	diskBase := &fs.DiskBase{
+		DiskName: config.Name,
+		Root:     config.Root,
+	}
+
 	rs3 := &RcloneS3{
-		config: config,
+		config:   config,
+		DiskBase: diskBase,
 		BaseRcloneDisk: &BaseRcloneDisk{
-			DiskName: config.Name,
-			Root:     config.Root,
+			Disk:           config.Name,
+			UploadFilePath: diskBase.UploadFilePath,
+			IsAllowedMime:  diskBase.IsAllowedMime,
 		},
 	}
 
@@ -59,7 +71,11 @@ func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 	cfgMap.Set("acl", config.ACL)
 	cfgMap.Set("bucket_acl", config.ACL)
 
-	fsDriver, err := s3.NewFs(context.Background(), "s3", config.Bucket, cfgMap)
+	if config.Provider == "Minio" {
+		cfgMap.Set("force_path_style", "true")
+	}
+
+	fsDriver, err := s3.NewFs(context.Background(), config.Name, config.Bucket, cfgMap)
 	if err != nil {
 		return nil, err
 	}
@@ -78,5 +94,19 @@ func (r *RcloneS3) LocalPublicPath() string {
 }
 
 func (r *RcloneS3) URL(filepath string) string {
-	return r.config.BaseURL + filepath
+	endpointURL, err := url.Parse(r.config.BaseURL)
+	if err != nil {
+		return ""
+	}
+
+	// Ensure the base URL does not end with a slash
+	host := endpointURL.Host
+	host = strings.TrimSuffix(host, "/")
+
+	// Ensure the file path does not start with a slash
+	cleanPath := path.Join(r.config.Bucket, filepath)
+	cleanPath = strings.TrimPrefix(cleanPath, "/")
+	cleanedURL := fmt.Sprintf("%s://%s/%s", endpointURL.Scheme, host, cleanPath)
+
+	return cleanedURL
 }

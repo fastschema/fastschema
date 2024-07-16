@@ -81,6 +81,7 @@ func (tx *Tx) SetDriver(driver dialect.Driver) {
 func (tx *Tx) Migrate(
 	ctx context.Context,
 	migration *db.Migration,
+	disableForeignKeys bool,
 	appendEntTables ...*entSchema.Table,
 ) (err error) {
 	return nil
@@ -91,8 +92,9 @@ func (tx *Tx) Reload(
 	ctx context.Context,
 	newSchemaBuilder *schema.Builder,
 	migration *db.Migration,
+	disableForeignKeys bool,
 ) (db.Client, error) {
-	return tx.client.Reload(ctx, newSchemaBuilder, migration)
+	return tx.client.Reload(ctx, newSchemaBuilder, migration, disableForeignKeys)
 }
 
 // SchemaBuilder returns the schema builder.

@@ -156,7 +156,7 @@ For more information on how to get started with FastSchema, check out our [docum
 - [ ] GraphQL support.
 - [ ] Webhooks.
 - [ ] Client SDKs.
-  - [x] JavaScript SDK.
+  - [x] [JavaScript SDK](https://fastschema.com/docs/sdk/javascript-sdk).
 
 ## Testing
 

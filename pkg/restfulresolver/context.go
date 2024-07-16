@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
@@ -99,7 +100,7 @@ func (c *Context) AuthToken() string {
 	if bearer == "" {
 		subProtocol := c.Header("Sec-WebSocket-Protocol")
 		if len(subProtocol) >= 14 && subProtocol[:14] == "Authorization," {
-			bearer = subProtocol[14:]
+			bearer = strings.TrimSpace(subProtocol[14:])
 		}
 	}
 

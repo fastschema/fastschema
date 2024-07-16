@@ -151,6 +151,11 @@ func (oas *OpenAPISpec) CreateResourcesForSchemas() {
 		Type:        fs.TypeUint64,
 		Description: "The content ID",
 	}
+	contentFilterArg := fs.Arg{
+		Type:        fs.TypeJSON,
+		Description: "Filter the results by a field",
+		Example:     `{"name":{"$like":"%test%"}}`,
+	}
 
 	listArgs := fs.Args{
 		"sort": {
@@ -158,11 +163,7 @@ func (oas *OpenAPISpec) CreateResourcesForSchemas() {
 			Description: "Sort the results by a field",
 			Example:     "-id",
 		},
-		"filter": {
-			Type:        fs.TypeJSON,
-			Description: "Filter the results by a field",
-			Example:     `{"name":{"$like":"%test%"}}`,
-		},
+		"filter": contentFilterArg,
 		"page": {
 			Type:        fs.TypeUint,
 			Description: "The page number",
@@ -212,6 +213,16 @@ func (oas *OpenAPISpec) CreateResourcesForSchemas() {
 			Delete:     "/:id",
 			Args:       fs.Args{"id": contentIDArg},
 			Signatures: []any{nil, IDOnlySchema},
+		})
+		schemaGroup.AddResource("bulk-update", nil, &fs.Meta{
+			Put:        "/update",
+			Args:       fs.Args{"filter": contentFilterArg},
+			Signatures: []any{contentCreateSchema, 0},
+		})
+		schemaGroup.AddResource("bulk-delete", nil, &fs.Meta{
+			Delete:     "/delete",
+			Args:       fs.Args{"filter": contentFilterArg},
+			Signatures: []any{nil, 0},
 		})
 	}
 }
@@ -275,10 +286,14 @@ func (oas *OpenAPISpec) CreatePathItem(r *ResourceInfo) (map[string]*ogen.PathIt
 
 		responseSchema := oas.TypeToOgenSchema(responseType, &TypeToOgenConfig{structName: responseTypeName})
 		if responseSchema != nil {
+			dataSchema := ogen.NewSchema()
+			dataSchema.AddRequiredProperties(responseSchema.ToProperty("data"))
 			operation.Responses["200"] = &ogen.Response{
 				Description: "Successful response",
 				Content: map[string]ogen.Media{
-					ir.EncodingJSON.String(): {Schema: responseSchema},
+					ir.EncodingJSON.String(): {
+						Schema: dataSchema,
+					},
 				},
 			}
 		}
