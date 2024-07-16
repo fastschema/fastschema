@@ -106,6 +106,12 @@ func TestContentServiceBulkUpdate(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
 
+	// Case 3: invalid payload
+	req = httptest.NewRequest("PUT", `/content/blog/update?filter={"name":{"$like":"%blog2%"}}`, nil)
+	resp = utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 400, resp.StatusCode)
+
 	// create 10 blog posts
 	blogModel := utils.Must(cs.DB().Model("blog"))
 	for i := 0; i < 10; i++ {

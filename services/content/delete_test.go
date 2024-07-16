@@ -52,7 +52,7 @@ func TestContentServiceBulkDelete(t *testing.T) {
 	cs, server := createContentService(t)
 
 	// Case 1: schema not found
-	req := httptest.NewRequest("DELETE", "/content/test/deletes", nil)
+	req := httptest.NewRequest("DELETE", "/content/test/delete", nil)
 	resp := utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
