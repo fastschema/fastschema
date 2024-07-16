@@ -65,32 +65,34 @@ type Migration struct {
 }
 
 type Config struct {
-	Driver          string
-	Name            string
-	Host            string
-	Port            string
-	User            string
-	Pass            string
-	Logger          logger.Logger
-	LogQueries      bool
-	MigrationDir    string
-	IgnoreMigration bool
-	Hooks           func() *Hooks
+	Driver             string
+	Name               string
+	Host               string
+	Port               string
+	User               string
+	Pass               string
+	Logger             logger.Logger
+	LogQueries         bool
+	MigrationDir       string
+	IgnoreMigration    bool
+	DisableForeignKeys bool
+	Hooks              func() *Hooks
 }
 
 func (c *Config) Clone() *Config {
 	return &Config{
-		Driver:          c.Driver,
-		Name:            c.Name,
-		Host:            c.Host,
-		Port:            c.Port,
-		User:            c.User,
-		Pass:            c.Pass,
-		Logger:          c.Logger,
-		LogQueries:      c.LogQueries,
-		MigrationDir:    c.MigrationDir,
-		IgnoreMigration: c.IgnoreMigration,
-		Hooks:           c.Hooks,
+		Driver:             c.Driver,
+		Name:               c.Name,
+		Host:               c.Host,
+		Port:               c.Port,
+		User:               c.User,
+		Pass:               c.Pass,
+		Logger:             c.Logger,
+		LogQueries:         c.LogQueries,
+		MigrationDir:       c.MigrationDir,
+		IgnoreMigration:    c.IgnoreMigration,
+		DisableForeignKeys: c.DisableForeignKeys,
+		Hooks:              c.Hooks,
 	}
 }
 
@@ -110,7 +112,7 @@ type Client interface {
 	Model(name string, types ...any) (Model, error)
 	Close() error
 	SchemaBuilder() *schema.Builder
-	Reload(ctx context.Context, newSchemaBuilder *schema.Builder, migration *Migration) (Client, error)
+	Reload(ctx context.Context, newSchemaBuilder *schema.Builder, migration *Migration, disableForeignKeys bool) (Client, error)
 	DB() *sql.DB
 	Config() *Config
 	Hooks() *Hooks

@@ -327,15 +327,16 @@ func (a *App) getDefaultDBClient() (err error) {
 
 	if a.config.DBConfig == nil {
 		a.config.DBConfig = &db.Config{
-			Driver:       utils.Env("DB_DRIVER", "sqlite"),
-			Name:         utils.Env("DB_NAME"),
-			User:         utils.Env("DB_USER"),
-			Pass:         utils.Env("DB_PASS"),
-			Host:         utils.Env("DB_HOST", "localhost"),
-			Port:         utils.Env("DB_PORT"),
-			LogQueries:   utils.Env("DB_LOGGING", "false") == "true",
-			Logger:       a.Logger(),
-			MigrationDir: a.migrationDir,
+			Driver:             utils.Env("DB_DRIVER", "sqlite"),
+			Name:               utils.Env("DB_NAME"),
+			User:               utils.Env("DB_USER"),
+			Pass:               utils.Env("DB_PASS"),
+			Host:               utils.Env("DB_HOST", "localhost"),
+			Port:               utils.Env("DB_PORT"),
+			LogQueries:         utils.Env("DB_LOGGING", "false") == "true",
+			DisableForeignKeys: utils.Env("DB_DISABLE_FOREIGN_KEYS", "false") == "true",
+			Logger:             a.Logger(),
+			MigrationDir:       a.migrationDir,
 			Hooks: func() *db.Hooks {
 				return a.hooks.DBHooks
 			},
