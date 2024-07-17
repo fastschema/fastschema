@@ -61,6 +61,26 @@ func TestNewRestResolver(t *testing.T) {
 		}, nil
 	}))
 
+	resourceManager.Add(fs.NewResource("html", func(c fs.Context, _ any) (any, error) {
+		header := make(http.Header)
+		header.Set("Content-Type", "text/html")
+
+		return &fs.HTTPResponse{
+			Header: header,
+			File:   staticDir + "/test.txt",
+		}, nil
+	}))
+
+	resourceManager.Add(fs.NewResource("html", func(c fs.Context, _ any) (any, error) {
+		header := make(http.Header)
+		header.Set("Content-Type", "text/html")
+
+		return &fs.HTTPResponse{
+			Header: header,
+			Stream: &bytes.Buffer{},
+		}, nil
+	}))
+
 	restResolver := restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
 		ResourceManager: resourceManager,
 		Logger:          logger.CreateMockLogger(true),
