@@ -9,6 +9,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
+	"github.com/fastschema/fastschema/pkg/rclonefs"
 	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -20,6 +21,21 @@ var (
 	testCategoryJSON = `{
 		"name": "category",
 		"namespace": "categories",
+		"label_field": "name",
+		"fields": [
+			{
+				"type": "string",
+				"name": "name",
+				"label": "Name",
+				"unique": true,
+				"sortable": true
+			}
+		]
+	}`
+
+	testCategoryJSONToImport = `{
+		"name": "category_import",
+		"namespace": "categories_import",
 		"label_field": "name",
 		"fields": [
 			{
@@ -117,6 +133,7 @@ var (
 type testApp struct {
 	sb        *schema.Builder
 	db        db.Client
+	disks     []fs.Disk
 	schemaDir string
 	reloadFn  func(*db.Migration) error
 }
@@ -131,6 +148,10 @@ func (s *testApp) DB() db.Client {
 
 func (s *testApp) SchemaBuilder() *schema.Builder {
 	return s.sb
+}
+
+func (s testApp) Disk(names ...string) fs.Disk {
+	return s.disks[0]
 }
 
 func (s *testApp) Reload(ctx context.Context, migration *db.Migration) error {
@@ -184,7 +205,13 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(migrationDir, sb))
-	testApp := &testApp{sb: sb, db: db, schemaDir: schemaDir, reloadFn: reloadFn}
+	disks := utils.Must(rclonefs.NewFromConfig([]*fs.DiskConfig{{
+		Name:    "local_test",
+		Driver:  "local",
+		Root:    t.TempDir(),
+		BaseURL: "http://localhost:3000/files",
+	}}, t.TempDir()))
+	testApp := &testApp{sb: sb, db: db, schemaDir: schemaDir, disks: disks, reloadFn: reloadFn}
 	schemaService := schemaservice.New(testApp)
 
 	resources := fs.NewResourcesManager()
@@ -203,6 +230,12 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 		})).
 		Add(fs.NewResource("delete", schemaService.Delete, &fs.Meta{
 			Delete: "/:name",
+		})).
+		Add(fs.NewResource("import", schemaService.Import, &fs.Meta{
+			Post: "/import",
+		})).
+		Add(fs.NewResource("export", schemaService.Export, &fs.Meta{
+			Post: "/export",
 		}))
 
 	assert.NoError(t, resources.Init())

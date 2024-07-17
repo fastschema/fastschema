@@ -10,10 +10,10 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/valyala/fasthttp"
 
 	// "github.com/fastschema/fastschema/app/server"
 	"github.com/gofiber/fiber/v2"
-	"github.com/valyala/fasthttp"
 )
 
 const requestID = "request_id"

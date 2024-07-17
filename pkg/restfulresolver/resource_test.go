@@ -61,6 +61,26 @@ func TestNewRestResolver(t *testing.T) {
 		}, nil
 	}))
 
+	resourceManager.Add(fs.NewResource("file", func(c fs.Context, _ any) (any, error) {
+		header := make(http.Header)
+		header.Set("Content-Type", "text/html")
+
+		return &fs.HTTPResponse{
+			Header: header,
+			File:   staticDir + "/test.txt",
+		}, nil
+	}))
+
+	resourceManager.Add(fs.NewResource("buffer", func(c fs.Context, _ any) (any, error) {
+		header := make(http.Header)
+		header.Set("Content-Type", "text/html")
+
+		return &fs.HTTPResponse{
+			Header: header,
+			Stream: &bytes.Buffer{},
+		}, nil
+	}))
+
 	restResolver := restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
 		ResourceManager: resourceManager,
 		Logger:          logger.CreateMockLogger(true),
@@ -106,6 +126,22 @@ func TestNewRestResolver(t *testing.T) {
 	assert.Equal(t, "text/html", respContentType)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, `<body>test</body>`, utils.Must(utils.ReadCloserToString(resp.Body)))
+
+	req6 := httptest.NewRequest("GET", "/file", nil)
+	resp, err = restResolver.Server().App.Test(req6)
+	respContentType = resp.Header.Get("Content-Type")
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, "text/html", respContentType)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	req7 := httptest.NewRequest("GET", "/buffer", nil)
+	resp, err = restResolver.Server().App.Test(req7)
+	respContentType = resp.Header.Get("Content-Type")
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, "text/html", respContentType)
+	assert.Equal(t, 200, resp.StatusCode)
 }
 
 func TestNewRestResolverErrorMiddleware(t *testing.T) {

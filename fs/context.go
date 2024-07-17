@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 
@@ -37,6 +38,8 @@ type HTTPResponse struct {
 	StatusCode int
 	Body       []byte
 	Header     http.Header
+	File       string
+	Stream     *bytes.Buffer
 }
 
 // Result is a struct that contains the result of a resolver
