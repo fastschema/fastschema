@@ -19,13 +19,11 @@ func createTestSchemaFile(t *testing.T, schemaName string, schemaContent string)
 
 	f, err := os.Create(tmpFilePath)
 	assert.NoError(t, err)
-	// write schemaContent to tmpFilePath
 	n2, err := f.Write([]byte(schemaContent))
 	fmt.Printf("wrote %d bytes\n", n2)
 	assert.NoError(t, err)
 	defer f.Close()
 
-	// assert.NoError(t, png.Encode(f, img))
 	fmt.Println(tmpFilePath)
 	return tmpFilePath
 }

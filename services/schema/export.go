@@ -6,24 +6,25 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 )
 
-func (ss *SchemaService) Export(c fs.Context, _ any) (any, error) {
-	// Get the schemas
-	// split by name with comma
-	schemaNames := strings.Split(c.Arg("names"), ",")
+type SchemasExport struct {
+	Schemas *[]string `json:"schemas"`
+}
 
+func (ss *SchemaService) Export(c fs.Context, schemasExport *SchemasExport) (any, error) {
+	if len(*schemasExport.Schemas) == 0 {
+		return nil, errors.BadRequest("schemas is required")
+	}
 	// Create a buffer to write our archive to
 	buffer := new(bytes.Buffer)
 
 	// Create a new zip archive
 	zipWriter := zip.NewWriter(buffer)
-
-	for _, schema := range schemaNames {
+	for _, schema := range *schemasExport.Schemas {
 		_, err := ss.app.SchemaBuilder().Schema(schema)
 		if err != nil {
 			return nil, errors.NotFound(err.Error())
