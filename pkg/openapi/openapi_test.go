@@ -160,7 +160,9 @@ func TestCreatePathItem(t *testing.T) {
 					Description: "Successful response",
 					Content: map[string]ogen.Media{
 						"application/json": {
-							Schema: openapi.RefSchema("TestStruct"),
+							Schema: ogen.NewSchema().AddRequiredProperties(
+								openapi.RefSchema("TestStruct").ToProperty("data"),
+							),
 						},
 					},
 				},
