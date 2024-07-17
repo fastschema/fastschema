@@ -83,7 +83,7 @@ func (a *App) createResources() error {
 			Args:   fs.Args{"name": createArg(fs.TypeString, "The schema name")},
 		})).
 		Add(fs.NewResource("import", schemaService.Import, &fs.Meta{Post: "/import"})).
-		Add(fs.NewResource("export", schemaService.Export, &fs.Meta{Post: "/export", Public: true}))
+		Add(fs.NewResource("export", schemaService.Export, &fs.Meta{Post: "/export"}))
 
 	a.api.Group("content", &fs.Meta{
 		Prefix: "/content/:schema",

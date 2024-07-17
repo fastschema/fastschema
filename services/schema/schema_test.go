@@ -235,7 +235,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 			Post: "/import",
 		})).
 		Add(fs.NewResource("export", schemaService.Export, &fs.Meta{
-			Get: "/export/:names",
+			Post: "/export",
 		}))
 
 	assert.NoError(t, resources.Init())

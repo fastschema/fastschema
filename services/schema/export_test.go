@@ -30,7 +30,7 @@ func TestSchemaServiceExport(t *testing.T) {
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.Contains(t, response, `schemas is required`)
 
-	// Case 2: export success
+	// Case 3: export success
 	req = httptest.NewRequest("POST", "/schema/export", bytes.NewReader([]byte(`{"schemas":["category"]}`)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
