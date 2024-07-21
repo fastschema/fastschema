@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 type SchemasExport struct {
@@ -19,16 +21,28 @@ func (ss *SchemaService) Export(c fs.Context, schemasExport *SchemasExport) (any
 	if len(*schemasExport.Schemas) == 0 {
 		return nil, errors.BadRequest("schemas is required")
 	}
+
+	schemasIsNotExist := make([]string, 0)
+	for _, sc := range *schemasExport.Schemas {
+		currentSchemaFile := fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), sc)
+		if !utils.IsFileExists(currentSchemaFile) {
+			schemasIsNotExist = append(schemasIsNotExist, sc)
+		}
+	}
+	if len(schemasIsNotExist) > 0 {
+		return nil, errors.NotFound("schemas %s is not exist", strings.Join(schemasIsNotExist, ", "))
+	}
+
 	// Create a buffer to write our archive to
 	buffer := new(bytes.Buffer)
-
 	// Create a new zip archive
 	zipWriter := zip.NewWriter(buffer)
 	for _, schema := range *schemasExport.Schemas {
-		_, err := ss.app.SchemaBuilder().Schema(schema)
-		if err != nil {
-			return nil, errors.NotFound(err.Error())
-		}
+		// _, err := ss.app.SchemaBuilder().Schema(schema)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	return nil, errors.NotFound(err.Error())
+		// }
 		schemaFile := fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), schema)
 		// Read the file content
 		data, err := ioutil.ReadFile(schemaFile)
