@@ -19,7 +19,7 @@ func TestSchemaServiceExport(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 404, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Contains(t, response, `schema blog not found`)
+	assert.Contains(t, response, `schemas blog is not exist`)
 
 	// Case 2: schemas is empty
 	req = httptest.NewRequest("POST", "/schema/export", bytes.NewReader([]byte(`{"schemas":[]}`)))
