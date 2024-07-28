@@ -14,6 +14,7 @@
   <a href="https://goreportcard.com/report/github.com/fastschema/fastschema" target="_blank" rel="noopener">
     <img src="https://goreportcard.com/badge/github.com/fastschema/fastschema" alt="go report card" />
   </a>
+<a href="https://app.fossa.com/projects/git%2Bgithub.com%2Ffastschema%2Ffastschema?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Ffastschema%2Ffastschema.svg?type=shield"/></a>
   <a href="https://codecov.io/gh/fastschema/fastschema" target="_blank" rel="noopener">
     <img src="https://codecov.io/gh/fastschema/fastschema/graph/badge.svg?token=TPU5QN6E4Z" alt="codecov" />
   </a>
@@ -26,6 +27,9 @@
 </p>
 
 _FastSchema is a Go web framework and headless CMS for building dynamic web applications. Designed to simplify the creation and management of structured content, FastSchema automates the generation of databases and provides CRUD APIs effortlessly._
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ffastschema%2Ffastschema.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Ffastschema%2Ffastschema?ref=badge_large)
 
 ## Try it out
 
