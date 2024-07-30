@@ -18,6 +18,7 @@ type Config struct {
 	DB                db.Client
 	DBConfig          *db.Config // If DB is set, DBConfig will be ignored
 	StorageConfig     *StorageConfig
+	CacheConfig       *CacheConfig
 	HideResourcesInfo bool
 	SystemSchemas     []any // types to build the system schemas
 	AuthConfig        *AuthConfig
@@ -45,6 +46,10 @@ func (ac *Config) Clone() *Config {
 
 	if ac.StorageConfig != nil {
 		c.StorageConfig = ac.StorageConfig.Clone()
+	}
+
+	if ac.CacheConfig != nil {
+		c.CacheConfig = ac.CacheConfig.Clone()
 	}
 
 	return c

@@ -13,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/auth"
+	caches "github.com/fastschema/fastschema/pkg/cache"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/rclonefs"
@@ -33,6 +34,10 @@ func init() {
 
 func (a *App) init() (err error) {
 	if err = a.getDefaultDisk(); err != nil {
+		return err
+	}
+
+	if err = a.getDefaultCache(); err != nil {
 		return err
 	}
 
@@ -103,7 +108,8 @@ func (a *App) init() (err error) {
 				return false, err
 			}
 
-			if err := a.UpdateCache(c.Context()); err != nil {
+			// Update the cache of user roles
+			if err := a.UpdateCache(c.Context(), "roles"); err != nil {
 				return false, err
 			}
 
@@ -273,6 +279,61 @@ func (a *App) getDefaultDisk() (err error) {
 	return nil
 }
 
+func (a *App) getDefaultCache() (err error) {
+	if a.config.CacheConfig == nil {
+		a.config.CacheConfig = &fs.CacheConfig{}
+	}
+
+	defaultDriverName := a.config.CacheConfig.DefaultCache
+	if defaultDriverName == "" {
+		defaultDriverName = utils.Env("CACHE_DEFAULT_DRIVER", "")
+	}
+
+	cacheDriversConfig := a.config.CacheConfig.CacheDriverConfig
+	if cacheDrivers := utils.Env("CACHE_DRIVERS"); cacheDrivers != "" && cacheDriversConfig == nil {
+		if err := json.Unmarshal([]byte(cacheDrivers), &cacheDriversConfig); err != nil {
+			return err
+		}
+	}
+
+	// if threre is no driver config, add a default driver
+	if cacheDriversConfig == nil {
+		if defaultDriverName == "" {
+			defaultDriverName = "local"
+		}
+
+		cacheDriversConfig = []*fs.CacheDriverConfig{{
+			Driver:   "local",
+			Address:  "",
+			Password: "",
+			Database: 0,
+		}}
+	}
+
+	if a.caches, err = caches.NewFromConfig(cacheDriversConfig); err != nil {
+		return err
+	}
+
+	foundDefaultDriver := false
+	for _, cache := range a.caches {
+		if cache.Name() == defaultDriverName {
+			a.defaultCache = cache
+			foundDefaultDriver = true
+			break
+		}
+	}
+
+	if defaultDriverName != "" && !foundDefaultDriver {
+		return fmt.Errorf("default driver [%s] not found", defaultDriverName)
+	}
+
+	if a.defaultCache == nil && len(a.caches) > 0 {
+		a.defaultCache = a.caches[0]
+	}
+
+	return nil
+}
+
 func (a *App) getDefaultLogger() (err error) {
 	if a.config.Logger == nil {
 		if a.config.LoggerConfig == nil {
@@ -365,7 +426,7 @@ func (a *App) getDefaultDBClient() (err error) {
 		return err
 	}
 
-	if err := a.UpdateCache(context.Background()); err != nil {
+	if err := a.UpdateCache(context.Background(), "roles"); err != nil {
 		return err
 	}
 
