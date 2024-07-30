@@ -20,6 +20,8 @@ type App interface {
 	Roles() []*Role
 	Disk(names ...string) Disk
 	Disks() []Disk
+	Cache(names ...string) Cache
+	Caches() []Cache
 
 	AddResource(resource *Resource)
 	AddMiddlewares(hooks ...Middleware)
