@@ -4,7 +4,7 @@ go 1.22.3
 
 require (
 	ariga.io/atlas v0.24.1
-	entgo.io/ent v0.13.1
+	entgo.io/ent v0.14.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/buger/jsonparser v1.1.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
