@@ -1089,3 +1089,30 @@ func TestCountClientIsNotEntAdapter(t *testing.T) {
 	_, err := q.Count(context.Background(), &db.CountOption{})
 	assert.EqualError(t, err, "client is not an ent adapter")
 }
+
+func TestQueryNodesPreHookError(t *testing.T) {
+	tests := []MockTestQueryData{
+		{
+			Name:        "Query_with_no_filter",
+			Schema:      "user",
+			ExpectError: "pre query hook: hook error",
+		},
+	}
+
+	sb := createSchemaBuilder()
+	MockRunQueryTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
+			Driver: "sqlmock",
+			Hooks: func() *db.Hooks {
+				return &db.Hooks{
+					PreDBGet: []db.PreDBGet{
+						func(query *db.QueryOption) error {
+							return errors.New("hook error")
+						},
+					},
+				}
+			},
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
+		return driver
+	}, sb, t, tests)
+}

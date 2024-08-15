@@ -66,6 +66,14 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 		}
 	}
 
+	if len(hooks.PreDBUpdate) > 0 {
+		for _, hook := range hooks.PreDBUpdate {
+			if err := hook(m.model.schema, m.predicates); err != nil {
+				return 0, fmt.Errorf("pre update hook: %w", err)
+			}
+		}
+	}
+
 	for pair := e.First(); pair != nil; pair = pair.Next() {
 		switch pair.Key {
 		case "$add":

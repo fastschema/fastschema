@@ -134,6 +134,19 @@ func (q *Query) Get(ctx context.Context) ([]*schema.Entity, error) {
 	columnNames := []string{}
 	edgeColumns := map[string][]string{}
 	allSelectsAreEdges := true
+	var hooks = &db.Hooks{}
+	if q.client != nil {
+		hooks = q.client.Hooks()
+	}
+	var queryOptions = q.Options()
+
+	if len(hooks.PreDBGet) > 0 {
+		for _, hook := range hooks.PreDBGet {
+			if err := hook(queryOptions); err != nil {
+				return nil, fmt.Errorf("pre query hook: %w", err)
+			}
+		}
+	}
 
 	if len(q.fields) > 0 {
 		columnNames = append(columnNames, q.model.entIDColumn.Name)
@@ -250,13 +263,7 @@ func (q *Query) Get(ctx context.Context) ([]*schema.Entity, error) {
 		return nil, err
 	}
 
-	var hooks = &db.Hooks{}
-	if q.client != nil {
-		hooks = q.client.Hooks()
-	}
-
 	if len(hooks.PostDBGet) > 0 {
-		queryOptions := q.Options()
 		for _, hook := range hooks.PostDBGet {
 			var err error
 			if q.entities, err = hook(queryOptions, q.entities); err != nil {

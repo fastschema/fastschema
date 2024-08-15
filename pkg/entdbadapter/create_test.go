@@ -130,6 +130,34 @@ func TestMockCreateNodeHookError(t *testing.T) {
 	}, sb, t, tests)
 }
 
+func TestMockCreateNodePreHookError(t *testing.T) {
+	tests := []MockTestCreateData{
+		{
+			Name:        "fields",
+			Schema:      "user",
+			InputJSON:   `{ "name": "User 1", "age": 0 }`,
+			ExpectError: "hook error",
+		},
+	}
+
+	sb := createSchemaBuilder()
+	MockRunCreateTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
+			Driver: "sqlmock",
+			Hooks: func() *db.Hooks {
+				return &db.Hooks{
+					PreDBCreate: []db.PreDBCreate{
+						func(schema *schema.Schema, dataCreate *schema.Entity) error {
+							return errors.New("hook error")
+						},
+					},
+				}
+			},
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
+		return driver
+	}, sb, t, tests)
+}
+
 func TestMockCreateNodeEdges(t *testing.T) {
 	tests := []MockTestCreateData{
 		{
