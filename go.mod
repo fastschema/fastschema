@@ -33,7 +33,7 @@ require (
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/text v0.17.0
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028
-	modernc.org/sqlite v1.31.1
+	modernc.org/sqlite v1.32.0
 )
 
 require (
