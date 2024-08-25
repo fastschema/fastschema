@@ -49,6 +49,14 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 		}
 	}
 
+	if len(hooks.PreDBDelete) > 0 {
+		for _, hook := range hooks.PreDBDelete {
+			if err := hook(m.model.schema, m.predicates); err != nil {
+				return 0, fmt.Errorf("pre delete hook: %w", err)
+			}
+		}
+	}
+
 	affected, err = sqlgraph.DeleteNodes(ctx, entAdapter.Driver(), deleteSpec)
 	if err != nil {
 		return 0, fmt.Errorf("delete nodes: %w", err)

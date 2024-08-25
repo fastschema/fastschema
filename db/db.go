@@ -42,11 +42,34 @@ type PostDBDelete = func(
 	affected int,
 ) error
 
+type PreDBGet = func(
+	query *QueryOption,
+) error
+
+type PreDBCreate = func(
+	schema *schema.Schema,
+	dataCreate *schema.Entity,
+) error
+
+type PreDBUpdate = func(
+	schema *schema.Schema,
+	predicates []*Predicate,
+) error
+
+type PreDBDelete = func(
+	schema *schema.Schema,
+	predicates []*Predicate,
+) error
+
 type Hooks struct {
 	PostDBGet    []PostDBGet
 	PostDBCreate []PostDBCreate
 	PostDBUpdate []PostDBUpdate
 	PostDBDelete []PostDBDelete
+	PreDBGet     []PreDBGet
+	PreDBCreate  []PreDBCreate
+	PreDBUpdate  []PreDBUpdate
+	PreDBDelete  []PreDBDelete
 }
 
 type RenameItem struct {

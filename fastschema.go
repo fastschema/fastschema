@@ -99,6 +99,22 @@ func (a *App) OnPostDBDelete(hooks ...db.PostDBDelete) {
 	a.hooks.DBHooks.PostDBDelete = append(a.hooks.DBHooks.PostDBDelete, hooks...)
 }
 
+func (a *App) OnPreDBGet(hooks ...db.PreDBGet) {
+	a.hooks.DBHooks.PreDBGet = append(a.hooks.DBHooks.PreDBGet, hooks...)
+}
+
+func (a *App) OnPreDBCreate(hooks ...db.PreDBCreate) {
+	a.hooks.DBHooks.PreDBCreate = append(a.hooks.DBHooks.PreDBCreate, hooks...)
+}
+
+func (a *App) OnPreDBUpdate(hooks ...db.PreDBUpdate) {
+	a.hooks.DBHooks.PreDBUpdate = append(a.hooks.DBHooks.PreDBUpdate, hooks...)
+}
+
+func (a *App) OnPreDBDelete(hooks ...db.PreDBDelete) {
+	a.hooks.DBHooks.PreDBDelete = append(a.hooks.DBHooks.PreDBDelete, hooks...)
+}
+
 func (a *App) CWD() string {
 	return a.cwd
 }

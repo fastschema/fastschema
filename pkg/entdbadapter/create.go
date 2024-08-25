@@ -21,6 +21,11 @@ func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err 
 		return 0, fmt.Errorf("cannot create entity with existing ID %d", e.ID())
 	}
 
+	var hooks = &db.Hooks{}
+	if m.client != nil {
+		hooks = m.client.Hooks()
+	}
+
 	createSpec := &sqlgraph.CreateSpec{
 		Table: m.model.schema.Namespace,
 		ID: &sqlgraph.FieldSpec{
@@ -71,6 +76,13 @@ func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err 
 			createSpec.Edges = append(createSpec.Edges, edge)
 		}
 	}
+	if len(hooks.PreDBCreate) > 0 {
+		for _, hook := range hooks.PreDBCreate {
+			if err = hook(m.model.schema, e); err != nil {
+				return 0, err
+			}
+		}
+	}
 
 	if err = sqlgraph.CreateNode(ctx, entAdapter.Driver(), createSpec); err != nil {
 		return 0, err
@@ -82,11 +94,6 @@ func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err 
 		if err = m.client.Commit(); err != nil {
 			return 0, err
 		}
-	}
-
-	var hooks = &db.Hooks{}
-	if m.client != nil {
-		hooks = m.client.Hooks()
 	}
 
 	if e.ID() > 0 && len(hooks.PostDBCreate) > 0 {
