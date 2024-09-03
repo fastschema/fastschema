@@ -1,9 +1,8 @@
 module github.com/fastschema/fastschema
 
 go 1.22.3
-
 require (
-	ariga.io/atlas v0.24.1
+	ariga.io/atlas v0.27.0
 	entgo.io/ent v0.13.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/buger/jsonparser v1.1.1
