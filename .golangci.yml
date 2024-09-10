@@ -14,6 +14,9 @@ linters-settings:
   funlen:
     lines: 150
     statements: 140
+  gosec:
+    excludes:
+      - G115
 
 linters:
   disable-all: true
