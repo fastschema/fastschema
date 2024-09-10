@@ -96,6 +96,8 @@ const Init = plugin => {
   const result = $db().Query($context(), 'SELECT 1');
   console.log(result);
 
+	$logger().Info('hello from plugin');
+
   plugin.resources.Add(hello, { public: true });
 }
 

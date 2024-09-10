@@ -10,6 +10,7 @@ import (
 	gojarequire "github.com/dop251/goja_nodejs/require"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 )
 
 var Require = new(gojarequire.Registry)
@@ -33,6 +34,7 @@ type AppLike interface {
 	DB() db.Client
 	Resources() *fs.ResourcesManager
 	Config() *fs.Config
+	Logger() logger.Logger
 }
 
 type Plugin struct {
@@ -79,6 +81,7 @@ func (p *Plugin) Config(app AppLike) (err error) {
 func (p *Plugin) Init(app AppLike) (err error) {
 	set := map[string]any{
 		"$context": context.Background,
+		"$logger":  app.Logger,
 		"$db": func() *DB {
 			return NewDB(app.DB())
 		},

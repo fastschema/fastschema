@@ -9,6 +9,7 @@ import {
 import { FsFile, FsUser } from './content';
 import { FsContext as _FsContext } from './contex';
 import { FsAppConfig as _FsAppConfig } from './config';
+import { FsLogger as _FsLogger } from './logger';
 import { SchemaRawData as _SchemaRawData, FsEntity as _FsEntity } from './schema';
 
 import {
@@ -64,8 +65,10 @@ declare global {
   interface SchemaRawData extends _SchemaRawData { }
   interface FsDbPredicate extends _FsDbPredicate { }
   interface FsEntity extends _FsEntity { }
+  interface FsLogger extends _FsLogger { }
   type FsResolveHook = _FsResolveHook
 
   const $db: () => FsDb;
   const $context: () => FsContext;
+  const $logger: () => FsLogger;
 }

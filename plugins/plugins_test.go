@@ -7,6 +7,7 @@ import (
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -20,6 +21,7 @@ type testApp struct {
 	db        db.Client
 	resources *fs.ResourcesManager
 	server    *rr.Server
+	logger    logger.Logger
 }
 
 func newTestAppFromConfig(t *testing.T, config *fs.Config) *testApp {
@@ -39,6 +41,7 @@ func newTestAppFromConfig(t *testing.T, config *fs.Config) *testApp {
 		sb:        sb,
 		db:        db,
 		resources: fs.NewResourcesManager(),
+		logger:    logger.CreateMockLogger(true),
 	}
 
 	return app
@@ -58,6 +61,10 @@ func (a *testApp) Resources() *fs.ResourcesManager {
 
 func (a *testApp) Hooks() *fs.Hooks {
 	return a.config.Hooks
+}
+
+func (a *testApp) Logger() logger.Logger {
+	return a.logger
 }
 
 // Resolve hooks
