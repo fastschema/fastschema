@@ -125,7 +125,7 @@ func (d *Adapter) IsTx() bool {
 
 // Tx creates a new transaction.
 func (d *Adapter) Tx(ctx context.Context) (db.Client, error) {
-	return NewTx(d, ctx)
+	return NewTx(ctx, d)
 }
 
 // SchemaBuilder returns the schema builder.

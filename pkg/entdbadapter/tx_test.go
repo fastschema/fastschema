@@ -33,7 +33,7 @@ func createTestSchemaBuilder(t *testing.T) *schema.Builder {
 }
 
 func createTx(t *testing.T, client db.Client, sb *schema.Builder) *Tx {
-	tx := utils.Must(NewTx(client, context.Background()))
+	tx := utils.Must(NewTx(context.Background(), client))
 	assert.Equal(t, sb, tx.SchemaBuilder())
 	assert.NotNil(t, utils.Must(tx.Model("car")))
 	userModel, err := tx.Model("user")

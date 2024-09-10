@@ -23,7 +23,7 @@ type Tx struct {
 }
 
 // NewTx creates a new transaction.
-func NewTx(client db.Client, ctx context.Context) (*Tx, error) {
+func NewTx(ctx context.Context, client db.Client) (*Tx, error) {
 	entAdapter := client.(EntAdapter)
 	driver := entAdapter.Driver()
 	tx, err := driver.Tx(ctx)
