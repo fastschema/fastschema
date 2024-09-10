@@ -38,7 +38,7 @@ func New(app AppLike) *UserService {
 }
 
 func (u *UserService) Login(c fs.Context, loginData *LoginData) (*LoginResponse, error) {
-	user, err := db.Query[*fs.User](u.DB()).
+	user, err := db.Builder[*fs.User](u.DB()).
 		Where(db.Or(
 			db.EQ("username", loginData.Login),
 			db.EQ("email", loginData.Login),
@@ -57,7 +57,7 @@ func (u *UserService) Login(c fs.Context, loginData *LoginData) (*LoginResponse,
 			schema.FieldUpdatedAt,
 			schema.FieldDeletedAt,
 		).
-		First(c.Context())
+		First(c)
 	if err != nil && !db.IsNotFound(err) {
 		return nil, err
 	}

@@ -135,16 +135,16 @@ func (c *WSContext) Locals(key string, defaults ...any) any {
 	return c.wsClient.conn.Locals(key, defaults...)
 }
 
-func (c *WSContext) Value(key string, value ...any) (val any) {
+func (c *WSContext) Local(key string, value ...any) (val any) {
 	return c.Locals(key, value...)
 }
 
-func (c *WSContext) ID() string {
-	return fmt.Sprintf("%v", c.Locals(requestID))
+func (c *WSContext) TraceID() string {
+	return fmt.Sprintf("%v", c.Locals(fs.TraceID))
 }
 
 func (c *WSContext) Logger() logger.Logger {
-	return c.logger.WithContext(logger.LogContext{requestID: c.ID()}, 1)
+	return c.logger.WithContext(logger.LogContext{fs.TraceID: c.TraceID()}, 1)
 }
 
 func (c *WSContext) User() *fs.User {

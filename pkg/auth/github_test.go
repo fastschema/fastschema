@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewGithubAuthProvider(t *testing.T) {
-	redirectURL := "http://localhost:8080/callback"
+	redirectURL := "http://localhost:8080/api/auth/github/callback"
 	authProvider, err := auth.NewGithubAuthProvider(map[string]string{}, redirectURL)
 	assert.Error(t, err)
 	assert.Nil(t, authProvider)

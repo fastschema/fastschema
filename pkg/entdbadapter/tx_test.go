@@ -33,7 +33,7 @@ func createTestSchemaBuilder(t *testing.T) *schema.Builder {
 }
 
 func createTx(t *testing.T, client db.Client, sb *schema.Builder) *Tx {
-	tx := utils.Must(NewTx(context.Background(), client))
+	tx := utils.Must(NewTx(client, context.Background()))
 	assert.Equal(t, sb, tx.SchemaBuilder())
 	assert.NotNil(t, utils.Must(tx.Model("car")))
 	userModel, err := tx.Model("user")
@@ -71,8 +71,8 @@ func TestTxCommit(t *testing.T) {
 	mock.ExpectCommit()
 
 	tx := createTx(t, client, sb)
-	_, err1 := tx.Query(context.Background(), "SELECT 1", []any{})
-	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	_, err1 := tx.Query(context.Background(), "SELECT 1")
+	_, err2 := tx.Exec(context.Background(), "SELECT 2")
 	assert.Nil(t, err1)
 	assert.Nil(t, err2)
 	assert.NoError(t, tx.Commit())
@@ -92,8 +92,8 @@ func TestTxRollback(t *testing.T) {
 	mock.ExpectRollback()
 
 	tx := createTx(t, client, sb)
-	_, err1 := tx.Exec(context.Background(), "SELECT 1", []any{})
-	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	_, err1 := tx.Exec(context.Background(), "SELECT 1")
+	_, err2 := tx.Exec(context.Background(), "SELECT 2")
 	assert.Nil(t, err1)
 	assert.Nil(t, err2)
 	assert.NoError(t, tx.Rollback())
@@ -113,8 +113,8 @@ func TestTxClose(t *testing.T) {
 	mock.ExpectClose()
 
 	tx := createTx(t, client, sb)
-	_, err1 := tx.Exec(context.Background(), "SELECT 1", []any{})
-	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	_, err1 := tx.Exec(context.Background(), "SELECT 1")
+	_, err2 := tx.Exec(context.Background(), "SELECT 2")
 	assert.Nil(t, err1)
 	assert.Nil(t, err2)
 	assert.NoError(t, tx.Close())

@@ -6,7 +6,6 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -21,9 +20,8 @@ func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err 
 		return 0, fmt.Errorf("cannot create entity with existing ID %d", e.ID())
 	}
 
-	var hooks = &db.Hooks{}
-	if m.client != nil {
-		hooks = m.client.Hooks()
+	if err := runPreDBCreateHooks(ctx, m.client, m.model.schema, e); err != nil {
+		return 0, err
 	}
 
 	createSpec := &sqlgraph.CreateSpec{
@@ -76,13 +74,6 @@ func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err 
 			createSpec.Edges = append(createSpec.Edges, edge)
 		}
 	}
-	if len(hooks.PreDBCreate) > 0 {
-		for _, hook := range hooks.PreDBCreate {
-			if err = hook(m.model.schema, e); err != nil {
-				return 0, err
-			}
-		}
-	}
 
 	if err = sqlgraph.CreateNode(ctx, entAdapter.Driver(), createSpec); err != nil {
 		return 0, err
@@ -96,12 +87,8 @@ func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err 
 		}
 	}
 
-	if e.ID() > 0 && len(hooks.PostDBCreate) > 0 {
-		for _, hook := range hooks.PostDBCreate {
-			if err = hook(m.model.schema, e.ID(), e); err != nil {
-				return 0, err
-			}
-		}
+	if err := runPostDBCreateHooks(ctx, m.client, m.model.schema, e, e.ID()); err != nil {
+		return 0, err
 	}
 
 	return e.ID(), nil

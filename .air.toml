@@ -3,42 +3,70 @@ testdata_dir = "testdata"
 tmp_dir = "data/tmp"
 
 [build]
-  args_bin = []
-  cmd = "go build -o ./data/tmp/fastschema.exe ./cmd/"
-  bin = "./data/tmp/fastschema.exe"
-  full_bin = ""
-  delay = 1
-  exclude_dir = ["tests", ".git", "data", "dash", "releases", "testdata", "pkg/dash", "pkg\\dash"]
-  exclude_file = []
-  exclude_regex = ["_test.go"]
-  exclude_unchanged = false
-  follow_symlink = false
-  include_dir = []
-  include_ext = ["go", "tpl", "tmpl", "html"]
-  include_file = []
-  kill_delay = "0s"
-  log = "build-errors.log"
-  poll = false
-  poll_interval = 0
-  rerun = false
-  rerun_delay = 500
-  send_interrupt = true
-  stop_on_error = true
+args_bin = []
+cmd = "go build -o ./data/tmp/fastschema.exe ./cmd/"
+bin = "./data/tmp/fastschema.exe"
+full_bin = ""
+delay = 1
+exclude_dir = [
+  "tests",
+  ".git",
+  # "data",
+  "data/backup",
+  "data/logs",
+  "data/migrations",
+  "data/public",
+  "data/schemas",
+  "data/tmp",
+  "data\\backup",
+  "data\\logs",
+  "data\\migrations",
+  "data\\public",
+  "data\\schemas",
+  "data\\tmp",
+  "dash",
+  "releases",
+  "examples",
+  "tmp",
+  "testdata",
+  "pkg/dash",
+  "pkg\\dash",
+]
+exclude_file = [
+  "data/fastschema.db",
+  "data\\fastschema.db",
+  "data/fastschema.db-journal",
+  "data\\fastschema.db-journal",
+]
+exclude_regex = ["_test.go"]
+exclude_unchanged = false
+follow_symlink = false
+include_dir = []
+include_ext = ["go", "tpl", "tmpl", "html", "js"]
+include_file = []
+kill_delay = "0s"
+log = "build-errors.log"
+poll = false
+poll_interval = 0
+rerun = false
+rerun_delay = 500
+send_interrupt = true
+stop_on_error = true
 
 [color]
-  app = ""
-  build = "yellow"
-  main = "magenta"
-  runner = "green"
-  watcher = "cyan"
+app = ""
+build = "yellow"
+main = "magenta"
+runner = "green"
+watcher = "cyan"
 
 [log]
-  main_only = false
-  time = true
+main_only = false
+time = true
 
 [misc]
-  clean_on_exit = true
+clean_on_exit = true
 
 [screen]
-  clear_on_rebuild = false
-  keep_scroll = true
+clear_on_rebuild = false
+keep_scroll = true

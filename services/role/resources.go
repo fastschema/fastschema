@@ -26,7 +26,7 @@ func (rs *RoleService) ResourcesList(c fs.Context, _ any) ([]*fs.Resource, error
 	schemas := rs.DB().SchemaBuilder().Schemas()
 	for _, r := range apiResources {
 		if r.Name() == "content" || r.Name() == "realtime" {
-			apiGroup.Remove(r)
+			apiGroup.Remove(r.Name())
 		}
 	}
 

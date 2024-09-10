@@ -6,6 +6,13 @@ import (
 	"sync"
 )
 
+type AuthProviderMaker func(map[string]string, string) (AuthProvider, error)
+type AuthProvider interface {
+	Name() string
+	Login(Context) (any, error)
+	Callback(Context) (*User, error)
+}
+
 var (
 	authProviderMakersMu sync.RWMutex
 	authProviderMakers   = make(map[string]AuthProviderMaker)
@@ -46,13 +53,6 @@ func AuthProviders() []string {
 	}
 	sort.Strings(list)
 	return list
-}
-
-type AuthProviderMaker func(map[string]string, string) (AuthProvider, error)
-type AuthProvider interface {
-	Name() string
-	Login(Context) (any, error)
-	Callback(Context) (*User, error)
 }
 
 type AuthConfig struct {

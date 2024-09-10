@@ -4,8 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/fastschema/fastschema/fs"
@@ -38,14 +38,9 @@ func (ss *SchemaService) Export(c fs.Context, schemasExport *SchemasExport) (any
 	// Create a new zip archive
 	zipWriter := zip.NewWriter(buffer)
 	for _, schema := range *schemasExport.Schemas {
-		// _, err := ss.app.SchemaBuilder().Schema(schema)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	return nil, errors.NotFound(err.Error())
-		// }
 		schemaFile := fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), schema)
 		// Read the file content
-		data, err := ioutil.ReadFile(schemaFile)
+		data, err := os.ReadFile(schemaFile)
 		if err != nil {
 			return nil, err
 		}

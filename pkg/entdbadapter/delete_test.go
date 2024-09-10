@@ -69,7 +69,7 @@ func TestDeleteNodesPreHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PreDBDelete: []db.PreDBDelete{
-						func(schema *schema.Schema, predicates []*db.Predicate) error {
+						func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate) error {
 							assert.Greater(t, len(predicates), 0)
 							return errors.New("hook error")
 						},
@@ -108,7 +108,13 @@ func TestDeleteNodesHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PostDBDelete: []db.PostDBDelete{
-						func(schema *schema.Schema, predicates []*db.Predicate, originalEntities []*schema.Entity, affected int) error {
+						func(
+							ctx context.Context,
+							schema *schema.Schema,
+							predicates []*db.Predicate,
+							originalEntities []*schema.Entity,
+							affected int,
+						) error {
 							assert.Greater(t, len(predicates), 0)
 							assert.Greater(t, len(originalEntities), 0)
 							assert.Greater(t, affected, 0)

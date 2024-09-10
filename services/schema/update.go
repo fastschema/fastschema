@@ -52,13 +52,10 @@ func (ss *SchemaService) Update(c fs.Context, updateData *SchemaUpdateData) (_ *
 		return nil, err
 	}
 
-	if err = ss.app.Reload(
-		c.Context(),
-		&db.Migration{
-			RenameTables: su.updateData.RenameTables,
-			RenameFields: su.updateData.RenameFields,
-		},
-	); err != nil {
+	if err = ss.app.Reload(c, &db.Migration{
+		RenameTables: su.updateData.RenameTables,
+		RenameFields: su.updateData.RenameFields,
+	}); err != nil {
 		// rollback
 		// remove the current schema dir that contains the new schema files
 		if e := os.RemoveAll(currentSchemaBuilderDir); e != nil {
@@ -71,7 +68,7 @@ func (ss *SchemaService) Update(c fs.Context, updateData *SchemaUpdateData) (_ *
 			return nil, errors.InternalServerError(e.Error())
 		}
 
-		if e := ss.app.Reload(c.Context(), nil); e != nil {
+		if e := ss.app.Reload(c, nil); e != nil {
 			return nil, errors.InternalServerError(e.Error())
 		}
 

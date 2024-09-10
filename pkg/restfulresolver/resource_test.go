@@ -24,7 +24,7 @@ func TestNewRestResolver(t *testing.T) {
 	resourceManager := fs.NewResourcesManager()
 	resourceManager.Middlewares = []fs.Middleware{
 		func(c fs.Context) error {
-			c.Value("test", "test")
+			c.Local("test", "test")
 			return c.Next()
 		},
 	}
@@ -40,7 +40,7 @@ func TestNewRestResolver(t *testing.T) {
 		Add(fs.NewResource("profile", func(c fs.Context, input *testInput) (map[string]any, error) {
 			return map[string]any{
 				"input": input,
-				"test":  c.Value("test"),
+				"test":  c.Local("test"),
 			}, nil
 		}, &fs.Meta{Post: "/profile"})).
 		Add(fs.NewResource("profileerror", func(c fs.Context, input *testInput) (map[string]any, error) {

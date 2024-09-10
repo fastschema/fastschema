@@ -195,6 +195,8 @@ managing dynamic web applications.
 - **Real-time Updates:** FastSchema supports real-time updates, allowing you to build dynamic web applications that
   update in real-time without the need for manual refresh.
 
+- **Plugin System:** FastSchema comes with a plugin system that allows you to extend the functionality of the platform with custom plugins.
+
 ## Documentation
 
 For more information on how to get started with FastSchema, check out our [documentation](https://fastschema.com).
@@ -205,7 +207,7 @@ For more information on how to get started with FastSchema, check out our [docum
 - [x] Add auth provider.
 - [x] OpenAPI generator.
 - [x] Real-time updates.
-- [ ] Plugin system.
+- [x] Plugin system.
 - [ ] GraphQL support.
 - [ ] Webhooks.
 - [ ] Client SDKs.
@@ -261,8 +263,8 @@ We welcome contributions from the community and encourage developers to get invo
 
 Join the conversation and help the community.
 
-- [Discord][discord]
-- X (formerly Twitter): *updating*
+- [Discord][https://discord.gg/Auy2Zr3Ycf]
+- [X (formerly Twitter)](https://x.com/fastschema)
 - YouTube: *updating*
 - StackOverflow: *updating*
 
@@ -273,4 +275,4 @@ Join the conversation and help the community.
 **Enjoy using FastSchema? Give our repo a shiny star :star:!**
 
 [contributing]: CONTRIBUTING.md
-[discord]: https://discord.gg/eetJKeEE
+[discord]: https://discord.gg/Auy2Zr3Ycf

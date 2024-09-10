@@ -16,18 +16,54 @@ import (
 // SupportDrivers returns list of supported drivers.
 var SupportDrivers = []string{"mysql", "pgx", "sqlite"}
 
-type PostDBGet = func(
-	query *QueryOption,
+// Query hooks
+type PreDBQuery = func(
+	ctx context.Context,
+	option *QueryOption,
+) error
+
+type PostDBQuery = func(
+	ctx context.Context,
+	option *QueryOption,
 	entities []*schema.Entity,
 ) ([]*schema.Entity, error)
 
-type PostDBCreate = func(
+// Exec hooks
+type PreDBExec = func(
+	ctx context.Context,
+	option *QueryOption,
+) error
+
+type PostDBExec = func(
+	ctx context.Context,
+	option *QueryOption,
+	result sql.Result,
+) error
+
+// Create hooks
+type PreDBCreate = func(
+	ctx context.Context,
 	schema *schema.Schema,
-	id uint64,
+	createData *schema.Entity,
+) error
+
+type PostDBCreate = func(
+	ctx context.Context,
+	schema *schema.Schema,
 	dataCreate *schema.Entity,
+	id uint64,
+) error
+
+// Update hooks
+type PreDBUpdate = func(
+	ctx context.Context,
+	schema *schema.Schema,
+	predicates []*Predicate,
+	updateData *schema.Entity,
 ) error
 
 type PostDBUpdate = func(
+	ctx context.Context,
 	schema *schema.Schema,
 	predicates []*Predicate,
 	updateData *schema.Entity,
@@ -35,41 +71,45 @@ type PostDBUpdate = func(
 	affected int,
 ) error
 
+// Delete hooks
+type PreDBDelete = func(
+	ctx context.Context,
+	schema *schema.Schema,
+	predicates []*Predicate,
+) error
+
 type PostDBDelete = func(
+	ctx context.Context,
 	schema *schema.Schema,
 	predicates []*Predicate,
 	originalEntities []*schema.Entity,
 	affected int,
 ) error
 
-type PreDBGet = func(
-	query *QueryOption,
-) error
-
-type PreDBCreate = func(
-	schema *schema.Schema,
-	dataCreate *schema.Entity,
-) error
-
-type PreDBUpdate = func(
-	schema *schema.Schema,
-	predicates []*Predicate,
-) error
-
-type PreDBDelete = func(
-	schema *schema.Schema,
-	predicates []*Predicate,
-) error
-
 type Hooks struct {
-	PostDBGet    []PostDBGet
-	PostDBCreate []PostDBCreate
-	PostDBUpdate []PostDBUpdate
-	PostDBDelete []PostDBDelete
-	PreDBGet     []PreDBGet
+	PreDBQuery   []PreDBQuery
+	PostDBQuery  []PostDBQuery
+	PreDBExec    []PreDBExec
+	PostDBExec   []PostDBExec
 	PreDBCreate  []PreDBCreate
+	PostDBCreate []PostDBCreate
 	PreDBUpdate  []PreDBUpdate
+	PostDBUpdate []PostDBUpdate
 	PreDBDelete  []PreDBDelete
+	PostDBDelete []PostDBDelete
+}
+
+func (h *Hooks) Clone() *Hooks {
+	return &Hooks{
+		PostDBQuery:  append([]PostDBQuery{}, h.PostDBQuery...),
+		PostDBCreate: append([]PostDBCreate{}, h.PostDBCreate...),
+		PostDBUpdate: append([]PostDBUpdate{}, h.PostDBUpdate...),
+		PostDBDelete: append([]PostDBDelete{}, h.PostDBDelete...),
+		PreDBQuery:   append([]PreDBQuery{}, h.PreDBQuery...),
+		PreDBCreate:  append([]PreDBCreate{}, h.PreDBCreate...),
+		PreDBUpdate:  append([]PreDBUpdate{}, h.PreDBUpdate...),
+		PreDBDelete:  append([]PreDBDelete{}, h.PreDBDelete...),
+	}
 }
 
 type RenameItem struct {
@@ -88,18 +128,18 @@ type Migration struct {
 }
 
 type Config struct {
-	Driver             string
-	Name               string
-	Host               string
-	Port               string
-	User               string
-	Pass               string
-	Logger             logger.Logger
-	LogQueries         bool
-	MigrationDir       string
-	IgnoreMigration    bool
-	DisableForeignKeys bool
-	Hooks              func() *Hooks
+	Driver             string        `json:"driver"`
+	Name               string        `json:"name"`
+	Host               string        `json:"host"`
+	Port               string        `json:"port"`
+	User               string        `json:"user"`
+	Pass               string        `json:"pass"`
+	Logger             logger.Logger `json:"-"`
+	LogQueries         bool          `json:"log_queries"`
+	MigrationDir       string        `json:"migration_dir"`
+	IgnoreMigration    bool          `json:"ignore_migration"`
+	DisableForeignKeys bool          `json:"disable_foreign_keys"`
+	Hooks              func() *Hooks `json:"-"`
 }
 
 func (c *Config) Clone() *Config {
@@ -123,10 +163,10 @@ type Client interface {
 	Dialect() string
 	// Exec executes a query that does not return records. For example, in SQL, INSERT or UPDATE.
 	// It return a sql.Result and an error if any.
-	Exec(ctx context.Context, query string, args any) (sql.Result, error)
+	Exec(ctx context.Context, query string, args ...any) (sql.Result, error)
 	// Query executes a query that returns rows, typically a SELECT in SQL.
 	// It return a slice of *schema.Entity and an error if any.
-	Query(ctx context.Context, query string, args any) ([]*schema.Entity, error)
+	Query(ctx context.Context, query string, args ...any) ([]*schema.Entity, error)
 	Rollback() error
 	Commit() error
 	CreateDBModel(s *schema.Schema, rs ...*schema.Relation) Model
@@ -151,13 +191,22 @@ type Model interface {
 	Clone() Model
 }
 
+// QueryOption is a struct that contains query options
+//
+//	Column and Unique are used for count query
 type QueryOption struct {
-	Limit      uint         `json:"limit"`
-	Offset     uint         `json:"offset"`
-	Columns    []string     `json:"columns"`
-	Order      []string     `json:"order"`
-	Predicates []*Predicate `json:"predicates"`
-	Model      Model        `json:"-"`
+	// Model      Model        `json:"model"`
+	Schema     *schema.Schema `json:"schema"`
+	Limit      uint           `json:"limit"`
+	Offset     uint           `json:"offset"`
+	Columns    []string       `json:"columns"`
+	Order      []string       `json:"order"`
+	Predicates []*Predicate   `json:"predicates"`
+	Query      string         `json:"query"`
+	Args       any            `json:"args"`
+	// For count query
+	Column string `json:"column"`
+	Unique bool   `json:"unique"`
 }
 
 type Querier interface {
@@ -166,7 +215,7 @@ type Querier interface {
 	Offset(offset uint) Querier
 	Select(columns ...string) Querier
 	Order(order ...string) Querier
-	Count(ctx context.Context, options *CountOption) (int, error)
+	Count(ctx context.Context, options ...*QueryOption) (int, error)
 	Get(ctx context.Context) ([]*schema.Entity, error)
 	First(ctx context.Context) (*schema.Entity, error)
 	Only(ctx context.Context) (*schema.Entity, error)

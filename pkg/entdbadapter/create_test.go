@@ -90,7 +90,8 @@ func TestMockCreateNode(t *testing.T) {
 	sb := createSchemaBuilder()
 	MockRunCreateTests(func(d *sql.DB) db.Client {
 		driver := utils.Must(NewEntClient(&db.Config{
-			Driver: "sqlmock",
+			Driver:     "sqlmock",
+			LogQueries: true,
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
 	}, sb, t, tests)
@@ -102,7 +103,7 @@ func TestMockCreateNodeHookError(t *testing.T) {
 			Name:        "fields",
 			Schema:      "user",
 			InputJSON:   `{ "name": "User 1", "age": 10 }`,
-			ExpectError: "hook error",
+			ExpectError: "post create hook: hook error",
 			Expect: func(m sqlmock.Sqlmock) {
 				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`) VALUES (?, ?)")).
 					WithArgs("User 1", float64(10)).
@@ -118,7 +119,12 @@ func TestMockCreateNodeHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PostDBCreate: []db.PostDBCreate{
-						func(schema *schema.Schema, id uint64, dataCreate *schema.Entity) error {
+						func(
+							ctx context.Context,
+							schema *schema.Schema,
+							dataCreate *schema.Entity,
+							id uint64,
+						) error {
 							assert.Greater(t, id, uint64(0))
 							return errors.New("hook error")
 						},
@@ -136,7 +142,7 @@ func TestMockCreateNodePreHookError(t *testing.T) {
 			Name:        "fields",
 			Schema:      "user",
 			InputJSON:   `{ "name": "User 1", "age": 0 }`,
-			ExpectError: "hook error",
+			ExpectError: "pre create hook: hook error",
 		},
 	}
 
@@ -147,7 +153,7 @@ func TestMockCreateNodePreHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PreDBCreate: []db.PreDBCreate{
-						func(schema *schema.Schema, dataCreate *schema.Entity) error {
+						func(ctx context.Context, schema *schema.Schema, dataCreate *schema.Entity) error {
 							return errors.New("hook error")
 						},
 					},

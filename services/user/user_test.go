@@ -78,7 +78,7 @@ func TestUserService(t *testing.T) {
 			if claims, ok := jwtToken.Claims.(*fs.UserJwtClaims); ok && jwtToken.Valid {
 				user := claims.User
 				user.Roles = []*fs.Role{{ID: 1, Name: "user"}}
-				c.Value("user", user)
+				c.Local("user", user)
 			}
 		}
 

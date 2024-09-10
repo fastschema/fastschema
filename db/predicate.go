@@ -10,17 +10,12 @@ import (
 )
 
 type Predicate struct {
-	Field              string
-	Operator           OperatorType
-	Value              any
-	RelationFieldNames []string
-	And                []*Predicate
-	Or                 []*Predicate
-}
-
-type CountOption struct {
-	Column string
-	Unique bool
+	Field              string       `json:"field"`
+	Operator           OperatorType `json:"operator"`
+	Value              any          `json:"value"`
+	RelationFieldNames []string     `json:"relationFieldNames"`
+	And                []*Predicate `json:"and"`
+	Or                 []*Predicate `json:"or"`
 }
 
 func (p *Predicate) Clone() *Predicate {
@@ -141,6 +136,20 @@ func CreatePredicatesFromFilterObject(
 	if err != nil {
 		return nil, filterError(err)
 	}
+
+	return createObjectPredicates(sb, s, filterEntity)
+}
+
+func CreatePredicatesFromFilterMap(
+	sb *schema.Builder,
+	s *schema.Schema,
+	filterObject map[string]any,
+) ([]*Predicate, error) {
+	if filterObject == nil {
+		return []*Predicate{}, nil
+	}
+
+	filterEntity := schema.NewEntityFromMap(filterObject)
 
 	return createObjectPredicates(sb, s, filterEntity)
 }

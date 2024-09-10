@@ -71,4 +71,7 @@ func TestAuthConfigClone(t *testing.T) {
 	}
 	clone := ac.Clone()
 	assert.Equal(t, ac, clone)
+
+	var nilAuthConfig *fs.AuthConfig
+	assert.Nil(t, nilAuthConfig.Clone())
 }

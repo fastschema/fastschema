@@ -79,18 +79,38 @@ func (d *Adapter) Commit() error {
 func (d *Adapter) Exec(
 	ctx context.Context,
 	query string,
-	args any,
+	args ...any,
 ) (sql.Result, error) {
-	return driverExec(d.driver, ctx, query, args)
+	option := &db.QueryOption{Query: query, Args: args}
+	if err := runPreDBExecHooks(ctx, d, option); err != nil {
+		return nil, err
+	}
+
+	result, err := driverExec(d.driver, ctx, query, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, runPostDBExecHooks(ctx, d, option, result)
 }
 
 // Query executes the query and bind the values to bindValue.
 func (d *Adapter) Query(
 	ctx context.Context,
 	query string,
-	args any,
+	args ...any,
 ) ([]*schema.Entity, error) {
-	return driverQuery(d.driver, ctx, query, args)
+	option := &db.QueryOption{Query: query, Args: args}
+	if err := runPreDBQueryHooks(ctx, d, option); err != nil {
+		return nil, err
+	}
+
+	entities, err := driverQuery(d.driver, ctx, option.Query, option.Args)
+	if err != nil {
+		return nil, err
+	}
+
+	return runPostDBQueryHooks(ctx, d, option, entities)
 }
 
 // Close closes the underlying driver.
@@ -105,7 +125,7 @@ func (d *Adapter) IsTx() bool {
 
 // Tx creates a new transaction.
 func (d *Adapter) Tx(ctx context.Context) (db.Client, error) {
-	return NewTx(ctx, d)
+	return NewTx(d, ctx)
 }
 
 // SchemaBuilder returns the schema builder.
@@ -171,8 +191,7 @@ func (d *Adapter) init() error {
 		targetModel, err := d.model(r.TargetSchemaName)
 		if err != nil {
 			return fmt.Errorf(
-				"relation models %s or %s not found: %w",
-				r.SchemaName,
+				"relation model %s not found: %w",
 				r.TargetSchemaName,
 				err,
 			)

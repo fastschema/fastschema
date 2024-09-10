@@ -33,7 +33,7 @@ func (q *Query) Options() *db.QueryOption {
 		Columns:    q.fields,
 		Order:      q.order,
 		Predicates: q.predicates,
-		Model:      q.model,
+		Schema:     q.model.schema,
 	}
 }
 
@@ -68,16 +68,29 @@ func (q *Query) Where(predicates ...*db.Predicate) db.Querier {
 }
 
 // Count returns the number of entities that match the query.
-func (q *Query) Count(ctx context.Context, options *db.CountOption) (int, error) {
+func (q *Query) Count(ctx context.Context, options ...*db.QueryOption) (int, error) {
+	option := append(options, &db.QueryOption{})[0]
+	if option == nil {
+		option = &db.QueryOption{}
+	}
+
 	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
 		return 0, fmt.Errorf("client is not an ent adapter")
 	}
 
-	if options != nil {
-		q.querySpec.Unique = options.Unique
-		if options.Column != "" {
-			q.querySpec.Node.Columns = []string{options.Column}
+	opts := q.Options()
+	opts.Column = option.Column
+	opts.Unique = option.Unique
+
+	if err := runPreDBQueryHooks(ctx, q.client, opts); err != nil {
+		return 0, err
+	}
+
+	if opts != nil {
+		q.querySpec.Unique = opts.Unique
+		if opts.Column != "" {
+			q.querySpec.Node.Columns = []string{opts.Column}
 		}
 	}
 
@@ -91,7 +104,16 @@ func (q *Query) Count(ctx context.Context, options *db.CountOption) (int, error)
 		}
 	}
 
-	return sqlgraph.CountNodes(ctx, entAdapter.Driver(), q.querySpec)
+	count, err := sqlgraph.CountNodes(ctx, entAdapter.Driver(), q.querySpec)
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = runPostDBQueryHooks(ctx, q.client, opts, []*schema.Entity{
+		schema.NewEntity().Set("count", count),
+	})
+
+	return count, err
 }
 
 // First returns the first entity that matches the query.
@@ -134,18 +156,10 @@ func (q *Query) Get(ctx context.Context) ([]*schema.Entity, error) {
 	columnNames := []string{}
 	edgeColumns := map[string][]string{}
 	allSelectsAreEdges := true
-	var hooks = &db.Hooks{}
-	if q.client != nil {
-		hooks = q.client.Hooks()
-	}
-	var queryOptions = q.Options()
+	option := q.Options()
 
-	if len(hooks.PreDBGet) > 0 {
-		for _, hook := range hooks.PreDBGet {
-			if err := hook(queryOptions); err != nil {
-				return nil, fmt.Errorf("pre query hook: %w", err)
-			}
-		}
+	if err := runPreDBQueryHooks(ctx, q.client, option); err != nil {
+		return nil, err
 	}
 
 	if len(q.fields) > 0 {
@@ -263,16 +277,7 @@ func (q *Query) Get(ctx context.Context) ([]*schema.Entity, error) {
 		return nil, err
 	}
 
-	if len(hooks.PostDBGet) > 0 {
-		for _, hook := range hooks.PostDBGet {
-			var err error
-			if q.entities, err = hook(queryOptions, q.entities); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	return q.entities, nil
+	return runPostDBQueryHooks(ctx, q.client, option, q.entities)
 }
 
 // loadEdges loads the edges for the given fields.

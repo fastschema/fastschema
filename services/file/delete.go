@@ -13,18 +13,18 @@ func (m *FileService) Delete(c fs.Context, fileIDs []uint64) (any, error) {
 			return id
 		})),
 	}
-	files, err := db.Query[*fs.File](m.DB()).Where(conditions...).Get(c.Context())
+	files, err := db.Builder[*fs.File](m.DB()).Where(conditions...).Get(c)
 	if err != nil {
 		return nil, errors.InternalServerError("Failed to get files: %s", err)
 	}
 
-	if _, err := db.Delete[*fs.File](c.Context(), m.DB(), conditions); err != nil {
+	if _, err := db.Delete[*fs.File](c, m.DB(), conditions); err != nil {
 		return nil, errors.InternalServerError("Failed to delete files: %s", err)
 	}
 
 	for _, file := range files {
 		disk := m.Disk(file.Disk)
-		if err := disk.Delete(c.Context(), file.Path); err != nil {
+		if err := disk.Delete(c, file.Path); err != nil {
 			return nil, errors.InternalServerError("Failed to delete file: %s", err)
 		}
 	}

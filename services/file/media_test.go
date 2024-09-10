@@ -43,12 +43,12 @@ func createFileService(t *testing.T) (*ms.FileService, *rr.Server) {
 	fileService := ms.New(testApp)
 	testApp.db = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb, func() *db.Hooks {
 		return &db.Hooks{
-			PostDBGet: []db.PostDBGet{fileService.FileListHook},
+			PostDBQuery: []db.PostDBQuery{fileService.FileListHook},
 		}
 	}))
 	resources := fs.NewResourcesManager()
 	resources.Middlewares = append(resources.Middlewares, func(c fs.Context) error {
-		c.Value("user", &fs.User{ID: 1})
+		c.Local("user", &fs.User{ID: 1})
 		return c.Next()
 	})
 	resources.Group("file").

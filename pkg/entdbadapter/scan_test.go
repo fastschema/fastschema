@@ -45,7 +45,7 @@ func TestScan(t *testing.T) {
 			int64(1),
 			uint64(1),
 			time.Now(),
-		},
+		}...,
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, rows)
@@ -58,7 +58,7 @@ func TestScan(t *testing.T) {
 	assert.Contains(t, json, `"uint64_column":1`)
 	assert.Contains(t, json, `"time_column":`)
 
-	result, err := adapter.Exec(ctx, "SELECT 1", []any{})
+	result, err := adapter.Exec(ctx, "SELECT 1")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }

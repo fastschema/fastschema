@@ -23,7 +23,7 @@ type Tx struct {
 }
 
 // NewTx creates a new transaction.
-func NewTx(ctx context.Context, client db.Client) (*Tx, error) {
+func NewTx(client db.Client, ctx context.Context) (*Tx, error) {
 	entAdapter := client.(EntAdapter)
 	driver := entAdapter.Driver()
 	tx, err := driver.Tx(ctx)
@@ -128,13 +128,33 @@ func (tx *Tx) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.
 }
 
 // Exec executes a query.
-func (tx *Tx) Exec(ctx context.Context, query string, args any) (sql.Result, error) {
-	return driverExec(tx.driver, ctx, query, args)
+func (tx *Tx) Exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	option := &db.QueryOption{Query: query, Args: args}
+	if err := runPreDBExecHooks(ctx, tx, option); err != nil {
+		return nil, err
+	}
+
+	result, err := driverExec(tx.driver, ctx, query, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, runPostDBExecHooks(ctx, tx, option, result)
 }
 
 // Query executes a query.
-func (tx *Tx) Query(ctx context.Context, query string, args any) ([]*schema.Entity, error) {
-	return driverQuery(tx.driver, ctx, query, args)
+func (tx *Tx) Query(ctx context.Context, query string, args ...any) ([]*schema.Entity, error) {
+	option := &db.QueryOption{Query: query, Args: args}
+	if err := runPreDBQueryHooks(ctx, tx, option); err != nil {
+		return nil, err
+	}
+
+	entities, err := driverQuery(tx.driver, ctx, option.Query, option.Args)
+	if err != nil {
+		return nil, err
+	}
+
+	return runPostDBQueryHooks(ctx, tx, option, entities)
 }
 
 // Close closes the transaction.
@@ -178,7 +198,10 @@ func (tx *TxDriver) Tx(context.Context) (dialect.Tx, error) { return tx, nil }
 
 // ID returns the transaction id.
 func (tx *TxDriver) ID() string {
-	debugTx, _ := tx.dialectTx.(*dialect.DebugTx)
+	debugTx, ok := tx.dialectTx.(*dialect.DebugTx)
+	if !ok {
+		return ""
+	}
 	debugTxValue := reflect.ValueOf(*debugTx)
 	return debugTxValue.FieldByName("id").String()
 }
