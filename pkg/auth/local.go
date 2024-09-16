@@ -73,7 +73,6 @@ func (la *LocalAuthProvider) Login(c fs.Context) (_ any, err error) {
 			schema.FieldDeletedAt,
 		).
 		First(c)
-		// First(c.Context())
 	if err != nil && !db.IsNotFound(err) {
 		return nil, err
 	}

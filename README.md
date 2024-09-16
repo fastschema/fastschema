@@ -263,7 +263,7 @@ We welcome contributions from the community and encourage developers to get invo
 
 Join the conversation and help the community.
 
-- [Discord][https://discord.gg/Auy2Zr3Ycf]
+- [Discord][discord]
 - [X (formerly Twitter)](https://x.com/fastschema)
 - YouTube: *updating*
 - StackOverflow: *updating*

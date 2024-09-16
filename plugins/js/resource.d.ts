@@ -28,6 +28,7 @@ export interface FsArg {
 }
 
 export interface FsMeta {
+  prefix?: string;
   get?: string;
   head?: string;
   post?: string;

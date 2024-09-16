@@ -8,8 +8,6 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-// App is the interface that defines the methods that an app must implement
-
 type Hookable interface {
 	Hooks() *Hooks
 
@@ -31,6 +29,8 @@ type Hookable interface {
 	OnPreDBDelete(hooks ...db.PreDBDelete)
 	OnPostDBDelete(hooks ...db.PostDBDelete)
 }
+
+// App is the interface that defines the methods that an app must implement
 type App interface {
 	Hookable
 	Key() string

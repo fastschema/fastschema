@@ -29,7 +29,6 @@ import {
 export interface _FsPlugin {
   name: string;
   resources: FsResource;
-  plugin: FsPlugin;
 }
 
 export interface _FsAppConfigActions extends _FsAppConfig {

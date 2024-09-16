@@ -15,7 +15,7 @@ func runPreDBQueryHooks(ctx context.Context, client db.Client, option *db.QueryO
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PreDBQuery) > 0 {
+	if hooks != nil && len(hooks.PreDBQuery) > 0 {
 		for _, hook := range hooks.PreDBQuery {
 			if err := hook(ctx, option); err != nil {
 				return fmt.Errorf("pre query hook: %w", err)
@@ -37,7 +37,7 @@ func runPostDBQueryHooks(
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PostDBQuery) > 0 {
+	if hooks != nil && len(hooks.PostDBQuery) > 0 {
 		for _, hook := range hooks.PostDBQuery {
 			entities, err = hook(ctx, option, entities)
 			if err != nil {
@@ -55,7 +55,7 @@ func runPreDBExecHooks(ctx context.Context, client db.Client, option *db.QueryOp
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PreDBExec) > 0 {
+	if hooks != nil && len(hooks.PreDBExec) > 0 {
 		for _, hook := range hooks.PreDBExec {
 			if err := hook(ctx, option); err != nil {
 				return fmt.Errorf("pre exec hook: %w", err)
@@ -77,7 +77,7 @@ func runPostDBExecHooks(
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PostDBExec) > 0 {
+	if hooks != nil && len(hooks.PostDBExec) > 0 {
 		for _, hook := range hooks.PostDBExec {
 			if err := hook(ctx, option, result); err != nil {
 				return fmt.Errorf("post exec hook: %w", err)
@@ -99,7 +99,7 @@ func runPreDBCreateHooks(
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PreDBCreate) > 0 {
+	if hooks != nil && len(hooks.PreDBCreate) > 0 {
 		for _, hook := range hooks.PreDBCreate {
 			if err := hook(ctx, schema, createData); err != nil {
 				return fmt.Errorf("pre create hook: %w", err)
@@ -122,7 +122,7 @@ func runPostDBCreateHooks(
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PostDBCreate) > 0 {
+	if hooks != nil && len(hooks.PostDBCreate) > 0 {
 		for _, hook := range hooks.PostDBCreate {
 			if err := hook(ctx, schema, createData, createdID); err != nil {
 				return fmt.Errorf("post create hook: %w", err)
@@ -145,7 +145,7 @@ func runPreDBUpdateHooks(
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PreDBUpdate) > 0 {
+	if hooks != nil && len(hooks.PreDBUpdate) > 0 {
 		for _, hook := range hooks.PreDBUpdate {
 			if err := hook(ctx, schema, predicates, updateData); err != nil {
 				return fmt.Errorf("pre update hook: %w", err)
@@ -170,7 +170,7 @@ func runPostDBUpdateHooks(
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PostDBUpdate) > 0 {
+	if hooks != nil && len(hooks.PostDBUpdate) > 0 {
 		for _, hook := range hooks.PostDBUpdate {
 			if err := hook(ctx, schema, predicates, updateData, originalEntities, affected); err != nil {
 				return fmt.Errorf("post update hook: %w", err)
@@ -192,7 +192,7 @@ func runPreDBDeleteHooks(
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PreDBDelete) > 0 {
+	if hooks != nil && len(hooks.PreDBDelete) > 0 {
 		for _, hook := range hooks.PreDBDelete {
 			if err := hook(ctx, schema, predicates); err != nil {
 				return fmt.Errorf("pre delete hook: %w", err)
@@ -216,7 +216,7 @@ func runPostDBDeleteHooks(
 	}
 
 	hooks := client.Hooks()
-	if len(hooks.PostDBDelete) > 0 {
+	if hooks != nil && len(hooks.PostDBDelete) > 0 {
 		for _, hook := range hooks.PostDBDelete {
 			if err := hook(ctx, schema, predicates, originalEntities, affected); err != nil {
 				return fmt.Errorf("post delete hook: %w", err)
