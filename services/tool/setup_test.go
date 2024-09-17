@@ -70,7 +70,7 @@ func TestSetup(t *testing.T) {
 	))
 
 	roleModel := utils.Must(entDB.Model("role"))
-	roleCount := utils.Must(roleModel.Query().Count(context.Background(), &db.CountOption{
+	roleCount := utils.Must(roleModel.Query().Count(context.Background(), &db.QueryOption{
 		Unique: true,
 		Column: "id",
 	}))

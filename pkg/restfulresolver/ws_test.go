@@ -110,7 +110,7 @@ func TestWSClient(t *testing.T) {
 			argInt3 := c.ArgInt("num3", 10)
 			argInt := fmt.Sprintf("%d-%d-%d", argInt1, argInt2, argInt3)
 
-			assert.NotNil(t, c.ID())
+			assert.NotNil(t, c.TraceID())
 
 			for {
 				_, msg, err := client.Read()
@@ -227,7 +227,7 @@ func TestWSHooksSuccess(t *testing.T) {
 		return &fs.Hooks{
 			PreResolve: []fs.Middleware{
 				func(c fs.Context) error {
-					c.Value("user", adminUser)
+					c.Local("user", adminUser)
 					return nil
 				},
 			},

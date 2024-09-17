@@ -108,18 +108,24 @@ func createSchemaBuilder() *schema.Builder {
 	return createSchemaBuilderFromDir("../../tests/data/schemas")
 }
 
-func createMockAdapter(t *testing.T) EntAdapter {
+func createMockAdapter(t *testing.T, configs ...*db.Config) EntAdapter {
 	mockDB, _, err := sqlmock.New()
 	assert.NoError(t, err)
 
 	tmpDir, err := os.MkdirTemp("", "migrations")
 	assert.NoError(t, err)
 
-	sb := createSchemaBuilder()
-	client := utils.Must(NewEntClient(&db.Config{
+	config := &db.Config{
 		Driver:       "sqlmock",
 		MigrationDir: tmpDir,
-	}, sb, dialectSql.OpenDB(dialect.MySQL, mockDB)))
+	}
+
+	if len(configs) > 0 {
+		config = configs[0]
+	}
+
+	sb := createSchemaBuilder()
+	client := utils.Must(NewEntClient(config, sb, dialectSql.OpenDB(dialect.MySQL, mockDB)))
 
 	adapter, ok := client.(EntAdapter)
 	assert.True(t, ok)
@@ -416,7 +422,7 @@ func MockRunCountTests(
 					if len(predicates) > 0 {
 						query = query.Where(predicates...)
 					}
-					countOpts := &db.CountOption{
+					countOpts := &db.QueryOption{
 						Unique: unique,
 						Column: column,
 					}

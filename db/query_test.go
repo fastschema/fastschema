@@ -21,19 +21,19 @@ func TestQuery(t *testing.T) {
 	}
 
 	// Case 1: Get invalid model.
-	_, err := db.Query[testPost](client).
+	_, err := db.Builder[testPost](client).
 		Where(db.EQ("id", 1)).
 		Get(ctx)
 	assert.Error(t, err)
 
 	// Case 2: Query invalid column.
-	_, err = db.Query[TestCategory](client).
+	_, err = db.Builder[TestCategory](client).
 		Where(db.EQ("invalid_column", 1)).
 		Get(ctx)
 	assert.Error(t, err)
 
 	// Case 3: Query success.
-	categories, err := db.Query[TestCategory](client).
+	categories, err := db.Builder[TestCategory](client).
 		Where(db.GTE("id", 3)).
 		Order("-id").
 		Limit(1).
@@ -47,75 +47,75 @@ func TestQuery(t *testing.T) {
 	assert.Equal(t, "category 4", categories[0].Name)
 
 	// Case 4: Count invalid model.
-	_, err = db.Query[testPost](client).Count(ctx, nil)
+	_, err = db.Builder[testPost](client).Count(ctx)
 	assert.Error(t, err)
 
 	// Case 5: Count invalid filter column.
-	_, err = db.Query[TestCategory](client).
+	_, err = db.Builder[TestCategory](client).
 		Where(db.EQ("invalid_column", 1)).
-		Count(ctx, nil)
+		Count(ctx)
 	assert.Error(t, err)
 
 	// Case 6: Count success.
-	count, err := db.Query[TestCategory](client).
+	count, err := db.Builder[TestCategory](client).
 		Where(db.GTE("id", 3)).
-		Count(ctx, nil)
+		Count(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, count)
 
 	// Case 7: First with invalid model.
-	_, err = db.Query[testPost](client).
+	_, err = db.Builder[testPost](client).
 		Where(db.EQ("id", 1)).
 		First(ctx)
 	assert.Error(t, err)
 
 	// Case 8: First not found.
-	_, err = db.Query[TestCategory](client).
+	_, err = db.Builder[TestCategory](client).
 		Where(db.EQ("id", 100)).
 		First(ctx)
 	assert.Error(t, err)
 
 	// Case 9: First success.
-	category, err := db.Query[TestCategory](client).
+	category, err := db.Builder[TestCategory](client).
 		Where(db.GTE("id", 2)).
 		First(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(2), category.ID)
 
 	// Case 10: Only invalid model.
-	_, err = db.Query[testPost](client).
+	_, err = db.Builder[testPost](client).
 		Where(db.EQ("id", 1)).
 		Only(ctx)
 	assert.Error(t, err)
 
 	// Case 11: Only not found.
-	_, err = db.Query[TestCategory](client).
+	_, err = db.Builder[TestCategory](client).
 		Where(db.EQ("id", 100)).
 		Only(ctx)
 	assert.Error(t, err)
 
 	// Case 12: Only query returns more than one result.
-	_, err = db.Query[TestCategory](client).
+	_, err = db.Builder[TestCategory](client).
 		Where(db.GTE("id", 3)).
 		Only(ctx)
 	assert.Error(t, err)
 
 	// Case 13: Only success.
-	category, err = db.Query[TestCategory](client).
+	category, err = db.Builder[TestCategory](client).
 		Where(db.EQ("id", 2)).
 		Only(ctx)
 	assert.NoError(t, err)
 
 	// Case 14: Query with schema.Entity: Invalid schema name
-	_, err = db.Query[*schema.Entity](client, "invalid").Get(ctx)
+	_, err = db.Builder[*schema.Entity](client, "invalid").Get(ctx)
 	assert.ErrorContains(t, err, "model invalid not found")
 
 	// Case 15: Query with schema.Entity: No schema name
-	_, err = db.Query[*schema.Entity](client).Get(ctx)
+	_, err = db.Builder[*schema.Entity](client).Get(ctx)
 	assert.ErrorContains(t, err, "schema name is required for type schema.Entity")
 
 	// Case 16: Query with schema.Entity: Success
-	cats, err := db.Query[*schema.Entity](client, "category").Get(ctx)
+	cats, err := db.Builder[*schema.Entity](client, "category").Get(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, cats, 5)
 	assert.Equal(t, "category 1", cats[0].Get("name"))

@@ -32,7 +32,16 @@ var userSchemaJSON = `{
       "label": "Age",
       "type": "uint"
     }
-  ]
+  ],
+	"db": {
+		"indexes": [
+			{
+				"name": "age",
+				"unique": false,
+				"columns": ["age"]
+			}
+		]
+	}
 }`
 
 func TestModelName(t *testing.T) {
@@ -97,6 +106,10 @@ func TestModelCreateFromJson(t *testing.T) {
 
 	model, err := client.Model("user")
 	require.NoError(t, err)
+
+	_, err = model.CreateFromJSON(context.Background(), `{"name": "John", "age"}`)
+	assert.Error(t, err)
+
 	id, err := model.CreateFromJSON(context.Background(), `{"name": "John", "age": 30}`)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), id)

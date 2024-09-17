@@ -22,13 +22,13 @@ func (m *FileService) Upload(c fs.Context, _ any) (_ fs.Map, err error) {
 	}
 
 	for _, file := range files {
-		if _, err := m.Disk().Put(c.Context(), file); err != nil {
+		if _, err := m.Disk().Put(c, file); err != nil {
 			c.Logger().Errorf("Error uploading file: %s", err)
 			errorFiles = append(errorFiles, file)
 			continue
 		}
 
-		savedFile, err := m.saveFile(c.Context(), file, c.User().ID)
+		savedFile, err := m.saveFile(c, file, c.User().ID)
 		if err != nil {
 			c.Logger().Errorf("Error saving file: %s", err)
 			errorFiles = append(errorFiles, file)

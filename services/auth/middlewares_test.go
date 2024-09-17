@@ -71,6 +71,9 @@ func TestRoleServiceAuth(t *testing.T) {
 		// - content.list: allow
 		// - content.detail: deny
 		// - content.meta: no permission set
+		// - realtime.content.list: allow
+		// - realtime.content.update: deny
+		// - realtime.content.delete: no permission set
 		// Expectation: user should have access to content.list but not content.detail and content.meta
 		req = httptest.NewRequest("GET", "/api/content/blog", nil)
 		req.Header.Set("Authorization", "Bearer "+testApp.normalUserToken)
@@ -91,6 +94,39 @@ func TestRoleServiceAuth(t *testing.T) {
 		resp = utils.Must(server.Test(req))
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 403, resp.StatusCode, "User should not have access to content.blog.meta")
+		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Forbidden`)
+
+		// realtime.content.list: allow
+		req = httptest.NewRequest("GET", "/api/realtime/content?schema=blog&event=list", nil)
+		req.Header.Set("Authorization", "Bearer "+testApp.normalUserToken)
+		req.Header.Set("Connection", "upgrade")
+		req.Header.Set("Upgrade", "Websocket")
+
+		resp = utils.Must(server.Test(req))
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
+		assert.Equal(t, 200, resp.StatusCode, "User should have access to realtime.content.blog.list")
+		assert.Equal(t, `{"data":"realtime content"}`, utils.Must(utils.ReadCloserToString(resp.Body)))
+
+		// realtime.content.update: deny
+		req = httptest.NewRequest("GET", "/api/realtime/content?schema=blog&event=update", nil)
+		req.Header.Set("Authorization", "Bearer "+testApp.normalUserToken)
+		req.Header.Set("Connection", "upgrade")
+		req.Header.Set("Upgrade", "Websocket")
+
+		resp = utils.Must(server.Test(req))
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
+		assert.Equal(t, 403, resp.StatusCode, "User should not have access to realtime.content.blog.update")
+		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Forbidden`)
+
+		// realtime.content.delete: no permission set
+		req = httptest.NewRequest("GET", "/api/realtime/content?schema=blog&event=delete", nil)
+		req.Header.Set("Authorization", "Bearer "+testApp.normalUserToken)
+		req.Header.Set("Connection", "upgrade")
+		req.Header.Set("Upgrade", "Websocket")
+
+		resp = utils.Must(server.Test(req))
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
+		assert.Equal(t, 403, resp.StatusCode, "User should not have access to realtime.content.blog.update")
 		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Forbidden`)
 	})
 }

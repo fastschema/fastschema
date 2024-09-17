@@ -63,3 +63,37 @@ func TestDBConfigClone(t *testing.T) {
 	assert.Equal(t, c.LogQueries, clone.LogQueries)
 	assert.Equal(t, c.MigrationDir, clone.MigrationDir)
 }
+
+func TestHooksClone(t *testing.T) {
+	hooks := &db.Hooks{
+		PostDBQuery: []db.PostDBQuery{func(ctx context.Context, option *db.QueryOption, entities []*schema.Entity) ([]*schema.Entity, error) {
+			return nil, nil
+		}},
+		PostDBCreate: []db.PostDBCreate{func(ctx context.Context, schema *schema.Schema, dataCreate *schema.Entity, id uint64) error {
+			return nil
+		}},
+		PostDBUpdate: []db.PostDBUpdate{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *schema.Entity, originalEntities []*schema.Entity, affected int) error {
+			return nil
+		}},
+		PostDBDelete: []db.PostDBDelete{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, originalEntities []*schema.Entity, affected int) error {
+			return nil
+		}},
+		PreDBQuery:  []db.PreDBQuery{func(ctx context.Context, option *db.QueryOption) error { return nil }},
+		PreDBCreate: []db.PreDBCreate{func(ctx context.Context, schema *schema.Schema, createData *schema.Entity) error { return nil }},
+		PreDBUpdate: []db.PreDBUpdate{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *schema.Entity) error {
+			return nil
+		}},
+		PreDBDelete: []db.PreDBDelete{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate) error { return nil }},
+	}
+
+	clonedHooks := hooks.Clone()
+
+	assert.Equal(t, len(hooks.PostDBQuery), len(clonedHooks.PostDBQuery))
+	assert.Equal(t, len(hooks.PostDBCreate), len(clonedHooks.PostDBCreate))
+	assert.Equal(t, len(hooks.PostDBUpdate), len(clonedHooks.PostDBUpdate))
+	assert.Equal(t, len(hooks.PostDBDelete), len(clonedHooks.PostDBDelete))
+	assert.Equal(t, len(hooks.PreDBQuery), len(clonedHooks.PreDBQuery))
+	assert.Equal(t, len(hooks.PreDBCreate), len(clonedHooks.PreDBCreate))
+	assert.Equal(t, len(hooks.PreDBUpdate), len(clonedHooks.PreDBUpdate))
+	assert.Equal(t, len(hooks.PreDBDelete), len(clonedHooks.PreDBDelete))
+}

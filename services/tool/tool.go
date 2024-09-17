@@ -32,15 +32,15 @@ func (s *ToolService) Stats(c fs.Context, _ any) (_ *StatsData, err error) {
 	totalRoles := 0
 	totalFiles := 0
 
-	if totalUsers, err = db.Query[*fs.User](s.DB()).Count(c.Context(), nil); err != nil {
+	if totalUsers, err = db.Builder[*fs.User](s.DB()).Count(c); err != nil {
 		return nil, err
 	}
 
-	if totalRoles, err = db.Query[*fs.Role](s.DB()).Count(c.Context(), nil); err != nil {
+	if totalRoles, err = db.Builder[*fs.Role](s.DB()).Count(c); err != nil {
 		return nil, err
 	}
 
-	if totalFiles, err = db.Query[*fs.File](s.DB()).Count(c.Context(), nil); err != nil {
+	if totalFiles, err = db.Builder[*fs.File](s.DB()).Count(c); err != nil {
 		return nil, err
 	}
 

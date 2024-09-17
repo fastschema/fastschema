@@ -16,7 +16,18 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 	var originalEntities []*schema.Entity
 	if m.client != nil {
 		hooks = m.client.Hooks()
+		if len(hooks.PostDBDelete) > 0 {
+			originalEntities, err = m.model.Query(m.predicates...).Get(ctx)
+			if err != nil {
+				return 0, err
+			}
+		}
 	}
+
+	if err := runPreDBDeleteHooks(ctx, m.client, m.model.schema, m.predicates); err != nil {
+		return 0, err
+	}
+
 	deleteSpec := &sqlgraph.DeleteSpec{
 		Node: &sqlgraph.NodeSpec{
 			Table: m.model.schema.Namespace,
@@ -40,27 +51,19 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 		deleteSpec.Predicate = func(s *sql.Selector) {
 			s.Where(sql.And(sqlPredicatesFn(s)...))
 		}
-
-		if len(hooks.PostDBDelete) > 0 {
-			originalEntities, err = m.model.Query(m.predicates...).Get(ctx)
-			if err != nil {
-				return 0, err
-			}
-		}
 	}
 
 	affected, err = sqlgraph.DeleteNodes(ctx, entAdapter.Driver(), deleteSpec)
 	if err != nil {
-		return 0, fmt.Errorf("delete nodes: %w", err)
+		return 0, fmt.Errorf("delete nodes error: %w", err)
 	}
 
-	if len(originalEntities) > 0 && len(hooks.PostDBDelete) > 0 {
-		for _, hook := range hooks.PostDBDelete {
-			if err := hook(m.model.schema, m.predicates, originalEntities, affected); err != nil {
-				return 0, fmt.Errorf("post delete hook: %w", err)
-			}
-		}
-	}
-
-	return affected, nil
+	return affected, runPostDBDeleteHooks(
+		ctx,
+		m.client,
+		m.model.schema,
+		m.predicates,
+		originalEntities,
+		affected,
+	)
 }
