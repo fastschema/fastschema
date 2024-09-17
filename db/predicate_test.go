@@ -104,6 +104,10 @@ type filterArgs struct {
 	expectError  string
 	expectResult []*Predicate
 }
+type filterArgsMap struct {
+	filter       map[string]any
+	expectResult []*Predicate
+}
 
 func TestClonePredicate(t *testing.T) {
 	p := Or(
@@ -491,4 +495,31 @@ func TestCreatePredicatesFromEmptyFilterObject(t *testing.T) {
 	actual, err := CreatePredicatesFromFilterObject(nil, testSchema, "")
 	assert.NoError(t, err)
 	assert.Equal(t, []*Predicate{}, actual)
+}
+
+func TestCreatePredicatesFromFilterMap(t *testing.T) {
+	testSchema := &schema.Schema{}
+	assert.Nil(t, json.Unmarshal([]byte(userSchemaJSON), testSchema))
+	tests := []filterArgsMap{
+		{
+			filter:       nil,
+			expectResult: []*Predicate{},
+		},
+		{
+			filter:       map[string]any{"name": "test"},
+			expectResult: []*Predicate{EQ("name", "test")},
+		},
+		{
+			filter:       map[string]any{"age": 5},
+			expectResult: []*Predicate{EQ("age", 5)},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run("filter", func(t *testing.T) {
+			actual, err := CreatePredicatesFromFilterMap(nil, testSchema, tt.filter)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectResult, actual)
+		})
+	}
 }

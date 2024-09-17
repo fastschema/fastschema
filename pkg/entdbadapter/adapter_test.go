@@ -1,7 +1,9 @@
 package entdbadapter
 
 import (
+	"context"
 	"database/sql/driver"
+	"os"
 	"reflect"
 	"testing"
 
@@ -9,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
@@ -74,4 +77,49 @@ func TestModel(t *testing.T) {
 	roleModel, err = adapter.Model("", rtype)
 	assert.NoError(t, err)
 	assert.NotNil(t, roleModel)
+}
+
+func TestExec(t *testing.T) {
+	ctx := context.Background()
+	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))
+	sb := createSchemaBuilder()
+
+	// Case 1: Pre hook error
+	client, err := NewTestClient(migrationDir, sb, func() *db.Hooks {
+		return &db.Hooks{
+			PreDBExec: []db.PreDBExec{
+				func(ctx context.Context, option *db.QueryOption) error {
+					return assert.AnError
+				},
+			},
+			PreDBQuery: []db.PreDBQuery{
+				func(ctx context.Context, option *db.QueryOption) error {
+					return assert.AnError
+				},
+			},
+		}
+	})
+	assert.NoError(t, err)
+
+	result, err := client.Exec(ctx, "SELECT ?, ?", 1, 2)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+
+	entities, err := client.Query(ctx, "SELECT ?, ?", 1, 2)
+	assert.Error(t, err)
+	assert.Nil(t, entities)
+}
+
+func TestCreateModel(t *testing.T) {
+	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))
+	sb := createSchemaBuilder()
+
+	client, err := NewTestClient(migrationDir, sb)
+	assert.NoError(t, err)
+
+	s, err := schema.NewSchemaFromJSON(userSchemaJSON)
+	assert.NoError(t, err)
+
+	m := client.(*Adapter).CreateDBModel(s)
+	assert.NotNil(t, m)
 }

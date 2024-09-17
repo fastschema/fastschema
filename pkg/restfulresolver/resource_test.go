@@ -24,7 +24,7 @@ func TestNewRestResolver(t *testing.T) {
 	resourceManager := fs.NewResourcesManager()
 	resourceManager.Middlewares = []fs.Middleware{
 		func(c fs.Context) error {
-			c.Value("test", "test")
+			c.Local("test", "test")
 			return c.Next()
 		},
 	}
@@ -40,7 +40,7 @@ func TestNewRestResolver(t *testing.T) {
 		Add(fs.NewResource("profile", func(c fs.Context, input *testInput) (map[string]any, error) {
 			return map[string]any{
 				"input": input,
-				"test":  c.Value("test"),
+				"test":  c.Local("test"),
 			}, nil
 		}, &fs.Meta{Post: "/profile"})).
 		Add(fs.NewResource("profileerror", func(c fs.Context, input *testInput) (map[string]any, error) {
@@ -58,6 +58,26 @@ func TestNewRestResolver(t *testing.T) {
 		return &fs.HTTPResponse{
 			Header: header,
 			Body:   []byte(`<body>test</body>`),
+		}, nil
+	}))
+
+	resourceManager.Add(fs.NewResource("file", func(c fs.Context, _ any) (any, error) {
+		header := make(http.Header)
+		header.Set("Content-Type", "text/html")
+
+		return &fs.HTTPResponse{
+			Header: header,
+			File:   staticDir + "/test.txt",
+		}, nil
+	}))
+
+	resourceManager.Add(fs.NewResource("buffer", func(c fs.Context, _ any) (any, error) {
+		header := make(http.Header)
+		header.Set("Content-Type", "text/html")
+
+		return &fs.HTTPResponse{
+			Header: header,
+			Stream: &bytes.Buffer{},
 		}, nil
 	}))
 
@@ -106,6 +126,22 @@ func TestNewRestResolver(t *testing.T) {
 	assert.Equal(t, "text/html", respContentType)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, `<body>test</body>`, utils.Must(utils.ReadCloserToString(resp.Body)))
+
+	req6 := httptest.NewRequest("GET", "/file", nil)
+	resp, err = restResolver.Server().App.Test(req6)
+	respContentType = resp.Header.Get("Content-Type")
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, "text/html", respContentType)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	req7 := httptest.NewRequest("GET", "/buffer", nil)
+	resp, err = restResolver.Server().App.Test(req7)
+	respContentType = resp.Header.Get("Content-Type")
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, "text/html", respContentType)
+	assert.Equal(t, 200, resp.StatusCode)
 }
 
 func TestNewRestResolverErrorMiddleware(t *testing.T) {

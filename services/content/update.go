@@ -16,7 +16,7 @@ func (cs *ContentService) Update(c fs.Context, _ any) (*schema.Entity, error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	entity, err := c.Entity()
+	entity, err := c.Payload()
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
@@ -35,7 +35,7 @@ func (cs *ContentService) Update(c fs.Context, _ any) (*schema.Entity, error) {
 		}
 	}
 
-	if _, err := model.Mutation().Where(db.EQ("id", id)).Update(c.Context(), entity); err != nil {
+	if _, err := model.Mutation().Where(db.EQ("id", id)).Update(c, entity); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
@@ -57,7 +57,7 @@ func (cs *ContentService) BulkUpdate(c fs.Context, _ any) (int, error) {
 		return 0, errors.BadRequest(err.Error())
 	}
 
-	entity, err := c.Entity()
+	entity, err := c.Payload()
 	if err != nil {
 		return 0, errors.BadRequest(err.Error())
 	}
@@ -65,7 +65,7 @@ func (cs *ContentService) BulkUpdate(c fs.Context, _ any) (int, error) {
 		return 0, nil
 	}
 
-	updatedCount, err := model.Mutation().Where(predicates...).Update(c.Context(), entity)
+	updatedCount, err := model.Mutation().Where(predicates...).Update(c, entity)
 	if err != nil {
 		return 0, errors.InternalServerError(err.Error())
 	}

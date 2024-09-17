@@ -73,10 +73,11 @@ func CreateContext(r *fs.Resource, c *fiber.Ctx, logger logger.Logger, wsClients
 	}
 
 	ctx := &Context{
-		Ctx:      c,
-		args:     args,
-		resource: r,
-		logger:   logger,
+		Ctx:        c,
+		RequestCtx: c.Context(),
+		args:       args,
+		resource:   r,
+		logger:     logger,
 	}
 
 	return ctx

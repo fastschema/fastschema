@@ -25,7 +25,7 @@ func (cs *ContentService) Detail(c fs.Context, _ any) (*schema.Entity, error) {
 
 	entity, err := model.Query(db.EQ("id", id)).
 		Select(columns...).
-		First(c.Context())
+		First(c)
 	if err != nil {
 		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())

@@ -9,6 +9,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -281,6 +282,15 @@ func TestNOW(t *testing.T) {
 	// Add assertions for the expected unsupported result
 }
 
+type testContext struct {
+	context.Context
+	traceID string
+}
+
+func (t *testContext) TraceID() string {
+	return t.traceID
+}
+
 func TestCreateDebugFN(t *testing.T) {
 	mockLogger := logger.CreateMockLogger(true)
 	config := &db.Config{
@@ -288,11 +298,14 @@ func TestCreateDebugFN(t *testing.T) {
 		Logger:     mockLogger,
 	}
 
-	type TraceID string
-	ctx := context.WithValue(context.Background(), TraceID("trace_id"), "12345")
+	ctx := &testContext{traceID: "12345", Context: context.Background()}
 	debugFn := CreateDebugFN(config)
 
 	debugFn(ctx, 1, 2, 3)
+	assert.Contains(t, mockLogger.Last().String(), "[1 2 3]")
+
+	ctx2 := context.WithValue(context.Background(), fs.ContextKeyTraceID, "12345")
+	debugFn(ctx2, 1, 2, 3)
 	assert.Contains(t, mockLogger.Last().String(), "[1 2 3]")
 }
 

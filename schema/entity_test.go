@@ -815,3 +815,48 @@ func TestEntityKeysDuplicateKeys(t *testing.T) {
 
 	assert.Equal(t, []string{"name", "age"}, keys)
 }
+func TestBindEntity(t *testing.T) {
+	entity := NewEntity()
+	entity.Set("name", "John")
+	entity.Set("age", 30)
+	entity.Set("skills", []string{"Go", "Python", "Java"})
+
+	group := NewEntity()
+	group.Set("id", 1)
+	group.Set("name", "Admin")
+	entity.Set("group", group)
+
+	type TestStruct struct {
+		Name   string   `json:"name"`
+		Age    int      `json:"age"`
+		Skills []string `json:"skills"`
+		Group  struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"group"`
+	}
+
+	expected := TestStruct{
+		Name:   "John",
+		Age:    30,
+		Skills: []string{"Go", "Python", "Java"},
+		Group: struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   1,
+			Name: "Admin",
+		},
+	}
+
+	result, err := BindEntity[TestStruct](entity)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+
+	errEntity := NewEntity()
+	errEntity.Set("name", "John")
+	errEntity.Set("age", make(chan int))
+
+	_, err = BindEntity[TestStruct](errEntity)
+	assert.Error(t, err)
+}

@@ -68,7 +68,12 @@ type RealtimeDeleteData struct {
 	Affected         int
 }
 
-func (rs *RealtimeService) ContentCreateHook(schema *schema.Schema, id uint64, dataCreate *schema.Entity) error {
+func (rs *RealtimeService) ContentCreateHook(
+	ctx context.Context,
+	schema *schema.Schema,
+	dataCreate *schema.Entity,
+	id uint64,
+) error {
 	go rs.Broadcast([]string{
 		fmt.Sprintf("content.%s", schema.Name),
 		fmt.Sprintf("content.%s.create", schema.Name),
@@ -83,6 +88,7 @@ func (rs *RealtimeService) ContentCreateHook(schema *schema.Schema, id uint64, d
 }
 
 func (rs *RealtimeService) ContentUpdateHook(
+	ctx context.Context,
 	schema *schema.Schema,
 	predicates []*db.Predicate,
 	updateData *schema.Entity,
@@ -117,6 +123,7 @@ func (rs *RealtimeService) ContentUpdateHook(
 }
 
 func (rs *RealtimeService) ContentDeleteHook(
+	ctx context.Context,
 	schema *schema.Schema,
 	predicates []*db.Predicate,
 	originalEntities []*schema.Entity,
@@ -164,7 +171,7 @@ type WSContentSerializeData struct {
 }
 
 func (tc *WSContentSerializer) Serialize(data any) (msg []byte, err error) {
-	query := db.Query[*schema.Entity](tc.db(), tc.schema.Name)
+	query := db.Builder[*schema.Entity](tc.db(), tc.schema.Name)
 	if len(tc.fields) > 0 {
 		query.Select(strings.Split(tc.fields, ",")...)
 	}

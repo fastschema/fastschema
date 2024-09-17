@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
@@ -57,7 +58,7 @@ func TestResourceInitErrorName(t *testing.T) {
 	err := r2.Init()
 	assert.Error(t, err, "Init should return an error")
 
-	r2.Remove(r2Sub2)
+	r2.Remove(r2Sub2.Name())
 	r2Sub2 = fs.NewResource("", ResourceResolver1)
 	r2.Add(r2Sub2)
 	err = r2.Init()
@@ -68,11 +69,11 @@ type testContext struct {
 	err error
 }
 
-func (c *testContext) ID() string               { return "test" }
+func (c *testContext) TraceID() string          { return "test" }
 func (c *testContext) User() *fs.User           { return nil }
-func (c *testContext) Value(string, ...any) any { return nil }
+func (c *testContext) Local(string, ...any) any { return nil }
 func (c *testContext) Logger() logger.Logger    { return nil }
-func (c *testContext) Parse(input any) error {
+func (c *testContext) Bind(input any) error {
 	if c.err != nil {
 		return c.err
 	}
@@ -83,18 +84,22 @@ func (c *testContext) Parse(input any) error {
 
 	return nil
 }
-func (c *testContext) Context() context.Context        { return nil }
-func (c *testContext) Args() map[string]string         { return nil }
-func (c *testContext) Arg(string, ...string) string    { return "" }
-func (c *testContext) ArgInt(string, ...int) int       { return 0 }
-func (c *testContext) Entity() (*schema.Entity, error) { return nil, nil }
-func (c *testContext) Resource() *fs.Resource          { return nil }
-func (c *testContext) AuthToken() string               { return "" }
-func (c *testContext) Next() error                     { return nil }
-func (c *testContext) Result(...*fs.Result) *fs.Result { return nil }
-func (c *testContext) Files() ([]*fs.File, error)      { return nil, nil }
-func (c *testContext) Redirect(string) error           { return nil }
-func (c *testContext) WSClient() fs.WSClient           { return nil }
+func (c *testContext) Context() context.Context                { return nil }
+func (c *testContext) Args() map[string]string                 { return nil }
+func (c *testContext) Arg(string, ...string) string            { return "" }
+func (c *testContext) ArgInt(string, ...int) int               { return 0 }
+func (c *testContext) Payload() (*schema.Entity, error)        { return nil, nil }
+func (c *testContext) Resource() *fs.Resource                  { return nil }
+func (c *testContext) AuthToken() string                       { return "" }
+func (c *testContext) Next() error                             { return nil }
+func (c *testContext) Result(...*fs.Result) *fs.Result         { return nil }
+func (c *testContext) Files() ([]*fs.File, error)              { return nil, nil }
+func (c *testContext) Redirect(string) error                   { return nil }
+func (c *testContext) WSClient() fs.WSClient                   { return nil }
+func (c *testContext) Deadline() (deadline time.Time, ok bool) { return time.Time{}, false }
+func (c *testContext) Done() <-chan struct{}                   { return nil }
+func (c *testContext) Err() error                              { return nil }
+func (c *testContext) Value(key any) any                       { return nil }
 
 func TestNewResource(t *testing.T) {
 	r := fs.NewResource(
@@ -146,7 +151,7 @@ func TestRemoveResource(t *testing.T) {
 	rs := fs.NewResourcesManager()
 	rs1 := fs.NewResource("resource1", ResourceResolver1)
 	rs.Add(rs1)
-	rs.Remove(rs1)
+	rs.Remove(rs1.Name())
 	result := rs.Find("resource1")
 	assert.Nil(t, result, "Resource should be removed")
 }

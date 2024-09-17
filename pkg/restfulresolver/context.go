@@ -1,7 +1,6 @@
 package restfulresolver
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,26 +9,13 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
-
-	// "github.com/fastschema/fastschema/app/server"
 	"github.com/gofiber/fiber/v2"
 	"github.com/valyala/fasthttp"
 )
 
-const requestID = "request_id"
-
-type RequestIDContextKey string
-
-func (c RequestIDContextKey) String() string {
-	return string(c)
-}
-
-var (
-	ContextKeyRequestID = RequestIDContextKey(requestID)
-)
-
 type Context struct {
 	*fiber.Ctx
+	*fasthttp.RequestCtx
 	args     map[string]string
 	resource *fs.Resource
 	result   *fs.Result
@@ -67,13 +53,18 @@ func (c *Context) ArgInt(name string, defaults ...int) int {
 	return v
 }
 
-func (c *Context) Entity() (*schema.Entity, error) {
+func (c *Context) Payload() (*schema.Entity, error) {
 	if c.entity != nil {
 		return c.entity, nil
 	}
 
+	body := c.Ctx.Body()
+	if len(body) == 0 {
+		return nil, nil
+	}
+
 	c.entity = schema.NewEntity()
-	if err := c.entity.UnmarshalJSON(c.Ctx.Body()); err != nil {
+	if err := c.entity.UnmarshalJSON(body); err != nil {
 		return nil, err
 	}
 
@@ -107,8 +98,13 @@ func (c *Context) AuthToken() string {
 	return bearer
 }
 
-func (c *Context) ID() string {
-	return fmt.Sprintf("%v", c.Locals(requestID))
+func (c *Context) TraceID() string {
+	traceID := c.Locals(fs.TraceID)
+	if traceID == nil {
+		return ""
+	}
+
+	return fmt.Sprintf("%v", c.Locals(fs.TraceID))
 }
 
 func (c *Context) Hostname() string {
@@ -139,21 +135,17 @@ func (c *Context) Response() *Response {
 	return &Response{c.Ctx.Response()}
 }
 
-func (c *Context) Context() context.Context {
-	return context.WithValue(c.Ctx.Context(), ContextKeyRequestID, c.ID())
-}
-
 func (c *Context) Status(v int) *Context {
 	c.Ctx.Status(v)
 	return c
 }
 
-func (c *Context) Value(key string, value ...any) (val any) {
+func (c *Context) Local(key string, value ...any) (val any) {
 	return c.Ctx.Locals(key, value...)
 }
 
 func (c *Context) Logger() logger.Logger {
-	return c.logger.WithContext(logger.LogContext{requestID: c.ID()}, 0)
+	return c.logger.WithContext(logger.LogContext{fs.TraceID: c.TraceID()}, 0)
 }
 
 func (c *Context) WSClient() fs.WSClient {
@@ -214,7 +206,7 @@ func (c *Context) Redirect(path string) error {
 	return c.Ctx.Redirect(path)
 }
 
-func (c *Context) Parse(v any) error {
+func (c *Context) Bind(v any) error {
 	// if there is no content type header, we assume it's JSON
 	if c.Ctx.Get("Content-Type") == "" {
 		c.Ctx.Set("Content-Type", "application/json")
@@ -225,7 +217,7 @@ func (c *Context) Parse(v any) error {
 }
 
 func (c *Context) Files() ([]*fs.File, error) {
-	form, err := c.MultipartForm()
+	form, err := c.Ctx.MultipartForm()
 	if err != nil {
 		return nil, err
 	}

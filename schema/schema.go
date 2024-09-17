@@ -61,6 +61,15 @@ func NewSchemaFromJSONFile(jsonFile string) (*Schema, error) {
 	return s, nil
 }
 
+func NewSchemaFromMap(data map[string]interface{}) (*Schema, error) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewSchemaFromJSON(string(jsonData))
+}
+
 // Init initializes the node.
 func (s *Schema) Init(disableIDColumn bool) error {
 	if s.initialized {

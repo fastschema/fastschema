@@ -24,7 +24,6 @@ func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema
 	}
 
 	jsonFiles, err := filepath.Glob(path.Join(dir, "*.json"))
-
 	if err != nil {
 		return nil, err
 	}

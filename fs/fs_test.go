@@ -101,3 +101,9 @@ func TestStorageConfigClone(t *testing.T) {
 		assert.Equal(t, sc.DisksConfig[i].ACL, clone.DisksConfig[i].ACL)
 	}
 }
+func TestContextKeyString(t *testing.T) {
+	ck := fs.ContextKey("test")
+	str := ck.String()
+
+	assert.Equal(t, "test", str)
+}

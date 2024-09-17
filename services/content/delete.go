@@ -29,14 +29,14 @@ func (cs *ContentService) Delete(c fs.Context, _ any) (any, error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	_, err = model.Query(db.EQ("id", id)).Only(c.Context())
+	_, err = model.Query(db.EQ("id", id)).Only(c)
 
 	if err != nil {
 		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())
 	}
 
-	if _, err := model.Mutation().Where(db.EQ("id", id)).Delete(c.Context()); err != nil {
+	if _, err := model.Mutation().Where(db.EQ("id", id)).Delete(c); err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
@@ -59,9 +59,7 @@ func (cs *ContentService) BulkDelete(c fs.Context, _ any) (int, error) {
 		return 0, errors.BadRequest(err.Error())
 	}
 
-	records, err := model.Query(predicates...).
-		Get(c.Context())
-
+	records, err := model.Query(predicates...).Get(c)
 	if err != nil {
 		return 0, errors.BadRequest(err.Error())
 	}
@@ -79,7 +77,7 @@ func (cs *ContentService) BulkDelete(c fs.Context, _ any) (int, error) {
 		ids = append(ids, int(recordID))
 	}
 
-	recordDelete, err := model.Mutation().Where(db.In("id", ids)).Delete(c.Context())
+	recordDelete, err := model.Mutation().Where(db.In("id", ids)).Delete(c)
 	if err != nil {
 		return 0, errors.InternalServerError(err.Error())
 	}

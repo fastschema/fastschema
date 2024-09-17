@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 
@@ -14,16 +15,16 @@ type Handler func(c Context) (any, error)
 
 // Context is the interface that defines the methods that a context must implement
 type Context interface {
-	ID() string
+	context.Context
+	TraceID() string
 	User() *User
-	Value(string, ...any) (val any)
+	Local(string, ...any) (val any)
 	Logger() logger.Logger
-	Parse(any) error
-	Context() context.Context
+	Bind(any) error
 	Args() map[string]string
 	Arg(string, ...string) string
 	ArgInt(string, ...int) int
-	Entity() (*schema.Entity, error)
+	Payload() (*schema.Entity, error)
 	Resource() *Resource
 	AuthToken() string
 	Next() error
@@ -37,6 +38,8 @@ type HTTPResponse struct {
 	StatusCode int
 	Body       []byte
 	Header     http.Header
+	File       string
+	Stream     *bytes.Buffer
 }
 
 // Result is a struct that contains the result of a resolver

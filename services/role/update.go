@@ -11,7 +11,7 @@ import (
 )
 
 func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
-	tx, err := rs.DB().Tx(c.Context())
+	tx, err := rs.DB().Tx(c)
 	if err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
@@ -28,29 +28,29 @@ func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 			return
 		}
 
-		if err := rs.UpdateCache(c.Context()); err != nil {
+		if err := rs.UpdateCache(c); err != nil {
 			c.Logger().Error(err.Error())
 		}
 	}()
 
 	id := c.ArgInt("id")
-	updateRoleData, err := c.Entity()
+	updateRoleData, err := c.Payload()
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
 	updateRoleData.SetID(id)
-	existingRole, err := db.Query[*fs.Role](tx).
+	existingRole, err := db.Builder[*fs.Role](tx).
 		Where(db.EQ("id", id)).
 		Select("permissions").
-		First(c.Context())
+		First(c)
 	if err != nil {
 		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())
 	}
 
 	if err := updateRolePermissions(
-		c.Context(),
+		c,
 		existingRole,
 		updateRoleData,
 		tx,
@@ -58,14 +58,14 @@ func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 		return nil, err
 	}
 
-	if _, err := db.Update[*fs.Role](c.Context(), tx, updateRoleData, []*db.Predicate{db.EQ("id", id)}); err != nil {
+	if _, err := db.Update[*fs.Role](c, tx, updateRoleData, []*db.Predicate{db.EQ("id", id)}); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	return db.Query[*fs.Role](tx).
+	return db.Builder[*fs.Role](tx).
 		Where(db.EQ("id", id)).
 		Select("permissions").
-		First(c.Context())
+		First(c)
 }
 
 func updateRolePermissions(

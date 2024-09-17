@@ -17,12 +17,11 @@ const HeaderRequestID = "X-Request-Id"
 
 func MiddlewareRequestID(c *Context) error {
 	requestID := c.Header(HeaderRequestID)
-
 	if requestID == "" {
 		requestID = uuid.NewString()
 	}
 
-	c.Value("request_id", requestID)
+	c.Local(fs.TraceID, requestID)
 	c.Header(HeaderRequestID, requestID)
 
 	return c.Next()
@@ -42,7 +41,7 @@ func CreateMiddlewareRequestLog(statics []*fs.StaticFs) func(c *Context) error {
 
 		start := time.Now()
 		err := c.Next()
-		latency := time.Since(start).Round(time.Millisecond)
+		latency := time.Since(start).Round(time.Microsecond)
 		logContext := logger.LogContext{
 			"latency": latency.String(),
 			"status":  c.Response().StatusCode(),
@@ -95,6 +94,7 @@ func MiddlewareRecover(c *Context) error {
 			if !ok {
 				err = fmt.Errorf("%v", r)
 			}
+
 			stack := make([]byte, 4<<10)
 			length := runtime.Stack(stack, true)
 			msg := fmt.Sprintf("%v %s\n", err, stack[:length])

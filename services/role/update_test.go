@@ -52,7 +52,7 @@ func TestRoleServiceUpdate(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 
 	userRole := utils.Must(
-		db.Query[*fs.Role](testApp.db).
+		db.Builder[*fs.Role](testApp.db).
 			Where(db.EQ("id", 2)).
 			Select("permissions").
 			First(context.Background()),

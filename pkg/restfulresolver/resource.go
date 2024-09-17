@@ -139,7 +139,6 @@ func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodDa
 		}
 
 		c.Result(result)
-
 		for _, hook := range hooks.PostResolve {
 			if err := hook(c); err != nil {
 				result := fs.NewResult(nil, err)
@@ -172,6 +171,14 @@ func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodDa
 						c.Set(key, value)
 					}
 				}
+			}
+
+			if httpResponse.File != "" {
+				return c.Ctx.SendFile(httpResponse.File)
+			}
+
+			if httpResponse.Stream != nil {
+				return c.SendStream(httpResponse.Stream)
 			}
 
 			return c.Status(status).Send(httpResponse.Body)

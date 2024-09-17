@@ -493,6 +493,7 @@ func TestMergeFields(t *testing.T) {
 	assert.Equal(t, expectedField.Sortable, f1.Sortable)
 	assert.Equal(t, expectedField.Filterable, f1.Filterable)
 	assert.Equal(t, expectedField.IsSystemField, f1.IsSystemField)
+	assert.Equal(t, expectedField.Renderer, f1.Renderer)
 
 	assert.Equal(t, expectedField.Relation.Type, f1.Relation.Type)
 	assert.Equal(t, expectedField.Relation.TargetSchemaName, f1.Relation.TargetSchemaName)

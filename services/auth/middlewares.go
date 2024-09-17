@@ -24,7 +24,7 @@ func (as *AuthService) ParseUser(c fs.Context) error {
 		if claims, ok := jwtToken.Claims.(*fs.UserJwtClaims); ok && jwtToken.Valid {
 			user := claims.User
 			user.Roles = as.GetRolesFromIDs(user.RoleIDs)
-			c.Value("user", user)
+			c.Local("user", user)
 		}
 	}
 
@@ -46,6 +46,8 @@ func (as *AuthService) Authorize(c fs.Context) error {
 		resourceID = fmt.Sprintf("api.content.%s.%s", c.Arg("schema"), resourceID[12:])
 	}
 
+	// If the resource id is "api.realtime.content"
+	// Then add the schema name and event name to the id: api.realtime.content.category.create
 	if resourceID == "api.realtime.content" {
 		resourceID = fmt.Sprintf("api.realtime.content.%s.%s", c.Arg("schema"), c.Arg("event", "*"))
 	}
