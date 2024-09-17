@@ -24,7 +24,6 @@ func createTestSchemaFile(t *testing.T, schemaName string, schemaContent string)
 	assert.NoError(t, err)
 	defer f.Close()
 
-	fmt.Println(tmpFilePath)
 	return tmpFilePath
 }
 func createFileBody(t *testing.T, schemaName string, schemaContent string) (*multipart.Writer, *bytes.Buffer) {

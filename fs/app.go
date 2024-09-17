@@ -8,9 +8,33 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
+type Hookable interface {
+	Hooks() *Hooks
+
+	OnPreResolve(hooks ...Middleware)
+	OnPostResolve(hooks ...Middleware)
+
+	OnPreDBQuery(hooks ...db.PreDBQuery)
+	OnPostDBQuery(hooks ...db.PostDBQuery)
+
+	OnPreDBExec(hooks ...db.PreDBExec)
+	OnPostDBExec(hooks ...db.PostDBExec)
+
+	OnPreDBCreate(hooks ...db.PreDBCreate)
+	OnPostDBCreate(hooks ...db.PostDBCreate)
+
+	OnPreDBUpdate(hooks ...db.PreDBUpdate)
+	OnPostDBUpdate(hooks ...db.PostDBUpdate)
+
+	OnPreDBDelete(hooks ...db.PreDBDelete)
+	OnPostDBDelete(hooks ...db.PostDBDelete)
+}
+
 // App is the interface that defines the methods that an app must implement
 type App interface {
+	Hookable
 	Key() string
+	Config() *Config
 	SchemaBuilder() *schema.Builder
 	DB() db.Client
 	Resources() *ResourcesManager
@@ -23,10 +47,6 @@ type App interface {
 
 	AddResource(resource *Resource)
 	AddMiddlewares(hooks ...Middleware)
-	Hooks() *Hooks
-	OnPreResolve(hooks ...Middleware)
-	OnPostResolve(hooks ...Middleware)
-	OnPostDBGet(db.PostDBGet)
 }
 
 // ResolveHook is a function that can be used to add hooks to a resource
@@ -37,4 +57,12 @@ type Hooks struct {
 	DBHooks     *db.Hooks
 	PreResolve  []ResolveHook
 	PostResolve []ResolveHook
+}
+
+func (h *Hooks) Clone() *Hooks {
+	return &Hooks{
+		DBHooks:     h.DBHooks.Clone(),
+		PreResolve:  append([]ResolveHook{}, h.PreResolve...),
+		PostResolve: append([]ResolveHook{}, h.PostResolve...),
+	}
 }

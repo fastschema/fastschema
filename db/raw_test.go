@@ -22,18 +22,18 @@ func TestRawQuery(t *testing.T) {
 	}
 
 	// Case 1: Invalid query
-	_, err := db.RawQuery[TestCategory](ctx, client, "SELECT * FROM categories ?", 0)
+	_, err := db.Query[TestCategory](ctx, client, "SELECT * FROM categories ?", 0)
 	assert.Error(t, err)
 
 	// Case 2: Success scan to struct
-	rows, err := db.RawQuery[TestCategory](ctx, client, "SELECT * FROM categories WHERE id = ?", 5)
+	rows, err := db.Query[TestCategory](ctx, client, "SELECT * FROM categories WHERE id = ?", 5)
 	assert.NoError(t, err)
 	assert.Len(t, rows, 1)
 	assert.Equal(t, uint64(5), rows[0].ID)
 	assert.Equal(t, "category 5", rows[0].Name)
 
 	// Case 3: Success scan to entity
-	entities, err := db.RawQuery[*schema.Entity](ctx, client, "SELECT * FROM categories WHERE id > ?", 1)
+	entities, err := db.Query[*schema.Entity](ctx, client, "SELECT * FROM categories WHERE id > ?", 1)
 	assert.NoError(t, err)
 	assert.Len(t, entities, 4)
 }

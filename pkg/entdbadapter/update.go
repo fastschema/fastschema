@@ -7,7 +7,6 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -23,10 +22,19 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 		return 0, fmt.Errorf("client is not an ent adapter")
 	}
 
-	var hooks = &db.Hooks{}
 	var originalEntities []*schema.Entity
 	if m.client != nil {
-		hooks = m.client.Hooks()
+		hooks := m.client.Hooks()
+		if len(hooks.PostDBUpdate) > 0 {
+			originalEntities, err = m.model.Query(m.predicates...).Select("id").Get(ctx)
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	if err := runPreDBUpdateHooks(ctx, m.client, m.model.schema, m.predicates, e); err != nil {
+		return 0, err
 	}
 
 	m.updateSpec = &sqlgraph.UpdateSpec{
@@ -56,21 +64,6 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 		}
 		m.updateSpec.Predicate = func(s *sql.Selector) {
 			s.Where(sql.And(sqlPredicatesFn(s)...))
-		}
-
-		if len(hooks.PostDBUpdate) > 0 {
-			originalEntities, err = m.model.Query(m.predicates...).Select("id").Get(ctx)
-			if err != nil {
-				return 0, err
-			}
-		}
-	}
-
-	if len(hooks.PreDBUpdate) > 0 {
-		for _, hook := range hooks.PreDBUpdate {
-			if err := hook(m.model.schema, m.predicates); err != nil {
-				return 0, fmt.Errorf("pre update hook: %w", err)
-			}
 		}
 	}
 
@@ -124,15 +117,15 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 		}
 	}
 
-	if len(originalEntities) > 0 && len(hooks.PostDBUpdate) > 0 {
-		for _, hook := range hooks.PostDBUpdate {
-			if err := hook(m.model.schema, m.predicates, e, originalEntities, affected); err != nil {
-				return 0, err
-			}
-		}
-	}
-
-	return affected, nil
+	return affected, runPostDBUpdateHooks(
+		ctx,
+		m.client,
+		m.model.schema,
+		m.predicates,
+		e,
+		originalEntities,
+		affected,
+	)
 }
 
 // ProcessUpdateBlockExpr processes the $expr block

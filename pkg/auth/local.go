@@ -1,4 +1,4 @@
-package userservice
+package auth
 
 import (
 	"time"
@@ -20,25 +20,40 @@ type LoginResponse struct {
 	Expires time.Time `json:"expires"`
 }
 
-type AppLike interface {
-	DB() db.Client
-	Key() string
+type LocalAuthProvider struct {
+	db     func() db.Client
+	appKey func() string
 }
 
-type UserService struct {
-	DB     func() db.Client
-	AppKey func() string
+func NewLocalAuthProvider(config Config, redirectURL string) (fs.AuthProvider, error) {
+	return &LocalAuthProvider{}, nil
 }
 
-func New(app AppLike) *UserService {
-	return &UserService{
-		DB:     app.DB,
-		AppKey: app.Key,
+func (la *LocalAuthProvider) Init(db func() db.Client, appKey func() string) {
+	la.db = db
+	la.appKey = appKey
+}
+
+func (la *LocalAuthProvider) Name() string {
+	return "local"
+}
+
+func (la *LocalAuthProvider) Login(c fs.Context) (_ any, err error) {
+	loginEntity, err := c.Payload()
+	if err != nil {
+		return nil, err
 	}
-}
 
-func (u *UserService) Login(c fs.Context, loginData *LoginData) (*LoginResponse, error) {
-	user, err := db.Query[*fs.User](u.DB()).
+	loginData, err := schema.BindEntity[*LoginData](loginEntity)
+	if err != nil {
+		return nil, err
+	}
+
+	if loginData == nil || loginData.Login == "" || loginData.Password == "" {
+		return nil, errors.BadRequest("login and password are required")
+	}
+
+	user, err := db.Builder[*fs.User](la.db()).
 		Where(db.Or(
 			db.EQ("username", loginData.Login),
 			db.EQ("email", loginData.Login),
@@ -57,7 +72,7 @@ func (u *UserService) Login(c fs.Context, loginData *LoginData) (*LoginResponse,
 			schema.FieldUpdatedAt,
 			schema.FieldDeletedAt,
 		).
-		First(c.Context())
+		First(c)
 	if err != nil && !db.IsNotFound(err) {
 		return nil, err
 	}
@@ -74,7 +89,7 @@ func (u *UserService) Login(c fs.Context, loginData *LoginData) (*LoginResponse,
 		return nil, errors.Unauthorized("user is not active")
 	}
 
-	jwtToken, exp, err := user.JwtClaim(u.AppKey())
+	jwtToken, exp, err := user.JwtClaim(la.appKey())
 	if err != nil {
 		return nil, err
 	}
@@ -82,16 +97,6 @@ func (u *UserService) Login(c fs.Context, loginData *LoginData) (*LoginResponse,
 	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
 }
 
-func (u *UserService) Logout(c fs.Context, _ any) (*any, error) {
+func (la *LocalAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 	return nil, nil
-}
-
-func (u *UserService) Me(c fs.Context, _ any) (*fs.User, error) {
-	user := c.User()
-
-	if user == nil {
-		return nil, errors.Unauthorized()
-	}
-
-	return user, nil
 }

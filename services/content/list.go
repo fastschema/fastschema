@@ -53,7 +53,7 @@ func (cs *ContentService) List(c fs.Context, _ any) (*Pagination, error) {
 	page := uint(c.ArgInt("page", 1))
 	limit := uint(c.ArgInt("limit", 10))
 	offset := (page - 1) * limit
-	total, err := model.Query(predicates...).Count(c.Context(), &db.CountOption{})
+	total, err := model.Query(predicates...).Count(c, &db.QueryOption{})
 
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
@@ -70,7 +70,7 @@ func (cs *ContentService) List(c fs.Context, _ any) (*Pagination, error) {
 		Limit(limit).
 		Offset(offset).
 		Order(sort).
-		Get(c.Context())
+		Get(c)
 
 	if err != nil {
 		return nil, errors.InternalServerError(err.Error())

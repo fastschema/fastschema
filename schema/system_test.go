@@ -23,6 +23,18 @@ func createFieldWithDefault(fieldType schema.FieldType, name, label string, defa
 	return f
 }
 
+func TestCreateSchemaFromSchema(t *testing.T) {
+	s := &schema.Schema{
+		Name:           "category",
+		Namespace:      "categories",
+		LabelFieldName: "name",
+	}
+
+	ss, err := schema.CreateSchema(s)
+	assert.NoError(t, err)
+	assert.Equal(t, s, ss)
+}
+
 func TestCreateSchemaErrorNonStruct(t *testing.T) {
 	types := []struct {
 		t   any

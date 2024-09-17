@@ -71,8 +71,8 @@ func TestTxCommit(t *testing.T) {
 	mock.ExpectCommit()
 
 	tx := createTx(t, client, sb)
-	_, err1 := tx.Query(context.Background(), "SELECT 1", []any{})
-	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	_, err1 := tx.Query(context.Background(), "SELECT 1")
+	_, err2 := tx.Exec(context.Background(), "SELECT 2")
 	assert.Nil(t, err1)
 	assert.Nil(t, err2)
 	assert.NoError(t, tx.Commit())
@@ -92,8 +92,8 @@ func TestTxRollback(t *testing.T) {
 	mock.ExpectRollback()
 
 	tx := createTx(t, client, sb)
-	_, err1 := tx.Exec(context.Background(), "SELECT 1", []any{})
-	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	_, err1 := tx.Exec(context.Background(), "SELECT 1")
+	_, err2 := tx.Exec(context.Background(), "SELECT 2")
 	assert.Nil(t, err1)
 	assert.Nil(t, err2)
 	assert.NoError(t, tx.Rollback())
@@ -113,8 +113,8 @@ func TestTxClose(t *testing.T) {
 	mock.ExpectClose()
 
 	tx := createTx(t, client, sb)
-	_, err1 := tx.Exec(context.Background(), "SELECT 1", []any{})
-	_, err2 := tx.Exec(context.Background(), "SELECT 2", []any{})
+	_, err1 := tx.Exec(context.Background(), "SELECT 1")
+	_, err2 := tx.Exec(context.Background(), "SELECT 2")
 	assert.Nil(t, err1)
 	assert.Nil(t, err2)
 	assert.NoError(t, tx.Close())

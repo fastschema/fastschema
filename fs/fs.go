@@ -7,6 +7,22 @@ import (
 	"time"
 )
 
+const TraceID = "trace_id"
+
+type ContextKey string
+
+func (c ContextKey) String() string {
+	return string(c)
+}
+
+var (
+	ContextKeyTraceID = ContextKey(TraceID)
+)
+
+type Traceable interface {
+	TraceID() string
+}
+
 // Disk is the interface that defines the methods that a disk must implement
 type Disk interface {
 	Name() string

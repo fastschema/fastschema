@@ -6,21 +6,22 @@ import (
 )
 
 type Config struct {
-	Dir               string
-	AppKey            string
-	Port              string
-	BaseURL           string
-	DashURL           string
-	APIBaseName       string
-	DashBaseName      string
-	Logger            logger.Logger
-	LoggerConfig      *logger.Config // If Logger is set, LoggerConfig will be ignored
-	DB                db.Client
-	DBConfig          *db.Config // If DB is set, DBConfig will be ignored
-	StorageConfig     *StorageConfig
-	HideResourcesInfo bool
-	SystemSchemas     []any // types to build the system schemas
-	AuthConfig        *AuthConfig
+	Dir               string         `json:"dir"`
+	AppKey            string         `json:"app_key"`
+	Port              string         `json:"port"`
+	BaseURL           string         `json:"base_url"`
+	DashURL           string         `json:"dash_url"`
+	APIBaseName       string         `json:"api_base_name"`
+	DashBaseName      string         `json:"dash_base_name"`
+	Logger            logger.Logger  `json:"-"`
+	LoggerConfig      *logger.Config `json:"logger_config"` // If Logger is set, LoggerConfig will be ignored
+	DB                db.Client      `json:"-"`
+	DBConfig          *db.Config     `json:"db_config"` // If DB is set, DBConfig will be ignored
+	StorageConfig     *StorageConfig `json:"storage_config"`
+	HideResourcesInfo bool           `json:"hide_resources_info"`
+	AuthConfig        *AuthConfig    `json:"auth_config"`
+	SystemSchemas     []any          `json:"-"` // types to build the system schemas
+	Hooks             *Hooks         `json:"-"`
 }
 
 func (ac *Config) Clone() *Config {
@@ -36,7 +37,6 @@ func (ac *Config) Clone() *Config {
 		DB:                ac.DB,
 		HideResourcesInfo: ac.HideResourcesInfo,
 		SystemSchemas:     append([]any{}, ac.SystemSchemas...),
-		AuthConfig:        ac.AuthConfig.Clone(),
 	}
 
 	if ac.DBConfig != nil {
@@ -45,6 +45,14 @@ func (ac *Config) Clone() *Config {
 
 	if ac.StorageConfig != nil {
 		c.StorageConfig = ac.StorageConfig.Clone()
+	}
+
+	if ac.AuthConfig != nil {
+		c.AuthConfig = ac.AuthConfig.Clone()
+	}
+
+	if ac.Hooks != nil {
+		c.Hooks = ac.Hooks.Clone()
 	}
 
 	return c

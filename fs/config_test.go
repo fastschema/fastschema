@@ -27,6 +27,17 @@ func TestConfigClone(t *testing.T) {
 		},
 		HideResourcesInfo: true,
 		SystemSchemas:     []any{"schema1", "schema2"},
+		AuthConfig: &fs.AuthConfig{
+			EnabledProviders: []string{"local"},
+			Providers: map[string]map[string]string{
+				"local": {},
+			},
+		},
+		Hooks: &fs.Hooks{
+			PreResolve:  []fs.ResolveHook{},
+			PostResolve: []fs.ResolveHook{},
+			DBHooks:     &db.Hooks{},
+		},
 	}
 
 	clone := config.Clone()
@@ -55,4 +66,12 @@ func TestConfigClone(t *testing.T) {
 	assert.Equal(t, config.StorageConfig, clone.StorageConfig)
 	assert.Equal(t, config.StorageConfig.DefaultDisk, clone.StorageConfig.DefaultDisk)
 	assert.Equal(t, config.StorageConfig.DisksConfig, clone.StorageConfig.DisksConfig)
+
+	// Ensure deep copy of AuthConfig
+	assert.Equal(t, config.AuthConfig.EnabledProviders, clone.AuthConfig.EnabledProviders)
+	assert.Equal(t, len(config.AuthConfig.Providers), len(clone.AuthConfig.Providers))
+
+	// Ensure deep copy of Hooks
+	assert.Equal(t, config.Hooks.PreResolve, clone.Hooks.PreResolve)
+	assert.Equal(t, config.Hooks.PostResolve, clone.Hooks.PostResolve)
 }

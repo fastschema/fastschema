@@ -1,6 +1,8 @@
 package file
 
 import (
+	"context"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/schema"
@@ -23,8 +25,16 @@ func New(app AppLike) *FileService {
 	}
 }
 
-func (m *FileService) FileListHook(query *db.QueryOption, entities []*schema.Entity) ([]*schema.Entity, error) {
-	if query.Model.Schema().Name != "file" {
+func (m *FileService) FileListHook(
+	ctx context.Context,
+	query *db.QueryOption,
+	entities []*schema.Entity,
+) ([]*schema.Entity, error) {
+	if query.Schema == nil {
+		return entities, nil
+	}
+
+	if query.Schema.Name != "file" {
 		return entities, nil
 	}
 

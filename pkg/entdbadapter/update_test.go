@@ -424,7 +424,7 @@ func TestUpdateNodesPreHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PreDBUpdate: []db.PreDBUpdate{
-						func(schema *schema.Schema, predicates []*db.Predicate) error {
+						func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *schema.Entity) error {
 							return errors.New("hook error")
 						},
 					},
@@ -466,7 +466,14 @@ func TestUpdateNodesHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PostDBUpdate: []db.PostDBUpdate{
-						func(schema *schema.Schema, predicates []*db.Predicate, updateData *schema.Entity, originalEntities []*schema.Entity, affected int) error {
+						func(
+							ctx context.Context,
+							schema *schema.Schema,
+							predicates []*db.Predicate,
+							updateData *schema.Entity,
+							originalEntities []*schema.Entity,
+							affected int,
+						) error {
 							assert.Greater(t, len(predicates), 0)
 							assert.Greater(t, len(originalEntities), 0)
 							assert.Greater(t, affected, 0)

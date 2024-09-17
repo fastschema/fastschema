@@ -62,6 +62,11 @@ type CustomizableSchema interface {
 //		- If the field is a complex type of primitives, it must has a field tag to define the type as json.
 //		- Enums field must be string with struct tag: fs.enums="[{'value': 'v1', 'label': 'L1'}, {'value': 'v2', 'label': 'L2'}]".
 func CreateSchema(t any) (*Schema, error) {
+	schema, ok := t.(*Schema)
+	if ok {
+		return schema, nil
+	}
+
 	tType := utils.GetDereferencedType(t)
 	if tType == nil || tType.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("can not create schema from invalid type %T", t)
@@ -69,7 +74,7 @@ func CreateSchema(t any) (*Schema, error) {
 
 	schemaName := utils.ToSnakeCase(tType.Name())
 	schemaNamespace := inflection.Plural(schemaName)
-	schema := &Schema{
+	schema = &Schema{
 		SystemSchema: &SystemSchema{
 			Instance:   t,
 			RType:      tType,

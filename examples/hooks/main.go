@@ -25,7 +25,7 @@ func main() {
 
 	// Create a blog without description
 	ctx := context.Background()
-	_ = utils.Must(db.Mutation[Blog](app.DB()).Create(ctx, fs.Map{
+	_ = utils.Must(db.Builder[Blog](app.DB()).Create(ctx, fs.Map{
 		"name": "My Blog",
 	}))
 
@@ -39,7 +39,7 @@ func main() {
 			return nil
 		}
 
-		c.Value("custom", "pre resolve hook")
+		c.Local("custom", "pre resolve hook")
 		return nil
 	})
 
@@ -60,12 +60,16 @@ func main() {
 	})
 
 	// Add a post db get hook
-	app.OnPostDBGet(func(query *db.QueryOption, entities []*schema.Entity) ([]*schema.Entity, error) {
+	app.OnPostDBQuery(func(
+		ctx context.Context,
+		query *db.QueryOption,
+		entities []*schema.Entity,
+	) ([]*schema.Entity, error) {
 		// This hook will be executed after getting data from the database
 		// You can use it to modify the data or to add some extra logic
 		// For example, we add a description to the tags
 
-		schemaName := query.Model.Schema().Name
+		schemaName := query.Schema.Name
 		if schemaName != "blog" {
 			return entities, nil
 		}
@@ -79,7 +83,7 @@ func main() {
 
 	// Add a resource for pre resolve hook
 	app.AddResource(fs.Get("/pre-resolve", func(c fs.Context, _ any) (any, error) {
-		custom := c.Value("custom").(string)
+		custom := c.Local("custom").(string)
 		return fmt.Sprintf("Custom value from pre resolve hook: %s", custom), nil
 	}, &fs.Meta{Public: true}))
 	// response: {"data":"This is a custom value from the pre resolve hook"}
@@ -92,7 +96,7 @@ func main() {
 
 	// Add a resource for post db get hook
 	app.AddResource(fs.Get("/post-db-get", func(c fs.Context, _ any) ([]Blog, error) {
-		return db.Query[Blog](app.DB()).Get(c.Context())
+		return db.Builder[Blog](app.DB()).Get(c)
 	}, &fs.Meta{Public: true}))
 
 	log.Fatal(app.Start())

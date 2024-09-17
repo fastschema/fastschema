@@ -5,89 +5,44 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/mitchellh/mapstructure"
 )
 
-type DBQuery[T any] struct {
-	rType      reflect.Type
-	schemaName string
-	client     Client
-	predicates []*Predicate
-	limit      uint
-	offset     uint
-	fields     []string
-	order      []string
-}
-
-func Query[T any](client Client, schemas ...string) *DBQuery[T] {
-	query := &DBQuery[T]{client: client}
-
-	// if the schema name is specified, use the schema name
-	// otherwise, use the reflect type of the schema
-	if len(schemas) > 0 && schemas[0] != "" {
-		query.schemaName = schemas[0]
-	} else {
-		query.rType = utils.GetDereferencedType(new(T))
-	}
-
-	return query
-}
-
-// Model returns the actual model of the query.
-func (q *DBQuery[T]) Model() (Model, error) {
-	if q.rType != nil && q.rType.String() == "schema.Entity" && q.schemaName == "" {
-		return nil, fmt.Errorf("schema name is required for type schema.Entity")
-	}
-
-	// if the schema name is not empty, use the schema name
-	if q.schemaName != "" {
-		return q.client.Model(q.schemaName)
-	}
-
-	// if the schema name is empty, use the reflect type of the schema
-	return q.client.Model("", q.rType)
-}
+/** Query related methods **/
 
 // Limit sets the limit of the query.
-func (q *DBQuery[T]) Limit(limit uint) *DBQuery[T] {
+func (q *QueryBuilder[T]) Limit(limit uint) *QueryBuilder[T] {
 	q.limit = limit
 	return q
 }
 
 // Offset sets the offset of the query.
-func (q *DBQuery[T]) Offset(offset uint) *DBQuery[T] {
+func (q *QueryBuilder[T]) Offset(offset uint) *QueryBuilder[T] {
 	q.offset = offset
 	return q
 }
 
 // Order sets the order of the query.
-func (q *DBQuery[T]) Order(order ...string) *DBQuery[T] {
+func (q *QueryBuilder[T]) Order(order ...string) *QueryBuilder[T] {
 	q.order = append(q.order, order...)
 	return q
 }
 
 // Select sets the columns of the query.
-func (q *DBQuery[T]) Select(fields ...string) *DBQuery[T] {
+func (q *QueryBuilder[T]) Select(fields ...string) *QueryBuilder[T] {
 	q.fields = append(q.fields, fields...)
 	return q
 }
 
-// Where adds the given predicates to the query.
-func (q *DBQuery[T]) Where(predicates ...*Predicate) *DBQuery[T] {
-	q.predicates = append(q.predicates, predicates...)
-	return q
-}
-
 // Count returns the number of entities that match the query.
-func (q *DBQuery[T]) Count(ctx context.Context, options *CountOption) (int, error) {
-	model, err := q.Model()
+func (q *QueryBuilder[T]) Count(ctx context.Context, options ...*QueryOption) (int, error) {
+	model, err := q.model()
 	if err != nil {
 		return 0, err
 	}
 
-	count, err := model.Query(q.predicates...).Count(ctx, options)
+	count, err := model.Query(q.predicates...).Count(ctx, options...)
 	if err != nil {
 		return 0, err
 	}
@@ -96,8 +51,8 @@ func (q *DBQuery[T]) Count(ctx context.Context, options *CountOption) (int, erro
 }
 
 // Get returns the list of entities that match the query.
-func (q *DBQuery[T]) Get(ctx context.Context) ([]T, error) {
-	model, err := q.Model()
+func (q *QueryBuilder[T]) Get(ctx context.Context) ([]T, error) {
+	model, err := q.model()
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +89,7 @@ func (q *DBQuery[T]) Get(ctx context.Context) ([]T, error) {
 }
 
 // First returns the first entity that matches the query.
-func (q *DBQuery[T]) First(ctx context.Context) (t T, err error) {
+func (q *QueryBuilder[T]) First(ctx context.Context) (t T, err error) {
 	q.Limit(1)
 	entities, err := q.Get(ctx)
 
@@ -150,7 +105,7 @@ func (q *DBQuery[T]) First(ctx context.Context) (t T, err error) {
 }
 
 // Only returns the matched entity or an error if there is more than one.
-func (q *DBQuery[T]) Only(ctx context.Context) (t T, err error) {
+func (q *QueryBuilder[T]) Only(ctx context.Context) (t T, err error) {
 	entities, err := q.Get(ctx)
 
 	if err != nil {
