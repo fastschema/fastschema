@@ -27,7 +27,7 @@ require (
 	github.com/otiai10/copy v1.14.0
 	github.com/rclone/rclone v1.68.0
 	github.com/stretchr/testify v1.9.0
-	github.com/urfave/cli/v2 v2.27.3
+	github.com/urfave/cli/v2 v2.27.4
 	github.com/valyala/fasthttp v1.55.0
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.uber.org/zap v1.27.0
