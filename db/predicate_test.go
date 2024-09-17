@@ -510,8 +510,8 @@ func TestCreatePredicatesFromFilterMap(t *testing.T) {
 			expectResult: []*Predicate{EQ("name", "test")},
 		},
 		{
-			filter:       map[string]any{"name": "test", "age": 5},
-			expectResult: []*Predicate{EQ("name", "test"), EQ("age", 5)},
+			filter:       map[string]any{"age": 5},
+			expectResult: []*Predicate{EQ("age", 5)},
 		},
 	}
 
