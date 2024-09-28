@@ -142,14 +142,13 @@ func (a *App) Resources() *fs.ResourcesManager {
 	return a.resources
 }
 
-func (a *App) Roles() []*fs.Role {
-	rolesCache, err := a.Cache().Get(context.Background(), "roles")
-
+func (a *App) Roles() (roles []*fs.Role, err error) {
+	_, err = a.Cache().Get(context.Background(), "roles", &roles)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return rolesCache.([]*fs.Role)
+	return roles, nil
 }
 
 func (a *App) Hooks() *fs.Hooks {

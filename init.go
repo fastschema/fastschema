@@ -284,9 +284,9 @@ func (a *App) getDefaultCache() (err error) {
 		a.config.CacheConfig = &fs.CacheConfig{}
 	}
 
-	defaultDriverName := a.config.CacheConfig.DefaultCache
-	if defaultDriverName == "" {
-		defaultDriverName = utils.Env("CACHE_DEFAULT_DRIVER", "")
+	defaultCacheName := a.config.CacheConfig.DefaultCache
+	if defaultCacheName == "" {
+		defaultCacheName = utils.Env("CACHE_DEFAULT", "")
 	}
 
 	cacheDriversConfig := a.config.CacheConfig.CacheDriverConfig
@@ -298,15 +298,12 @@ func (a *App) getDefaultCache() (err error) {
 
 	// if threre is no driver config, add a default driver
 	if cacheDriversConfig == nil {
-		if defaultDriverName == "" {
-			defaultDriverName = "local"
+		if defaultCacheName == "" {
+			defaultCacheName = "local"
 		}
 
-		cacheDriversConfig = []*fs.CacheDriverConfig{{
-			Driver:   "local",
-			Address:  "",
-			Password: "",
-			Database: 0,
+		cacheDriversConfig = []fs.Map{{
+			"driver": "local",
 		}}
 	}
 
@@ -316,15 +313,15 @@ func (a *App) getDefaultCache() (err error) {
 
 	foundDefaultDriver := false
 	for _, cache := range a.caches {
-		if cache.Name() == defaultDriverName {
+		if cache.Name() == defaultCacheName {
 			a.defaultCache = cache
 			foundDefaultDriver = true
 			break
 		}
 	}
 
-	if defaultDriverName != "" && !foundDefaultDriver {
-		return fmt.Errorf("default driver [%s] not found", defaultDriverName)
+	if defaultCacheName != "" && !foundDefaultDriver {
+		return fmt.Errorf("default cache [%s] not found", defaultCacheName)
 	}
 
 	if a.defaultCache == nil && len(a.caches) > 0 {

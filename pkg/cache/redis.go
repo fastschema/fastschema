@@ -3,6 +3,7 @@ package caches
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -10,52 +11,41 @@ import (
 	"github.com/eko/gocache/lib/v4/store"
 	redisstore "github.com/eko/gocache/store/redis/v4"
 	"github.com/fastschema/fastschema/fs"
-	"github.com/gofiber/fiber/v2/log"
 	"github.com/redis/go-redis/v9"
 )
 
-type CacheCloneRedisConfig struct {
-	Driver   string `json:"driver"`
-	Address  string `json:"address"`
-	Password string `json:"password"`
-	Database int    `json:"database"`
+type RedisCache struct {
+	name   string
+	config *redis.Options
+	cache  *cache.Cache[any]
 }
 
-type CacheCloneRedis struct {
-	CacheManager *cache.Cache[any]
-}
-
-func NewRedis(config *CacheCloneRedisConfig) (fs.Cache, error) {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     config.Address,  // use default Addr
-		Password: config.Password, // no password set
-		DB:       config.Database, // use default DB
-	})
-
-	ctx := context.Background()
-	_, err := rdb.Ping(ctx).Result()
-
-	if err != nil {
-		panic(err)
+func NewRedis(name string, config *redis.Options) (fs.Cache, error) {
+	rdb := redis.NewClient(config)
+	if _, err := rdb.Ping(context.Background()).Result(); err != nil {
+		return nil, err
 	}
 
 	redisStore := redisstore.NewRedis(rdb, store.WithExpiration(10*time.Minute))
-
-	cacheManager := cache.New[any](redisStore)
-	redis := &CacheCloneRedis{
-		CacheManager: cacheManager,
+	redis := &RedisCache{
+		name:   name,
+		config: config,
+		cache:  cache.New[any](redisStore),
 	}
 
 	return redis, nil
 }
 
-func (c *CacheCloneRedis) Name() string {
+func (c *RedisCache) Name() string {
+	return c.name
+}
+
+func (c *RedisCache) Driver() string {
 	return "redis"
 }
 
-func (c *CacheCloneRedis) Get(ctx context.Context, key any) (any, error) {
-	retrievedData, err := c.CacheManager.Get(ctx, key)
-
+func (c *RedisCache) Get(ctx context.Context, key any, binds ...any) (any, error) {
+	retrievedData, err := c.cache.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -68,34 +58,34 @@ func (c *CacheCloneRedis) Get(ctx context.Context, key any) (any, error) {
 	case []byte:
 		jsonBytes = v
 	default:
-		log.Info("Unexpected type: %s\n", reflect.TypeOf(retrievedData))
+		return nil, fmt.Errorf("unexpected cache data type %v", reflect.TypeOf(v))
 	}
 
-	if key == "roles" {
-		roles := []*fs.Role{}
+	if len(binds) > 0 {
+		if err := json.Unmarshal(jsonBytes, &binds[0]); err != nil {
+			return nil, err
+		}
 
-		err = json.Unmarshal([]byte(jsonBytes), &roles)
-
-		return roles, err
+		return binds[0], nil
 	}
 
-	return nil, nil
+	return jsonBytes, nil
 }
 
-func (c *CacheCloneRedis) Set(ctx context.Context, key any, value any) error {
+func (c *RedisCache) Set(ctx context.Context, key any, value any) error {
 	jsonData, err := json.Marshal(value)
 
 	if err != nil {
 		panic(err)
 	}
 
-	return c.CacheManager.Set(ctx, key, jsonData)
+	return c.cache.Set(ctx, key, jsonData)
 }
 
-func (c *CacheCloneRedis) Delete(ctx context.Context, key any) error {
-	return c.CacheManager.Delete(ctx, key)
+func (c *RedisCache) Delete(ctx context.Context, key any) error {
+	return c.cache.Delete(ctx, key)
 }
 
-func (c *CacheCloneRedis) Clear(ctx context.Context) error {
-	return c.CacheManager.Clear(ctx)
+func (c *RedisCache) Clear(ctx context.Context) error {
+	return c.cache.Clear(ctx)
 }

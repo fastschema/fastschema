@@ -17,7 +17,7 @@ type App interface {
 	Reload(ctx context.Context, migration *db.Migration) (err error)
 	Logger() logger.Logger
 	UpdateCache(ctx context.Context) error
-	Roles() []*Role
+	Roles() ([]*Role, error)
 	Disk(names ...string) Disk
 	Disks() []Disk
 	Cache(names ...string) Cache
