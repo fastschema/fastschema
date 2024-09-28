@@ -1,26 +1,32 @@
 package authservice
 
 import (
+	"time"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/schema"
-	userservice "github.com/fastschema/fastschema/services/user"
 )
+
+type LoginResponse struct {
+	Token   string    `json:"token"`
+	Expires time.Time `json:"expires"`
+}
 
 func (as *AuthService) Login(c fs.Context, _ any) (_ any, err error) {
 	provider := as.GetAuthProvider(c.Arg("provider"))
 	if provider == nil {
-		return nil, errors.NotFound("invalid provider")
+		return nil, errors.NotFound("invalid auth provider")
 	}
 
 	return provider.Login(c)
 }
 
-func (as *AuthService) Callback(c fs.Context, _ any) (u *userservice.LoginResponse, err error) {
+func (as *AuthService) Callback(c fs.Context, _ any) (u *LoginResponse, err error) {
 	provider := as.GetAuthProvider(c.Arg("provider"))
 	if provider == nil {
-		return nil, errors.NotFound("invalid provider")
+		return nil, errors.NotFound("invalid auth provider")
 	}
 
 	user, err := provider.Callback(c)
@@ -28,16 +34,36 @@ func (as *AuthService) Callback(c fs.Context, _ any) (u *userservice.LoginRespon
 		return nil, errors.InternalServerError(err.Error())
 	}
 
+	if user == nil {
+		return nil, errors.Unauthorized("invalid user")
+	}
+
 	return as.createUser(c, user)
 }
 
-func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*userservice.LoginResponse, error) {
-	userExisted, err := db.Query[*fs.User](as.DB()).
+func (as *AuthService) Me(c fs.Context, _ any) (*fs.User, error) {
+	if c.User() == nil {
+		return nil, errors.Unauthorized()
+	}
+
+	user, err := db.Builder[*fs.User](as.DB()).Where(db.EQ("id", c.User().ID)).Only(c)
+	if err != nil {
+		if db.IsNotFound(err) {
+			return nil, errors.Unauthorized()
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*LoginResponse, error) {
+	userExisted, err := db.Builder[*fs.User](as.DB()).
 		Where(db.And(
 			db.EQ("provider", providerUser.Provider),
 			db.EQ("provider_id", providerUser.ProviderID),
 		)).
-		Only(c.Context())
+		Only(c)
 
 	if err != nil {
 		// There is an error other than not found error
@@ -46,7 +72,7 @@ func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*userser
 		}
 
 		// The error is not found, create a new user
-		if userExisted, err = db.Create[*fs.User](c.Context(), as.DB(), fs.Map{
+		if userExisted, err = db.Create[*fs.User](c, as.DB(), fs.Map{
 			"provider":          providerUser.Provider,
 			"provider_id":       providerUser.ProviderID,
 			"provider_username": providerUser.ProviderUsername,
@@ -68,5 +94,5 @@ func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*userser
 		return nil, err
 	}
 
-	return &userservice.LoginResponse{Token: jwtToken, Expires: exp}, nil
+	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
 }

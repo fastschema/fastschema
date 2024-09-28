@@ -3,6 +3,7 @@ package fastschema_test
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http/httptest"
 	"os"
@@ -306,17 +307,18 @@ func TestFastschemaSetup(t *testing.T) {
 func TestFastschemaResources(t *testing.T) {
 	clearEnvs(t)
 	var err error
-	a := &fastschema.App{}
 	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
-	entDB := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb, func() *db.Hooks {
-		return a.Hooks().DBHooks
-	}))
+	entDB := utils.Must(entdbadapter.NewTestClient(
+		utils.Must(os.MkdirTemp("", "migrations")),
+		sb,
+		nil,
+	))
 	config := &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		DB:                entDB,
 	}
-	a, err = fastschema.New(config)
+	a, err := fastschema.New(config)
 	assert.NoError(t, err)
 	assert.NotNil(t, a)
 
@@ -341,21 +343,64 @@ func TestFastschemaResources(t *testing.T) {
 		return nil
 	})
 
-	a.OnPostDBGet(func(query *db.QueryOption, entities []*schema.Entity) ([]*schema.Entity, error) {
-		if query.Model.Schema().Name == "file" {
+	a.OnPreDBQuery(func(ctx context.Context, option *db.QueryOption) error {
+		assert.NotNil(t, option)
+		return nil
+	})
+
+	a.OnPostDBQuery(func(
+		ctx context.Context,
+		query *db.QueryOption,
+		entities []*schema.Entity,
+	) ([]*schema.Entity, error) {
+		if query.Schema.Name == "file" {
 			entities = append(entities, schema.NewEntity(1))
 		}
 		return entities, nil
 	})
 
-	a.OnPostDBCreate(func(schema *schema.Schema, id uint64, dataCreate *schema.Entity) error {
+	a.OnPreDBExec(func(ctx context.Context, option *db.QueryOption) error {
+		assert.NotNil(t, option)
+		return nil
+	})
+
+	a.OnPostDBExec(func(ctx context.Context, option *db.QueryOption, result sql.Result) error {
+		assert.NotNil(t, option)
+		assert.NotNil(t, result)
+		return nil
+	})
+
+	a.OnPreDBCreate(func(ctx context.Context, schema *schema.Schema, createData *schema.Entity) error {
+		assert.NotNil(t, schema)
+		assert.NotNil(t, createData)
+		return nil
+	})
+
+	a.OnPostDBCreate(func(
+		ctx context.Context,
+		schema *schema.Schema,
+		dataCreate *schema.Entity,
+		id uint64,
+	) error {
 		assert.NotNil(t, schema)
 		assert.NotNil(t, dataCreate)
 		assert.Greater(t, id, uint64(0))
 		return nil
 	})
 
+	a.OnPreDBUpdate(func(
+		ctx context.Context,
+		schema *schema.Schema,
+		predicates []*db.Predicate,
+		updateData *schema.Entity,
+	) error {
+		assert.NotNil(t, schema)
+		assert.NotNil(t, updateData)
+		return nil
+	})
+
 	a.OnPostDBUpdate(func(
+		ctx context.Context,
 		schema *schema.Schema,
 		predicates []*db.Predicate,
 		updateData *schema.Entity,
@@ -368,7 +413,18 @@ func TestFastschemaResources(t *testing.T) {
 		return nil
 	})
 
-	a.OnPostDBDelete(func(schema *schema.Schema, predicates []*db.Predicate, originalEntities []*schema.Entity, affected int) error {
+	a.OnPreDBDelete(func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate) error {
+		assert.NotNil(t, schema)
+		return nil
+	})
+
+	a.OnPostDBDelete(func(
+		ctx context.Context,
+		schema *schema.Schema,
+		predicates []*db.Predicate,
+		originalEntities []*schema.Entity,
+		affected int,
+	) error {
 		assert.NotNil(t, schema)
 		assert.Greater(t, affected, 0)
 		return nil
@@ -378,7 +434,7 @@ func TestFastschemaResources(t *testing.T) {
 	assert.NotNil(t, hooks)
 	assert.NotNil(t, hooks.DBHooks)
 	// All db hooks expected 2 includes: the default one and the one we added in the test
-	assert.Len(t, hooks.DBHooks.PostDBGet, 2)
+	assert.Len(t, hooks.DBHooks.PostDBQuery, 2)
 	assert.Len(t, hooks.DBHooks.PostDBCreate, 2)
 	assert.Len(t, hooks.DBHooks.PostDBUpdate, 2)
 	assert.Len(t, hooks.DBHooks.PostDBDelete, 2)
@@ -440,7 +496,7 @@ func TestFastschemaResources(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 
 	// Login
-	req = httptest.NewRequest("POST", "/api/user/login", bytes.NewReader([]byte(`{
+	req = httptest.NewRequest("POST", "/api/auth/local/login", bytes.NewReader([]byte(`{
 		"login":"admin",
 		"password":"123"
 	}`)))

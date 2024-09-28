@@ -9,10 +9,10 @@ import (
 type LogContext = map[string]any
 
 type Config struct {
-	Development    bool `json:"development"`
-	LogFile        string
-	CallerSkip     int
-	DisableConsole bool
+	Development    bool   `json:"development"`
+	LogFile        string `json:"log_file"`
+	CallerSkip     int    `json:"caller_skip"`
+	DisableConsole bool   `json:"disable_console"`
 }
 
 type Logger interface {

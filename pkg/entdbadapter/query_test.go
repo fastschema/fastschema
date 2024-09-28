@@ -510,7 +510,7 @@ func TestQuery(t *testing.T) {
 				}
 			}`,
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cars` WHERE `name` LIKE ? AND `cars`.`owner_id` IN (SELECT `users`.`id` FROM `users` WHERE `users`.`id` IN (SELECT `groups_users`.`users` FROM `groups_users` JOIN `groups` AS `t1` ON `groups_users`.`groups` = `t1`.`id` WHERE `name` LIKE ?))")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cars` WHERE `name` LIKE ? AND EXISTS (SELECT `users`.`id` FROM `users` WHERE `cars`.`owner_id` = `users`.`id` AND `users`.`id` IN (SELECT `groups_users`.`users` FROM `groups_users` JOIN `groups` AS `t1` ON `groups_users`.`groups` = `t1`.`id` WHERE `name` LIKE ?))")).
 					WithArgs("%car%", "%admin%").
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "car1"))
@@ -1051,11 +1051,10 @@ func TestQueryOptions(t *testing.T) {
 		Columns:    q.fields,
 		Order:      q.order,
 		Predicates: q.predicates,
-		Model:      q.model,
+		Schema:     q.model.schema,
 	}
 
 	result := q.Options()
-
 	assert.Equal(t, expected, result)
 }
 
@@ -1086,6 +1085,33 @@ func TestScanValuesError(t *testing.T) {
 
 func TestCountClientIsNotEntAdapter(t *testing.T) {
 	q := &Query{}
-	_, err := q.Count(context.Background(), &db.CountOption{})
+	_, err := q.Count(context.Background(), nil)
 	assert.EqualError(t, err, "client is not an ent adapter")
+}
+
+func TestQueryNodesPreHookError(t *testing.T) {
+	tests := []MockTestQueryData{
+		{
+			Name:        "Query_with_no_filter",
+			Schema:      "user",
+			ExpectError: "pre query hook: hook error",
+		},
+	}
+
+	sb := createSchemaBuilder()
+	MockRunQueryTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
+			Driver: "sqlmock",
+			Hooks: func() *db.Hooks {
+				return &db.Hooks{
+					PreDBQuery: []db.PreDBQuery{
+						func(ctx context.Context, query *db.QueryOption) error {
+							return errors.New("hook error")
+						},
+					},
+				}
+			},
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
+		return driver
+	}, sb, t, tests)
 }

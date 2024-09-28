@@ -19,6 +19,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/rclonefs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/pkg/zaplogger"
+	"github.com/fastschema/fastschema/plugins"
 	"github.com/fastschema/fastschema/schema"
 	ts "github.com/fastschema/fastschema/services/tool"
 	"github.com/joho/godotenv"
@@ -28,12 +29,28 @@ import (
 var embedDashStatic embed.FS
 
 func init() {
+	fs.RegisterAuthProviderMaker("local", auth.NewLocalAuthProvider)
 	fs.RegisterAuthProviderMaker("github", auth.NewGithubAuthProvider)
 	fs.RegisterAuthProviderMaker("google", auth.NewGoogleAuthProvider)
 }
 
 func (a *App) init() (err error) {
-	if err = a.getDefaultDisk(); err != nil {
+	plugins, err := plugins.NewManager(path.Join(a.dataDir, "plugins"))
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err == nil {
+			err = plugins.Init(a)
+		}
+	}()
+
+	if err = plugins.Config(a); err != nil {
+		return err
+	}
+
+	if err = a.createDisks(); err != nil {
 		return err
 	}
 
@@ -41,7 +58,7 @@ func (a *App) init() (err error) {
 		return err
 	}
 
-	if err = a.getDefaultLogger(); err != nil {
+	if err = a.createLogger(); err != nil {
 		return err
 	}
 
@@ -57,14 +74,13 @@ func (a *App) init() (err error) {
 		return err
 	}
 
-	if err = a.getDefaultDBClient(); err != nil {
+	if err = a.createDBClient(); err != nil {
 		return err
 	}
 
 	// if a local disk has a public path, then add it to the statics
 	for _, disk := range a.disks {
 		publicPath := disk.LocalPublicPath()
-
 		if publicPath != "" {
 			a.startupMessages = append(
 				a.startupMessages,
@@ -78,60 +94,8 @@ func (a *App) init() (err error) {
 		}
 	}
 
-	setupToken, err := a.GetSetupToken(context.Background())
-	if err != nil {
+	if err = a.createSetupPage(); err != nil {
 		return err
-	}
-
-	if setupToken != "" {
-		type setupData struct {
-			Token    string `json:"token"`
-			Username string `json:"username"`
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}
-		a.api.Add(fs.NewResource("setup", func(c fs.Context, setupData *setupData) (bool, error) {
-			if setupToken == "" {
-				return false, errors.BadRequest("Setup token is not available")
-			}
-
-			if setupData == nil || setupData.Token != setupToken {
-				return false, errors.Forbidden("Invalid setup data or token")
-			}
-
-			if err := ts.Setup(
-				c.Context(),
-				a.DB(),
-				a.Logger(),
-				setupData.Username, setupData.Email, setupData.Password,
-			); err != nil {
-				return false, err
-			}
-
-			// Update the cache of user roles
-			if err := a.UpdateCache(c.Context(), "roles"); err != nil {
-				return false, err
-			}
-
-			setupToken = ""
-			a.setupToken = ""
-
-			return true, nil
-		}, &fs.Meta{
-			Post:   "/setup",
-			Public: true,
-		}))
-
-		setupURL := fmt.Sprintf(
-			"%s/setup/?token=%s\033[0m",
-			a.config.DashURL,
-			setupToken,
-		)
-
-		a.startupMessages = append(a.startupMessages, fmt.Sprintf(
-			"Visit the following URL to setup the app: %s",
-			setupURL,
-		))
 	}
 
 	a.statics = append(a.statics, &fs.StaticFs{
@@ -165,6 +129,14 @@ func (a *App) prepareConfig() (err error) {
 		a.envFile = envFile
 		if err := godotenv.Load(envFile); err != nil {
 			return err
+		}
+	}
+
+	if a.config.Hooks == nil {
+		a.config.Hooks = &fs.Hooks{
+			DBHooks:     &db.Hooks{},
+			PreResolve:  []fs.Middleware{},
+			PostResolve: []fs.Middleware{},
 		}
 	}
 
@@ -224,7 +196,66 @@ func (a *App) prepareConfig() (err error) {
 	return nil
 }
 
-func (a *App) getDefaultDisk() (err error) {
+func (a *App) createSetupPage() error {
+	setupToken, err := a.GetSetupToken(context.Background())
+	if err != nil {
+		return err
+	}
+
+	if setupToken != "" {
+		type setupData struct {
+			Token    string `json:"token"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		a.api.Add(fs.NewResource("setup", func(c fs.Context, setupData *setupData) (bool, error) {
+			if setupToken == "" {
+				return false, errors.BadRequest("Setup token is not available")
+			}
+
+			if setupData == nil || setupData.Token != setupToken {
+				return false, errors.Forbidden("Invalid setup data or token")
+			}
+
+			if err := ts.Setup(
+				c,
+				a.DB(),
+				a.Logger(),
+				setupData.Username, setupData.Email, setupData.Password,
+			); err != nil {
+				return false, err
+			}
+
+			if err := a.UpdateCache(c); err != nil {
+				return false, err
+			}
+
+			setupToken = ""
+			a.setupToken = ""
+
+			return true, nil
+		}, &fs.Meta{
+			Post:   "/setup",
+			Public: true,
+		}))
+
+		setupURL := fmt.Sprintf(
+			"%s/setup/?token=%s\033[0m",
+			a.config.DashURL,
+			setupToken,
+		)
+
+		a.startupMessages = append(a.startupMessages, fmt.Sprintf(
+			"Visit the following URL to setup the app: %s",
+			setupURL,
+		))
+	}
+
+	return nil
+}
+
+func (a *App) createDisks() (err error) {
 	if a.config.StorageConfig == nil {
 		a.config.StorageConfig = &fs.StorageConfig{}
 	}
@@ -331,34 +362,54 @@ func (a *App) getDefaultCache() (err error) {
 	return nil
 }
 
-func (a *App) getDefaultLogger() (err error) {
-	if a.config.Logger == nil {
-		if a.config.LoggerConfig == nil {
-			a.config.LoggerConfig = &logger.Config{
-				Development: utils.Env("APP_ENV", "development") == "development",
-				LogFile:     path.Join(a.logDir, "app.log"),
-			}
-		}
-		a.config.Logger, err = zaplogger.NewZapLogger(a.config.LoggerConfig)
+func (a *App) createLogger() (err error) {
+	if a.config.Logger != nil {
+		return nil
 	}
 
-	return err
+	if a.config.LoggerConfig == nil {
+		a.config.LoggerConfig = &logger.Config{
+			Development: utils.Env("APP_ENV", "development") == "development",
+			LogFile:     path.Join(a.logDir, "app.log"),
+		}
+	}
+
+	a.config.Logger, err = zaplogger.NewZapLogger(a.config.LoggerConfig)
+	return
 }
 
 func (a *App) createAuthProviders() (err error) {
 	if a.config.AuthConfig == nil {
-		return nil
+		a.config.AuthConfig = &fs.AuthConfig{}
 	}
 
-	for name, config := range a.config.AuthConfig.Providers {
-		if !utils.Contains(a.config.AuthConfig.EnabledProviders, name) {
-			continue
+	if a.config.AuthConfig.EnabledProviders == nil {
+		a.config.AuthConfig.EnabledProviders = []string{}
+	}
+
+	if !utils.Contains(a.config.AuthConfig.EnabledProviders, "local") {
+		a.config.AuthConfig.EnabledProviders = append(a.config.AuthConfig.EnabledProviders, "local")
+	}
+
+	availableProviders := fs.AuthProviders()
+	for _, name := range a.config.AuthConfig.EnabledProviders {
+		if _, ok := a.authProviders[name]; ok {
+			return fmt.Errorf("auth provider %s is already registered", name)
 		}
 
+		if !utils.Contains(availableProviders, name) {
+			return fmt.Errorf("auth provider %s is not available", name)
+		}
+
+		config := a.config.AuthConfig.Providers[name]
 		redirectURL := fmt.Sprintf("%s/%s/auth/%s/callback", a.config.BaseURL, a.config.APIBaseName, name)
 		provider, err := fs.CreateAuthProvider(name, config, redirectURL)
 		if err != nil {
 			return err
+		}
+
+		if la, ok := provider.(*auth.LocalAuthProvider); ok {
+			la.Init(a.DB, a.Key)
 		}
 
 		a.authProviders[name] = provider
@@ -378,7 +429,7 @@ func (a *App) createSchemaBuilder() (err error) {
 	return nil
 }
 
-func (a *App) getDefaultDBClient() (err error) {
+func (a *App) createDBClient() (err error) {
 	if a.DB() != nil {
 		return nil
 	}
@@ -396,7 +447,7 @@ func (a *App) getDefaultDBClient() (err error) {
 			Logger:             a.Logger(),
 			MigrationDir:       a.migrationDir,
 			Hooks: func() *db.Hooks {
-				return a.hooks.DBHooks
+				return a.config.Hooks.DBHooks
 			},
 		}
 	}
@@ -476,16 +527,16 @@ func (a *App) needSetup(ctx context.Context) (bool, error) {
 	var err error
 	var userCount int
 	var roleCount int
-	countOption := &db.CountOption{
+	countOption := &db.QueryOption{
 		Column: "id",
 		Unique: true,
 	}
 
-	if userCount, err = db.Query[*fs.User](a.DB()).Count(ctx, countOption); err != nil {
+	if userCount, err = db.Builder[*fs.User](a.DB()).Count(ctx, countOption); err != nil {
 		return false, err
 	}
 
-	if roleCount, err = db.Query[*fs.Role](a.DB()).Count(ctx, countOption); err != nil {
+	if roleCount, err = db.Builder[*fs.Role](a.DB()).Count(ctx, countOption); err != nil {
 		return false, err
 	}
 

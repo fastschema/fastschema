@@ -3,65 +3,16 @@ package db
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	"github.com/fastschema/fastschema/pkg/errors"
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
 
-type DBMutation[T any] struct {
-	rType      reflect.Type
-	schemaName string
-	client     Client
-	predicates []*Predicate
-}
-
-// Mutation is a helper function to create a new mutation for a given schema
-//
-//	The schema is inferred from the type of the entity
-//	T must be a pointer to a struct or a struct type
-func Mutation[T any](client Client, schemas ...string) *DBMutation[T] {
-	mutation := &DBMutation[T]{
-		client:     client,
-		predicates: make([]*Predicate, 0),
-	}
-
-	// if the schema name is specified, use the schema name
-	// otherwise, use the reflect type of the schema
-	if len(schemas) > 0 && schemas[0] != "" {
-		mutation.schemaName = schemas[0]
-	} else {
-		mutation.rType = utils.GetDereferencedType(new(T))
-	}
-
-	return mutation
-}
-
-// Model returns the actual model of the mutation.
-func (q *DBMutation[T]) Model() (Model, error) {
-	if q.rType != nil && q.rType.String() == "schema.Entity" && q.schemaName == "" {
-		return nil, fmt.Errorf("schema name is required for type schema.Entity")
-	}
-
-	// if the schema name is not empty, use the schema name
-	if q.schemaName != "" {
-		return q.client.Model(q.schemaName)
-	}
-
-	// if the schema name is empty, use the reflect type of the schema
-	return q.client.Model("", q.rType)
-}
-
-// Where adds a predicate to the mutation
-func (m *DBMutation[T]) Where(predicates ...*Predicate) *DBMutation[T] {
-	m.predicates = append(m.predicates, predicates...)
-	return m
-}
+/** Mutation related methods **/
 
 // Create creates a new entity and return the newly created entity
-func (m *DBMutation[T]) Create(ctx context.Context, dataCreate any) (t T, err error) {
-	model, err := m.Model()
+func (m *QueryBuilder[T]) Create(ctx context.Context, dataCreate any) (t T, err error) {
+	model, err := m.model()
 	if err != nil {
 		return t, err
 	}
@@ -76,13 +27,13 @@ func (m *DBMutation[T]) Create(ctx context.Context, dataCreate any) (t T, err er
 		return t, err
 	}
 
-	q := Query[T](m.client, m.schemaName)
+	q := Builder[T](m.client, m.schemaName)
 
 	return q.Where(EQ(schema.FieldID, id)).First(ctx)
 }
 
 // CreateFromJSON creates a new entity from JSON
-func (m *DBMutation[T]) CreateFromJSON(ctx context.Context, json string) (t T, err error) {
+func (m *QueryBuilder[T]) CreateFromJSON(ctx context.Context, json string) (t T, err error) {
 	entity, err := schema.NewEntityFromJSON(json)
 
 	if err != nil {
@@ -93,13 +44,13 @@ func (m *DBMutation[T]) CreateFromJSON(ctx context.Context, json string) (t T, e
 }
 
 // Update updates the entity and returns the updated entities
-func (m *DBMutation[T]) Update(ctx context.Context, updateData any) (ts []T, err error) {
+func (m *QueryBuilder[T]) Update(ctx context.Context, updateData any) (ts []T, err error) {
 	entityUpdate, err := typesToEntity(updateData)
 	if err != nil {
 		return ts, fmt.Errorf("cannot create entity: %w", err)
 	}
 
-	model, err := m.Model()
+	model, err := m.model()
 	if err != nil {
 		return ts, err
 	}
@@ -110,14 +61,14 @@ func (m *DBMutation[T]) Update(ctx context.Context, updateData any) (ts []T, err
 		return ts, err
 	}
 
-	q := Query[T](m.client, m.schemaName)
+	q := Builder[T](m.client, m.schemaName)
 
 	return q.Where(m.predicates...).Get(ctx)
 }
 
 // Delete deletes entities from the database
-func (m *DBMutation[T]) Delete(ctx context.Context) (affected int, err error) {
-	model, err := m.Model()
+func (m *QueryBuilder[T]) Delete(ctx context.Context) (affected int, err error) {
+	model, err := m.model()
 	if err != nil {
 		return 0, err
 	}
@@ -132,7 +83,7 @@ func Create[T any](
 	dataCreate any,
 	schemas ...string,
 ) (T, error) {
-	return Mutation[T](client, schemas...).Create(ctx, dataCreate)
+	return Builder[T](client, schemas...).Create(ctx, dataCreate)
 }
 
 // CreateFromJSON is a shortcut to mutation.CreateFromJSON
@@ -142,7 +93,7 @@ func CreateFromJSON[T any](
 	json string,
 	schemas ...string,
 ) (T, error) {
-	return Mutation[T](client, schemas...).CreateFromJSON(ctx, json)
+	return Builder[T](client, schemas...).CreateFromJSON(ctx, json)
 }
 
 // Update is a shortcut to mutation.Update
@@ -153,7 +104,7 @@ func Update[T any](
 	predicates []*Predicate,
 	schemas ...string,
 ) ([]T, error) {
-	return Mutation[T](client, schemas...).Where(predicates...).Update(ctx, dataUpdate)
+	return Builder[T](client, schemas...).Where(predicates...).Update(ctx, dataUpdate)
 }
 
 // Delete is a shortcut to mutation.Delete
@@ -163,7 +114,7 @@ func Delete[T any](
 	predicates []*Predicate,
 	schemas ...string,
 ) (int, error) {
-	return Mutation[T](client, schemas...).Where(predicates...).Delete(ctx)
+	return Builder[T](client, schemas...).Where(predicates...).Delete(ctx)
 }
 
 func typesToEntity(t any) (*schema.Entity, error) {

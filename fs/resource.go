@@ -110,7 +110,7 @@ func NewResource[Input, Output any](
 		handler: func(ctx Context) (any, error) {
 			var input Input
 			if parseInput {
-				if err := ctx.Parse(&input); err != nil {
+				if err := ctx.Bind(&input); err != nil {
 					return nil, errors.BadRequest(err.Error())
 				}
 			}
@@ -246,9 +246,9 @@ func (r *Resource) add(resource *Resource) (self *Resource) {
 	return r
 }
 
-func (r *Resource) Remove(resource *Resource) (self *Resource) {
+func (r *Resource) Remove(name string) (self *Resource) {
 	for i, res := range r.resources {
-		if res == resource {
+		if res.name == name {
 			r.resources = append(r.resources[:i], r.resources[i+1:]...)
 			break
 		}

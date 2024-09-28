@@ -91,7 +91,7 @@ func (ss *SchemaService) Create(c fs.Context, newSchemaData *schema.Schema) (*sc
 		}
 	}
 
-	if err := ss.app.Reload(c.Context(), nil); err != nil {
+	if err := ss.app.Reload(c, nil); err != nil {
 		c.Logger().Errorf("could not reload app: %s", err.Error())
 		return nil, errors.InternalServerError("could not reload app: %s", err.Error())
 	}

@@ -21,6 +21,10 @@ func createEntPredicates(
 	var predicateFns = []PredicateFN{}
 
 	for _, p := range predicates {
+		if p == nil {
+			continue
+		}
+
 		if len(p.RelationFieldNames) > 0 {
 			lastFieldPredicate := p.Clone()
 			lastFieldPredicate.RelationFieldNames = []string{}

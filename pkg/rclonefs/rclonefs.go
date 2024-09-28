@@ -3,6 +3,7 @@ package rclonefs
 import (
 	"errors"
 	"path"
+	"path/filepath"
 
 	"github.com/fastschema/fastschema/fs"
 )
@@ -36,9 +37,9 @@ func NewFromConfig(diskConfigs []*fs.DiskConfig, localRoot string) ([]fs.Disk, e
 				return nil, errors.New("root is required for local disk")
 			}
 
-			// if diskConfig.Root is not start with "/", then it is a relative path
+			// if diskConfig.Root is not an absolute path
 			// we need to join it with localRoot
-			if diskConfig.Root[0] != '/' {
+			if !filepath.IsAbs(diskConfig.Root) {
 				diskConfig.Root = path.Join(localRoot, diskConfig.Root)
 			}
 

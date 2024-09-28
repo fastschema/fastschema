@@ -34,7 +34,7 @@ func Setup(
 		}
 	}()
 
-	adminUser, err := db.Query[*fs.User](tx).Where(db.EQ("username", username)).First(ctx)
+	adminUser, err := db.Builder[*fs.User](tx).Where(db.EQ("username", username)).First(ctx)
 	if err != nil {
 		if db.IsNotFound(err) {
 			err = nil

@@ -52,6 +52,35 @@ func TestDeleteNodes(t *testing.T) {
 	}, sb, t, tests)
 }
 
+func TestDeleteNodesPreHookError(t *testing.T) {
+	tests := []MockTestDeleteData{
+		{
+			Name:       "delete",
+			Schema:     "user",
+			Predicates: []*db.Predicate{db.EQ("id", 1), db.EQ("role", "admin")},
+			WantErr:    true,
+		},
+	}
+
+	sb := createSchemaBuilder()
+	MockRunDeleteTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
+			Driver: "sqlmock",
+			Hooks: func() *db.Hooks {
+				return &db.Hooks{
+					PreDBDelete: []db.PreDBDelete{
+						func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate) error {
+							assert.Greater(t, len(predicates), 0)
+							return errors.New("hook error")
+						},
+					},
+				}
+			},
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
+		return driver
+	}, sb, t, tests)
+}
+
 func TestDeleteNodesHookError(t *testing.T) {
 	tests := []MockTestDeleteData{
 		{
@@ -79,7 +108,13 @@ func TestDeleteNodesHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PostDBDelete: []db.PostDBDelete{
-						func(schema *schema.Schema, predicates []*db.Predicate, originalEntities []*schema.Entity, affected int) error {
+						func(
+							ctx context.Context,
+							schema *schema.Schema,
+							predicates []*db.Predicate,
+							originalEntities []*schema.Entity,
+							affected int,
+						) error {
 							assert.Greater(t, len(predicates), 0)
 							assert.Greater(t, len(originalEntities), 0)
 							assert.Greater(t, affected, 0)

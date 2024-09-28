@@ -8,11 +8,11 @@ import (
 )
 
 func Exec(ctx context.Context, client Client, query string, args ...any) (sql.Result, error) {
-	return client.Exec(ctx, query, args)
+	return client.Exec(ctx, query, args...)
 }
 
-func RawQuery[T any](ctx context.Context, client Client, query string, args ...any) (ts []T, err error) {
-	rows, err := client.Query(ctx, query, args)
+func Query[T any](ctx context.Context, client Client, query string, args ...any) (ts []T, err error) {
+	rows, err := client.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

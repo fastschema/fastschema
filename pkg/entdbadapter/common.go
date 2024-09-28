@@ -18,6 +18,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -140,19 +141,29 @@ func CreateDBDSN(config *db.Config) string {
 	return dsn
 }
 
-func CreateDebugFN(config *db.Config) func(ctx context.Context, i ...any) {
-	return func(ctx context.Context, i ...any) {
-		if !config.LogQueries {
-			return
+func CreateDebugFN(config *db.Config) func(ctx context.Context, args ...any) {
+	return func(ctx context.Context, args ...any) {
+		msg := fmt.Sprintf("%v", args)
+		args = []any{msg}
+		traceable, ok := ctx.(fs.Traceable)
+		if ok {
+			if traceID := traceable.TraceID(); traceID != "" {
+				args = append(args, map[string]any{
+					fs.TraceID: traceID,
+				})
+			}
+		} else {
+			if traceID := ctx.Value(fs.ContextKeyTraceID); traceID != nil {
+				args = append(args, map[string]any{
+					fs.TraceID: traceID,
+				})
+			}
 		}
 
-		traceID := ctx.Value("trace_id")
-		msg := utils.If(traceID != nil, fmt.Sprintf("[%v] %v", traceID, i), fmt.Sprintf("%v", i))
-
 		if config.Logger != nil {
-			config.Logger.Debug(msg)
+			config.Logger.Debug(args...)
 		} else {
-			fmt.Println(msg)
+			fmt.Println(args...)
 		}
 	}
 }

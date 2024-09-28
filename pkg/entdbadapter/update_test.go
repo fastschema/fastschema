@@ -402,6 +402,39 @@ func TestUpdateNodes(t *testing.T) {
 	}, sb, t, tests)
 }
 
+func TestUpdateNodesPreHookError(t *testing.T) {
+	tests := []MockTestUpdateData{
+		{
+			Name:   "fields/set",
+			Schema: "user",
+			InputJSON: `{
+				"name": "User 1",
+				"age": 30
+			}`,
+			Predicates: []*db.Predicate{db.EQ("id", 1)},
+			WantErr:    true,
+		},
+	}
+
+	sb := createSchemaBuilder()
+	MockRunUpdateTests(func(d *sql.DB) db.Client {
+		driver := utils.Must(NewEntClient(&db.Config{
+			Driver:     "sqlmock",
+			LogQueries: false,
+			Hooks: func() *db.Hooks {
+				return &db.Hooks{
+					PreDBUpdate: []db.PreDBUpdate{
+						func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *schema.Entity) error {
+							return errors.New("hook error")
+						},
+					},
+				}
+			},
+		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
+		return driver
+	}, sb, t, tests)
+}
+
 func TestUpdateNodesHookError(t *testing.T) {
 	tests := []MockTestUpdateData{
 		{
@@ -433,7 +466,14 @@ func TestUpdateNodesHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PostDBUpdate: []db.PostDBUpdate{
-						func(schema *schema.Schema, predicates []*db.Predicate, updateData *schema.Entity, originalEntities []*schema.Entity, affected int) error {
+						func(
+							ctx context.Context,
+							schema *schema.Schema,
+							predicates []*db.Predicate,
+							updateData *schema.Entity,
+							originalEntities []*schema.Entity,
+							affected int,
+						) error {
 							assert.Greater(t, len(predicates), 0)
 							assert.Greater(t, len(originalEntities), 0)
 							assert.Greater(t, affected, 0)

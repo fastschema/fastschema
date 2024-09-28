@@ -27,7 +27,7 @@ func (as *AuthService) ParseUser(c fs.Context) (err error) {
 				c.Logger().Errorf("Cannot get user roles: %v", err)
 				return errors.InternalServerError("Cannot get user roles")
 			}
-			c.Value("user", user)
+			c.Local("user", user)
 		}
 	}
 
@@ -55,6 +55,8 @@ func (as *AuthService) Authorize(c fs.Context) error {
 		resourceID = fmt.Sprintf("api.content.%s.%s", c.Arg("schema"), resourceID[12:])
 	}
 
+	// If the resource id is "api.realtime.content"
+	// Then add the schema name and event name to the id: api.realtime.content.category.create
 	if resourceID == "api.realtime.content" {
 		resourceID = fmt.Sprintf("api.realtime.content.%s.%s", c.Arg("schema"), c.Arg("event", "*"))
 	}

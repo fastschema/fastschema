@@ -2,7 +2,6 @@ package authservice_test
 
 import (
 	"context"
-	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -29,9 +28,11 @@ type testApp struct {
 	adminUser         *fs.User
 	normalUser        *fs.User
 	inactiveUser      *fs.User
+	notFoundUser      *fs.User
 	adminToken        string
 	normalUserToken   string
 	inactiveUserToken string
+	notFoundUserToken string
 }
 
 func (s testApp) DB() db.Client {
@@ -43,7 +44,7 @@ func (s testApp) Key() string {
 }
 
 func (s testApp) Roles() ([]*fs.Role, error) {
-	return db.Query[*fs.Role](s.db).
+	return db.Builder[*fs.Role](s.db).
 		Select("id", "name", "root", "permissions").
 		Get(context.Background())
 }
@@ -66,6 +67,10 @@ func (t testAuthProvider) Callback(c fs.Context) (*fs.User, error) {
 	shouldError := c.Arg("error")
 	if shouldError != "" {
 		return nil, errors.InternalServerError("error")
+	}
+
+	if c.Arg("niluser") != "" {
+		return nil, nil
 	}
 
 	return &fs.User{
@@ -135,6 +140,18 @@ func createTestApp(t *testing.T) *testApp {
 		Set("role_id", fs.RoleUser.ID),
 	))
 
+	// Realtime permissions for role user
+	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
+		Set("resource", "api.realtime.content.blog.list").
+		Set("value", fs.PermissionTypeAllow.String()).
+		Set("role_id", fs.RoleUser.ID),
+	))
+	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
+		Set("resource", "api.realtime.content.blog.update").
+		Set("value", fs.PermissionTypeDeny.String()).
+		Set("role_id", fs.RoleUser.ID),
+	))
+
 	testApp := &testApp{
 		sb: sb,
 		db: dbc,
@@ -162,11 +179,19 @@ func createTestApp(t *testing.T) *testApp {
 			Roles:    []*fs.Role{fs.RoleUser},
 			RoleIDs:  []uint64{2},
 		},
+		notFoundUser: &fs.User{
+			ID:       4,
+			Username: "notfounduser",
+			Active:   true,
+			Roles:    []*fs.Role{fs.RoleUser},
+			RoleIDs:  []uint64{2},
+		},
 	}
 
 	testApp.adminToken, _, _ = testApp.adminUser.JwtClaim(testApp.Key())
 	testApp.normalUserToken, _, _ = testApp.normalUser.JwtClaim(testApp.Key())
 	testApp.inactiveUserToken, _, _ = testApp.inactiveUser.JwtClaim(testApp.Key())
+	testApp.notFoundUserToken, _, _ = testApp.notFoundUser.JwtClaim(testApp.Key())
 
 	testApp.authService = as.New(testApp)
 	testApp.resources = fs.NewResourcesManager()
@@ -178,20 +203,23 @@ func createTestApp(t *testing.T) *testApp {
 	testApp.resources.Middlewares = append(testApp.resources.Middlewares, testApp.authService.ParseUser)
 
 	apiGroup := testApp.resources.Group("api", &fs.Meta{Prefix: "/api"})
-	apiGroup.Group("auth", &fs.Meta{
-		Prefix: "/auth/:provider",
-		Args: fs.Args{
-			"provider": {
-				Required:    true,
-				Type:        fs.TypeString,
-				Description: "The auth provider name. Available providers: testauthprovider",
-				Example:     "google",
+	apiGroup.Group("auth").
+		Add(fs.Get("me", testApp.authService.Me, &fs.Meta{Public: true})).
+		Group(":provider", &fs.Meta{
+			Prefix: "/:provider",
+			Args: fs.Args{
+				"provider": {
+					Required:    true,
+					Type:        fs.TypeString,
+					Description: "The auth provider name. Available providers: testauthprovider",
+					Example:     "google",
+				},
 			},
-		},
-	}).Add(
-		fs.Get("login", testApp.authService.Login, &fs.Meta{Public: true}),
-		fs.Get("callback", testApp.authService.Callback, &fs.Meta{Public: true}),
-	)
+		}).
+		Add(
+			fs.Get("login", testApp.authService.Login, &fs.Meta{Public: true}),
+			fs.Get("callback", testApp.authService.Callback, &fs.Meta{Public: true}),
+		)
 
 	apiGroup.Group("content").
 		Add(fs.NewResource("list", func(c fs.Context, _ any) (any, error) {
@@ -209,6 +237,11 @@ func createTestApp(t *testing.T) *testApp {
 		}, &fs.Meta{
 			Get: "/:schema/meta",
 		}))
+	apiGroup.
+		Group("realtime").
+		Add(fs.NewResource("content", func(c fs.Context, _ any) (any, error) {
+			return "realtime content", nil
+		}, &fs.Meta{Get: "/content"}))
 
 	apiGroup.
 		Add(
@@ -229,47 +262,4 @@ func createTestApp(t *testing.T) *testApp {
 	})
 
 	return testApp
-}
-
-func TestNewContentService(t *testing.T) {
-	testApp := createTestApp(t)
-	server := testApp.restResolver.Server()
-	assert.NotNil(t, testApp)
-	assert.NotNil(t, server)
-
-	// Case 1: provider not found
-	req := httptest.NewRequest("GET", "/api/auth/invalidprovider/login", nil)
-	resp := utils.Must(server.Test(req))
-	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, "404 Not Found", resp.Status)
-	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"message":"invalid provider"`)
-
-	// Case 2: login should redirect to the auth provider
-	req = httptest.NewRequest("GET", "/api/auth/testauthprovider/login", nil)
-	resp = utils.Must(server.Test(req))
-	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, "302 Found", resp.Status)
-	assert.Equal(t, "http://auth.example.local?callback=http://localhost:8000/auth/testauthprovider/callback", resp.Header.Get("Location"))
-
-	// Case 3: callback error invalid provider
-	req = httptest.NewRequest("GET", "/api/auth/invalidprovider/callback", nil)
-	resp = utils.Must(server.Test(req))
-	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, "404 Not Found", resp.Status)
-	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"message":"invalid provider"`)
-
-	// Case 4: callback error due to provider error
-	req = httptest.NewRequest("GET", "/api/auth/testauthprovider/callback?error=1", nil)
-	resp = utils.Must(server.Test(req))
-	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, "500 Internal Server Error", resp.Status)
-
-	// Case 5: callback success
-	req = httptest.NewRequest("GET", "/api/auth/testauthprovider/callback", nil)
-	resp = utils.Must(server.Test(req))
-	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	response := utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Equal(t, "200 OK", resp.Status)
-	assert.Contains(t, response, `"token":`)
-	assert.Contains(t, response, `"expires":`)
 }
