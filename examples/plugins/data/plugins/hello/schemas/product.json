@@ -1,0 +1,25 @@
+{
+  "name": "product",
+  "namespace": "products",
+  "label_field": "name",
+  "disable_timestamp": false,
+  "fields": [
+    {
+      "type": "string",
+      "name": "name",
+      "label": "Name",
+      "optional": true,
+      "sortable": true
+    },
+    {
+      "type": "string",
+      "name": "description",
+      "label": "Description",
+      "optional": true,
+      "sortable": true,
+      "renderer": {
+        "class": "textarea"
+      }
+    }
+  ]
+}

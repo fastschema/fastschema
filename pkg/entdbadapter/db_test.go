@@ -59,7 +59,7 @@ func TestNewEntClient(t *testing.T) {
 	assert.Equal(t, false, client.IsTx())
 	assert.Equal(t, nil, client.Rollback())
 	assert.Equal(t, nil, client.Commit())
-	_, err = client.Query(context.Background(), "SELECT 1", []any{})
+	_, err = client.Query(context.Background(), "SELECT 1")
 	assert.Equal(t, nil, err)
 }
 

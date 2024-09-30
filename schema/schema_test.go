@@ -251,18 +251,14 @@ func TestSchemaHasField(t *testing.T) {
 	}
 
 	field := &Field{
-		Name:  "field1",
-		Type:  TypeString,
-		Label: "label1",
+		Name: "field1",
 	}
 
 	exists := s.HasField(field.Name)
 	assert.True(t, exists)
 
 	field = &Field{
-		Name:  "field3",
-		Type:  TypeString,
-		Label: "label3",
+		Name: "field3",
 	}
 
 	exists = s.HasField(field.Name)
@@ -456,4 +452,74 @@ func TestErrFieldNotFound(t *testing.T) {
 	err := ErrFieldNotFound("user", "field1")
 	assert.Error(t, err)
 	assert.Equal(t, "field user.field1 not found", err.Error())
+}
+func TestNewSchemaFromMap(t *testing.T) {
+	// invalid schema map
+	data := map[string]interface{}{
+		"name": make(chan int),
+	}
+	schema, err := NewSchemaFromMap(data)
+	assert.Error(t, err)
+	assert.Nil(t, schema)
+
+	data = map[string]interface{}{
+		"name":              "test",
+		"namespace":         "test_namespace",
+		"label_field":       "name",
+		"disable_timestamp": false,
+		"fields": []map[string]interface{}{
+			{
+				"name":  "id",
+				"type":  "uint64",
+				"label": "ID",
+			},
+			{
+				"name":     "name",
+				"type":     "string",
+				"label":    "Name",
+				"unique":   true,
+				"sortable": true,
+			},
+			{
+				"name":     "slug",
+				"type":     "string",
+				"label":    "Slug",
+				"optional": true,
+			},
+		},
+	}
+
+	schema, err = NewSchemaFromMap(data)
+	assert.NoError(t, err)
+	assert.NoError(t, schema.Init(false))
+	assert.Equal(t, "test", schema.Name)
+	assert.Equal(t, "test_namespace", schema.Namespace)
+	assert.Equal(t, "name", schema.LabelFieldName)
+	assert.False(t, schema.DisableTimestamp)
+	assert.Equal(t, 6, len(schema.Fields))
+
+	assert.Equal(t, "id", schema.Fields[0].Name)
+	assert.Equal(t, TypeUint64, schema.Fields[0].Type)
+	assert.Equal(t, "ID", schema.Fields[0].Label)
+	assert.True(t, schema.Fields[0].IsSystemField)
+	assert.True(t, schema.Fields[0].Unique)
+	assert.True(t, schema.Fields[0].Sortable)
+	assert.Equal(t, "UNSIGNED", schema.Fields[0].DB.Attr)
+	assert.Equal(t, "UNI", schema.Fields[0].DB.Key)
+	assert.True(t, schema.Fields[0].DB.Increment)
+
+	assert.Equal(t, "name", schema.Fields[1].Name)
+	assert.Equal(t, TypeString, schema.Fields[1].Type)
+	assert.Equal(t, "Name", schema.Fields[1].Label)
+	assert.False(t, schema.Fields[1].IsSystemField)
+	assert.True(t, schema.Fields[1].Unique)
+	assert.True(t, schema.Fields[1].Sortable)
+
+	assert.Equal(t, "slug", schema.Fields[2].Name)
+	assert.Equal(t, TypeString, schema.Fields[2].Type)
+	assert.Equal(t, "Slug", schema.Fields[2].Label)
+	assert.False(t, schema.Fields[2].IsSystemField)
+	assert.True(t, schema.Fields[2].Optional)
+	assert.False(t, schema.Fields[2].Unique)
+	assert.False(t, schema.Fields[2].Sortable)
 }

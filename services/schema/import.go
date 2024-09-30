@@ -33,7 +33,7 @@ func (ss *SchemaService) Import(c fs.Context, _ any) (fs.Map, error) {
 	for _, file := range files {
 		filePath := fmt.Sprintf("%s/%s", randomTpmSchemaDir, file.Name)
 		file.Path = filePath
-		if _, err := ss.app.Disk().Put(c.Context(), file); err != nil {
+		if _, err := ss.app.Disk().Put(c, file); err != nil {
 			c.Logger().Errorf("Error uploading file: %s", err)
 			return nil, err
 		}
@@ -65,7 +65,7 @@ func (ss *SchemaService) Import(c fs.Context, _ any) (fs.Map, error) {
 		}
 	}
 
-	if err := ss.app.Reload(c.Context(), nil); err != nil {
+	if err := ss.app.Reload(c, nil); err != nil {
 		c.Logger().Errorf("could not reload app: %s", err.Error())
 		return nil, errors.InternalServerError("could not reload app: %s", err.Error())
 	}

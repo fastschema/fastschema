@@ -19,7 +19,7 @@ import (
 )
 
 func TestRequestIDContextKeyString(t *testing.T) {
-	key := restfulresolver.RequestIDContextKey("test_key")
+	key := fs.ContextKey("test_key")
 	str := key.String()
 
 	assert.Equal(t, "test_key", str)
@@ -55,10 +55,10 @@ func TestContextArgs(t *testing.T) {
 func TestContextEntity(t *testing.T) {
 	server := restfulresolver.New(restfulresolver.Config{})
 	server.Post("/test", func(c *restfulresolver.Context) error {
-		entity, err := c.Entity()
+		entity, err := c.Payload()
 		assert.NoError(t, err)
 		assert.Equal(t, "value", entity.Get("key"))
-		entity2, _ := c.Entity()
+		entity2, _ := c.Payload()
 		assert.Equal(t, entity, entity2)
 		return c.JSON(entity)
 	})
@@ -74,7 +74,7 @@ func TestContextEntity(t *testing.T) {
 func TestContextEntityError(t *testing.T) {
 	server := restfulresolver.New(restfulresolver.Config{})
 	server.Post("/test", func(c *restfulresolver.Context) error {
-		_, err := c.Entity()
+		_, err := c.Payload()
 		assert.Error(t, err)
 		return err
 	})
@@ -91,7 +91,7 @@ func TestContextParse(t *testing.T) {
 	server := restfulresolver.New(restfulresolver.Config{})
 	server.Post("/test", func(c *restfulresolver.Context) error {
 		entity := map[string]any{}
-		err := c.Parse(&entity)
+		err := c.Bind(&entity)
 		assert.NoError(t, err)
 		assert.Equal(t, "value", entity["key"])
 		return c.JSON(entity)
@@ -162,16 +162,16 @@ func TestContextMethods(t *testing.T) {
 		Logger: logger.CreateMockLogger(true),
 	})
 	server.Get("/test", func(c *restfulresolver.Context) error {
-		c.Value("test", "test_value")
-		assert.Equal(t, "test_value", c.Value("test"))
+		c.Local("test", "test_value")
+		assert.Equal(t, "test_value", c.Local("test"))
 		assert.Nil(t, c.User())
 
-		c.Value("user", &fs.User{})
+		c.Local("user", &fs.User{})
 		assert.NotNil(t, c.User())
 
 		assert.Equal(t, "header-value", c.Header("custom-header"))
 
-		assert.NotNil(t, c.ID())
+		assert.NotNil(t, c.TraceID())
 		assert.NotNil(t, c.Response())
 		assert.NotNil(t, c.Logger())
 		assert.Equal(t, "GET", c.Method())

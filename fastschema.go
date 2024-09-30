@@ -10,7 +10,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/openapi"
-	"github.com/fastschema/fastschema/pkg/restfulresolver"
+	rs "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/fatih/color"
 )
@@ -27,10 +27,9 @@ type App struct {
 	schemasDir      string
 	migrationDir    string
 	schemaBuilder   *schema.Builder
-	restResolver    *restfulresolver.RestfulResolver
+	restResolver    *rs.RestfulResolver
 	resources       *fs.ResourcesManager
 	api             *fs.Resource
-	hooks           *fs.Hooks
 	roles           []*fs.Role
 	disks           []fs.Disk
 	defaultDisk     fs.Disk
@@ -50,9 +49,6 @@ func New(config *fs.Config) (_ *App, err error) {
 		caches:        []fs.Cache{},
 		roles:         []*fs.Role{},
 		authProviders: map[string]fs.AuthProvider{},
-		hooks: &fs.Hooks{
-			DBHooks: &db.Hooks{},
-		},
 	}
 
 	if a.cwd, err = os.Getwd(); err != nil {
@@ -75,31 +71,100 @@ func (a *App) AddResource(resource *fs.Resource) {
 }
 
 func (a *App) AddMiddlewares(middlewares ...fs.Middleware) {
-	a.resources.Middlewares = append(a.resources.Middlewares, middlewares...)
+	a.resources.Middlewares = append(
+		a.resources.Middlewares,
+		middlewares...,
+	)
 }
 
+// Resolve hooks
 func (a *App) OnPreResolve(middlewares ...fs.Middleware) {
-	a.hooks.PreResolve = append(a.hooks.PreResolve, middlewares...)
+	a.config.Hooks.PreResolve = append(
+		a.config.Hooks.PreResolve,
+		middlewares...,
+	)
 }
 
 func (a *App) OnPostResolve(middlewares ...fs.Middleware) {
-	a.hooks.PostResolve = append(a.hooks.PostResolve, middlewares...)
+	a.config.Hooks.PostResolve = append(
+		a.config.Hooks.PostResolve,
+		middlewares...,
+	)
 }
 
-func (a *App) OnPostDBGet(hooks ...db.PostDBGet) {
-	a.hooks.DBHooks.PostDBGet = append(a.hooks.DBHooks.PostDBGet, hooks...)
+// DB Query hooks
+func (a *App) OnPreDBQuery(hooks ...db.PreDBQuery) {
+	a.config.Hooks.DBHooks.PreDBQuery = append(
+		a.config.Hooks.DBHooks.PreDBQuery,
+		hooks...,
+	)
+}
+
+func (a *App) OnPostDBQuery(hooks ...db.PostDBQuery) {
+	a.config.Hooks.DBHooks.PostDBQuery = append(
+		a.config.Hooks.DBHooks.PostDBQuery,
+		hooks...,
+	)
+}
+
+// DB Exec hooks
+func (a *App) OnPreDBExec(hooks ...db.PreDBExec) {
+	a.config.Hooks.DBHooks.PreDBExec = append(
+		a.config.Hooks.DBHooks.PreDBExec,
+		hooks...,
+	)
+}
+
+func (a *App) OnPostDBExec(hooks ...db.PostDBExec) {
+	a.config.Hooks.DBHooks.PostDBExec = append(
+		a.config.Hooks.DBHooks.PostDBExec,
+		hooks...,
+	)
+}
+
+// DB Create hooks
+func (a *App) OnPreDBCreate(hooks ...db.PreDBCreate) {
+	a.config.Hooks.DBHooks.PreDBCreate = append(
+		a.config.Hooks.DBHooks.PreDBCreate,
+		hooks...,
+	)
 }
 
 func (a *App) OnPostDBCreate(hooks ...db.PostDBCreate) {
-	a.hooks.DBHooks.PostDBCreate = append(a.hooks.DBHooks.PostDBCreate, hooks...)
+	a.config.Hooks.DBHooks.PostDBCreate = append(
+		a.config.Hooks.DBHooks.PostDBCreate,
+		hooks...,
+	)
+}
+
+// DB Update hooks
+func (a *App) OnPreDBUpdate(hooks ...db.PreDBUpdate) {
+	a.config.Hooks.DBHooks.PreDBUpdate = append(
+		a.config.Hooks.DBHooks.PreDBUpdate,
+		hooks...,
+	)
 }
 
 func (a *App) OnPostDBUpdate(hooks ...db.PostDBUpdate) {
-	a.hooks.DBHooks.PostDBUpdate = append(a.hooks.DBHooks.PostDBUpdate, hooks...)
+	a.config.Hooks.DBHooks.PostDBUpdate = append(
+		a.config.Hooks.DBHooks.PostDBUpdate,
+		hooks...,
+	)
+}
+
+// DB Delete hooks
+func (a *App) OnPreDBDelete(hooks ...db.PreDBDelete) {
+	a.config.Hooks.DBHooks.PreDBDelete = append(
+		a.config.Hooks.DBHooks.PreDBDelete,
+		hooks...,
+	)
 }
 
 func (a *App) OnPostDBDelete(hooks ...db.PostDBDelete) {
-	a.hooks.DBHooks.PostDBDelete = append(a.hooks.DBHooks.PostDBDelete, hooks...)
+	a.config.Hooks.DBHooks.PostDBDelete = append(
+		a.config.Hooks.DBHooks.PostDBDelete,
+		hooks...,
+	)
 }
 
 func (a *App) CWD() string {
@@ -142,18 +207,17 @@ func (a *App) Resources() *fs.ResourcesManager {
 	return a.resources
 }
 
-func (a *App) Roles() []*fs.Role {
-	rolesCache, err := a.Cache().Get(context.Background(), "roles")
-
+func (a *App) Roles() (roles []*fs.Role, err error) {
+	_, err = a.Cache().Get(context.Background(), "roles", &roles)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return rolesCache.([]*fs.Role)
+	return roles, nil
 }
 
 func (a *App) Hooks() *fs.Hooks {
-	return a.hooks
+	return a.config.Hooks
 }
 
 func (a *App) Disks() []fs.Disk {
@@ -240,7 +304,7 @@ func (a *App) UpdateCache(ctx context.Context, keys ...string) (err error) {
 }
 
 func (a *App) UpdateRoleCache(ctx context.Context) (err error) {
-	roles, err := db.Query[*fs.Role](a.DB()).Select(
+	roles, err := db.Builder[*fs.Role](a.DB()).Select(
 		"id",
 		"name",
 		"description",
@@ -289,7 +353,7 @@ func (a *App) Start() error {
 		a.resources.Print()
 	}
 
-	a.restResolver = restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
+	a.restResolver = rs.NewRestfulResolver(&rs.ResolverConfig{
 		ResourceManager: a.resources,
 		Logger:          a.Logger(),
 		StaticFSs:       a.statics,

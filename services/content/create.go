@@ -14,7 +14,7 @@ func (cs *ContentService) Create(c fs.Context, _ any) (*schema.Entity, error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	entity, err := c.Entity()
+	entity, err := c.Payload()
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
@@ -29,7 +29,7 @@ func (cs *ContentService) Create(c fs.Context, _ any) (*schema.Entity, error) {
 		entity.Set("password", hash)
 	}
 
-	if _, err := model.Create(c.Context(), entity); err != nil {
+	if _, err := model.Create(c, entity); err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 

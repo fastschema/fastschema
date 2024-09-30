@@ -6,5 +6,5 @@ import (
 )
 
 func (rs *RoleService) List(c fs.Context, _ any) ([]*fs.Role, error) {
-	return db.Query[*fs.Role](rs.DB()).Get(c.Context())
+	return db.Builder[*fs.Role](rs.DB()).Get(c)
 }

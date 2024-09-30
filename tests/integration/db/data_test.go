@@ -158,7 +158,6 @@ func ClearDBData(client db.Client, tables ...string) {
 	if _, err := client.Exec(
 		Ctx(),
 		strings.Join(sqls, "; "),
-		[]any{},
 	); err != nil {
 		panic(err)
 	}
@@ -400,7 +399,7 @@ func DBRunCountTests(client db.Client, t *testing.T, tests []DBTestCountData) {
 						query = query.Where(predicates...)
 					}
 
-					countOptions := &db.CountOption{
+					countOptions := &db.QueryOption{
 						Unique: unique,
 						Column: column,
 					}

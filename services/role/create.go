@@ -7,10 +7,10 @@ import (
 )
 
 func (rs *RoleService) Create(c fs.Context, _ any) (*fs.Role, error) {
-	entity, err := c.Entity()
+	entity, err := c.Payload()
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	return db.Create[*fs.Role](c.Context(), rs.DB(), entity)
+	return db.Create[*fs.Role](c, rs.DB(), entity)
 }

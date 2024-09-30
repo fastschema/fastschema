@@ -252,6 +252,10 @@ func TestCreateEntPredicates(t *testing.T) {
 
 	tests := []args{
 		{
+			name:       "Nil",
+			predicates: []*db.Predicate{nil},
+		},
+		{
 			name: "And",
 			predicates: []*db.Predicate{
 				db.Like("name", "%car%"),
@@ -282,7 +286,7 @@ func TestCreateEntPredicates(t *testing.T) {
 					RelationFieldNames: []string{"group", "parent"},
 				},
 			},
-			expectQuery: "`year` > ? AND `cars`.`group_id` IN (SELECT `groups`.`id` FROM `groups` WHERE `groups`.`parent_id` IN (SELECT `groups`.`id` FROM `groups` WHERE `name` LIKE ?))",
+			expectQuery: "`year` > ? AND EXISTS (SELECT `groups`.`id` FROM `groups` WHERE `cars`.`group_id` = `groups`.`id` AND EXISTS (SELECT `groups_edge`.`id` FROM `groups` AS `groups_edge` WHERE `groups`.`parent_id` = `groups_edge`.`id` AND `name` LIKE ?))",
 			expectArgs:  []any{2000, "%group%"},
 		},
 	}

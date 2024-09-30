@@ -38,12 +38,12 @@ type EntAdapter interface {
 	Exec(
 		ctx context.Context,
 		query string,
-		args any,
+		args ...any,
 	) (sql.Result, error)
 	Query(
 		ctx context.Context,
 		query string,
-		args any,
+		args ...any,
 	) ([]*schema.Entity, error)
 	Hooks() *db.Hooks
 	IsTx() bool
@@ -90,9 +90,10 @@ func NewEntClient(
 	useEntDrivers ...*dialectSql.Driver,
 ) (_ db.Client, err error) {
 	var (
-		db         *sql.DB
-		entDialect string
-		sqlDriver  *dialectSql.Driver
+		db            *sql.DB
+		entDialect    string
+		sqlDriver     *dialectSql.Driver
+		dialectDriver dialect.Driver
 	)
 
 	if schemaBuilder == nil {
@@ -114,6 +115,7 @@ func NewEntClient(
 		sqlDriver = dialectSql.OpenDB(entDialect, db)
 	}
 
+	dialectDriver = sqlDriver
 	adapter, err := NewDBAdapter(config, schemaBuilder)
 	if err != nil {
 		return nil, err
@@ -124,9 +126,12 @@ func NewEntClient(
 		return nil, fmt.Errorf("invalid adapter")
 	}
 
-	entAdapter.SetSQLDB(db)
-	entAdapter.SetDriver(dialect.DebugWithContext(sqlDriver, CreateDebugFN(config)))
+	if config.LogQueries {
+		dialectDriver = dialect.DebugWithContext(sqlDriver, CreateDebugFN(config))
+	}
 
+	entAdapter.SetSQLDB(db)
+	entAdapter.SetDriver(dialectDriver)
 	if config.Driver == "sqlmock" {
 		return adapter, nil
 	}

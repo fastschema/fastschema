@@ -58,7 +58,7 @@ func (ss *SchemaService) Delete(c fs.Context, _ any) (fs.Map, error) {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	if err := ss.app.Reload(c.Context(), nil); err != nil {
+	if err := ss.app.Reload(c, nil); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
