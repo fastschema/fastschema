@@ -10,14 +10,14 @@ import (
 type AppLike interface {
 	DB() db.Client
 	Key() string
-	UpdateCache(ctx context.Context) error
+	UpdateCache(ctx context.Context, key ...string) error
 	Resources() *fs.ResourcesManager
 }
 
 type RoleService struct {
 	DB          func() db.Client
 	AppKey      func() string
-	UpdateCache func(context.Context) error
+	UpdateCache func(context.Context, ...string) error
 	Resources   func() *fs.ResourcesManager
 }
 

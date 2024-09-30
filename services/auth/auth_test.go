@@ -43,10 +43,10 @@ func (s testApp) Key() string {
 	return "test"
 }
 
-func (s testApp) Roles() []*fs.Role {
-	return utils.Must(
-		db.Builder[*fs.Role](s.db).Select("id", "name", "root", "permissions").Get(context.Background()),
-	)
+func (s testApp) Roles() ([]*fs.Role, error) {
+	return db.Builder[*fs.Role](s.db).
+		Select("id", "name", "root", "permissions").
+		Get(context.Background())
 }
 
 func (s testApp) GetAuthProvider(name string) fs.AuthProvider {

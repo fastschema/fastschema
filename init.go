@@ -13,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/auth"
+	caches "github.com/fastschema/fastschema/pkg/cache"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/rclonefs"
@@ -50,6 +51,10 @@ func (a *App) init() (err error) {
 	}
 
 	if err = a.createDisks(); err != nil {
+		return err
+	}
+
+	if err = a.getDefaultCache(); err != nil {
 		return err
 	}
 
@@ -305,6 +310,58 @@ func (a *App) createDisks() (err error) {
 	return nil
 }
 
+func (a *App) getDefaultCache() (err error) {
+	if a.config.CacheConfig == nil {
+		a.config.CacheConfig = &fs.CacheConfig{}
+	}
+
+	defaultCacheName := a.config.CacheConfig.DefaultCache
+	if defaultCacheName == "" {
+		defaultCacheName = utils.Env("CACHE_DEFAULT", "")
+	}
+
+	cacheDriversConfig := a.config.CacheConfig.CacheDriverConfig
+	if cacheDrivers := utils.Env("CACHE_DRIVERS"); cacheDrivers != "" && cacheDriversConfig == nil {
+		if err := json.Unmarshal([]byte(cacheDrivers), &cacheDriversConfig); err != nil {
+			return err
+		}
+	}
+
+	// if threre is no driver config, add a default driver
+	if cacheDriversConfig == nil {
+		if defaultCacheName == "" {
+			defaultCacheName = "local"
+		}
+
+		cacheDriversConfig = []fs.Map{{
+			"driver": "local",
+		}}
+	}
+
+	if a.caches, err = caches.NewFromConfig(cacheDriversConfig); err != nil {
+		return err
+	}
+
+	foundDefaultDriver := false
+	for _, cache := range a.caches {
+		if cache.Name() == defaultCacheName {
+			a.defaultCache = cache
+			foundDefaultDriver = true
+			break
+		}
+	}
+
+	if defaultCacheName != "" && !foundDefaultDriver {
+		return fmt.Errorf("default cache [%s] not found", defaultCacheName)
+	}
+
+	if a.defaultCache == nil && len(a.caches) > 0 {
+		a.defaultCache = a.caches[0]
+	}
+
+	return nil
+}
+
 func (a *App) createLogger() (err error) {
 	if a.config.Logger != nil {
 		return nil
@@ -417,7 +474,7 @@ func (a *App) createDBClient() (err error) {
 		return err
 	}
 
-	if err := a.UpdateCache(context.Background()); err != nil {
+	if err := a.UpdateCache(context.Background(), "roles"); err != nil {
 		return err
 	}
 

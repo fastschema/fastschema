@@ -9,6 +9,22 @@ import (
 // Map is a shortcut for map[string]any
 type Map = map[string]any
 
+func MapValue[V any](m Map, key string, defaultValues ...V) V {
+	if v, ok := m[key]; ok {
+		value, ok := v.(V)
+		if ok {
+			return value
+		}
+	}
+
+	var defaultValue V
+	if len(defaultValues) > 0 {
+		defaultValue = defaultValues[0]
+	}
+
+	return defaultValue
+}
+
 var SystemSchemaTypes = []any{
 	Role{},
 	Permission{},

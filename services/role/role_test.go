@@ -33,7 +33,7 @@ func (s TestApp) Key() string {
 	return "test"
 }
 
-func (s TestApp) UpdateCache(ctx context.Context) error {
+func (s TestApp) UpdateCache(ctx context.Context, keys ...string) error {
 	return nil
 }
 
