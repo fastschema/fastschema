@@ -3,7 +3,7 @@ module github.com/fastschema/fastschema
 go 1.23.0
 
 require (
-	ariga.io/atlas v0.27.0
+	ariga.io/atlas v0.28.1
 	entgo.io/ent v0.14.1
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/buger/jsonparser v1.1.1
@@ -70,6 +70,7 @@ require (
 	github.com/aws/smithy-go v1.20.4 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bmatcuk/doublestar v1.3.4 // indirect
 	github.com/bradenaw/juniper v0.15.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.3.9 // indirect
