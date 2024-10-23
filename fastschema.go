@@ -3,6 +3,7 @@ package fastschema
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"sync"
 
@@ -13,6 +14,8 @@ import (
 	rs "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/fatih/color"
+
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
 
 type App struct {
@@ -319,6 +322,30 @@ func (a *App) Start() error {
 	fmt.Printf("\n")
 
 	return a.restResolver.Start(addr)
+}
+
+func (a *App) Adaptor() (http.HandlerFunc, error) {
+	if err := a.resources.Init(); err != nil {
+		return nil, err
+	}
+
+	if !a.config.HideResourcesInfo {
+		a.resources.Print()
+	}
+
+	a.restResolver = rs.NewRestfulResolver(&rs.ResolverConfig{
+		ResourceManager: a.resources,
+		Logger:          a.Logger(),
+		StaticFSs:       a.statics,
+	})
+
+	fmt.Printf("\n")
+	for _, msg := range a.startupMessages {
+		color.Green("> %s", msg)
+	}
+	fmt.Printf("\n")
+
+	return adaptor.FiberApp(a.restResolver.Server().App), nil
 }
 
 func (a *App) Shutdown() error {
