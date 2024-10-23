@@ -132,7 +132,7 @@ func ResetAdminPassword(ctx context.Context,
 	}, []*db.Predicate{db.EQ("id", id)}))
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf(err.Error())
+		return fmt.Errorf("%s", err.Error())
 	}
 
 	fmt.Println("Reset admin password successfully")
