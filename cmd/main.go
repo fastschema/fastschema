@@ -63,6 +63,38 @@ func main() {
 					return app.Start()
 				},
 			},
+			{
+				Name:  "reset-admin-password",
+				Usage: "Reset the admin password",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "password",
+						Aliases:  []string{"p"},
+						Usage:    "Admin new password",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:    "id",
+						Aliases: []string{"i"},
+						Usage:   "Admin user id",
+						Value:   "1",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					fs := utils.Must(fastschema.New(&fs.Config{
+						Dir: c.Args().Get(0),
+					}))
+
+					_ = toolservice.ResetAdminPassword(
+						c.Context,
+						fs.DB(),
+						c.String("password"),
+						c.Int("id"),
+					)
+
+					return nil
+				},
+			},
 		},
 	}
 

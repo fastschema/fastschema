@@ -96,3 +96,103 @@ func TestSetup(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), `user admin already exists`)
 }
+
+func TestResetAdminPasswordSuccess(t *testing.T) {
+	logger := logger.CreateMockLogger(true)
+	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
+	entDB := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
+
+	// Setup initial admin user
+	err := toolservice.Setup(
+		context.Background(),
+		entDB,
+		logger,
+		"admin",
+		"admin@local.ltd",
+		"123",
+	)
+	assert.NoError(t, err)
+
+	// Reset password
+	err = toolservice.ResetAdminPassword(
+		context.Background(),
+		entDB,
+		"newpassword",
+		1,
+	)
+	assert.NoError(t, err)
+
+	// Verify password change
+	userModel := utils.Must(entDB.Model("user"))
+	adminUser := utils.Must(userModel.Query(db.EQ("id", 1)).First(context.Background()))
+	checkPassword := utils.CheckHash("newpassword", adminUser.GetString("password"))
+	assert.NoError(t, checkPassword)
+}
+
+func TestResetAdminPasswordEmptyPassword(t *testing.T) {
+	logger := logger.CreateMockLogger(true)
+	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
+	entDB := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
+
+	// Setup initial admin user
+	err := toolservice.Setup(
+		context.Background(),
+		entDB,
+		logger,
+		"admin",
+		"admin@local.ltd",
+		"123",
+	)
+	assert.NoError(t, err)
+
+	// Attempt to reset password with empty password
+	err = toolservice.ResetAdminPassword(
+		context.Background(),
+		entDB,
+		"",
+		1,
+	)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password cannot be empty")
+}
+
+func TestResetAdminPasswordUserNotFound(t *testing.T) {
+	logger.CreateMockLogger(true)
+	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
+	entDB := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
+
+	// Attempt to reset password for non-existent user
+	err := toolservice.ResetAdminPassword(
+		context.Background(),
+		entDB,
+		"newpassword",
+		999,
+	)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot find admin user. Please setup the app first")
+}
+
+func TestResetAdminPasswordUserNotAdmin(t *testing.T) {
+	logger.CreateMockLogger(true)
+	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
+	entDB := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
+
+	// Setup initial non-admin user
+	utils.Must(db.Create[*fs.User](context.Background(), entDB, fs.Map{
+		"username": "user",
+		"email":    "user@local.ltd",
+		"password": utils.Must(utils.GenerateHash("123")),
+		"active":   true,
+		"roles":    []*schema.Entity{},
+	}))
+
+	// Attempt to reset password for non-admin user
+	err := toolservice.ResetAdminPassword(
+		context.Background(),
+		entDB,
+		"newpassword",
+		1,
+	)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user is not an admin")
+}
