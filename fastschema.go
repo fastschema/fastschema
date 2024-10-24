@@ -3,6 +3,7 @@ package fastschema
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"sync"
 
@@ -319,6 +320,30 @@ func (a *App) Start() error {
 	fmt.Printf("\n")
 
 	return a.restResolver.Start(addr)
+}
+
+func (a *App) HTTPAdaptor() (http.HandlerFunc, error) {
+	if err := a.resources.Init(); err != nil {
+		return nil, err
+	}
+
+	if !a.config.HideResourcesInfo {
+		a.resources.Print()
+	}
+
+	a.restResolver = rs.NewRestfulResolver(&rs.ResolverConfig{
+		ResourceManager: a.resources,
+		Logger:          a.Logger(),
+		StaticFSs:       a.statics,
+	})
+
+	fmt.Printf("\n")
+	for _, msg := range a.startupMessages {
+		color.Green("> %s", msg)
+	}
+	fmt.Printf("\n")
+
+	return a.restResolver.HTTPAdaptor()
 }
 
 func (a *App) Shutdown() error {
