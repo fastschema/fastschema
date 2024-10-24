@@ -14,8 +14,6 @@ import (
 	rs "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/fatih/color"
-
-	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
 
 type App struct {
@@ -324,7 +322,7 @@ func (a *App) Start() error {
 	return a.restResolver.Start(addr)
 }
 
-func (a *App) Adaptor() (http.HandlerFunc, error) {
+func (a *App) HTTPAdaptor() (http.HandlerFunc, error) {
 	if err := a.resources.Init(); err != nil {
 		return nil, err
 	}
@@ -345,7 +343,7 @@ func (a *App) Adaptor() (http.HandlerFunc, error) {
 	}
 	fmt.Printf("\n")
 
-	return adaptor.FiberApp(a.restResolver.Server().App), nil
+	return a.restResolver.HTTPAdaptor()
 }
 
 func (a *App) Shutdown() error {
