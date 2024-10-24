@@ -1,9 +1,12 @@
 package restfulresolver
 
 import (
+	"net/http"
+
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
 
@@ -63,6 +66,10 @@ func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 
 func (r *RestfulResolver) Server() *Server {
 	return r.server
+}
+
+func (r *RestfulResolver) HTTPAdaptor() (http.HandlerFunc, error) {
+	return adaptor.FiberApp(r.Server().App), nil
 }
 
 func (r *RestfulResolver) Start(address string) error {
