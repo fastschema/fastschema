@@ -34,6 +34,8 @@ type App struct {
 	roles           []*fs.Role
 	disks           []fs.Disk
 	defaultDisk     fs.Disk
+	caches          []fs.Cache
+	defaultCache    fs.Cache
 	setupToken      string
 	startupMessages []string
 	statics         []*fs.StaticFs
@@ -45,6 +47,7 @@ func New(config *fs.Config) (_ *App, err error) {
 	a := &App{
 		config:        config.Clone(),
 		disks:         []fs.Disk{},
+		caches:        []fs.Cache{},
 		roles:         []*fs.Role{},
 		authProviders: map[string]fs.AuthProvider{},
 	}
@@ -205,8 +208,13 @@ func (a *App) Resources() *fs.ResourcesManager {
 	return a.resources
 }
 
-func (a *App) Roles() []*fs.Role {
-	return a.roles
+func (a *App) Roles() (roles []*fs.Role, err error) {
+	_, err = a.Cache().Get(context.Background(), "roles", &roles)
+	if err != nil {
+		return nil, err
+	}
+
+	return roles, nil
 }
 
 func (a *App) Hooks() *fs.Hooks {
@@ -225,6 +233,24 @@ func (a *App) Disk(names ...string) fs.Disk {
 	for _, disk := range a.disks {
 		if disk.Name() == names[0] {
 			return disk
+		}
+	}
+
+	return nil
+}
+
+func (a *App) Caches() []fs.Cache {
+	return a.caches
+}
+
+func (a *App) Cache(names ...string) fs.Cache {
+	if len(names) == 0 {
+		return a.defaultCache
+	}
+
+	for _, cache := range a.caches {
+		if cache.Name() == names[0] {
+			return cache
 		}
 	}
 
@@ -259,8 +285,27 @@ func (a *App) Reload(ctx context.Context, migration *db.Migration) (err error) {
 
 // UpdateCache updates the application cache.
 // It fetches all roles from the database and stores them in the cache.
-func (a *App) UpdateCache(ctx context.Context) (err error) {
-	if a.roles, err = db.Builder[*fs.Role](a.DB()).Select(
+func (a *App) UpdateCache(ctx context.Context, keys ...string) (err error) {
+	// if keys is empty, update all cache such as role,...
+	if len(keys) == 0 {
+		return a.UpdateRoleCache(ctx)
+	}
+
+	for _, key := range keys {
+		if key == "roles" {
+			err = a.UpdateRoleCache(ctx)
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (a *App) UpdateRoleCache(ctx context.Context) (err error) {
+	roles, err := db.Builder[*fs.Role](a.DB()).Select(
 		"id",
 		"name",
 		"description",
@@ -269,11 +314,13 @@ func (a *App) UpdateCache(ctx context.Context) (err error) {
 		schema.FieldCreatedAt,
 		schema.FieldUpdatedAt,
 		schema.FieldDeletedAt,
-	).Get(ctx); err != nil {
+	).Get(ctx)
+
+	if err != nil {
 		return err
 	}
 
-	return nil
+	return a.Cache().Set(ctx, "roles", roles)
 }
 
 // CreateOpenAPISpec generates the openapi spec for the app.

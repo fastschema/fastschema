@@ -28,7 +28,7 @@ func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 			return
 		}
 
-		if err := rs.UpdateCache(c); err != nil {
+		if err := rs.UpdateCache(c, "roles"); err != nil {
 			c.Logger().Error(err.Error())
 		}
 	}()

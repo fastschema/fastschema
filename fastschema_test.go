@@ -131,7 +131,7 @@ func TestFastschema(t *testing.T) {
 	assert.NotNil(t, app.DB())
 	assert.NotNil(t, app.SchemaBuilder())
 	assert.NotNil(t, app.Resources())
-	assert.NotNil(t, app.Roles())
+	assert.NotNil(t, utils.Must(app.Roles()))
 	assert.NotNil(t, app.Hooks())
 	assert.NotEmpty(t, app.Key())
 	assert.NotEmpty(t, app.Disk())

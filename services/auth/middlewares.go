@@ -10,7 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-func (as *AuthService) ParseUser(c fs.Context) error {
+func (as *AuthService) ParseUser(c fs.Context) (err error) {
 	authToken := c.AuthToken()
 	jwtToken, err := jwt.ParseWithClaims(
 		authToken,
@@ -23,7 +23,10 @@ func (as *AuthService) ParseUser(c fs.Context) error {
 	if err == nil {
 		if claims, ok := jwtToken.Claims.(*fs.UserJwtClaims); ok && jwtToken.Valid {
 			user := claims.User
-			user.Roles = as.GetRolesFromIDs(user.RoleIDs)
+			if user.Roles, err = as.GetRolesFromIDs(user.RoleIDs); err != nil {
+				c.Logger().Errorf("Cannot get user roles: %v", err)
+				return errors.InternalServerError("Cannot get user roles")
+			}
 			c.Local("user", user)
 		}
 	}
@@ -32,6 +35,12 @@ func (as *AuthService) ParseUser(c fs.Context) error {
 }
 
 func (as *AuthService) Authorize(c fs.Context) error {
+	roles, err := as.Roles()
+	if err != nil {
+		c.Logger().Errorf("Cannot get system roles: %v", err)
+		return errors.InternalServerError("Cannot get system roles")
+	}
+
 	resource := c.Resource()
 	if resource == nil {
 		return errors.NotFound("Resource not found")
@@ -75,7 +84,7 @@ func (as *AuthService) Authorize(c fs.Context) error {
 	// Check for all user roles for this action.
 	// If any role has permission value allow, then allow.
 	for _, role := range user.Roles {
-		permission := as.GetPermission(role.ID, resourceID)
+		permission := as.GetPermission(roles, role.ID, resourceID)
 
 		// if permission value is allow, then allow
 		if permission.Value == fs.PermissionTypeAllow.String() {

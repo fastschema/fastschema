@@ -40,10 +40,12 @@ type App interface {
 	Resources() *ResourcesManager
 	Reload(ctx context.Context, migration *db.Migration) (err error)
 	Logger() logger.Logger
-	UpdateCache(ctx context.Context) error
-	Roles() []*Role
+	UpdateCache(ctx context.Context, keys ...string) error
+	Roles() ([]*Role, error)
 	Disk(names ...string) Disk
 	Disks() []Disk
+	Cache(names ...string) Cache
+	Caches() []Cache
 
 	AddResource(resource *Resource)
 	AddMiddlewares(hooks ...Middleware)

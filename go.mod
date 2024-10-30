@@ -10,6 +10,8 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/dop251/goja v0.0.0-20240828124009-016eb7256539
 	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc
+	github.com/eko/gocache/lib/v4 v4.1.6
+	github.com/eko/gocache/store/redis/v4 v4.2.2
 	github.com/fasthttp/websocket v1.5.10
 	github.com/fatih/color v1.17.0
 	github.com/go-sql-driver/mysql v1.8.1
@@ -26,6 +28,7 @@ require (
 	github.com/ogen-go/ogen v1.4.1
 	github.com/otiai10/copy v1.14.0
 	github.com/rclone/rclone v1.68.0
+	github.com/redis/go-redis/v9 v9.0.2
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.4
 	github.com/valyala/fasthttp v1.55.0
@@ -76,6 +79,7 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/dop251/base64dec v0.0.0-20231022112746-c6c9f9a96217 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -91,6 +95,7 @@ require (
 	github.com/go-openapi/inflect v0.21.0 // indirect
 	github.com/go-resty/resty/v2 v2.13.1 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/pprof v0.0.0-20240910150728-a0b0bb1d4134 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
