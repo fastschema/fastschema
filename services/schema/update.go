@@ -32,7 +32,10 @@ type SchemaUpdate struct {
 	updateSchemas        map[string]*schema.Schema // schemas that need to be updated, includes: current schema, related schemas
 }
 
-func (ss *SchemaService) Update(c fs.Context, updateData *SchemaUpdateData) (_ *schema.Schema, err error) {
+func (ss *SchemaService) Update(
+	c fs.Context,
+	updateData *SchemaUpdateData,
+) (_ *schema.Schema, err error) {
 	currentSchemaBuilderDir := ss.app.SchemaBuilder().Dir()
 	su := &SchemaUpdate{
 		updateData:           updateData,
@@ -147,27 +150,6 @@ func (su *SchemaUpdate) setUpdateRelationSchema(relation *schema.Relation) error
 	return nil
 }
 
-// func (su *SchemaUpdate) applyRenameRelations() (err error) {
-// 	// add the back reference field to the related schema
-// 	for _, field := range su.updateData.Data.Fields {
-// 		if !field.Type.IsRelationType() {
-// 			continue
-// 		}
-
-// 		// if field exist in su.currentSchema,
-// 		// then the relation field is not a new relation field, no need to check for field rename.
-// 		if su.currentSchema.HasField(field.Name) {
-// 			continue
-// 		}
-
-// 		if err = su.renameRelations(field); err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	return nil
-// }
-
 // Add the back reference fields to the relation target schemas
 func (su *SchemaUpdate) applyAddNewRelationFields() error {
 	// loop through all the fields in the new schema data
@@ -182,7 +164,9 @@ func (su *SchemaUpdate) applyAddNewRelationFields() error {
 
 		// new relation field may be a file field
 		// need to init the field so the relation will be initialized
-		f.Init(su.updateData.Data.Name)
+		if err := f.Init(su.updateData.Data.Name); err != nil {
+			return errors.InternalServerError("could not initialize field")
+		}
 		if err := su.setUpdateRelationSchema(f.Relation); err != nil {
 			return err
 		}

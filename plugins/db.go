@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -17,7 +18,7 @@ func NewDB(db db.Client) *DB {
 }
 
 func (d *DB) Builder(schemaName string) (*Builder, error) {
-	builder := db.Builder[*schema.Entity](d.db, schemaName)
+	builder := db.Builder[*entity.Entity](d.db, schemaName)
 	s, err := d.db.SchemaBuilder().Schema(schemaName)
 	if err != nil {
 		return nil, err
@@ -31,7 +32,7 @@ func (d *DB) Builder(schemaName string) (*Builder, error) {
 }
 
 type Builder struct {
-	*db.QueryBuilder[*schema.Entity]
+	*db.QueryBuilder[*entity.Entity]
 	client db.Client
 	schema *schema.Schema
 }
@@ -56,8 +57,8 @@ func (b *Builder) Where(predicates ...map[string]any) (*Builder, error) {
 	return b, nil
 }
 
-func (d *DB) Query(ctx context.Context, query string, args ...any) ([]*schema.Entity, error) {
-	return db.Query[*schema.Entity](ctx, d.db, query, args...)
+func (d *DB) Query(ctx context.Context, query string, args ...any) ([]*entity.Entity, error) {
+	return db.Query[*entity.Entity](ctx, d.db, query, args...)
 }
 
 func (d *DB) Exec(ctx context.Context, query string, args ...any) (sql.Result, error) {

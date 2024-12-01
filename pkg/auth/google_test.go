@@ -4,13 +4,14 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewGoogleAuthProvider(t *testing.T) {
 	redirectURL := "http://localhost:8080/callback"
-	authProvider, err := auth.NewGoogleAuthProvider(auth.Config{}, redirectURL)
+	authProvider, err := auth.NewGoogleAuthProvider(fs.Map{}, redirectURL)
 	assert.Error(t, err)
 	assert.Nil(t, authProvider)
 
@@ -37,24 +38,24 @@ func TestGoogleCallbackNoCode(t *testing.T) {
 
 func TestGoogleAuthCallbackError(t *testing.T) {
 	// Case 1: Access token server error
-	accessTokenServer := createTestSever(func(w RW) {
+	accessTokenServer := createAuthProviderTestSever(func(w RW) {
 		w.WriteHeader(http.StatusBadRequest)
 	})
 	defer accessTokenServer.Close()
-	ga := createGoogleAuth(auth.Config{"access_token_url": accessTokenServer.URL})
+	ga := createGoogleAuth(fs.Map{"access_token_url": accessTokenServer.URL})
 	_, err := ga.Callback(&mockContext{args: map[string]string{"code": "mockCode"}})
 	assert.ErrorContains(t, err, "cannot fetch token")
 
 	// Case 2: Access token success and get user error
-	accessTokenServer = createTestSever(func(w RW) {
+	accessTokenServer = createAuthProviderTestSever(func(w RW) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"access_token": "mock"}`))
 	})
 	defer accessTokenServer.Close()
-	config := auth.Config{"access_token_url": accessTokenServer.URL}
+	config := fs.Map{"access_token_url": accessTokenServer.URL}
 
-	getUserServer := createTestSever(func(w RW) {
+	getUserServer := createAuthProviderTestSever(func(w RW) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 	defer getUserServer.Close()
@@ -65,15 +66,15 @@ func TestGoogleAuthCallbackError(t *testing.T) {
 }
 
 func TestGoogleAuthCallbackSuccess(t *testing.T) {
-	accessTokenServer := createTestSever(func(w RW) {
+	accessTokenServer := createAuthProviderTestSever(func(w RW) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"access_token": "mock"}`))
 	})
 	defer accessTokenServer.Close()
-	config := auth.Config{"access_token_url": accessTokenServer.URL}
+	config := fs.Map{"access_token_url": accessTokenServer.URL}
 
-	getUserServer := createTestSever(func(w RW) {
+	getUserServer := createAuthProviderTestSever(func(w RW) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{
 			"email": "testuser@site.local",

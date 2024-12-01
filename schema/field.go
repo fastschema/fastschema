@@ -5,19 +5,26 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fastschema/fastschema/entity"
+	"github.com/fastschema/fastschema/expr"
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 // Field define the data struct for a field
 type Field struct {
-	Type       FieldType `json:"type"`
-	Name       string    `json:"name"`
-	Label      string    `json:"label"`
-	IsMultiple bool      `json:"multiple,omitempty"` // Is a multiple field.
-	Size       int64     `json:"size,omitempty"`     // max size parameter for string, blob, etc.
-	Unique     bool      `json:"unique,omitempty"`   // column with unique constraint.
-	Optional   bool      `json:"optional,omitempty"` // null or not null attribute.
-	Default    any       `json:"default,omitempty"`  // default value.
+	Type          FieldType      `json:"type"`
+	Name          string         `json:"name"`
+	Label         string         `json:"label"`
+	IsMultiple    bool           `json:"multiple,omitempty"`  // Is a multiple field.
+	Size          int64          `json:"size,omitempty"`      // max size parameter for string, blob, etc.
+	Unique        bool           `json:"unique,omitempty"`    // column with unique constraint.
+	Optional      bool           `json:"optional,omitempty"`  // null or not null attribute.
+	Default       any            `json:"default,omitempty"`   // default value.
+	Immutable     bool           `json:"immutable,omitempty"` // immutable field.
+	Setter        string         `json:"setter,omitempty"`    // setter expression.
+	Getter        string         `json:"getter,omitempty"`    // getter expression.
+	setterProgram *SetterProgram `json:"-"`                   // Compiled setter program
+	getterProgram *GetterProgram `json:"-"`                   // Compiled getter program
 	// Querier
 	Sortable   bool           `json:"sortable,omitempty"`   // Has a "sort" option in the tag.
 	Filterable bool           `json:"filterable,omitempty"` // Has a "filter" option in the tag.
@@ -33,13 +40,17 @@ type Field struct {
 }
 
 // Init initializes the field.
-// schemaNames is only required for file field.
-func (f *Field) Init(schemaNames ...string) {
+// schemaNames is the current schema that the field belongs to.
+// schemaNames is required for file field.
+func (f *Field) Init(schemaNames ...string) (err error) {
 	if f.DB == nil {
 		f.DB = &FieldDB{}
 	}
 
 	if f.Type == TypeFile {
+		if len(schemaNames) == 0 {
+			return fmt.Errorf("schema names are required for file field")
+		}
 		f.Relation = &Relation{
 			Type:             utils.If(f.IsMultiple, M2M, O2M),
 			Owner:            false,
@@ -48,6 +59,16 @@ func (f *Field) Init(schemaNames ...string) {
 			BackRef:          nil,
 		}
 	}
+
+	if f.setterProgram, err = expr.Compile[SetterArgs, any](f.Setter); err != nil {
+		return fmt.Errorf(`invalid setter for field "%s": %w`, f.Name, err)
+	}
+
+	if f.getterProgram, err = expr.Compile[GetterArgs, any](f.Getter); err != nil {
+		return fmt.Errorf(`invalid getter for field "%s": %w`, f.Name, err)
+	}
+
+	return nil
 }
 
 // Clone returns a copy of the field.
@@ -62,6 +83,9 @@ func (f *Field) Clone() *Field {
 		Unique:        f.Unique,
 		Optional:      f.Optional,
 		Default:       f.Default,
+		Immutable:     f.Immutable,
+		Setter:        f.Setter,
+		Getter:        f.Getter,
 		Sortable:      f.Sortable,
 		Filterable:    f.Filterable,
 		IsSystemField: f.IsSystemField,
@@ -109,7 +133,7 @@ func (f *Field) IsValidValue(value any) bool {
 			return false
 		}
 
-		_, err := NewEntityFromJSON(jsonStringValue)
+		_, err := entity.NewEntityFromJSON(jsonStringValue)
 		return err == nil
 
 	case TypeUUID, TypeString, TypeText:

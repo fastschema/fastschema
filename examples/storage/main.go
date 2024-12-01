@@ -32,7 +32,7 @@ func main() {
 	app = utils.Must(fastschema.New(&fs.Config{
 		StorageConfig: &fs.StorageConfig{
 			DefaultDisk: "local_public",
-			DisksConfig: []*fs.DiskConfig{
+			Disks: []*fs.DiskConfig{
 				{
 					Name:       "local_public",
 					Driver:     "local",

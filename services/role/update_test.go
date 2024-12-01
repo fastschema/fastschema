@@ -34,17 +34,50 @@ func TestRoleServiceUpdate(t *testing.T) {
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.Contains(t, response, `"user role"`)
 
-	// Case 4: Valid Payload, update role and permissions
-	// Current permissions: content.list=allow, content.detail=deny, content.meta=notset
-	// This test perform:
-	// 	- Remove content.detail
-	// 	- Add content.meta, content.view
+	// Case 4: Role rule compile error
+	req = httptest.NewRequest("PUT", "/api/role/2", bytes.NewReader([]byte(`{
+		"name": "user role",
+		"rule": "invalid rule"
+	}`)))
+	resp = utils.Must(testApp.server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 500, resp.StatusCode)
+
+	// Case 5: Permission compile error
 	req = httptest.NewRequest("PUT", "/api/role/2", bytes.NewReader([]byte(`{
 		"name": "user role",
 		"permissions": [
-			"content.list",
-			"content.meta",
-			"content.view"
+			{
+				"resource": "content.blog.list",
+				"value": "invalid rule"
+			}
+		]
+	}`)))
+	resp = utils.Must(testApp.server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 500, resp.StatusCode)
+
+	// Case 4: Valid Payload, update role and permissions
+	// Current permissions: content.blog.list=allow, content.blog.detail=deny, content.blog.meta=notset
+	// This test perform:
+	// 	- Remove content.blog.detail
+	// 	- Add content.blog.meta, content.blog.view
+	//  - Update content.blog.list rule to $context.User().ID < 2
+	req = httptest.NewRequest("PUT", "/api/role/2", bytes.NewReader([]byte(`{
+		"name": "user role",
+		"permissions": [
+			{
+				"resource": "content.blog.list",
+				"value": "$context.User().ID < 2"
+			},
+			{
+				"resource": "content.blog.meta",
+				"value": "allow"
+			},
+			{
+				"resource": "content.blog.view",
+				"value": "allow"
+			}
 		]
 	}`)))
 	resp = utils.Must(testApp.server.Test(req))
@@ -63,7 +96,7 @@ func TestRoleServiceUpdate(t *testing.T) {
 	})
 
 	assert.Len(t, userRole.Permissions, 3)
-	assert.Contains(t, permissions, "content.list")
-	assert.Contains(t, permissions, "content.meta")
-	assert.Contains(t, permissions, "content.view")
+	assert.Contains(t, permissions, "content.blog.list")
+	assert.Contains(t, permissions, "content.blog.meta")
+	assert.Contains(t, permissions, "content.blog.view")
 }

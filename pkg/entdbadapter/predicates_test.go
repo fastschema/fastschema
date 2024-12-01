@@ -139,9 +139,27 @@ func TestCreateFieldPredicate(t *testing.T) {
 			expectSQLPredicate: dialectSql.Like("name", "%John%"),
 		},
 		{
+			name: "LikeInvalid",
+			predicate: &db.Predicate{
+				Field:    "name",
+				Operator: db.OpLIKE,
+				Value:    1,
+			},
+			expectError: errors.New("value of field name.$like = 1 (int) must be string"),
+		},
+		{
 			name:               "In",
 			predicate:          db.In("name", []any{"John", "Doe"}),
 			expectSQLPredicate: dialectSql.In("name", []any{"John", "Doe"}...),
+		},
+		{
+			name: "InInvalid",
+			predicate: &db.Predicate{
+				Field:    "name",
+				Operator: db.OpIN,
+				Value:    1,
+			},
+			expectError: errors.New("value of field name.$in = 1 (int) must be an array"),
 		},
 		{
 			name:               "NotIn",

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
@@ -63,22 +64,24 @@ func createTestApp() *TestApp {
 	appRoles := []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest}
 
 	for _, r := range appRoles {
-		utils.Must(roleModel.Create(context.Background(), schema.NewEntity().
+		utils.Must(roleModel.Create(context.Background(), entity.New().
 			Set("name", r.Name).
 			Set("root", r.Root),
 		))
 	}
 
-	utils.Must(userModel.Create(context.Background(), schema.NewEntity().
+	utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "adminuser").
 		Set("password", "adminuser").
-		Set("roles", []*schema.Entity{schema.NewEntity(1)}),
+		Set("provider", "local").
+		Set("roles", []*entity.Entity{entity.New(1)}),
 	))
 
-	utils.Must(userModel.Create(context.Background(), schema.NewEntity().
+	utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "normaluser").
 		Set("password", "normaluser").
-		Set("roles", []*schema.Entity{schema.NewEntity(2)}),
+		Set("provider", "local").
+		Set("roles", []*entity.Entity{entity.New(2)}),
 	))
 
 	// There are three resources in this test: content.list, content.detail and content.meta
@@ -86,12 +89,12 @@ func createTestApp() *TestApp {
 	// And no permission set for content.meta
 	// We expect that user with role user should have access to content.list but not content.detail and content.meta
 	permissionModel := utils.Must(db.Model("permission"))
-	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
+	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "content.blog.list").
 		Set("value", fs.PermissionTypeAllow.String()).
 		Set("role_id", fs.RoleUser.ID),
 	))
-	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
+	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "content.blog.detail").
 		Set("value", fs.PermissionTypeDeny.String()).
 		Set("role_id", fs.RoleUser.ID),
@@ -109,9 +112,6 @@ func createTestApp() *TestApp {
 	apiGroup.Group("role").
 		Add(fs.NewResource("list", testApp.roleService.List, &fs.Meta{
 			Get: "/",
-		})).
-		Add(fs.NewResource("resources", testApp.roleService.ResourcesList, &fs.Meta{
-			Get: "/resources",
 		})).
 		Add(fs.NewResource("detail", testApp.roleService.Detail, &fs.Meta{
 			Get: "/:id",
@@ -143,4 +143,15 @@ func TestNewRoleService(t *testing.T) {
 	assert.NotNil(t, testApp)
 	assert.NotNil(t, testApp.roleService)
 	assert.NotNil(t, testApp.server)
+}
+
+func TestCreateResource(t *testing.T) {
+	testApp := createTestApp()
+	api := fs.NewResourcesManager().Group("api")
+	testApp.roleService.CreateResource(api)
+	assert.NotNil(t, api.Find("api.role.list"))
+	assert.NotNil(t, api.Find("api.role.detail"))
+	assert.NotNil(t, api.Find("api.role.create"))
+	assert.NotNil(t, api.Find("api.role.update"))
+	assert.NotNil(t, api.Find("api.role.delete"))
 }

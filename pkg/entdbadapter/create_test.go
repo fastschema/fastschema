@@ -12,6 +12,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,7 @@ func TestCreateClientIsNotEntClient(t *testing.T) {
 		},
 		client: nil,
 	}
-	_, err := mut.Create(context.Background(), schema.NewEntity())
+	_, err := mut.Create(context.Background(), entity.New())
 	assert.Equal(t, errors.New("client is not an ent adapter"), err)
 }
 
@@ -122,7 +123,7 @@ func TestMockCreateNodeHookError(t *testing.T) {
 						func(
 							ctx context.Context,
 							schema *schema.Schema,
-							dataCreate *schema.Entity,
+							dataCreate *entity.Entity,
 							id uint64,
 						) error {
 							assert.Greater(t, id, uint64(0))
@@ -153,7 +154,7 @@ func TestMockCreateNodePreHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PreDBCreate: []db.PreDBCreate{
-						func(ctx context.Context, schema *schema.Schema, dataCreate *schema.Entity) error {
+						func(ctx context.Context, schema *schema.Schema, dataCreate *entity.Entity) error {
 							return errors.New("hook error")
 						},
 					},

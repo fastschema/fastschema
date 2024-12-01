@@ -12,7 +12,7 @@ import (
 
 func TestField(t *testing.T) {
 	field := &Field{}
-	field.Init()
+	assert.NoError(t, field.Init())
 	assert.NotNil(t, field.DB)
 
 	uint64Field := CreateUint64Field("id")
@@ -25,13 +25,19 @@ func TestField(t *testing.T) {
 }
 
 func TestFieldInitTypeFile(t *testing.T) {
+	// File field without schema name
+	assert.Error(t, (&Field{
+		Type: TypeFile,
+		Name: "fileField",
+	}).Init())
+
 	schemaName := "testSchema"
 	field := &Field{
 		Type: TypeFile,
 		Name: "fileField",
 	}
 
-	field.Init(schemaName)
+	assert.NoError(t, field.Init(schemaName))
 
 	assert.NotNil(t, field.DB)
 	assert.Equal(t, TypeFile, field.Type)
@@ -209,6 +215,8 @@ func TestFieldClone(t *testing.T) {
 		Unique:        true,
 		Optional:      false,
 		Default:       0,
+		Immutable:     true,
+		Setter:        "5",
 		Sortable:      true,
 		Filterable:    true,
 		IsSystemField: false,
@@ -247,6 +255,8 @@ func TestFieldClone(t *testing.T) {
 	assert.Equal(t, field.Unique, clonedField.Unique)
 	assert.Equal(t, field.Optional, clonedField.Optional)
 	assert.Equal(t, field.Default, clonedField.Default)
+	assert.Equal(t, field.Immutable, clonedField.Immutable)
+	assert.Equal(t, field.Setter, clonedField.Setter)
 	assert.Equal(t, field.Sortable, clonedField.Sortable)
 	assert.Equal(t, field.Filterable, clonedField.Filterable)
 	assert.Equal(t, field.IsSystemField, clonedField.IsSystemField)
@@ -508,5 +518,37 @@ func TestMergeFields(t *testing.T) {
 	for i := range expectedField.Enums {
 		assert.Equal(t, expectedField.Enums[i].Value, f1.Enums[i].Value)
 		assert.Equal(t, expectedField.Enums[i].Label, f1.Enums[i].Label)
+	}
+}
+
+func TestFieldGetterSetter(t *testing.T) {
+	createField := func() *Field {
+		return &Field{
+			Type:  TypeInt,
+			Name:  "age",
+			Label: "Age",
+		}
+	}
+
+	// Invalid getter
+	{
+		field := createField()
+		field.Getter = "invalid"
+		assert.Error(t, field.Init())
+	}
+
+	// Invalid setter
+	{
+		field := createField()
+		field.Setter = "invalid"
+		assert.Error(t, field.Init())
+	}
+
+	// Getter and setter
+	{
+		field := createField()
+		field.Setter = "5"
+		field.Getter = "$args.Value * 5"
+		assert.NoError(t, field.Init())
 	}
 }

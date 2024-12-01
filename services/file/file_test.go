@@ -72,3 +72,11 @@ func TestNewFileService(t *testing.T) {
 	assert.NotNil(t, service)
 	assert.NotNil(t, server)
 }
+
+func TestCreateResource(t *testing.T) {
+	service, _ := createFileService(t)
+	api := fs.NewResourcesManager().Group("api")
+	service.CreateResource(api)
+	assert.NotNil(t, api.Find("api.file.upload"))
+	assert.NotNil(t, api.Find("api.file.delete"))
+}

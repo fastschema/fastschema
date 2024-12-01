@@ -4,13 +4,14 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewGithubAuthProvider(t *testing.T) {
 	redirectURL := "http://localhost:8080/api/auth/github/callback"
-	authProvider, err := auth.NewGithubAuthProvider(map[string]string{}, redirectURL)
+	authProvider, err := auth.NewGithubAuthProvider(fs.Map{}, redirectURL)
 	assert.Error(t, err)
 	assert.Nil(t, authProvider)
 
@@ -37,24 +38,24 @@ func TestGithubCallbackNoCode(t *testing.T) {
 
 func TestGithubAuthCallbackError(t *testing.T) {
 	// Case 1: Access token server error
-	accessTokenServer := createTestSever(func(w RW) {
+	accessTokenServer := createAuthProviderTestSever(func(w RW) {
 		w.WriteHeader(http.StatusBadRequest)
 	})
 	defer accessTokenServer.Close()
 
-	ga := createGithubAuth(auth.Config{"access_token_url": accessTokenServer.URL})
+	ga := createGithubAuth(fs.Map{"access_token_url": accessTokenServer.URL})
 	_, err := ga.Callback(&mockContext{args: map[string]string{"code": "mockCode"}})
 	assert.ErrorContains(t, err, "request failed with status code")
 
 	// Case 2: Access token success and get user error
-	accessTokenServer = createTestSever(func(w RW) {
+	accessTokenServer = createAuthProviderTestSever(func(w RW) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"access_token": "mock"}`))
 	})
 	defer accessTokenServer.Close()
 
-	config := auth.Config{"access_token_url": accessTokenServer.URL}
-	getUserServer := createTestSever(func(w RW) {
+	config := fs.Map{"access_token_url": accessTokenServer.URL}
+	getUserServer := createAuthProviderTestSever(func(w RW) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 	defer getUserServer.Close()
@@ -65,14 +66,14 @@ func TestGithubAuthCallbackError(t *testing.T) {
 }
 
 func TestGithubAuthCallbackSuccess(t *testing.T) {
-	accessTokenServer := createTestSever(func(w RW) {
+	accessTokenServer := createAuthProviderTestSever(func(w RW) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"access_token": "mock"}`))
 	})
 	defer accessTokenServer.Close()
-	config := auth.Config{"access_token_url": accessTokenServer.URL}
+	config := fs.Map{"access_token_url": accessTokenServer.URL}
 
-	getUserServer := createTestSever(func(w RW) {
+	getUserServer := createAuthProviderTestSever(func(w RW) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{
 			"login": "testuser",

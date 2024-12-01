@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
-	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -106,16 +106,16 @@ func TestQuery(t *testing.T) {
 		Only(ctx)
 	assert.NoError(t, err)
 
-	// Case 14: Query with schema.Entity: Invalid schema name
-	_, err = db.Builder[*schema.Entity](client, "invalid").Get(ctx)
+	// Case 14: Query with entity.Entity: Invalid schema name
+	_, err = db.Builder[*entity.Entity](client, "invalid").Get(ctx)
 	assert.ErrorContains(t, err, "model invalid not found")
 
-	// Case 15: Query with schema.Entity: No schema name
-	_, err = db.Builder[*schema.Entity](client).Get(ctx)
-	assert.ErrorContains(t, err, "schema name is required for type schema.Entity")
+	// Case 15: Query with entity.Entity: No schema name
+	_, err = db.Builder[*entity.Entity](client).Get(ctx)
+	assert.ErrorContains(t, err, "schema name is required for type entity.Entity")
 
-	// Case 16: Query with schema.Entity: Success
-	cats, err := db.Builder[*schema.Entity](client, "category").Get(ctx)
+	// Case 16: Query with entity.Entity: Success
+	cats, err := db.Builder[*entity.Entity](client, "category").Get(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, cats, 5)
 	assert.Equal(t, "category 1", cats[0].Get("name"))
@@ -145,8 +145,8 @@ func TestBindStruct(t *testing.T) {
 	expected := &TestData{ID: 1, Name: "John Doe"}
 	assert.Equal(t, expected, target)
 
-	// Case 4: Bind success with schema.Entity.
-	entityData := schema.NewEntity().Set("field1", "value1").Set("field2", "value2")
+	// Case 4: Bind success with entity.Entity.
+	entityData := entity.New().Set("field1", "value1").Set("field2", "value2")
 	var entityTarget map[string]interface{}
 	assert.NoError(t, db.BindStruct(entityData, &entityTarget))
 

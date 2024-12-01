@@ -2,7 +2,9 @@ package entdbadapter
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
+	"os"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -35,13 +37,38 @@ func createTestSchemaBuilder(t *testing.T) *schema.Builder {
 func createTx(t *testing.T, client db.Client, sb *schema.Builder) *Tx {
 	tx := utils.Must(NewTx(context.Background(), client))
 	assert.Equal(t, sb, tx.SchemaBuilder())
+
+	return tx
+}
+
+func TestNewTx(t *testing.T) {
+	sb := createTestSchemaBuilder(t)
+	client := utils.Must(NewTestClient(
+		utils.Must(os.MkdirTemp("", "migrations")),
+		sb,
+	))
+	tx := createTx(t, client, sb)
 	assert.NotNil(t, utils.Must(tx.Model("car")))
+
 	userModel, err := tx.Model("user")
 	assert.Nil(t, userModel)
 	assert.Error(t, err)
 	assert.NotNil(t, tx.Driver())
+	assert.NotNil(t, tx.Config())
+	assert.NotNil(t, tx.DB())
+	assert.NotNil(t, tx.Dialect())
+	assert.Nil(t, tx.Migrate(context.Background(), nil, false))
 	assert.Equal(t, true, tx.IsTx())
 	assert.Equal(t, tx, utils.Must(tx.Tx(context.Background())))
+	tx.SetSQLDB(nil)
+	tx.SetDriver(nil)
+	_, err = tx.Reload(
+		context.Background(),
+		tx.SchemaBuilder(),
+		nil,
+		false,
+	)
+	assert.NoError(t, err)
 
 	txDriver := tx.driver.(*TxDriver)
 	assert.NotNil(t, txDriver.ID())
@@ -51,10 +78,23 @@ func createTx(t *testing.T, client db.Client, sb *schema.Builder) *Tx {
 	assert.NoError(t, txDriver.Close())
 	assert.Equal(t, txDriver, utils.Must(txDriver.Tx(context.Background())))
 
-	// var bind = &sql.Rows{}
-	// assert.NoError(t, txDriver.Query(context.Background(), "SELECT 100", []any{}, bind))
+	// Invalid edge
+	_, err = tx.NewEdgeSpec(&schema.Relation{}, []driver.Value{1})
+	assert.Error(t, err)
 
-	return tx
+	// Valid edge
+	edge, err := tx.NewEdgeSpec(tx.SchemaBuilder().Relations()[0], []driver.Value{1})
+	assert.NoError(t, err)
+	assert.NotNil(t, edge)
+
+	// Invalid edge step
+	_, err = tx.NewEdgeStepOption(&schema.Relation{})
+	assert.Error(t, err)
+
+	// Valid edge step
+	step, err := tx.NewEdgeStepOption(tx.SchemaBuilder().Relations()[0])
+	assert.NoError(t, err)
+	assert.NotNil(t, step)
 }
 
 func TestTxCommit(t *testing.T) {

@@ -25,7 +25,9 @@ func (ss *SchemaService) Create(c fs.Context, newSchemaData *schema.Schema) (*sc
 			continue
 		}
 
-		field.Init(newSchemaData.Name)
+		if err := field.Init(newSchemaData.Name); err != nil {
+			return nil, errors.InternalServerError("could not initialize field")
+		}
 		relation := field.Relation
 
 		// check if target schema exists

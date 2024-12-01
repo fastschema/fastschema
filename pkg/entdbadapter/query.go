@@ -9,6 +9,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
+	"github.com/fastschema/fastschema/expr"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -18,7 +20,7 @@ type Query struct {
 	offset          uint
 	fields          []string
 	order           []string
-	entities        []*schema.Entity
+	entities        []*entity.Entity
 	predicates      []*db.Predicate
 	withEdgesFields []*schema.Field
 	client          db.Client
@@ -109,15 +111,15 @@ func (q *Query) Count(ctx context.Context, options ...*db.QueryOption) (int, err
 		return 0, err
 	}
 
-	_, err = runPostDBQueryHooks(ctx, q.client, opts, []*schema.Entity{
-		schema.NewEntity().Set("count", count),
+	_, err = runPostDBQueryHooks(ctx, q.client, opts, []*entity.Entity{
+		entity.New().Set("count", count),
 	})
 
 	return count, err
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(ctx context.Context) (*schema.Entity, error) {
+func (q *Query) First(ctx context.Context) (*entity.Entity, error) {
 	q.Limit(1)
 	entities, err := q.Get(ctx)
 
@@ -133,7 +135,7 @@ func (q *Query) First(ctx context.Context) (*schema.Entity, error) {
 }
 
 // Only returns the matched entity or an error if there is more than one.
-func (q *Query) Only(ctx context.Context) (*schema.Entity, error) {
+func (q *Query) Only(ctx context.Context) (*entity.Entity, error) {
 	entities, err := q.Get(ctx)
 
 	if err != nil {
@@ -152,7 +154,7 @@ func (q *Query) Only(ctx context.Context) (*schema.Entity, error) {
 }
 
 // Get returns the list of entities that match the query.
-func (q *Query) Get(ctx context.Context) ([]*schema.Entity, error) {
+func (q *Query) Get(ctx context.Context) ([]*entity.Entity, error) {
 	columnNames := []string{}
 	edgeColumns := map[string][]string{}
 	allSelectsAreEdges := true
@@ -277,6 +279,16 @@ func (q *Query) Get(ctx context.Context) ([]*schema.Entity, error) {
 		return nil, err
 	}
 
+	for _, entity := range q.entities {
+		if err := q.model.schema.ApplyGetters(ctx, entity, expr.Config{
+			DB: func() expr.DBLike {
+				return entAdapter
+			},
+		}); err != nil {
+			return nil, err
+		}
+	}
+
 	return runPostDBQueryHooks(ctx, q.client, option, q.entities)
 }
 
@@ -330,14 +342,14 @@ func (q *Query) loadEdgesO2M(
 
 	return q.loadOwnerEdges(
 		ctx, field, edgeModel, edgeColumns,
-		func(node *schema.Entity, neighbor *schema.Entity) error {
+		func(node *entity.Entity, neighbor *entity.Entity) error {
 			edgeValues := node.Get(field.Name)
 			if edgeValues == nil {
-				node.Set(field.Name, []*schema.Entity{neighbor})
+				node.Set(field.Name, []*entity.Entity{neighbor})
 				return nil
 			}
 
-			edgeEntities, ok := edgeValues.([]*schema.Entity)
+			edgeEntities, ok := edgeValues.([]*entity.Entity)
 			if !ok {
 				return invalidEntityArrayError(q.model.name, field.Name, edgeValues)
 			}
@@ -362,7 +374,7 @@ func (q *Query) loadEdgesO2O(
 
 	return q.loadOwnerEdges(
 		ctx, field, edgeModel, edgeColumns,
-		func(node *schema.Entity, neighbor *schema.Entity) error {
+		func(node *entity.Entity, neighbor *entity.Entity) error {
 			node.Set(field.Name, neighbor)
 			return nil
 		},
@@ -377,12 +389,12 @@ func (q *Query) loadEdgesM2M(
 	edgeColumns []string,
 ) error {
 	edgeIDs := make([]driver.Value, len(q.entities))
-	byID := make(map[uint64]*schema.Entity)
-	nids := make(map[uint64]map[*schema.Entity]struct{})
+	byID := make(map[uint64]*entity.Entity)
+	nids := make(map[uint64]map[*entity.Entity]struct{})
 	for i, node := range q.entities {
 		edgeIDs[i] = node.ID()
 		byID[node.ID()] = node
-		node.Set(field.Name, make([]*schema.Entity, 0))
+		node.Set(field.Name, make([]*entity.Entity, 0))
 	}
 
 	edgeQuery := edgeModel.Query()
@@ -427,7 +439,7 @@ func (q *Query) loadEdgesM2M(
 		outValue := uint64(values[0].(*sql.NullInt64).Int64)
 		inValue := uint64(values[1].(*sql.NullInt64).Int64)
 		if nids[inValue] == nil {
-			nids[inValue] = map[*schema.Entity]struct{}{byID[outValue]: {}}
+			nids[inValue] = map[*entity.Entity]struct{}{byID[outValue]: {}}
 			return assignFn(columns[1:], values[1:])
 		}
 		nids[inValue][byID[outValue]] = struct{}{}
@@ -446,7 +458,7 @@ func (q *Query) loadEdgesM2M(
 			continue
 		}
 		for kn := range nodes {
-			kn.Set(field.Name, append(kn.Get(field.Name).([]*schema.Entity), n))
+			kn.Set(field.Name, append(kn.Get(field.Name).([]*entity.Entity), n))
 		}
 	}
 
@@ -458,7 +470,7 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 	relation := field.Relation
 	edgeSchemaName := relation.TargetSchemaName
 	ids := make([]any, 0, len(q.entities))
-	nodeids := make(map[uint64][]*schema.Entity)
+	nodeids := make(map[uint64][]*entity.Entity)
 	fkColumn := relation.GetTargetFKColumn()
 
 	for _, entity := range q.entities {
@@ -507,12 +519,12 @@ func (q *Query) loadOwnerEdges(
 	field *schema.Field,
 	edgeModel *Model,
 	edgeColumns []string,
-	assignFn func(node, neighbor *schema.Entity) error,
+	assignFn func(node, neighbor *entity.Entity) error,
 ) error {
 	relation := field.Relation
 	edgeSchemaName := relation.TargetSchemaName
 	fks := make([]any, 0, len(q.entities))
-	nodeids := make(map[uint64]*schema.Entity)
+	nodeids := make(map[uint64]*entity.Entity)
 	fkColumn := relation.BackRef.GetTargetFKColumn()
 
 	for _, entity := range q.entities {
@@ -569,7 +581,7 @@ func noFKNodeError(schemaName, edgeSchemaName, fkColumn string, id, fk uint64) e
 
 func invalidEntityArrayError(schemaName, fieldName string, edgeValues any) error {
 	return fmt.Errorf(
-		`edge values %s.%s=%v (%T) is not []*schema.Entity`,
+		`edge values %s.%s=%v (%T) is not []*entity.Entity`,
 		schemaName, fieldName, edgeValues, edgeValues,
 	)
 }

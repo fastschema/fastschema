@@ -7,9 +7,9 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
 // In this example, we use utils.Must to handle errors.
@@ -46,7 +46,7 @@ func main() {
 	fmt.Printf("> Create tag using system schema: %+s\n\n", spew.Sdump(tag1))
 
 	// Create tag using schema name
-	tag2 := utils.Must(db.Builder[*schema.Entity](app.DB(), "tag").Create(ctx, fs.Map{
+	tag2 := utils.Must(db.Builder[*entity.Entity](app.DB(), "tag").Create(ctx, fs.Map{
 		"name": "Science",
 		"desc": "Science related blogs",
 	}))
@@ -64,8 +64,8 @@ func main() {
 	blog1 := utils.Must(db.Builder[Blog](app.DB()).Create(ctx, fs.Map{
 		"title": "Blog 1",
 		"body":  "Blog 1 body",
-		"tags": []*schema.Entity{
-			schema.NewEntity(tag1.ID),
+		"tags": []*entity.Entity{
+			entity.New(tag1.ID),
 			tag2,
 		},
 	}))
@@ -79,7 +79,7 @@ func main() {
 	fmt.Printf("> Query blog with tags: %+v\n\n", spew.Sdump(blog1))
 
 	// Raw query
-	blog1Tags := utils.Must(db.Query[*schema.Entity](
+	blog1Tags := utils.Must(db.Query[*entity.Entity](
 		ctx, app.DB(),
 		"SELECT `t1`.`blogs` AS blogs_id, `tags`.`id`, `tags`.`name`, `tags`.`desc`, `tags`.`created_at`, `tags`.`updated_at`, `tags`.`deleted_at` FROM `tags` JOIN `blogs_tags` AS `t1` ON `t1`.`tags` = `tags`.`id` WHERE `t1`.`blogs` IN (?)",
 		blog1.ID,

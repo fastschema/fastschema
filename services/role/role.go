@@ -11,14 +11,12 @@ type AppLike interface {
 	DB() db.Client
 	Key() string
 	UpdateCache(ctx context.Context) error
-	Resources() *fs.ResourcesManager
 }
 
 type RoleService struct {
 	DB          func() db.Client
 	AppKey      func() string
 	UpdateCache func(context.Context) error
-	Resources   func() *fs.ResourcesManager
 }
 
 func New(app AppLike) *RoleService {
@@ -26,6 +24,23 @@ func New(app AppLike) *RoleService {
 		DB:          app.DB,
 		AppKey:      app.Key,
 		UpdateCache: app.UpdateCache,
-		Resources:   app.Resources,
 	}
+}
+
+func (rs *RoleService) CreateResource(api *fs.Resource) {
+	api.Group("role").
+		Add(fs.NewResource("list", rs.List, &fs.Meta{Get: "/"})).
+		Add(fs.NewResource("detail", rs.Detail, &fs.Meta{
+			Get:  "/:id",
+			Args: fs.Args{"id": fs.CreateArg(fs.TypeUint64, "The role ID")},
+		})).
+		Add(fs.NewResource("create", rs.Create, &fs.Meta{Post: "/"})).
+		Add(fs.NewResource("update", rs.Update, &fs.Meta{
+			Put:  "/:id",
+			Args: fs.Args{"id": fs.CreateArg(fs.TypeUint64, "The role ID")},
+		})).
+		Add(fs.NewResource("delete", rs.Delete, &fs.Meta{
+			Delete: "/:id",
+			Args:   fs.Args{"id": fs.CreateArg(fs.TypeUint64, "The role ID")},
+		}))
 }

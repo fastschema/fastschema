@@ -132,3 +132,32 @@ func TestAdapterReloadError(t *testing.T) {
 	_, err := adapter.Reload(context.Background(), newSchemaBuilder, migration, false)
 	require.Error(t, err)
 }
+
+func TestAdapterReloadSuccess(t *testing.T) {
+	sb := createSchemaBuilder()
+	dbClient, err := NewTestClient(
+		utils.Must(os.MkdirTemp("", "test")),
+		sb,
+	)
+	assert.NoError(t, err)
+
+	// Invalid migration
+	_, err = dbClient.Reload(context.Background(), sb, &db.Migration{
+		RenameTables: []*db.RenameItem{{From: "notfound", To: "notfound2"}},
+	}, false, true)
+	require.Error(t, err)
+
+	// Success
+	_, err = dbClient.Reload(context.Background(), sb, &db.Migration{
+		RenameTables: []*db.RenameItem{{From: "users", To: "members"}},
+	}, false, true)
+	require.NoError(t, err)
+
+	// Error database connection
+	adapter := dbClient.(*Adapter)
+	adapter.config = &db.Config{}
+	_, err = dbClient.Reload(context.Background(), sb, &db.Migration{
+		RenameTables: []*db.RenameItem{{From: "users", To: "members"}},
+	}, false, true)
+	require.Error(t, err)
+}

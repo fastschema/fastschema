@@ -1,10 +1,12 @@
 package plugins_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/plugins"
 	"github.com/stretchr/testify/assert"
 )
@@ -65,7 +67,9 @@ const Config = config => {
 
 func TestConfig(t *testing.T) {
 	// Create application
-	app, err := fastschema.New(&fs.Config{})
+	app, err := fastschema.New(&fs.Config{
+		Dir: utils.Must(os.MkdirTemp("", "fastschema")),
+	})
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 

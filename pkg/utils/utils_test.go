@@ -16,19 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRandomString(t *testing.T) {
-	length := 10
-	randomString := RandomString(length)
-	assert.Equal(t, length, len(randomString))
-}
-
-func TestSecureRandomBytes(t *testing.T) {
-	length := 10
-	randomBytes, err := SecureRandomBytes(length)
-	assert.NoError(t, err)
-	assert.Equal(t, length, len(randomBytes))
-}
-
 func TestMap(t *testing.T) {
 	// Test case 1
 	slice1 := []int{1, 2, 3, 4, 5}
@@ -255,19 +242,19 @@ func TestGetMapKeys(t *testing.T) {
 	// Test case 1
 	map1 := map[int]string{1: "apple", 2: "banana", 3: "cherry"}
 	expected1 := []int{1, 2, 3}
-	result1 := GetMapKeys(map1)
+	result1 := MapKeys(map1)
 	assert.ElementsMatch(t, expected1, result1)
 
 	// Test case 2
 	map2 := map[string]int{"apple": 1, "banana": 2, "cherry": 3}
 	expected2 := []string{"apple", "banana", "cherry"}
-	result2 := GetMapKeys(map2)
+	result2 := MapKeys(map2)
 	assert.ElementsMatch(t, expected2, result2)
 
 	// Test case 3
 	map3 := map[float64]bool{1.5: true, 2.5: false, 3.5: true}
 	expected3 := []float64{1.5, 2.5, 3.5}
-	result3 := GetMapKeys(map3)
+	result3 := MapKeys(map3)
 	assert.ElementsMatch(t, expected3, result3)
 }
 
@@ -275,24 +262,24 @@ func TestGetMapValues(t *testing.T) {
 	// Test case 1
 	map1 := map[int]string{1: "apple", 2: "banana", 3: "cherry"}
 	expected1 := []string{"apple", "banana", "cherry"}
-	result1 := GetMapValues(map1)
+	result1 := MapValues(map1)
 	assert.ElementsMatch(t, expected1, result1)
 
 	// Test case 2
 	map2 := map[string]int{"apple": 1, "banana": 2, "cherry": 3}
 	expected2 := []int{1, 2, 3}
-	result2 := GetMapValues(map2)
+	result2 := MapValues(map2)
 	assert.ElementsMatch(t, expected2, result2)
 
 	// Test case 3
 	map3 := map[float64]bool{1.5: true, 2.5: false, 3.5: true}
 	expected3 := []bool{true, false, true}
-	result3 := GetMapValues(map3)
+	result3 := MapValues(map3)
 	assert.ElementsMatch(t, expected3, result3)
 }
 
 func TestPick(t *testing.T) {
-	// Test case 1
+	// Test case 1: Valid nested map path
 	obj1 := map[string]any{
 		"foo": map[string]any{
 			"bar": []int{1, 2, 3},
@@ -303,29 +290,29 @@ func TestPick(t *testing.T) {
 	result1 := Pick(obj1, path1, 0)
 	assert.Equal(t, expected1, result1)
 
-	// Test case 2
+	// Test case 2: Invalid path, default value provided
 	obj2 := map[string]any{
 		"foo": map[string]any{
 			"bar": []int{1, 2, 3},
 		},
 	}
 	path2 := "foo.baz"
-	var expected2 any = nil
-	result2 := Pick(obj2, path2, nil)
+	expected2 := 0
+	result2 := Pick(obj2, path2, 0)
 	assert.Equal(t, expected2, result2)
 
-	// Test case 3
+	// Test case 3: Invalid array index, default value provided
 	obj3 := map[string]any{
 		"foo": map[string]any{
 			"bar": []int{1, 2, 3},
 		},
 	}
 	path3 := "foo.bar.3"
-	var expected3 any = nil
-	result3 := Pick(obj3, path3, nil)
+	expected3 := 0
+	result3 := Pick(obj3, path3, 0)
 	assert.Equal(t, expected3, result3)
 
-	// Test case 4
+	// Test case 4: Valid nested map path, no default value provided
 	obj4 := map[string]any{
 		"foo": map[string]any{
 			"bar": []int{1, 2, 3},
@@ -333,10 +320,10 @@ func TestPick(t *testing.T) {
 	}
 	path4 := "foo.bar"
 	expected4 := []int{1, 2, 3}
-	result4 := Pick(obj4, path4, nil)
+	result4 := Pick(obj4, path4)
 	assert.Equal(t, expected4, result4)
 
-	// Test case 5
+	// Test case 5: Invalid path, no default value provided
 	obj5 := map[string]any{
 		"foo": map[string]any{
 			"bar": []int{1, 2, 3},
@@ -344,8 +331,26 @@ func TestPick(t *testing.T) {
 	}
 	path5 := "foo.baz.qux"
 	var expected5 any = nil
-	result5 := Pick(obj5, path5, nil)
+	result5 := Pick(obj5, path5)
 	assert.Equal(t, expected5, result5)
+
+	// Test case 6: Valid array index
+	obj6 := map[string]any{
+		"foo": []any{map[string]any{"bar": "baz"}},
+	}
+	path6 := "foo.0.bar"
+	expected6 := "baz"
+	result6 := Pick(obj6, path6, "default")
+	assert.Equal(t, expected6, result6)
+
+	// Test case 7: Invalid array index, default value provided
+	obj7 := map[string]any{
+		"foo": []any{map[string]any{"bar": "baz"}},
+	}
+	path7 := "foo.1.bar"
+	expected7 := "default"
+	result7 := Pick(obj7, path7, "default")
+	assert.Equal(t, expected7, result7)
 }
 
 func TestEscapeQuery(t *testing.T) {
@@ -555,97 +560,110 @@ func TestIsValidInt(t *testing.T) {
 }
 
 func TestIsValidUInt(t *testing.T) {
-	// Test case 1: Valid uint
+	// Test case 1: uint
 	result1 := IsValidUInt(uint(10))
 	assert.True(t, result1)
 
-	// Test case 2: Valid uint8
-	result2 := IsValidUInt(uint8(5))
+	// Test case 2: uint8
+	result2 := IsValidUInt(uint8(10))
 	assert.True(t, result2)
 
-	// Test case 3: Valid uint16
-	result3 := IsValidUInt(uint16(100))
+	// Test case 3: uint16
+	result3 := IsValidUInt(uint16(10))
 	assert.True(t, result3)
 
-	// Test case 4: Valid uint32
-	result4 := IsValidUInt(uint32(1000))
+	// Test case 4: uint32
+	result4 := IsValidUInt(uint32(10))
 	assert.True(t, result4)
 
-	// Test case 5: Valid uint64
-	result5 := IsValidUInt(uint64(10000))
+	// Test case 5: uint64
+	result5 := IsValidUInt(uint64(10))
 	assert.True(t, result5)
 
-	// Test case 6: Valid int (positive)
+	// Test case 6: int (positive)
 	result6 := IsValidUInt(int(10))
 	assert.True(t, result6)
 
-	// Test case 7: Valid int8 (positive)
-	result7 := IsValidUInt(int8(5))
-	assert.True(t, result7)
+	// Test case 7: int (negative)
+	result7 := IsValidUInt(int(-10))
+	assert.False(t, result7)
 
-	// Test case 8: Valid int16 (positive)
-	result8 := IsValidUInt(int16(100))
+	// Test case 8: int8 (positive)
+	result8 := IsValidUInt(int8(10))
 	assert.True(t, result8)
 
-	// Test case 9: Valid int32 (positive)
-	result9 := IsValidUInt(int32(1000))
-	assert.True(t, result9)
+	// Test case 9: int8 (negative)
+	result9 := IsValidUInt(int8(-10))
+	assert.False(t, result9)
 
-	// Test case 10: Valid int64 (positive)
-	result10 := IsValidUInt(int64(10000))
+	// Test case 10: int16 (positive)
+	result10 := IsValidUInt(int16(10))
 	assert.True(t, result10)
 
-	// Test case 11: Valid int (negative)
-	result11 := IsValidUInt(int(-10))
+	// Test case 11: int16 (negative)
+	result11 := IsValidUInt(int16(-10))
 	assert.False(t, result11)
 
-	// Test case 12: Valid int8 (negative)
-	result12 := IsValidUInt(int8(-5))
-	assert.False(t, result12)
+	// Test case 12: int32 (positive)
+	result12 := IsValidUInt(int32(10))
+	assert.True(t, result12)
 
-	// Test case 13: Valid int16 (negative)
-	result13 := IsValidUInt(int16(-100))
+	// Test case 13: int32 (negative)
+	result13 := IsValidUInt(int32(-10))
 	assert.False(t, result13)
 
-	// Test case 14: Valid int32 (negative)
-	result14 := IsValidUInt(int32(-1000))
-	assert.False(t, result14)
+	// Test case 14: int64 (positive)
+	result14 := IsValidUInt(int64(10))
+	assert.True(t, result14)
 
-	// Test case 15: Valid int64 (negative)
-	result15 := IsValidUInt(int64(-10000))
+	// Test case 15: int64 (negative)
+	result15 := IsValidUInt(int64(-10))
 	assert.False(t, result15)
 
-	// Test case 16: Valid float (positive) but not an integer
-	result16 := IsValidUInt(float64(10.5))
-	assert.False(t, result16)
+	// Test case 16: float32 (positive integer)
+	result16 := IsValidUInt(float32(10.0))
+	assert.True(t, result16)
 
-	// Test case 17: Valid float (negative)
-	result17 := IsValidUInt(float64(-10.5))
+	// Test case 17: float32 (positive non-integer)
+	result17 := IsValidUInt(float32(10.5))
 	assert.False(t, result17)
 
-	// Test case 18: Valid uint string
-	result18 := IsValidUInt("10")
-	assert.True(t, result18)
+	// Test case 18: float32 (negative)
+	result18 := IsValidUInt(float32(-10.0))
+	assert.False(t, result18)
 
-	// Test case 19: Invalid bool
-	result19 := IsValidUInt(true)
-	assert.False(t, result19)
+	// Test case 19: float64 (positive integer)
+	result19 := IsValidUInt(float64(10.0))
+	assert.True(t, result19)
 
-	// Test case 20: Invalid slice
-	result20 := IsValidUInt([]int{1, 2, 3})
+	// Test case 20: float64 (positive non-integer)
+	result20 := IsValidUInt(float64(10.5))
 	assert.False(t, result20)
 
-	// Test case 21: Invalid map
-	result21 := IsValidUInt(map[string]int{"a": 1, "b": 2})
+	// Test case 21: float64 (negative)
+	result21 := IsValidUInt(float64(-10.0))
 	assert.False(t, result21)
 
-	// Test case 22: Invalid struct
+	// Test case 22: valid string representation of uint
+	result22 := IsValidUInt("10")
+	assert.True(t, result22)
+
+	// Test case 23: invalid string representation of uint
+	result23 := IsValidUInt("abc")
+	assert.False(t, result23)
+
+	// Test case 24: bool
+	result24 := IsValidUInt(true)
+	assert.False(t, result24)
+
+	// Test case 25: struct
 	type Person struct {
 		Name string
 		Age  int
 	}
-	result22 := IsValidUInt(Person{Name: "John", Age: 30})
-	assert.False(t, result22)
+	person := Person{Name: "John", Age: 30}
+	result25 := IsValidUInt(person)
+	assert.False(t, result25)
 }
 
 func TestWriteFile(t *testing.T) {
@@ -678,49 +696,63 @@ func TestWriteFile(t *testing.T) {
 }
 
 func TestAppendFile(t *testing.T) {
-	// Test case 1
+	// Test case 1: Successful append
 	filePath1 := t.TempDir() + "testfile.txt"
-	content1 := "Hello, World!"
-	err1 := AppendFile(filePath1, content1)
-	assert.NoError(t, err1)
+	initialContent1 := "Hello, World!"
+	appendContent1 := " Goodbye, World!"
+	expectedContent1 := initialContent1 + appendContent1
 
-	// Verify the content of the file
-	file1, err2 := os.Open(filePath1)
-	assert.NoError(t, err2)
+	// Write initial content to the file
+	err := WriteFile(filePath1, initialContent1)
+	assert.NoError(t, err)
+
+	// Append content to the file
+	err = AppendFile(filePath1, appendContent1)
+	assert.NoError(t, err)
+
+	// Verify that the file contains the correct content
+	file1, err := os.Open(filePath1)
+	assert.NoError(t, err)
 	defer file1.Close()
 
-	stat1, err3 := file1.Stat()
-	assert.NoError(t, err3)
+	stat1, err := file1.Stat()
+	assert.NoError(t, err)
+	assert.Equal(t, int64(len(expectedContent1)), stat1.Size())
 
-	fileSize1 := stat1.Size()
-	buffer1 := make([]byte, fileSize1)
-	_, err4 := file1.Read(buffer1)
-	assert.NoError(t, err4)
+	buf1 := make([]byte, len(expectedContent1))
+	_, err = file1.Read(buf1)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedContent1, string(buf1))
 
-	fileContent1 := string(buffer1)
-	assert.Equal(t, content1, fileContent1)
+	// Test case 2: File does not exist, create and append
+	filePath2 := t.TempDir() + "newfile.txt"
+	appendContent2 := "Hello, New World!"
+	expectedContent2 := appendContent2
 
-	// Test case 2
-	content2 := "Append more content"
-	err5 := AppendFile(filePath1, content2)
-	assert.NoError(t, err5)
+	// Append content to the new file
+	err = AppendFile(filePath2, appendContent2)
+	assert.NoError(t, err)
 
-	// Verify the content of the file
-	file2, err6 := os.Open(filePath1)
-	assert.NoError(t, err6)
+	// Verify that the file contains the correct content
+	file2, err := os.Open(filePath2)
+	assert.NoError(t, err)
 	defer file2.Close()
 
-	stat2, err7 := file2.Stat()
-	assert.NoError(t, err7)
+	stat2, err := file2.Stat()
+	assert.NoError(t, err)
+	assert.Equal(t, int64(len(expectedContent2)), stat2.Size())
 
-	fileSize2 := stat2.Size()
-	buffer2 := make([]byte, fileSize2)
-	_, err8 := file2.Read(buffer2)
-	assert.NoError(t, err8)
+	buf2 := make([]byte, len(expectedContent2))
+	_, err = file2.Read(buf2)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedContent2, string(buf2))
 
-	fileContent2 := string(buffer2)
-	expectedContent2 := content1 + content2
-	assert.Equal(t, expectedContent2, fileContent2)
+	// Test case 3: Error opening file
+	filePath3 := "/invalid/path/testfile.txt"
+	appendContent3 := "Hello, World!"
+	err = AppendFile(filePath3, appendContent3)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, os.ErrNotExist))
 }
 
 func TestIsFileExists(t *testing.T) {
@@ -756,71 +788,36 @@ func TestCopyFile(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestGenerateHash(t *testing.T) {
-	// Test case 1: Non-empty input
-	input1 := "password123"
-	hash1, err1 := GenerateHash(input1)
-	if err1 != nil {
-		t.Errorf("Unexpected error: %v", err1)
-	}
-
-	assert.NotEmpty(t, hash1)
-	// Test case 2: Empty input
-	input2 := ""
-	expectedErr2 := errors.New("hash: input cannot be empty")
-	_, err2 := GenerateHash(input2)
-	if err2 == nil {
-		t.Error("Expected error, but got nil")
-	}
-	if err2.Error() != expectedErr2.Error() {
-		t.Errorf("Expected error: %v, but got: %v", expectedErr2, err2)
-	}
-}
-
-func TestCheckHash(t *testing.T) {
-	input := "password"
-	hash, err := GenerateHash(input)
-	assert.NoError(t, err)
-	err = CheckHash(input, hash)
-	assert.NoError(t, err)
-
-	// Test case with invalid hash
-	invalidHash := "invalid_hash"
-	err = CheckHash(input, invalidHash)
-	assert.Error(t, err)
-	assert.EqualError(t, err, "invalid hash")
-
-	// Test case with incorrect input
-	incorrectInput := "incorrect_password"
-	err = CheckHash(incorrectInput, hash)
-	assert.Error(t, err)
-	assert.EqualError(t, err, "invalid hash")
-}
-
 func TestMkDirs(t *testing.T) {
-	// Test case 1
-	dir1 := t.TempDir() + "/path/to/dir1"
-	err1 := MkDirs(dir1)
-	assert.NoError(t, err1)
-	_, err := os.Stat(dir1)
-	assert.False(t, os.IsNotExist(err))
+	// Test case 1: Create multiple directories successfully
+	dir1 := t.TempDir() + "/dir1"
+	dir2 := t.TempDir() + "/dir2"
+	err := MkDirs(dir1, dir2)
+	assert.NoError(t, err)
 
-	// Test case 2
-	dir2 := t.TempDir() + "/path/to/dir2"
-	subdir2 := t.TempDir() + "/path/to/dir2/subdir"
-	err2 := MkDirs(dir2, subdir2)
-	assert.NoError(t, err2)
+	// Verify that the directories exist
+	_, err = os.Stat(dir1)
+	assert.NoError(t, err)
+	assert.True(t, os.IsNotExist(err) == false)
+
 	_, err = os.Stat(dir2)
-	assert.False(t, os.IsNotExist(err))
-	_, err = os.Stat(subdir2)
-	assert.False(t, os.IsNotExist(err))
+	assert.NoError(t, err)
+	assert.True(t, os.IsNotExist(err) == false)
 
-	// Test case 3
-	dir3 := t.TempDir() + "/path/to/dir3"
-	err3 := MkDirs(dir3)
-	assert.NoError(t, err3)
-	_, err = os.Stat(dir3)
-	assert.False(t, os.IsNotExist(err))
+	// Test case 2: Create nested directories successfully
+	nestedDir := t.TempDir() + "/parent/child"
+	err = MkDirs(nestedDir)
+	assert.NoError(t, err)
+
+	// Verify that the nested directories exist
+	_, err = os.Stat(nestedDir)
+	assert.NoError(t, err)
+	assert.True(t, os.IsNotExist(err) == false)
+
+	// Test case 3: Error creating directory (invalid path)
+	invalidDir := "/invalid/path/dir"
+	err = MkDirs(invalidDir)
+	assert.Error(t, err)
 }
 
 func TestEnv(t *testing.T) {
@@ -873,34 +870,6 @@ func (er errorReader) Read(p []byte) (n int, err error) {
 
 func (er errorReader) Close() error {
 	return nil
-}
-func TestMergeErrorMessages(t *testing.T) {
-	// Test case 1: No errors
-	err1 := MergeErrorMessages()
-	assert.Nil(t, err1)
-
-	// Test case 2: Single error
-	err2 := errors.New("error 1")
-	result2 := MergeErrorMessages(err2)
-	assert.EqualError(t, result2, "error 1")
-
-	// Test case 3: Multiple errors
-	err3 := errors.New("error 1")
-	err4 := errors.New("error 2")
-	err5 := errors.New("error 3")
-	result3 := MergeErrorMessages(err3, err4, err5)
-	expected3 := "error 1, error 2, error 3"
-	assert.EqualError(t, result3, expected3)
-
-	// Test case 4: Mixed errors and nil values
-	var err6 = errors.New("error 1")
-	var err7 error = nil
-	var err8 = errors.New("error 2")
-	var err9 error = nil
-	err10 := errors.New("error 3")
-	result4 := MergeErrorMessages(err6, err7, err8, err9, err10)
-	expected4 := "error 1, error 2, error 3"
-	assert.EqualError(t, result4, expected4)
 }
 
 func TestCapitalize(t *testing.T) {
@@ -1057,6 +1026,7 @@ func TestParseHJSON(t *testing.T) {
 		Email: "john@example.com",
 	}, result)
 }
+
 func TestSendRequest(t *testing.T) {
 	type TR struct {
 		Message string `json:"message"`
@@ -1107,4 +1077,46 @@ func TestSendRequest(t *testing.T) {
 	resp, err := SendRequest[TR]("GET", successServer.URL, headers, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, TR{Message: "success"}, resp)
+}
+
+func TestIsValidEmail(t *testing.T) {
+	// Test case 1: Valid email
+	result1 := IsValidEmail("test@example.com")
+	assert.True(t, result1)
+
+	// Test case 2: Invalid email (missing @)
+	result2 := IsValidEmail("testexample.com")
+	assert.False(t, result2)
+
+	// Test case 3: Invalid email (missing domain)
+	result3 := IsValidEmail("test@.com")
+	assert.False(t, result3)
+
+	// Test case 4: Invalid email (missing top-level domain)
+	result4 := IsValidEmail("test@example")
+	assert.False(t, result4)
+
+	// Test case 5: Invalid email (special characters)
+	result5 := IsValidEmail("test@exa!mple.com")
+	assert.False(t, result5)
+
+	// Test case 6: Invalid email (spaces)
+	result6 := IsValidEmail("test@ example.com")
+	assert.False(t, result6)
+
+	// Test case 7: Invalid email (integer input)
+	result7 := IsValidEmail(12345)
+	assert.False(t, result7)
+
+	// Test case 8: Invalid email (nil input)
+	result8 := IsValidEmail(nil)
+	assert.False(t, result8)
+
+	// Test case 9: Valid email with subdomain
+	result9 := IsValidEmail("test@mail.example.com")
+	assert.True(t, result9)
+
+	// Test case 10: Valid email with plus sign
+	result10 := IsValidEmail("test+label@example.com")
+	assert.True(t, result10)
 }

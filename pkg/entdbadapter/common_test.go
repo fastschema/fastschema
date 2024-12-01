@@ -3,6 +3,7 @@ package entdbadapter
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	atlasSchema "ariga.io/atlas/sql/schema"
@@ -11,6 +12,7 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
@@ -184,28 +186,35 @@ func TestGetEntDialect(t *testing.T) {
 func TestCreateRenameColumnsHook(t *testing.T) {
 	// Define sample rename tables and rename columns
 	renameTables := []*db.RenameItem{
-		{From: "old_table", To: "new_table"},
-		{From: "another_table", To: "renamed_table"},
+		{From: "table_1_old_name", To: "table_1_new_name"},
+		{From: "table_2_old_name", To: "table_2_new_name"},
 	}
 	renameColumns := []*db.RenameItem{
-		{From: "old_column", To: "new_column"},
-		{From: "another_column", To: "renamed_column"},
+		{From: "t1_c1_old_name", To: "t1_c1_new_name"},
+		{From: "t1_c2_old_name", To: "t1_c2_new_name"},
+		{From: "t3_c1_old_name", To: "t3_c1_new_name", SchemaNamespace: "table_3"},
 	}
 
 	// Create a sample current schema
 	currentSchema := &atlasSchema.Schema{
 		Tables: []*atlasSchema.Table{
 			{
-				Name: "old_table",
+				Name: "table_1_old_name",
 				Columns: []*atlasSchema.Column{
-					{Name: "old_column"},
-					{Name: "another_column"},
+					{Name: "t1_c1_old_name"},
+					{Name: "t1_c2_old_name"},
 				},
 			},
 			{
-				Name: "another_table",
+				Name: "table_2_old_name",
 				Columns: []*atlasSchema.Column{
-					{Name: "some_column"},
+					{Name: "t2_c1"},
+				},
+			},
+			{
+				Name: "table_3",
+				Columns: []*atlasSchema.Column{
+					{Name: "t3_c1_old_name"},
 				},
 			},
 		},
@@ -215,16 +224,23 @@ func TestCreateRenameColumnsHook(t *testing.T) {
 	desiredSchema := &atlasSchema.Schema{
 		Tables: []*atlasSchema.Table{
 			{
-				Name: "new_table",
+				Name: "table_1_new_name",
 				Columns: []*atlasSchema.Column{
-					{Name: "new_column"},
+					{Name: "t1_c1_new_name"},
 				},
 			},
 			{
-				Name: "renamed_table",
+				Name: "table_2_new_name",
 				Columns: []*atlasSchema.Column{
-					{Name: "some_column"},
-					{Name: "renamed_column"},
+					{Name: "t2_c1"},
+					{Name: "t1_c2_new_name"},
+					{Name: "another_new_column"},
+				},
+			},
+			{
+				Name: "table_3",
+				Columns: []*atlasSchema.Column{
+					{Name: "t3_c1_new_name"},
 				},
 			},
 		},
@@ -243,6 +259,14 @@ func TestCreateRenameColumnsHook(t *testing.T) {
 		&atlasSchema.RenameColumn{
 			From: currentSchema.Tables[0].Columns[1],
 			To:   desiredSchema.Tables[1].Columns[1],
+		},
+		&atlasSchema.ModifyTable{
+			T: desiredSchema.Tables[2],
+			Changes: []atlasSchema.Change{
+				&atlasSchema.AddColumn{
+					C: desiredSchema.Tables[2].Columns[0],
+				},
+			},
 		},
 	}
 
@@ -332,4 +356,38 @@ func TestCloneMigrateTableWithNewName(t *testing.T) {
 	assert.Equal(t, table.PrimaryKey, clone.PrimaryKey)
 	assert.Equal(t, table.ForeignKeys, clone.ForeignKeys)
 	assert.Equal(t, table.Attrs, clone.Attrs)
+}
+
+func TestGetPlanForRenameTables(t *testing.T) {
+	ctx := context.Background()
+	sb := createSchemaBuilder()
+	dbClient, err := NewTestClient(
+		utils.Must(os.MkdirTemp("", "test")),
+		sb,
+	)
+	assert.NoError(t, err)
+	adapter := dbClient.(EntAdapter)
+
+	migrateDriver, err := getAtlasMigrateDriver(adapter.Driver().Dialect(), adapter.DB())
+	assert.NoError(t, err)
+
+	// Rename table not found
+	_, err = getPlanForRenameTables(ctx, migrateDriver, []*db.RenameItem{
+		{From: "notfound", To: "notfound2"},
+	})
+	assert.Error(t, err)
+
+	// Rename table found
+	plan, err := getPlanForRenameTables(ctx, migrateDriver, []*db.RenameItem{
+		{From: "users", To: "members"},
+	})
+	assert.NoError(t, err)
+	assert.Len(t, plan.Changes, 1)
+
+	// Error db connection
+	assert.NoError(t, adapter.Close())
+	_, err = getPlanForRenameTables(ctx, migrateDriver, []*db.RenameItem{
+		{From: "users", To: "members"},
+	})
+	assert.Error(t, err)
 }

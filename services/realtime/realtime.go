@@ -33,6 +33,12 @@ func New(app AppLike) *RealtimeService {
 	}
 }
 
+func (rs *RealtimeService) CreateResource(api *fs.Resource) {
+	api.
+		Group("realtime").
+		Add(fs.NewResource("content", rs.Content, &fs.Meta{WS: "/content"}))
+}
+
 func (rs *RealtimeService) Topics() *fs.SyncMap[string, *WSClientSerializers] {
 	return rs.topics
 }

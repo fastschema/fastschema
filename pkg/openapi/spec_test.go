@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/openapi"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 	"github.com/ogen-go/ogen"
 	"github.com/stretchr/testify/assert"
 )
@@ -94,10 +94,10 @@ func TestCreateStructSchema(t *testing.T) {
 	expectedSchema := openapi.RefSchema("Schema001")
 	assert.Equal(t, expectedSchema, structSchema)
 
-	// Case 2: schema.Entity
-	dtType = reflect.TypeOf(schema.Entity{})
+	// Case 2: entity.Entity
+	dtType = reflect.TypeOf(entity.Entity{})
 	structSchema = oas.CreateStructSchema(dtType)
-	expectedSchema = openapi.RefSchema("Schema.Entity")
+	expectedSchema = openapi.RefSchema("Entity.Entity")
 	assert.Equal(t, expectedSchema, structSchema)
 }
 

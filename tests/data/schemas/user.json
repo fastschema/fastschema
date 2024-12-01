@@ -2,6 +2,12 @@
   "name": "user",
   "namespace": "users",
   "label_field": "name",
+  "db": {
+    "indexes": [{
+      "name": "idx_name",
+      "columns": ["name"]
+    }]
+  },
   "fields": [
     {
       "name": "name",

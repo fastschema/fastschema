@@ -2,12 +2,13 @@ package roleservice
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
 func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
@@ -28,7 +29,7 @@ func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 			return
 		}
 
-		if err := rs.UpdateCache(c); err != nil {
+		if err = rs.UpdateCache(c); err != nil {
 			c.Logger().Error(err.Error())
 		}
 	}()
@@ -39,7 +40,9 @@ func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	updateRoleData.SetID(id)
+	if err := updateRoleData.SetID(id); err != nil {
+		return nil, errors.BadRequest(err.Error())
+	}
 	existingRole, err := db.Builder[*fs.Role](tx).
 		Where(db.EQ("id", id)).
 		Select("permissions").
@@ -58,6 +61,11 @@ func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 		return nil, err
 	}
 
+	updateRole := &fs.Role{Rule: updateRoleData.GetString("rule", "")}
+	if err := updateRole.Compile(); err != nil {
+		return nil, errors.InternalServerError(err.Error())
+	}
+
 	if _, err := db.Update[*fs.Role](c, tx, updateRoleData, []*db.Predicate{db.EQ("id", id)}); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
@@ -71,23 +79,34 @@ func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 func updateRolePermissions(
 	ctx context.Context,
 	existingRole *fs.Role,
-	updateRoleData *schema.Entity,
+	updateRoleData *entity.Entity,
 	tx db.Client,
 ) error {
-	currentPermissions := []string{}
-	for _, permission := range existingRole.Permissions {
-		currentPermissions = append(currentPermissions, permission.Resource)
-	}
+	currentPermissionsNames := utils.Map(existingRole.Permissions, func(p *fs.Permission) string {
+		return p.Resource
+	})
 
-	added, removed, err := getPermissionsUpdate(currentPermissions, updateRoleData)
+	updated, added, removed, err := getPermissionsUpdate(currentPermissionsNames, updateRoleData)
 	if err != nil {
 		return err
 	}
 
-	for _, permissionName := range added {
-		permissionEntity := schema.NewEntity().
-			Set("resource", permissionName).
-			Set("value", "allow").
+	// Update permissions
+	for _, permission := range updated {
+		permissionEntity := entity.New().Set("value", permission.Value)
+		if _, err := db.Update[*fs.Permission](ctx, tx, permissionEntity, []*db.Predicate{
+			db.EQ("role_id", existingRole.ID),
+			db.EQ("resource", permission.Resource),
+		}); err != nil {
+			return errors.InternalServerError(err.Error())
+		}
+	}
+
+	// Create new permissions
+	for _, permission := range added {
+		permissionEntity := entity.New().
+			Set("resource", permission.Resource).
+			Set("value", permission.Value).
 			Set("role_id", existingRole.ID)
 
 		if _, err := db.Create[*fs.Permission](ctx, tx, permissionEntity); err != nil {
@@ -95,50 +114,77 @@ func updateRolePermissions(
 		}
 	}
 
-	for _, permissionName := range removed {
-		if _, err := db.Delete[*fs.Permission](ctx, tx, []*db.Predicate{db.And(
-			db.EQ("role_id", existingRole.ID),
-			db.EQ("resource", permissionName),
-		)}); err != nil {
-			return errors.InternalServerError(err.Error())
-		}
+	// Remove permissions
+	removedPermissionsNames := utils.Map(removed, func(p string) any {
+		return p
+	})
+	if _, err := db.Delete[*fs.Permission](ctx, tx, []*db.Predicate{db.And(
+		db.EQ("role_id", existingRole.ID),
+		db.In("resource", removedPermissionsNames),
+	)}); err != nil {
+		return errors.InternalServerError(err.Error())
 	}
 
 	return nil
 }
 
-func getPermissionsUpdate(currentRolePermissions []string, updateRoleData *schema.Entity) ([]string, []string, error) {
-	permissionValue := updateRoleData.Get("permissions", []string{})
+func getPermissionsUpdate(
+	currentRolePermissions []string,
+	updateRoleData *entity.Entity,
+) ([]*fs.Permission, []*fs.Permission, []string, error) {
+	permissionsListData, exists := updateRoleData.Data().Get("permissions")
+	if !exists {
+		return nil, nil, nil, nil
+	}
+
 	updateRoleData.Delete("permissions")
-	addedPermissions := []string{}
+	permissionsList, _ := permissionsListData.([]*fs.Permission)
+	permissionsListEntities, _ := permissionsListData.([]*entity.Entity)
+
+	updatePermissions := []*fs.Permission{}
+	addedPermissions := []*fs.Permission{}
 	removedPermissions := []string{}
-	updatePermissions, _ := permissionValue.([]string)
-	updatePermissionsAny, _ := permissionValue.([]any)
 
-	if len(updatePermissions) == 0 && len(updatePermissionsAny) > 0 {
-		for _, permission := range updatePermissionsAny {
-			permissionName, ok := permission.(string)
-			if !ok {
-				return nil, nil, errors.BadRequest("permission must be a string")
-			}
-
-			updatePermissions = append(updatePermissions, permissionName)
+	if len(permissionsList) == 0 && len(permissionsListEntities) > 0 {
+		for _, permission := range permissionsListEntities {
+			value := permission.GetString("value", "allow")
+			value = utils.If(value == "", "allow", value)
+			permissionsList = append(permissionsList, &fs.Permission{
+				Resource: permission.GetString("resource"),
+				Value:    value,
+			})
 		}
 	}
 
-	for _, permission := range updatePermissions {
-		if !utils.Contains(currentRolePermissions, permission) {
+	permissionsNames := utils.Map(permissionsList, func(p *fs.Permission) string {
+		return p.Resource
+	})
+
+	for _, permission := range permissionsList {
+		if err := permission.Compile(); err != nil {
+			return nil, nil, nil, errors.InternalServerError(
+				fmt.Sprintf(
+					"error compiling permission rule for %s: %s",
+					permission.Resource,
+					err.Error(),
+				),
+			)
+		}
+
+		if !utils.Contains(currentRolePermissions, permission.Resource) {
 			addedPermissions = append(addedPermissions, permission)
+		} else {
+			updatePermissions = append(updatePermissions, permission)
 		}
 	}
 
 	for _, permission := range currentRolePermissions {
-		if !utils.Contains(updatePermissions, permission) {
+		if !utils.Contains(permissionsNames, permission) {
 			removedPermissions = append(removedPermissions, permission)
 		}
 	}
 
-	return addedPermissions, removedPermissions, nil
+	return updatePermissions, addedPermissions, removedPermissions, nil
 }
 
 func rollback(tx db.Client, c fs.Context) {

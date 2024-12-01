@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,7 +33,7 @@ func TestRawQuery(t *testing.T) {
 	assert.Equal(t, "category 5", rows[0].Name)
 
 	// Case 3: Success scan to entity
-	entities, err := db.Query[*schema.Entity](ctx, client, "SELECT * FROM categories WHERE id > ?", 1)
+	entities, err := db.Query[*entity.Entity](ctx, client, "SELECT * FROM categories WHERE id > ?", 1)
 	assert.NoError(t, err)
 	assert.Len(t, entities, 4)
 }

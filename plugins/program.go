@@ -27,9 +27,12 @@ func (p *Program) VerifyJsFunc(functionValue goja.Value) (string, error) {
 		return "", fmt.Errorf("functionValue must be an object: %v", functionValue)
 	}
 
-	functionNameValue := functionObject.Get("name")
+	functionNameValue := functionObject.Get("__virtual_name")
 	if functionNameValue == nil {
-		return "", fmt.Errorf("[jsvm] function name is nil")
+		functionNameValue = functionObject.Get("name")
+		if functionNameValue == nil {
+			return "", fmt.Errorf("[jsvm] function name is nil")
+		}
 	}
 
 	exportedFunctionName := functionNameValue.Export()

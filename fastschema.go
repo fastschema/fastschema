@@ -8,32 +8,46 @@ import (
 	"sync"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/openapi"
 	rs "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/fastschema/fastschema/services"
 	"github.com/fatih/color"
 )
 
+var (
+	_       fs.App = (*App)(nil)
+	Version string = "0.0.0"
+)
+
 type App struct {
-	mu              sync.Mutex
-	config          *fs.Config
-	cwd             string
-	dir             string
-	envFile         string
-	dataDir         string
-	logDir          string
-	publicDir       string
-	schemasDir      string
-	migrationDir    string
-	schemaBuilder   *schema.Builder
-	restResolver    *rs.RestfulResolver
-	resources       *fs.ResourcesManager
-	api             *fs.Resource
-	roles           []*fs.Role
-	disks           []fs.Disk
-	defaultDisk     fs.Disk
+	mu            sync.Mutex
+	config        *fs.Config
+	cwd           string
+	dir           string
+	envFile       string
+	dataDir       string
+	logDir        string
+	publicDir     string
+	schemasDir    string
+	migrationDir  string
+	pluginsDir    string
+	schemaBuilder *schema.Builder
+	restResolver  *rs.RestfulResolver
+	resources     *fs.ResourcesManager
+	api           *fs.Resource
+	roles         []*fs.Role
+
+	disks       []fs.Disk
+	defaultDisk fs.Disk
+	services    *services.Services
+
+	mailClients       []fs.Mailer
+	defaultMailClient fs.Mailer
+
 	setupToken      string
 	startupMessages []string
 	statics         []*fs.StaticFs
@@ -165,6 +179,10 @@ func (a *App) OnPostDBDelete(hooks ...db.PostDBDelete) {
 	)
 }
 
+func (a *App) Name() string {
+	return a.config.AppName
+}
+
 func (a *App) CWD() string {
 	return a.cwd
 }
@@ -213,6 +231,10 @@ func (a *App) Hooks() *fs.Hooks {
 	return a.config.Hooks
 }
 
+func (a *App) Services() *services.Services {
+	return a.services
+}
+
 func (a *App) Disks() []fs.Disk {
 	return a.disks
 }
@@ -229,6 +251,24 @@ func (a *App) Disk(names ...string) fs.Disk {
 	}
 
 	return nil
+}
+
+func (a *App) Mailer(names ...string) fs.Mailer {
+	if len(names) == 0 {
+		return a.defaultMailClient
+	}
+
+	for _, mailClient := range a.mailClients {
+		if mailClient.Name() == names[0] {
+			return mailClient
+		}
+	}
+
+	return nil
+}
+
+func (a *App) Mailers() []fs.Mailer {
+	return a.mailClients
 }
 
 func (a *App) Reload(ctx context.Context, migration *db.Migration) (err error) {
@@ -265,12 +305,25 @@ func (a *App) UpdateCache(ctx context.Context) (err error) {
 		"name",
 		"description",
 		"root",
+		"rule",
 		"permissions",
-		schema.FieldCreatedAt,
-		schema.FieldUpdatedAt,
-		schema.FieldDeletedAt,
+		entity.FieldCreatedAt,
+		entity.FieldUpdatedAt,
+		entity.FieldDeletedAt,
 	).Get(ctx); err != nil {
 		return err
+	}
+
+	for _, role := range a.roles {
+		if err := role.Compile(); err != nil {
+			return err
+		}
+
+		for _, permission := range role.Permissions {
+			if err = permission.Compile(); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

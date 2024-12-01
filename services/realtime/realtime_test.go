@@ -231,3 +231,10 @@ func TestBroadCast(t *testing.T) {
 	service.AddClient(client6, "testtopic", serializer)
 	service.Broadcast([]string{"testtopic"}, nil)
 }
+
+func TestCreateResource(t *testing.T) {
+	_, service := createTestApp(t)
+	api := fs.NewResourcesManager().Group("api")
+	service.CreateResource(api)
+	assert.NotNil(t, api.Find("api.realtime.content"))
+}

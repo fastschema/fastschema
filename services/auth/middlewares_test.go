@@ -1,6 +1,7 @@
 package authservice_test
 
 import (
+	"context"
 	"net/http/httptest"
 	"testing"
 
@@ -128,5 +129,24 @@ func TestRoleServiceAuth(t *testing.T) {
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 403, resp.StatusCode, "User should not have access to realtime.content.blog.update")
 		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Forbidden`)
+
+		// seniorityUser should have access to api.content.blog.list
+		// because it's created_at is not satisfied created_at < date("2023-01-01")
+		req = httptest.NewRequest("GET", "/api/content/blog", nil)
+		req.Header.Set("Authorization", "Bearer "+testApp.seniorityUserToken)
+		resp = utils.Must(server.Test(req))
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
+		assert.Equal(t, 403, resp.StatusCode, "Non Seniority user should not have access to content.blog.list")
+
+		// Update the created_at of seniorityUser to be less than 2023-01-01
+		// seniorityUser should have access to api.content.blog.list
+		_, err := testApp.db.Exec(context.Background(), "UPDATE users SET created_at = '2022-01-01' WHERE id = ?", testApp.seniorityUser.ID)
+		assert.NoError(t, err)
+
+		req = httptest.NewRequest("GET", "/api/content/blog", nil)
+		req.Header.Set("Authorization", "Bearer "+testApp.seniorityUserToken)
+		resp = utils.Must(server.Test(req))
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
+		assert.Equal(t, 200, resp.StatusCode, "Seniority user should have access to content.blog.list")
 	})
 }

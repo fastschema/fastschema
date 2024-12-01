@@ -75,6 +75,7 @@ func TestWSClient(t *testing.T) {
 	wsResources := []*fs.Resource{
 		fs.WS("/realtime", func(c fs.Context, _ any) (any, error) {
 			assert.NotNil(t, c.WSClient())
+			assert.NotNil(t, c.WSClient().ID())
 
 			if c.Arg("nouser") == "" {
 				assert.Equal(t, c.User().Username, "adminuser")

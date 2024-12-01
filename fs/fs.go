@@ -91,7 +91,7 @@ func (dc *DiskConfig) Clone() *DiskConfig {
 // StorageConfig holds the storage configuration
 type StorageConfig struct {
 	DefaultDisk string        `json:"default_disk"`
-	DisksConfig []*DiskConfig `json:"disks"`
+	Disks       []*DiskConfig `json:"disks"`
 }
 
 // Clone returns a clone of the storage configuration
@@ -102,11 +102,11 @@ func (sc *StorageConfig) Clone() *StorageConfig {
 
 	clone := &StorageConfig{
 		DefaultDisk: sc.DefaultDisk,
-		DisksConfig: make([]*DiskConfig, len(sc.DisksConfig)),
+		Disks:       make([]*DiskConfig, len(sc.Disks)),
 	}
 
-	for i, dc := range sc.DisksConfig {
-		clone.DisksConfig[i] = dc.Clone()
+	for i, dc := range sc.Disks {
+		clone.Disks[i] = dc.Clone()
 	}
 
 	return clone
@@ -118,7 +118,7 @@ var AllowedFileTypes = []string{
 	"text/xml; charset=utf-8",
 	"text/plain",
 	"text/plain; charset=utf-8",
-	"image/svg+xml",
+	// "image/svg+xml",
 	"image/jpeg",
 	"image/pjpeg",
 	"image/png",

@@ -10,6 +10,7 @@ import (
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -73,7 +74,7 @@ func TestModelCreate(t *testing.T) {
 	require.NoError(t, err)
 	model, err := client.Model("user")
 	require.NoError(t, err)
-	entity, err := schema.NewEntityFromJSON(`{"name": "John", "age": 30}`)
+	entity, err := entity.NewEntityFromJSON(`{"name": "John", "age": 30}`)
 	assert.NoError(t, err)
 	id, err := model.Create(context.Background(), entity)
 	assert.NoError(t, err)

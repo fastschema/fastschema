@@ -36,11 +36,14 @@ func TestContextArgs(t *testing.T) {
 	server := restfulresolver.New(restfulresolver.Config{})
 	server.Get("/test/:param", func(c *restfulresolver.Context) error {
 		args := c.Args()
+		assert.Equal(t, c.SetArg("param1", "value1"), "value1")
 		assert.Equal(t, map[string]string{"param": "param", "param1": "value1", "param2": "5"}, args)
 		assert.Equal(t, "value1", c.Arg("param1"))
 		assert.Equal(t, "default_value", c.Arg("param3", "default_value"))
 		assert.Equal(t, 5, c.ArgInt("param2"))
 		assert.Equal(t, 15, c.ArgInt("param4", 15))
+		assert.Equal(t, "value1", c.Arg("param1"))
+
 		return c.JSON(args)
 	})
 
@@ -50,6 +53,40 @@ func TestContextArgs(t *testing.T) {
 	defer closeResponse(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, `{"param":"param","param1":"value1","param2":"5"}`, utils.Must(utils.ReadCloserToString(resp.Body)))
+}
+
+func TestContextBody(t *testing.T) {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Post("/test", func(c *restfulresolver.Context) error {
+		body, err := c.Body()
+		assert.NoError(t, err)
+		assert.NotNil(t, body)
+		return nil
+	})
+
+	req := httptest.NewRequest("POST", "/test", bytes.NewReader([]byte(`{"key": "value"}`)))
+	defer req.Body.Close()
+	resp, err := server.Test(req)
+	defer closeResponse(t, resp)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestContextEmptyBody(t *testing.T) {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Post("/test", func(c *restfulresolver.Context) error {
+		entity, err := c.Payload()
+		assert.NoError(t, err)
+		assert.Nil(t, entity)
+		return nil
+	})
+
+	req := httptest.NewRequest("POST", "/test", bytes.NewReader([]byte(``)))
+	defer req.Body.Close()
+	resp, err := server.Test(req)
+	defer closeResponse(t, resp)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
 }
 
 func TestContextEntity(t *testing.T) {

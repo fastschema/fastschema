@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 	contentservice "github.com/fastschema/fastschema/services/content"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,12 +35,12 @@ func TestNewPagination(t *testing.T) {
 	total := uint(100)
 	perPage := uint(10)
 	currentPage := uint(1)
-	data := []*schema.Entity{
-		schema.NewEntity(1),
-		schema.NewEntity(2),
-		schema.NewEntity(3),
-		schema.NewEntity(4),
-		schema.NewEntity(5),
+	data := []*entity.Entity{
+		entity.New(1),
+		entity.New(2),
+		entity.New(3),
+		entity.New(4),
+		entity.New(5),
 	}
 
 	pagination := contentservice.NewPagination(total, perPage, currentPage, data)
@@ -72,7 +72,7 @@ func TestContentServiceList(t *testing.T) {
 	// create 10 blog users
 	userModel := utils.Must(cs.DB().Model("user"))
 	for i := 0; i < 10; i++ {
-		utils.Must(userModel.CreateFromJSON(context.Background(), fmt.Sprintf(`{"username": "user%d", "password": "123"}`, i+1)))
+		utils.Must(userModel.CreateFromJSON(context.Background(), fmt.Sprintf(`{"username": "user%d", "password": "123", "provider": "local"}`, i+1)))
 	}
 
 	// Case 2: invalid predicate

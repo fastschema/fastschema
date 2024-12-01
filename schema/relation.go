@@ -130,9 +130,9 @@ func (r *Relation) HasFKs() bool {
 }
 
 // CreateFKFields create the foreign key fields
-func (r *Relation) CreateFKFields() *Field {
+func (r *Relation) CreateFKFields() (*Field, error) {
 	if !r.HasFKs() {
-		return nil
+		return nil, nil
 	}
 
 	fk := r.GetTargetFKColumn()
@@ -150,8 +150,10 @@ func (r *Relation) CreateFKFields() *Field {
 		},
 	}
 
-	fkField.Init()
-	return fkField
+	if err := fkField.Init(); err != nil {
+		return nil, err
+	}
+	return fkField, nil
 }
 
 func NewRelationNodeError(schema *Schema, field *Field) error {

@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 
 	_ "github.com/DATA-DOG/go-sqlmock"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/schema"
 	_ "github.com/go-sql-driver/mysql"
@@ -25,8 +26,8 @@ type PreDBQuery = func(
 type PostDBQuery = func(
 	ctx context.Context,
 	option *QueryOption,
-	entities []*schema.Entity,
-) ([]*schema.Entity, error)
+	entities []*entity.Entity,
+) ([]*entity.Entity, error)
 
 // Exec hooks
 type PreDBExec = func(
@@ -44,13 +45,13 @@ type PostDBExec = func(
 type PreDBCreate = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	createData *schema.Entity,
+	createData *entity.Entity,
 ) error
 
 type PostDBCreate = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	dataCreate *schema.Entity,
+	dataCreate *entity.Entity,
 	id uint64,
 ) error
 
@@ -59,15 +60,15 @@ type PreDBUpdate = func(
 	ctx context.Context,
 	schema *schema.Schema,
 	predicates []*Predicate,
-	updateData *schema.Entity,
+	updateData *entity.Entity,
 ) error
 
 type PostDBUpdate = func(
 	ctx context.Context,
 	schema *schema.Schema,
 	predicates []*Predicate,
-	updateData *schema.Entity,
-	originalEntities []*schema.Entity,
+	updateData *entity.Entity,
+	originalEntities []*entity.Entity,
 	affected int,
 ) error
 
@@ -82,7 +83,7 @@ type PostDBDelete = func(
 	ctx context.Context,
 	schema *schema.Schema,
 	predicates []*Predicate,
-	originalEntities []*schema.Entity,
+	originalEntities []*entity.Entity,
 	affected int,
 ) error
 
@@ -165,17 +166,33 @@ type Client interface {
 	// It return a sql.Result and an error if any.
 	Exec(ctx context.Context, query string, args ...any) (sql.Result, error)
 	// Query executes a query that returns rows, typically a SELECT in SQL.
-	// It return a slice of *schema.Entity and an error if any.
-	Query(ctx context.Context, query string, args ...any) ([]*schema.Entity, error)
+	// It return a slice of *entity.Entity and an error if any.
+	Query(ctx context.Context, query string, args ...any) ([]*entity.Entity, error)
 	Rollback() error
 	Commit() error
-	CreateDBModel(s *schema.Schema, rs ...*schema.Relation) Model
 	Tx(ctx context.Context) (Client, error)
 	IsTx() bool
-	Model(name string, types ...any) (Model, error)
+
+	// Model return the model from given name.
+	//
+	//	Support finding model from name or types
+	//	If the input model is a string, it will use the name to find the model
+	//	Others, it will use the types of the input to find the model
+	//
+	//	entities: The entities that the model will be created from
+	//  entities can be one of the following types:
+	//		- []*entity.Entity: The first entity will be used to create the model
+	//		- [][]byte: The first byte slice will be used to create the model by unmarshalling it
+	Model(model any) (Model, error)
 	Close() error
 	SchemaBuilder() *schema.Builder
-	Reload(ctx context.Context, newSchemaBuilder *schema.Builder, migration *Migration, disableForeignKeys bool) (Client, error)
+	Reload(
+		ctx context.Context,
+		newSchemaBuilder *schema.Builder,
+		migration *Migration,
+		disableForeignKeys bool,
+		enableMigrations ...bool,
+	) (Client, error)
 	DB() *sql.DB
 	Config() *Config
 	Hooks() *Hooks
@@ -186,7 +203,7 @@ type Model interface {
 	Mutation() Mutator
 	Schema() *schema.Schema
 	CreateFromJSON(ctx context.Context, json string) (id uint64, err error)
-	Create(ctx context.Context, e *schema.Entity) (id uint64, err error)
+	Create(ctx context.Context, e *entity.Entity) (id uint64, err error)
 	SetClient(client Client) Model
 	Clone() Model
 }
@@ -216,16 +233,16 @@ type Querier interface {
 	Select(columns ...string) Querier
 	Order(order ...string) Querier
 	Count(ctx context.Context, options ...*QueryOption) (int, error)
-	Get(ctx context.Context) ([]*schema.Entity, error)
-	First(ctx context.Context) (*schema.Entity, error)
-	Only(ctx context.Context) (*schema.Entity, error)
+	Get(ctx context.Context) ([]*entity.Entity, error)
+	First(ctx context.Context) (*entity.Entity, error)
+	Only(ctx context.Context) (*entity.Entity, error)
 	Options() *QueryOption
 }
 
 type Mutator interface {
 	Where(predicates ...*Predicate) Mutator
 	GetRelationEntityIDs(fieldName string, fieldValue any) ([]driver.Value, error)
-	Create(ctx context.Context, e *schema.Entity) (id uint64, err error)
-	Update(ctx context.Context, e *schema.Entity) (affected int, err error)
+	Create(ctx context.Context, e *entity.Entity) (id uint64, err error)
+	Update(ctx context.Context, e *entity.Entity) (affected int, err error)
 	Delete(ctx context.Context) (affected int, err error)
 }

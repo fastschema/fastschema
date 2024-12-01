@@ -63,7 +63,7 @@ func TestContentServiceUpdate(t *testing.T) {
 	)
 
 	userModel := utils.Must(cs.DB().Model("user"))
-	userID := utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "testuser", "password": "testpassword"}`))
+	userID := utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "testuser", "password": "testpassword", "provider": "local"}`))
 	user := utils.Must(userModel.Query(db.EQ("id", userID)).First(context.Background()))
 
 	// Case 5: update user without password
@@ -87,7 +87,8 @@ func TestContentServiceUpdate(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"username":"updated"`)
-	userUpdated := utils.Must(userModel.Query(db.EQ("id", userID)).First(context.Background()))
+	ctx := context.WithValue(context.Background(), "keeppassword", "true")
+	userUpdated := utils.Must(userModel.Query(db.EQ("id", userID)).First(ctx))
 	assert.NotEqual(t, user.GetString("password"), userUpdated.GetString("password"))
 }
 

@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,9 +19,9 @@ type DBTestCreateData struct {
 	Schema      string
 	InputJSON   string
 	ClearTables []string
-	Run         func(model db.Model, entity *schema.Entity) (*schema.Entity, error)
+	Run         func(model db.Model, entity *entity.Entity) (*entity.Entity, error)
 	Prepare     func(t *testing.T)
-	Expect      func(t *testing.T, m db.Model, e *schema.Entity)
+	Expect      func(t *testing.T, m db.Model, e *entity.Entity)
 	WantErr     bool
 	ExpectError error
 }
@@ -31,7 +31,7 @@ type DBTestUpdateData struct {
 	Schema       string
 	InputJSON    string
 	ClearTables  []string
-	Run          func(model db.Model, entity *schema.Entity) (int, error)
+	Run          func(model db.Model, entity *entity.Entity) (int, error)
 	Expect       func(t *testing.T, m db.Model)
 	Prepare      func(t *testing.T, m db.Model)
 	Predicates   []*db.Predicate
@@ -69,13 +69,13 @@ type DBTestQueryData struct {
 		limit, offset uint,
 		order []string,
 		columns ...string,
-	) ([]*schema.Entity, error)
-	Prepare func(t *testing.T, client db.Client, m db.Model) []*schema.Entity
+	) ([]*entity.Entity, error)
+	Prepare func(t *testing.T, client db.Client, m db.Model) []*entity.Entity
 	Expect  func(
 		t *testing.T,
 		m db.Model,
-		preparedEntities []*schema.Entity,
-		results []*schema.Entity,
+		preparedEntities []*entity.Entity,
+		results []*entity.Entity,
 	)
 	ExpectError string
 }
@@ -168,7 +168,7 @@ func DBRunCreateTests(client db.Client, t *testing.T, tests []DBTestCreateData) 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
-			entity, err := schema.NewEntityFromJSON(tt.InputJSON)
+			e, err := entity.NewEntityFromJSON(tt.InputJSON)
 			require.NoError(t, err)
 
 			model, err := client.Model(tt.Schema)
@@ -183,20 +183,20 @@ func DBRunCreateTests(client db.Client, t *testing.T, tests []DBTestCreateData) 
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model, entity *schema.Entity) (*schema.Entity, error) {
-					createdEntityID := utils.Must(model.Create(Ctx(), entity))
+				runFn = func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
+					createdEntityID := utils.Must(model.Create(Ctx(), e))
 					return model.Query(db.EQ("id", createdEntityID)).First(Ctx())
 				}
 			}
 
-			entity, err = runFn(model, entity)
+			e, err = runFn(model, e)
 			require.Equal(t, tt.WantErr, err != nil, err)
 			if tt.WantErr && tt.ExpectError != nil {
 				require.Equal(t, tt.ExpectError, err)
 			}
 
 			if err == nil {
-				tt.Expect(t, model, entity)
+				tt.Expect(t, model, e)
 			}
 
 			fmt.Printf("\n\n\n")
@@ -208,7 +208,7 @@ func DBRunUpdateTests(client db.Client, t *testing.T, tests []DBTestUpdateData) 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
-			entity, err := schema.NewEntityFromJSON(tt.InputJSON)
+			e, err := entity.NewEntityFromJSON(tt.InputJSON)
 			require.NoError(t, err)
 
 			model, err := client.Model(tt.Schema)
@@ -224,16 +224,16 @@ func DBRunUpdateTests(client db.Client, t *testing.T, tests []DBTestUpdateData) 
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model, entity *schema.Entity) (int, error) {
+				runFn = func(model db.Model, e *entity.Entity) (int, error) {
 					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
-					return mut.Update(Ctx(), entity)
+					return mut.Update(Ctx(), e)
 				}
 			}
 
-			affected, err := runFn(model, entity)
+			affected, err := runFn(model, e)
 			require.Equal(t, tt.WantErr, err != nil, err)
 			require.Equal(t, tt.WantAffected, affected)
 
@@ -295,7 +295,7 @@ func MockDefaultQueryRunFn(
 	limit, offset uint,
 	order []string,
 	columns ...string,
-) ([]*schema.Entity, error) {
+) ([]*entity.Entity, error) {
 	query := model.Query()
 	if len(predicates) > 0 {
 		query = query.Where(predicates...)
@@ -340,7 +340,7 @@ func DBRunQueryTests(client db.Client, t *testing.T, tests []DBTestQueryData) {
 			}
 
 			ClearDBData(client, tt.ClearTables...)
-			var preparedEntities []*schema.Entity
+			var preparedEntities []*entity.Entity
 			if tt.Prepare != nil {
 				preparedEntities = tt.Prepare(t, client, model)
 			}
@@ -348,10 +348,10 @@ func DBRunQueryTests(client db.Client, t *testing.T, tests []DBTestQueryData) {
 			entities, err := runFn(model, predicates, tt.Limit, tt.Offset, tt.Order, tt.Columns...)
 			if tt.ExpectError == "" {
 				assert.NoError(t, err)
-				preparedJSONs := utils.Map(preparedEntities, func(e *schema.Entity) map[string]any {
+				preparedJSONs := utils.Map(preparedEntities, func(e *entity.Entity) map[string]any {
 					return e.ToMap()
 				})
-				entityJSONs := utils.Map(entities, func(e *schema.Entity) map[string]any {
+				entityJSONs := utils.Map(entities, func(e *entity.Entity) map[string]any {
 					return e.ToMap()
 				})
 
