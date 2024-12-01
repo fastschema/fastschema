@@ -11,6 +11,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -93,8 +94,9 @@ func (tx *Tx) Reload(
 	newSchemaBuilder *schema.Builder,
 	migration *db.Migration,
 	disableForeignKeys bool,
+	enableMigrations ...bool,
 ) (db.Client, error) {
-	return tx.client.Reload(ctx, newSchemaBuilder, migration, disableForeignKeys)
+	return tx.client.Reload(ctx, newSchemaBuilder, migration, disableForeignKeys, enableMigrations...)
 }
 
 // SchemaBuilder returns the schema builder.
@@ -103,8 +105,8 @@ func (tx *Tx) SchemaBuilder() *schema.Builder {
 }
 
 // Model returns the model by name.
-func (tx *Tx) Model(name string, types ...any) (db.Model, error) {
-	m, err := tx.client.Model(name, types...)
+func (tx *Tx) Model(model any) (db.Model, error) {
+	m, err := tx.client.Model(model)
 	if err != nil {
 		return nil, err
 	}
@@ -120,11 +122,6 @@ func (tx *Tx) Dialect() string {
 // Driver returns the underlying driver.
 func (tx *Tx) Driver() dialect.Driver {
 	return tx.driver
-}
-
-// CreateDBModel creates a new model from the schema.
-func (tx *Tx) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.Model {
-	return tx.client.CreateDBModel(s, relations...)
 }
 
 // Exec executes a query.
@@ -143,7 +140,7 @@ func (tx *Tx) Exec(ctx context.Context, query string, args ...any) (sql.Result, 
 }
 
 // Query executes a query.
-func (tx *Tx) Query(ctx context.Context, query string, args ...any) ([]*schema.Entity, error) {
+func (tx *Tx) Query(ctx context.Context, query string, args ...any) ([]*entity.Entity, error) {
 	option := &db.QueryOption{Query: query, Args: args}
 	if err := runPreDBQueryHooks(ctx, tx, option); err != nil {
 		return nil, err

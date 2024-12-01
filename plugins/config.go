@@ -6,6 +6,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -101,8 +102,8 @@ func (p *ConfigActions) OnPostDBQuery(hooks ...goja.Value) error {
 			p.app.OnPostDBQuery(func(
 				c context.Context,
 				option *db.QueryOption,
-				entities []*schema.Entity,
-			) (_ []*schema.Entity, err error) {
+				entities []*entity.Entity,
+			) (_ []*entity.Entity, err error) {
 				_, err = p.program.CallFunc(fnName, p.set, c, option, entities)
 				return entities, err
 			})
@@ -151,7 +152,7 @@ func (p *ConfigActions) OnPostDBExec(hooks ...goja.Value) error {
 func (p *ConfigActions) OnPreDBCreate(hooks ...goja.Value) error {
 	for _, hook := range hooks {
 		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPreDBCreate(func(c context.Context, schema *schema.Schema, createData *schema.Entity) (err error) {
+			p.app.OnPreDBCreate(func(c context.Context, schema *schema.Schema, createData *entity.Entity) (err error) {
 				_, err = p.program.CallFunc(fnName, p.set, c, schema, createData)
 				return
 			})
@@ -169,7 +170,7 @@ func (p *ConfigActions) OnPostDBCreate(hooks ...goja.Value) error {
 			p.app.OnPostDBCreate(func(
 				c context.Context,
 				schema *schema.Schema,
-				createData *schema.Entity,
+				createData *entity.Entity,
 				createdID uint64,
 			) (err error) {
 				_, err = p.program.CallFunc(fnName, p.set, c, schema, createData, createdID)
@@ -190,7 +191,7 @@ func (p *ConfigActions) OnPreDBUpdate(hooks ...goja.Value) error {
 				c context.Context,
 				schema *schema.Schema,
 				predicates []*db.Predicate,
-				updateData *schema.Entity,
+				updateData *entity.Entity,
 			) (err error) {
 				_, err = p.program.CallFunc(fnName, p.set, c, schema, predicates, updateData)
 				return
@@ -210,8 +211,8 @@ func (p *ConfigActions) OnPostDBUpdate(hooks ...goja.Value) error {
 				c context.Context,
 				schema *schema.Schema,
 				predicates []*db.Predicate,
-				updateData *schema.Entity,
-				originalEntities []*schema.Entity,
+				updateData *entity.Entity,
+				originalEntities []*entity.Entity,
 				affected int,
 			) (err error) {
 				_, err = p.program.CallFunc(fnName, p.set, c, schema, predicates, updateData, originalEntities, affected)
@@ -251,7 +252,7 @@ func (p *ConfigActions) OnPostDBDelete(hooks ...goja.Value) error {
 				c context.Context,
 				schema *schema.Schema,
 				predicates []*db.Predicate,
-				originalEntities []*schema.Entity,
+				originalEntities []*entity.Entity,
 				affected int,
 			) (err error) {
 				_, err = p.program.CallFunc(fnName, p.set, c, schema, predicates, originalEntities, affected)

@@ -1,4 +1,4 @@
-package schema
+package entity
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestEntity(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 
 	entity.Set("name", "John")
 	assert.Equal(t, "John", entity.Get("name"))
@@ -32,35 +32,33 @@ func TestEntity(t *testing.T) {
 
 	entity.Set("group_id", "a")
 	_, err = entity.GetUint64("group_id", false)
-	assert.Equal(t, "invalid uint64 value group_id=a (string)", err.Error())
+	assert.Contains(t, err.Error(), "cannot get uint64 value from entity")
 
 	entity.Set("group_id", 1)
 	assert.Equal(t, 1, entity.Get("group_id"))
 
-	entity.SetID("invalid")
-	assert.Equal(t, uint64(0), entity.ID())
+	assert.Error(t, entity.SetID("invalid"))
 
-	entity.SetID("1")
-	assert.Equal(t, uint64(1), entity.ID())
+	assert.Error(t, entity.SetID("1"))
 
-	entity.SetID(2)
+	assert.NoError(t, entity.SetID(2))
 	assert.Equal(t, uint64(2), entity.ID())
 
-	entity.SetID(float64(3))
+	assert.NoError(t, entity.SetID(float64(3)))
 	assert.Equal(t, uint64(3), entity.ID())
 
-	entity.SetID(uint64(4))
+	assert.NoError(t, entity.SetID(uint64(4)))
 	assert.Equal(t, uint64(4), entity.ID())
 
 	entityBytes, err := entity.MarshalJSON()
 	assert.NoError(t, err)
 	assert.Equal(t, `{"name":"John","id":4,"group_id":1}`, string(entityBytes))
 
-	entity2 := NewEntity()
+	entity2 := New()
 	assert.NoError(t, entity2.UnmarshalJSON(entityBytes))
 	assert.Equal(t, entity.Get("name"), entity2.Get("name"))
 
-	entity3 := NewEntity()
+	entity3 := New()
 	assert.Error(t, entity3.UnmarshalJSON([]byte(`{`)))
 	assert.Error(t, entity3.UnmarshalJSON([]byte(`{
 		"id":4,"name":"John",
@@ -126,7 +124,9 @@ func TestEntity(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, `{"id":4,"name":"John","group_id":1,"group":{"id":1,"name":"Admin"},"tags":["developer","admin"],"skills":[{"id":1,"name":"Go"},{"id":2,"name":"PHP"}]}`, jsonString)
 
-	entity4 := NewEntity(4)
+	assert.Equal(t, jsonString, entity3.String())
+
+	entity4 := New(4)
 	assert.Equal(t, uint64(4), entity4.ID())
 
 	entity5, err := NewEntityFromJSON(`{"id":5,"name":"John","group_id":1,"group":{"id":1,"name":"Admin"},"tags":["developer","admin"],"skills":[{"id":1,"name":"Go"},{"id":2,"name":"PHP"}]}`)
@@ -135,10 +135,18 @@ func TestEntity(t *testing.T) {
 
 	_, err = NewEntityFromJSON(`{"id":5`)
 	assert.Error(t, err)
+
+	data := entity5.Data()
+	assert.Equal(t, 6, data.Len())
+
+	// Stringify entity with invalid value
+	entity5.Set("skills", make(chan int))
+	str := entity5.String()
+	assert.Contains(t, str, "cannot convert entity to string")
 }
 
 func TestEntityEmpty(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	assert.True(t, entity.Empty())
 
 	entity.Set("name", "John")
@@ -146,7 +154,7 @@ func TestEntityEmpty(t *testing.T) {
 }
 
 func TestEntityDelete(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	entity.Set("name", "John")
 	entity.Set("age", 30)
 
@@ -165,7 +173,7 @@ func TestEntityDelete(t *testing.T) {
 }
 
 func TestEntityGetString(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	entity.Set("name", "John")
 
 	// Test getting existing string value
@@ -217,7 +225,7 @@ func TestNewEntityFromMap(t *testing.T) {
 }
 
 func TestToJsonError(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	entity.Set("name", "John")
 
 	_, err := entity.ToJSON()
@@ -229,11 +237,11 @@ func TestToJsonError(t *testing.T) {
 	assert.Error(t, err)
 }
 func TestEntityToMap(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	entity.Set("name", "John")
 	entity.Set("age", 30)
 	entity.Set("skills", []string{"Go", "Python", "Java"})
-	group := NewEntity()
+	group := New()
 	group.Set("id", 1)
 	group.Set("name", "Admin")
 	entity.Set("group", group)
@@ -257,7 +265,7 @@ func TestEntityToMap(t *testing.T) {
 }
 
 func TestEntityToMapEmptyEntity(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 
 	expected := map[string]any{}
 
@@ -266,13 +274,13 @@ func TestEntityToMapEmptyEntity(t *testing.T) {
 }
 
 func TestEntityToMapNestedEntities(t *testing.T) {
-	entity1 := NewEntity()
+	entity1 := New()
 	entity1.Set("name", "John")
 
-	entity2 := NewEntity()
+	entity2 := New()
 	entity2.Set("age", float64(30))
 
-	entity3 := NewEntity()
+	entity3 := New()
 	entity3.Set("skills", []string{"Go", "Python", "Java"})
 
 	entity2.Set("group", entity3)
@@ -280,9 +288,9 @@ func TestEntityToMapNestedEntities(t *testing.T) {
 	entity1.Set("info", entity2)
 
 	childSlice := []*Entity{
-		NewEntity().Set("id", float64(1)).Set("name", "Go"),
-		NewEntity().Set("id", float64(2)).Set("name", "Python"),
-		NewEntity().Set("id", float64(3)).Set("name", "Java"),
+		New().Set("id", float64(1)).Set("name", "Go"),
+		New().Set("id", float64(2)).Set("name", "Python"),
+		New().Set("id", float64(3)).Set("name", "Java"),
 	}
 	entity1.Set("skills", childSlice)
 
@@ -306,7 +314,7 @@ func TestEntityToMapNestedEntities(t *testing.T) {
 }
 
 func TestEntityUnmarshalJSON(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 
 	t.Run("ObjectEach", func(t *testing.T) {
 		data := []byte(`{
@@ -370,7 +378,7 @@ func TestEntityUnmarshalJSON(t *testing.T) {
 }
 
 func TestEntityUnmarshalJSONErrorArrayEach(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 
 	data := []byte(`{
 		"mixed": [1, 2, 3,]
@@ -382,20 +390,20 @@ func TestEntityUnmarshalJSONErrorArrayEach(t *testing.T) {
 }
 
 func TestEntityToStruct(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	entity.Set("name", "John")
 	entity.Set("age", 30)
 	entity.Set("skills", []string{"Go", "Python", "Java"})
 
-	group := NewEntity()
+	group := New()
 	group.Set("id", 1)
 	group.Set("name", "Admin")
 	entity.Set("group", group)
 
 	// option 1 to set slice of struct
-	structElem1 := NewEntity()
+	structElem1 := New()
 	structElem1.Set("name", "name 1")
-	structElem2 := NewEntity()
+	structElem2 := New()
 	structElem2.Set("name", "name 2")
 	entity.Set("sliceStruct", []*Entity{structElem1, structElem2})
 
@@ -467,12 +475,12 @@ func TestEntityToStruct(t *testing.T) {
 // TestEntityToStructWithMapOfSliceOfStruct
 
 func TestEntityToStructWithMapOfSliceOfStruct(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	entity.Set("name", "John")
 	entity.Set("age", 30)
 	entity.Set("skills", []string{"Go", "Python", "Java"})
 
-	group := NewEntity()
+	group := New()
 	group.Set("id", 1)
 	group.Set("name", "Admin")
 	entity.Set("group", group)
@@ -496,16 +504,16 @@ func TestEntityToStructWithMapOfSliceOfStruct(t *testing.T) {
 	// 	},
 	// })
 
-	entity.Set("colors", NewEntity().
+	entity.Set("colors", New().
 		Set("primary", []*Entity{
-			NewEntity().Set("name", "Red").Set("code", "#ff0000"),
-			NewEntity().Set("name", "Green").Set("code", "#00ff00"),
-			NewEntity().Set("name", "Blue").Set("code", "#0000ff"),
+			New().Set("name", "Red").Set("code", "#ff0000"),
+			New().Set("name", "Green").Set("code", "#00ff00"),
+			New().Set("name", "Blue").Set("code", "#0000ff"),
 		}).
 		Set("secondary", []*Entity{
-			NewEntity().Set("name", "Yellow").Set("code", "#ffff00"),
-			NewEntity().Set("name", "Cyan").Set("code", "#00ffff"),
-			NewEntity().Set("name", "Magenta").Set("code", "#ff00ff"),
+			New().Set("name", "Yellow").Set("code", "#ffff00"),
+			New().Set("name", "Cyan").Set("code", "#00ffff"),
+			New().Set("name", "Magenta").Set("code", "#ff00ff"),
 		}),
 	)
 
@@ -570,26 +578,26 @@ func TestEntityToStructWithMapOfSliceOfStruct(t *testing.T) {
 
 // TestEntityToStructWithNestedStruct
 func TestEntityToStructWithNestedStruct(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	entity.Set("name", "John")
 	entity.Set("age", 30)
 	entity.Set("skills", []string{"Go", "Python", "Java"})
 
-	group := NewEntity()
+	group := New()
 	group.Set("id", 1)
 	group.Set("name", "Admin")
 	entity.Set("group", group)
 
-	colors := NewEntity()
+	colors := New()
 	colors.Set("primary", []*Entity{
-		NewEntity().Set("name", "Red").Set("code", "#ff0000"),
-		NewEntity().Set("name", "Green").Set("code", "#00ff00"),
-		NewEntity().Set("name", "Blue").Set("code", "#0000ff"),
+		New().Set("name", "Red").Set("code", "#ff0000"),
+		New().Set("name", "Green").Set("code", "#00ff00"),
+		New().Set("name", "Blue").Set("code", "#0000ff"),
 	})
 	colors.Set("secondary", []*Entity{
-		NewEntity().Set("name", "Yellow").Set("code", "#ffff00"),
-		NewEntity().Set("name", "Cyan").Set("code", "#00ffff"),
-		NewEntity().Set("name", "Magenta").Set("code", "#ff00ff"),
+		New().Set("name", "Yellow").Set("code", "#ffff00"),
+		New().Set("name", "Cyan").Set("code", "#00ffff"),
+		New().Set("name", "Magenta").Set("code", "#ff00ff"),
 	})
 	entity.Set("colors", colors)
 
@@ -646,22 +654,22 @@ func TestEntityToStructWithNestedStruct(t *testing.T) {
 }
 
 func TestEntityToStructWithMissingFields(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	// set missing name field
 	// entity.Set("name", "John")
 	entity.Set("age", 30)
 	entity.Set("skills", []string{"Go", "Python", "Java"})
 
-	group := NewEntity()
+	group := New()
 
 	group.Set("id", 1)
 	group.Set("name", "Admin")
 	entity.Set("group", group)
 
 	// option 1 to set slice of struct
-	structElem1 := NewEntity()
+	structElem1 := New()
 	structElem1.Set("name", "name 1")
-	structElem2 := NewEntity()
+	structElem2 := New()
 	structElem2.Set("name", "name 2")
 	entity.Set("sliceStruct", []*Entity{structElem1, structElem2})
 
@@ -716,7 +724,7 @@ func TestEntityToStructWithMissingFields(t *testing.T) {
 }
 
 func TestEntityToStructMarshalError(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	entity.Set("name", make(chan int))
 	entity.Set("age", 30)
 	entity.Set("skills", []string{"Go", "Python", "Java"})
@@ -731,50 +739,8 @@ func TestEntityToStructMarshalError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestNamedEntity(t *testing.T) {
-	entity := NamedEntity("test_entity")
-
-	// Assert that the entity has the correct name
-	assert.Equal(t, "test_entity", entity.Name())
-
-	// Assert that the entity is not empty
-	assert.True(t, entity.Empty())
-
-	// Assert that the entity has no keys
-	assert.Empty(t, entity.Keys())
-
-	// Assert that the entity is a string representation
-	assert.NotEmpty(t, entity.String())
-
-	// Assert that the entity is the oldest key/value pair
-	assert.Nil(t, entity.First())
-
-	// Assert that the entity can set a value
-	entity.Set("key", "value")
-	assert.Equal(t, "value", entity.Get("key"))
-
-	// Assert that the entity can delete a value
-	entity.Delete("key")
-	assert.Nil(t, entity.Get("key"))
-
-	// Assert that the entity can get a string value
-	assert.Equal(t, "default", entity.GetString("nonexistent", "default"))
-
-	// Assert that entity String() returns an error
-	entity.Set("key", make(chan int))
-	assert.Contains(t, entity.String(), "cannot convert entity to string")
-}
-
-func TestEntityName(t *testing.T) {
-	entity := NamedEntity("blog")
-	assert.Equal(t, "blog", entity.Name())
-
-	entity.Name("post")
-	assert.Equal(t, "post", entity.Name())
-}
-
 func TestEntityKeys(t *testing.T) {
-	entity := NamedEntity("User")
+	entity := New()
 	entity.Set("name", "John")
 	entity.Set("age", 30)
 	entity.Set("email", "john@example.com")
@@ -785,7 +751,7 @@ func TestEntityKeys(t *testing.T) {
 }
 
 func TestEntityKeysEmptyEntity(t *testing.T) {
-	entity := NamedEntity("User")
+	entity := New()
 
 	keys := entity.Keys()
 
@@ -793,7 +759,7 @@ func TestEntityKeysEmptyEntity(t *testing.T) {
 }
 
 func TestEntityKeysOrdered(t *testing.T) {
-	entity := NamedEntity("User")
+	entity := New()
 	entity.Set("name", "John")
 	entity.Set("age", 30)
 	entity.Set("email", "john@example.com")
@@ -806,7 +772,7 @@ func TestEntityKeysOrdered(t *testing.T) {
 }
 
 func TestEntityKeysDuplicateKeys(t *testing.T) {
-	entity := NamedEntity("User")
+	entity := New()
 	entity.Set("name", "John")
 	entity.Set("age", 30)
 	entity.Set("name", "Jane")
@@ -816,12 +782,12 @@ func TestEntityKeysDuplicateKeys(t *testing.T) {
 	assert.Equal(t, []string{"name", "age"}, keys)
 }
 func TestBindEntity(t *testing.T) {
-	entity := NewEntity()
+	entity := New()
 	entity.Set("name", "John")
 	entity.Set("age", 30)
 	entity.Set("skills", []string{"Go", "Python", "Java"})
 
-	group := NewEntity()
+	group := New()
 	group.Set("id", 1)
 	group.Set("name", "Admin")
 	entity.Set("group", group)
@@ -853,7 +819,7 @@ func TestBindEntity(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expected, result)
 
-	errEntity := NewEntity()
+	errEntity := New()
 	errEntity.Set("name", "John")
 	errEntity.Set("age", make(chan int))
 

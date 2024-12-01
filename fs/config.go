@@ -7,6 +7,7 @@ import (
 
 type Config struct {
 	Dir               string         `json:"dir"`
+	AppName           string         `json:"app_name"`
 	AppKey            string         `json:"app_key"`
 	Port              string         `json:"port"`
 	BaseURL           string         `json:"base_url"`
@@ -18,15 +19,17 @@ type Config struct {
 	DB                db.Client      `json:"-"`
 	DBConfig          *db.Config     `json:"db_config"` // If DB is set, DBConfig will be ignored
 	StorageConfig     *StorageConfig `json:"storage_config"`
-	HideResourcesInfo bool           `json:"hide_resources_info"`
 	AuthConfig        *AuthConfig    `json:"auth_config"`
+	MailConfig        *MailConfig    `json:"mail_config"`
 	SystemSchemas     []any          `json:"-"` // types to build the system schemas
 	Hooks             *Hooks         `json:"-"`
+	HideResourcesInfo bool           `json:"hide_resources_info"`
 }
 
 func (ac *Config) Clone() *Config {
 	c := &Config{
 		Dir:               ac.Dir,
+		AppName:           ac.AppName,
 		AppKey:            ac.AppKey,
 		Port:              ac.Port,
 		BaseURL:           ac.BaseURL,
@@ -49,6 +52,14 @@ func (ac *Config) Clone() *Config {
 
 	if ac.AuthConfig != nil {
 		c.AuthConfig = ac.AuthConfig.Clone()
+	}
+
+	if ac.MailConfig != nil {
+		c.MailConfig = ac.MailConfig.Clone()
+	}
+
+	if ac.LoggerConfig != nil {
+		c.LoggerConfig = ac.LoggerConfig.Clone()
 	}
 
 	if ac.Hooks != nil {

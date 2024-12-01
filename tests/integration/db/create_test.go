@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,9 +16,9 @@ func DBCreateNode(t *testing.T, client db.Client) {
 		{
 			Name:        "fields",
 			Schema:      "user",
-			InputJSON:   `{ "name": "User 1", "username": "user1", "age": 10 }`,
+			InputJSON:   `{ "name": "User 1", "provider": "local", "username": "user1", "age": 10 }`,
 			ClearTables: []string{"users"},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				entity, err := m.Query(db.EQ("id", e.ID())).Only(Ctx())
 				assert.NoError(t, err)
 				assert.NotNil(t, entity)
@@ -31,10 +31,10 @@ func DBCreateNode(t *testing.T, client db.Client) {
 			Name:        "fields/user-defined-id",
 			Schema:      "user",
 			ClearTables: []string{"users"},
-			InputJSON:   `{ "name": "User 2", "username": "user2", "age": 20, "id": 2 }`,
+			InputJSON:   `{ "name": "User 2", "provider": "local", "username": "user2", "age": 20, "id": 2 }`,
 			WantErr:     true,
 			ExpectError: errors.New("cannot create entity with existing ID 2"),
-			Run: func(model db.Model, entity *schema.Entity) (*schema.Entity, error) {
+			Run: func(model db.Model, entity *entity.Entity) (*entity.Entity, error) {
 				createdEntityID, err := model.Create(Ctx(), entity)
 				if err != nil {
 					return nil, err
@@ -49,6 +49,7 @@ func DBCreateNode(t *testing.T, client db.Client) {
 			InputJSON: `{
 				"name": "User 1",
 				"username": "user1",
+				"provider": "local",
 				"json": {
 					"key1": "value1",
 					"key2": "value2",
@@ -79,7 +80,7 @@ func DBCreateNode(t *testing.T, client db.Client) {
 					]
 				}
 			}`,
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				entity, err := m.Query(db.EQ("id", e.ID())).Only(Ctx())
 				assert.NoError(t, err)
 				assert.Equal(t, e.ID(), entity.ID())
@@ -107,6 +108,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			InputJSON: `{
 				"name": "User 2",
 				"username": "user2",
+				"provider": "local",
 				"car": {
 					"id": 2
 				},
@@ -120,10 +122,10 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				car1 := utils.Must(utils.Must(client.Model("car")).Query(db.EQ("id", car1ID)).Only(Ctx()))
 				assert.Equal(t, uint64(1), car1.ID())
 				utils.Must(utils.Must(client.Model("car")).CreateFromJSON(Ctx(), `{"name": "Car 2"}`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), fmt.Sprintf(`{"name": "User 1", "username": "user1", "car": {"id": %d} }`, 1)))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), fmt.Sprintf(`{"name": "User 1", "username": "user1", "provider": "local", "car": {"id": %d} }`, 1)))
 				utils.Must(utils.Must(client.Model("card")).CreateFromJSON(Ctx(), fmt.Sprintf(`{"number": "1234567890", "owner": {"id": %d}}`, 1)))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				entity, err := m.Query(db.EQ("id", e.ID())).Only(Ctx())
 				assert.NoError(t, err)
 				assert.Equal(t, uint64(2), entity.ID())
@@ -141,10 +143,10 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				}`,
 			ClearTables: []string{"users", "cards"},
 			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				entity := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 				assert.Equal(t, uint64(1), entity.ID())
 				assert.Equal(t, "0001", entity.Get("number"))
@@ -157,16 +159,17 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			InputJSON: `{
 				"name": "User 3",
 				"username": "user3",
+				"provider": "local",
 				"spouse": {
 					"id": 2
 				}
 			}`,
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2", }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				user2 := utils.Must(m.Query(db.EQ("id", 2)).Only(Ctx()))
 				user3 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 				assert.Equal(t, uint64(3), user3.ID())
@@ -188,7 +191,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				utils.Must(utils.Must(client.Model("node")).CreateFromJSON(Ctx(), `{ "name": "Node 1" }`))
 				utils.Must(utils.Must(client.Model("node")).CreateFromJSON(Ctx(), `{ "name": "Node 2" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				node2 := utils.Must(m.Query(db.EQ("id", 2)).Only(Ctx()))
 				node3 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 				assert.Equal(t, uint64(3), node3.ID())
@@ -210,7 +213,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				utils.Must(utils.Must(client.Model("node")).CreateFromJSON(Ctx(), `{ "name": "Node 1" }`))
 				utils.Must(utils.Must(client.Model("node")).CreateFromJSON(Ctx(), `{ "name": "Node 2" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				node3 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 				node2 := utils.Must(m.Query(db.EQ("id", 2)).Only(Ctx()))
 				assert.Equal(t, uint64(3), node3.ID())
@@ -224,6 +227,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			InputJSON: `{
 				"name": "User 2",
 				"username": "user2",
+				"provider": "local",
 				"sub_pets": [
 					{
 						"id": 1
@@ -232,10 +236,10 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "pets"},
 			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
 				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(Ctx(), `{ "name": "Pet 1", "owner_id": 1 }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				pet1 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", 1)).Only(Ctx()))
 				user2 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 				assert.Equal(t, uint64(2), user2.ID())
@@ -249,6 +253,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			InputJSON: `{
 				"name": "User 2",
 				"username": "user2",
+				"provider": "local",
 				"sub_pets": [
 					{ "id": 1 },
 					{ "id": 2 }
@@ -256,11 +261,11 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "pets"},
 			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
 				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(Ctx(), `{ "name": "Pet 1", "owner_id": 1 }`))
 				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(Ctx(), `{ "name": "Pet 2", "owner_id": 1 }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				user2 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 				pet1 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", 1)).Only(Ctx()))
 				pet2 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", 2)).Only(Ctx()))
@@ -281,10 +286,10 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "pets"},
 			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				pet1 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 				user2 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", 2)).Only(Ctx()))
 
@@ -305,7 +310,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			Prepare: func(t *testing.T) {
 				utils.Must(utils.Must(client.Model("node")).CreateFromJSON(Ctx(), `{ "name": "Node 1" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				node1 := utils.Must(m.Query(db.EQ("id", 1)).Only(Ctx()))
 				node2 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 
@@ -333,7 +338,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				utils.Must(utils.Must(client.Model("node")).CreateFromJSON(Ctx(), `{ "name": "Node 2" }`))
 				utils.Must(utils.Must(client.Model("node")).CreateFromJSON(Ctx(), `{ "name": "Node 3" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				node4 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 				node2 := utils.Must(m.Query(db.EQ("id", 2)).Only(Ctx()))
 				node3 := utils.Must(m.Query(db.EQ("id", 3)).Only(Ctx()))
@@ -368,7 +373,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				utils.Must(utils.Must(client.Model("node")).CreateFromJSON(Ctx(), `{ "name": "Node 3" }`))
 				utils.Must(utils.Must(client.Model("node")).CreateFromJSON(Ctx(), `{ "name": "Node 4" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				node1 := utils.Must(m.Query(db.EQ("id", 1)).Only(Ctx()))
 				node3 := utils.Must(m.Query(db.EQ("id", 3)).Only(Ctx()))
 				node4 := utils.Must(m.Query(db.EQ("id", 4)).Only(Ctx()))
@@ -393,13 +398,13 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "groups", "groups_users"},
 			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, groupEntity *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, groupEntity *entity.Entity) {
 				group1 := utils.Must(m.Query(db.EQ("id", groupEntity.ID())).Only(Ctx()))
 				groupsUsers := utils.Must(utils.Must(client.Model("groups_users")).Query(db.EQ("groups", group1.ID())).Get(Ctx()))
-				userIDs := utils.Map(groupsUsers, func(gu *schema.Entity) any {
+				userIDs := utils.Map(groupsUsers, func(gu *entity.Entity) any {
 					return gu.Get("users")
 				})
 
@@ -414,6 +419,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			InputJSON: `{
 				"name": "User 1",
 				"username": "user1",
+				"provider": "local",
 				"groups": [
 					{ "id": 1 },
 					{ "id": 2 }
@@ -424,10 +430,10 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(Ctx(), `{ "name": "Group 1" }`))
 				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(Ctx(), `{ "name": "Group 2" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, userEntity *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, userEntity *entity.Entity) {
 				user1 := utils.Must(m.Query(db.EQ("id", userEntity.ID())).Only(Ctx()))
 				groupsUsers := utils.Must(utils.Must(client.Model("groups_users")).Query(db.EQ("users", user1.ID())).Get(Ctx()))
-				groupIDs := utils.Map(groupsUsers, func(gui *schema.Entity) any {
+				groupIDs := utils.Map(groupsUsers, func(gui *entity.Entity) any {
 					return gui.Get("groups")
 				})
 
@@ -442,6 +448,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			InputJSON: `{
 				"name": "User 3",
 				"username": "user3",
+				"provider": "local",
 				"friends": [
 					{ "id": 1 },
 					{ "id": 2 }
@@ -449,15 +456,15 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "friends_user"},
 			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, userEntity *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, userEntity *entity.Entity) {
 				user3 := utils.Must(m.Query(db.EQ("id", userEntity.ID())).Only(Ctx()))
 
 				friendsUsers := utils.Must(utils.Must(client.Model("friends_user")).Query(db.EQ("user", user3.ID())).Get(Ctx()))
 
-				friendIDs := utils.Map(friendsUsers, func(fu *schema.Entity) any {
+				friendIDs := utils.Map(friendsUsers, func(fu *entity.Entity) any {
 					return fu.Get("friends")
 				})
 
@@ -472,6 +479,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			InputJSON: `{
 				"name": "User 3",
 				"username": "user3",
+				"provider": "local",
 				"friends": [
 					{ "id": 1 },
 					{ "id": 2 }
@@ -483,22 +491,22 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "groups", "groups_users", "friends_user"},
 			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
 				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(Ctx(), `{ "name": "Group 1" }`))
 				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(Ctx(), `{ "name": "Group 2" }`))
 			},
-			Expect: func(t *testing.T, m db.Model, e *schema.Entity) {
+			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				user3 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(Ctx()))
 
 				friendsUsers := utils.Must(utils.Must(client.Model("friends_user")).Query(db.EQ("user", user3.ID())).Get(Ctx()))
 
-				friendIDs := utils.Map(friendsUsers, func(fu *schema.Entity) any {
+				friendIDs := utils.Map(friendsUsers, func(fu *entity.Entity) any {
 					return fu.Get("friends")
 				})
 
 				groupsUsers := utils.Must(utils.Must(client.Model("groups_users")).Query(db.EQ("users", user3.ID())).Get(Ctx()))
-				groupIDs := utils.Map(groupsUsers, func(gu *schema.Entity) any {
+				groupIDs := utils.Map(groupsUsers, func(gu *entity.Entity) any {
 					return gu.Get("groups")
 				})
 

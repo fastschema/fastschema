@@ -82,8 +82,8 @@ func (oas *OpenAPISpec) TypeToOgenSchema(t any, configs ...*TypeToOgenConfig) (s
 func (oas *OpenAPISpec) CreateStructSchema(dtType reflect.Type, fieldNames ...string) *ogen.Schema {
 	fieldNames = append(fieldNames, "")
 	schemaName := dtType.Name()
-	if dtType.String() == "schema.Entity" {
-		schemaName = "Schema.Entity"
+	if dtType.String() == "entity.Entity" {
+		schemaName = "Entity.Entity"
 	}
 
 	if schemaName == "" {

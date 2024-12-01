@@ -45,7 +45,7 @@ func TestContentServiceDetail(t *testing.T) {
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"name":"test blog"`)
 
 	userModel := utils.Must(cs.DB().Model("user"))
-	userID := utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "testuser", "password": "123456"}`))
+	userID := utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "testuser", "password": "123456", "provider": "local"}`))
 
 	// Case 5: detail user entity should not have password field
 	req = httptest.NewRequest("GET", fmt.Sprintf("/content/user/%d", userID), nil)

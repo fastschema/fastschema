@@ -3,6 +3,7 @@ package openapi_test
 import (
 	"testing"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/openapi"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -288,16 +289,16 @@ func TestCreateResourcesForSchemas(t *testing.T) {
 		Add(fs.NewResource("list", func(c fs.Context, _ any) (*contentservice.Pagination, error) {
 			return nil, nil
 		}, &fs.Meta{Get: "/"})).
-		Add(fs.NewResource("detail", func(c fs.Context, _ any) (*schema.Entity, error) {
+		Add(fs.NewResource("detail", func(c fs.Context, _ any) (*entity.Entity, error) {
 			return nil, nil
 		}, &fs.Meta{
 			Get:  "/:id",
 			Args: fs.Args{"id": createArg(fs.TypeUint64, "The content ID")},
 		})).
-		Add(fs.NewResource("create", func(c fs.Context, _ any) (*schema.Entity, error) {
+		Add(fs.NewResource("create", func(c fs.Context, _ any) (*entity.Entity, error) {
 			return nil, nil
 		}, &fs.Meta{Post: "/"})).
-		Add(fs.NewResource("update", func(c fs.Context, _ any) (*schema.Entity, error) {
+		Add(fs.NewResource("update", func(c fs.Context, _ any) (*entity.Entity, error) {
 			return nil, nil
 		}, &fs.Meta{
 			Put:  "/:id",

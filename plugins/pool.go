@@ -46,7 +46,7 @@ func CreateVMProps(function string, program *Program, set map[string]any) *VMPro
 func (p *VMProps) Key() string {
 	poolKey := p.program.key + "." + p.function
 	if len(p.set) > 0 {
-		setKeys := utils.GetMapKeys(p.set)
+		setKeys := utils.MapKeys(p.set)
 		poolKey += "_" + strings.Join(setKeys, ".")
 	}
 

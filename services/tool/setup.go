@@ -3,12 +3,13 @@ package toolservice
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
 func Setup(
@@ -19,7 +20,7 @@ func Setup(
 ) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v", r)
+			err = fmt.Errorf("panic: %v\n%s", r, string(debug.Stack()))
 		}
 	}()
 
@@ -50,17 +51,14 @@ func Setup(
 	adminRole := utils.Must(CreateRole(ctx, tx, fs.RoleAdmin))
 	utils.Must(CreateRole(ctx, tx, fs.RoleUser))
 	utils.Must(CreateRole(ctx, tx, fs.RoleGuest))
-	adminPassword, err := utils.GenerateHash(password)
-	if err != nil {
-		return err
-	}
 
 	utils.Must(db.Create[*fs.User](ctx, tx, fs.Map{
 		"username": username,
 		"email":    email,
-		"password": adminPassword,
+		"password": password,
+		"provider": "local",
 		"active":   true,
-		"roles":    []*schema.Entity{schema.NewEntity(adminRole.ID)},
+		"roles":    []*entity.Entity{entity.New(adminRole.ID)},
 	}))
 
 	if err := tx.Commit(); err != nil {
@@ -73,7 +71,7 @@ func Setup(
 }
 
 func CreateRole(ctx context.Context, dbc db.Client, roleData *fs.Role) (*fs.Role, error) {
-	return db.Create[*fs.Role](ctx, dbc, schema.NewEntity().
+	return db.Create[*fs.Role](ctx, dbc, entity.New().
 		Set("name", roleData.Name).
 		Set("description", roleData.Description).
 		Set("root", roleData.Root))
@@ -86,7 +84,7 @@ func ResetAdminPassword(ctx context.Context,
 ) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v", r)
+			err = fmt.Errorf("panic: %v\n%s", r, string(debug.Stack()))
 		}
 	}()
 
@@ -125,10 +123,8 @@ func ResetAdminPassword(ctx context.Context,
 		return fmt.Errorf("user is not an admin")
 	}
 
-	hashedPassword := utils.Must(utils.GenerateHash(password))
-
 	utils.Must(db.Update[*fs.User](ctx, tx, fs.Map{
-		"password": hashedPassword,
+		"password": password,
 	}, []*db.Predicate{db.EQ("id", id)}))
 
 	if err := tx.Commit(); err != nil {

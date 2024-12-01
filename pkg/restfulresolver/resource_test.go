@@ -86,6 +86,10 @@ func TestNewRestResolver(t *testing.T) {
 		Logger:          logger.CreateMockLogger(true),
 		StaticFSs:       staticFSs,
 	})
+
+	handlerFunc, err := restResolver.HTTPAdaptor()
+	assert.NoError(t, err)
+	assert.NotNil(t, handlerFunc)
 	assert.NotNil(t, restResolver.Server())
 
 	req := httptest.NewRequest("GET", "/static/test.txt", nil)

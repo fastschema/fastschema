@@ -6,11 +6,12 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/fastschema/fastschema/schema"
+	"github.com/fastschema/fastschema/entity"
+	"github.com/fastschema/fastschema/expr"
 )
 
 // Create creates a new entity in the database
-func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err error) {
+func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ uint64, err error) {
 	if m.model == nil || m.model.schema == nil {
 		return 0, fmt.Errorf("model or schema %s not found", m.model.name)
 	}
@@ -18,6 +19,14 @@ func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err 
 	// Prevent creating an entity with an existing ID
 	if e.ID() != 0 {
 		return 0, fmt.Errorf("cannot create entity with existing ID %d", e.ID())
+	}
+
+	if err := m.model.schema.ApplySetters(ctx, e, expr.Config{
+		DB: func() expr.DBLike {
+			return m.client
+		},
+	}); err != nil {
+		return 0, err
 	}
 
 	if err := runPreDBCreateHooks(ctx, m.client, m.model.schema, e); err != nil {
@@ -79,7 +88,9 @@ func (m *Mutation) Create(ctx context.Context, e *schema.Entity) (_ uint64, err 
 		return 0, err
 	}
 
-	e.SetID(createSpec.ID.Value)
+	if err := e.SetID(createSpec.ID.Value); err != nil {
+		return 0, err
+	}
 
 	if m.autoCommit {
 		if err = m.client.Commit(); err != nil {

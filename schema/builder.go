@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
@@ -53,7 +54,21 @@ func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema
 		}
 
 		if _, ok := schemas[schema.Name]; ok {
-			schemas[schema.Name].Fields = append(schemas[schema.Name].Fields, schema.Fields...)
+			schemas[schema.Name].Fields = append(
+				schemas[schema.Name].Fields,
+				schema.Fields...,
+			)
+			if schemas[schema.Name].DB == nil {
+				schemas[schema.Name].DB = &SchemaDB{
+					Indexes: []*SchemaDBIndex{},
+				}
+			}
+			if schema.DB != nil && schema.DB.Indexes != nil {
+				schemas[schema.Name].DB.Indexes = append(
+					schemas[schema.Name].DB.Indexes,
+					schema.DB.Indexes...,
+				)
+			}
 		} else {
 			schemas[schema.Name] = schema
 		}
@@ -257,7 +272,10 @@ func (b *Builder) CreateFKs() error {
 
 		// O2O and O2M relations
 		if relation.Type.IsO2O() || relation.Type.IsO2M() {
-			fkField := relation.CreateFKFields()
+			fkField, err := relation.CreateFKFields()
+			if err != nil {
+				return err
+			}
 
 			// if relation.FKFields != nil {
 			if fkField != nil {
@@ -270,14 +288,14 @@ func (b *Builder) CreateFKs() error {
 						schema.Fields,
 						existedSchemaField,
 						func(f *Field) bool {
-							return f.Name == FieldCreatedAt
+							return f.Name == entity.FieldCreatedAt
 						},
 					)
 					schema.dbColumns = utils.SliceInsertBeforeElement(
 						schema.dbColumns,
 						relation.GetTargetFKColumn(),
 						func(c string) bool {
-							return c == FieldCreatedAt
+							return c == entity.FieldCreatedAt
 						},
 					)
 				}

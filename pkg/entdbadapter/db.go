@@ -3,7 +3,6 @@ package entdbadapter
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"fmt"
 	"reflect"
 
@@ -14,51 +13,6 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/schema"
 )
-
-type EntAdapter interface {
-	NewEdgeSpec(
-		r *schema.Relation,
-		nodeIDs []driver.Value,
-	) (*sqlgraph.EdgeSpec, error)
-	NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, error)
-	Reload(
-		ctx context.Context,
-		newSchemaBuilder *schema.Builder,
-		migration *db.Migration,
-		disableForeignKeys bool,
-	) (_ db.Client, err error)
-	Driver() dialect.Driver
-	CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.Model
-	Close() error
-	Commit() error
-	Rollback() error
-	Config() *db.Config
-	DB() *sql.DB
-	Dialect() string
-	Exec(
-		ctx context.Context,
-		query string,
-		args ...any,
-	) (sql.Result, error)
-	Query(
-		ctx context.Context,
-		query string,
-		args ...any,
-	) ([]*schema.Entity, error)
-	Hooks() *db.Hooks
-	IsTx() bool
-	Model(name string, types ...any) (db.Model, error)
-	SchemaBuilder() *schema.Builder
-	Tx(ctx context.Context) (db.Client, error)
-	Migrate(
-		ctx context.Context,
-		migration *db.Migration,
-		disableForeignKeys bool,
-		appendEntTables ...*entSchema.Table,
-	) (err error)
-	SetSQLDB(db *sql.DB)
-	SetDriver(driver dialect.Driver)
-}
 
 // NewClient creates a new ent client
 func NewClient(config *db.Config, schemaBuilder *schema.Builder) (_ db.Client, err error) {
@@ -150,10 +104,12 @@ func (d *Adapter) Reload(
 	newSchemaBuilder *schema.Builder,
 	migration *db.Migration,
 	disableForeignKeys bool,
+	enableMigrations ...bool,
 ) (_ db.Client, err error) {
+	enableMigrations = append(enableMigrations, true)
 	renamedEntTables := make([]*entSchema.Table, 0)
 	newConfig := d.config.Clone()
-	newConfig.IgnoreMigration = true
+	newConfig.IgnoreMigration = !enableMigrations[0]
 	newAdapter, err := NewClient(newConfig, newSchemaBuilder)
 	if err != nil {
 		return nil, err
@@ -223,7 +179,7 @@ func (d *Adapter) Reload(
 
 	newEntAdapter, ok := newAdapter.(EntAdapter)
 	if !ok {
-		return nil, fmt.Errorf("invalid adapter")
+		return nil, fmt.Errorf("invalid adapter, want EntAdapter, got %T", newAdapter)
 	}
 
 	if err = newEntAdapter.Migrate(ctx, migration, disableForeignKeys, renamedEntTables...); err != nil {

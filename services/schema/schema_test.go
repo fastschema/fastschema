@@ -253,3 +253,16 @@ func TestSchemaService(t *testing.T) {
 	assert.NotNil(t, schemaService)
 	assert.NotNil(t, server)
 }
+
+func TestCreateResource(t *testing.T) {
+	_, schemaService, _ := createSchemaService(t, nil)
+	api := fs.NewResourcesManager().Group("api")
+	schemaService.CreateResource(api)
+	assert.NotNil(t, api.Find("api.schema.list"))
+	assert.NotNil(t, api.Find("api.schema.create"))
+	assert.NotNil(t, api.Find("api.schema.detail"))
+	assert.NotNil(t, api.Find("api.schema.update"))
+	assert.NotNil(t, api.Find("api.schema.delete"))
+	assert.NotNil(t, api.Find("api.schema.import"))
+	assert.NotNil(t, api.Find("api.schema.export"))
+}

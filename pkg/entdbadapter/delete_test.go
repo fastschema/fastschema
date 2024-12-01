@@ -11,6 +11,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -112,7 +113,7 @@ func TestDeleteNodesHookError(t *testing.T) {
 							ctx context.Context,
 							schema *schema.Schema,
 							predicates []*db.Predicate,
-							originalEntities []*schema.Entity,
+							originalEntities []*entity.Entity,
 							affected int,
 						) error {
 							assert.Greater(t, len(predicates), 0)

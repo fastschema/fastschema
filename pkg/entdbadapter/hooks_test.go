@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -27,8 +28,8 @@ func TestHooksError(t *testing.T) {
 				func(
 					ctx context.Context,
 					option *db.QueryOption,
-					entities []*schema.Entity,
-				) ([]*schema.Entity, error) {
+					entities []*entity.Entity,
+				) ([]*entity.Entity, error) {
 					return nil, assert.AnError
 				},
 			},
@@ -43,12 +44,12 @@ func TestHooksError(t *testing.T) {
 				},
 			},
 			PreDBCreate: []db.PreDBCreate{
-				func(ctx context.Context, schema *schema.Schema, createData *schema.Entity) error {
+				func(ctx context.Context, schema *schema.Schema, createData *entity.Entity) error {
 					return assert.AnError
 				},
 			},
 			PostDBCreate: []db.PostDBCreate{
-				func(ctx context.Context, schema *schema.Schema, createData *schema.Entity, id uint64) error {
+				func(ctx context.Context, schema *schema.Schema, createData *entity.Entity, id uint64) error {
 					return assert.AnError
 				},
 			},
@@ -57,7 +58,7 @@ func TestHooksError(t *testing.T) {
 					ctx context.Context,
 					schema *schema.Schema,
 					predicates []*db.Predicate,
-					updateData *schema.Entity,
+					updateData *entity.Entity,
 				) error {
 					return assert.AnError
 				},
@@ -67,8 +68,8 @@ func TestHooksError(t *testing.T) {
 					ctx context.Context,
 					schema *schema.Schema,
 					predicates []*db.Predicate,
-					updateData *schema.Entity,
-					originalEntities []*schema.Entity,
+					updateData *entity.Entity,
+					originalEntities []*entity.Entity,
 					affected int,
 				) error {
 					return assert.AnError
@@ -84,7 +85,7 @@ func TestHooksError(t *testing.T) {
 					ctx context.Context,
 					schema *schema.Schema,
 					predicates []*db.Predicate,
-					originalEntities []*schema.Entity,
+					originalEntities []*entity.Entity,
 					affected int,
 				) error {
 					return assert.AnError
@@ -109,16 +110,16 @@ func TestHooksError(t *testing.T) {
 	err = runPostDBExecHooks(ctx, client, &db.QueryOption{}, nil)
 	assert.Error(t, err)
 
-	err = runPreDBCreateHooks(ctx, client, nil, &schema.Entity{})
+	err = runPreDBCreateHooks(ctx, client, nil, &entity.Entity{})
 	assert.Error(t, err)
 
-	err = runPostDBCreateHooks(ctx, client, nil, &schema.Entity{}, 0)
+	err = runPostDBCreateHooks(ctx, client, nil, &entity.Entity{}, 0)
 	assert.Error(t, err)
 
-	err = runPreDBUpdateHooks(ctx, client, nil, nil, &schema.Entity{})
+	err = runPreDBUpdateHooks(ctx, client, nil, nil, &entity.Entity{})
 	assert.Error(t, err)
 
-	err = runPostDBUpdateHooks(ctx, client, nil, nil, &schema.Entity{}, nil, 0)
+	err = runPostDBUpdateHooks(ctx, client, nil, nil, &entity.Entity{}, nil, 0)
 	assert.Error(t, err)
 
 	err = runPreDBDeleteHooks(ctx, client, nil, nil)
@@ -140,16 +141,16 @@ func TestHooksError(t *testing.T) {
 	err = runPostDBExecHooks(ctx, nil, &db.QueryOption{}, nil)
 	assert.NoError(t, err)
 
-	err = runPreDBCreateHooks(ctx, nil, nil, &schema.Entity{})
+	err = runPreDBCreateHooks(ctx, nil, nil, &entity.Entity{})
 	assert.NoError(t, err)
 
-	err = runPostDBCreateHooks(ctx, nil, nil, &schema.Entity{}, 0)
+	err = runPostDBCreateHooks(ctx, nil, nil, &entity.Entity{}, 0)
 	assert.NoError(t, err)
 
-	err = runPreDBUpdateHooks(ctx, nil, nil, nil, &schema.Entity{})
+	err = runPreDBUpdateHooks(ctx, nil, nil, nil, &entity.Entity{})
 	assert.NoError(t, err)
 
-	err = runPostDBUpdateHooks(ctx, nil, nil, nil, &schema.Entity{}, nil, 0)
+	err = runPostDBUpdateHooks(ctx, nil, nil, nil, &entity.Entity{}, nil, 0)
 	assert.NoError(t, err)
 
 	err = runPreDBDeleteHooks(ctx, nil, nil, nil)

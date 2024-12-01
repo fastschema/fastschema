@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -30,8 +31,8 @@ func runPostDBQueryHooks(
 	ctx context.Context,
 	client db.Client,
 	option *db.QueryOption,
-	entities []*schema.Entity,
-) (_ []*schema.Entity, err error) {
+	entities []*entity.Entity,
+) (_ []*entity.Entity, err error) {
 	if client == nil {
 		return entities, nil
 	}
@@ -92,7 +93,7 @@ func runPreDBCreateHooks(
 	ctx context.Context,
 	client db.Client,
 	schema *schema.Schema,
-	createData *schema.Entity,
+	createData *entity.Entity,
 ) error {
 	if client == nil {
 		return nil
@@ -114,7 +115,7 @@ func runPostDBCreateHooks(
 	ctx context.Context,
 	client db.Client,
 	schema *schema.Schema,
-	createData *schema.Entity,
+	createData *entity.Entity,
 	createdID uint64,
 ) error {
 	if client == nil {
@@ -138,7 +139,7 @@ func runPreDBUpdateHooks(
 	client db.Client,
 	schema *schema.Schema,
 	predicates []*db.Predicate,
-	updateData *schema.Entity,
+	updateData *entity.Entity,
 ) error {
 	if client == nil {
 		return nil
@@ -161,8 +162,8 @@ func runPostDBUpdateHooks(
 	client db.Client,
 	schema *schema.Schema,
 	predicates []*db.Predicate,
-	updateData *schema.Entity,
-	originalEntities []*schema.Entity,
+	updateData *entity.Entity,
+	originalEntities []*entity.Entity,
 	affected int,
 ) error {
 	if client == nil {
@@ -208,7 +209,7 @@ func runPostDBDeleteHooks(
 	client db.Client,
 	schema *schema.Schema,
 	predicates []*db.Predicate,
-	originalEntities []*schema.Entity,
+	originalEntities []*entity.Entity,
 	affected int,
 ) error {
 	if client == nil {

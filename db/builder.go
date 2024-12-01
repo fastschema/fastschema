@@ -36,8 +36,8 @@ func Builder[T any](client Client, schemas ...string) *QueryBuilder[T] {
 
 // model returns the actual model of the builder.
 func (q *QueryBuilder[T]) model() (Model, error) {
-	if q.rType != nil && q.rType.String() == "schema.Entity" && q.schemaName == "" {
-		return nil, fmt.Errorf("schema name is required for type schema.Entity")
+	if q.rType != nil && q.rType.String() == "entity.Entity" && q.schemaName == "" {
+		return nil, fmt.Errorf("schema name is required for type entity.Entity")
 	}
 
 	// if the schema name is not empty, use the schema name
@@ -46,7 +46,7 @@ func (q *QueryBuilder[T]) model() (Model, error) {
 	}
 
 	// if the schema name is empty, use the reflect type of the schema
-	return q.client.Model("", q.rType)
+	return q.client.Model(q.rType)
 }
 
 // Where adds the given predicates to the builder.

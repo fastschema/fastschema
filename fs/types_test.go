@@ -184,3 +184,74 @@ func TestArgTypeUnmarshalJSONError(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestMapValue(t *testing.T) {
+	m := fs.Map{
+		"intval": 5,
+	}
+
+	// Invalid key with no default value
+	{
+		value := fs.MapValue[int](m, "invalid")
+		assert.Equal(t, 0, value)
+	}
+
+	// Invalid key with default value
+	{
+		value := fs.MapValue[int](m, "invalid", 55555)
+		assert.Equal(t, 55555, value)
+	}
+
+	// Valid key and type
+	{
+		value := fs.MapValue[int](m, "intval")
+		assert.Equal(t, 5, value)
+	}
+
+	// Valid key and invalid type
+	{
+		value := fs.MapValue[string](m, "intval")
+		assert.Equal(t, "", value)
+	}
+
+	// Valid key, invalid type and default value
+	{
+		value := fs.MapValue[string](m, "intval", "default")
+		assert.Equal(t, "default", value)
+	}
+}
+
+func TestCreateArg(t *testing.T) {
+	tests := []struct {
+		name        string
+		argType     fs.ArgType
+		description string
+		expected    fs.Arg
+	}{
+		{
+			name:        "Create String Arg",
+			argType:     fs.TypeString,
+			description: "A string argument",
+			expected:    fs.Arg{Type: fs.TypeString, Required: true, Description: "A string argument"},
+		},
+		{
+			name:        "Create Int Arg",
+			argType:     fs.TypeInt,
+			description: "An integer argument",
+			expected:    fs.Arg{Type: fs.TypeInt, Required: true, Description: "An integer argument"},
+		},
+		{
+			name:        "Create Invalid Arg",
+			argType:     fs.TypeInvalid,
+			description: "An invalid argument",
+			expected:    fs.Arg{Type: fs.TypeInvalid, Required: true, Description: "An invalid argument"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := fs.CreateArg(tt.argType, tt.description)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -12,6 +13,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +36,7 @@ func TestUpdateClientIsNotEntClient(t *testing.T) {
 		},
 		client: nil,
 	}
-	_, err := mut.Update(context.Background(), schema.NewEntity())
+	_, err := mut.Update(context.Background(), entity.New())
 	assert.Equal(t, errors.New("client is not an ent adapter"), err)
 }
 
@@ -424,7 +426,7 @@ func TestUpdateNodesPreHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PreDBUpdate: []db.PreDBUpdate{
-						func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *schema.Entity) error {
+						func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *entity.Entity) error {
 							return errors.New("hook error")
 						},
 					},
@@ -470,8 +472,8 @@ func TestUpdateNodesHookError(t *testing.T) {
 							ctx context.Context,
 							schema *schema.Schema,
 							predicates []*db.Predicate,
-							updateData *schema.Entity,
-							originalEntities []*schema.Entity,
+							updateData *entity.Entity,
+							originalEntities []*entity.Entity,
 							affected int,
 						) error {
 							assert.Greater(t, len(predicates), 0)
@@ -698,4 +700,51 @@ func TestUpdateNodesExtended(t *testing.T) {
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
 	}, sb, t, tests, true)
+}
+
+func TestUpdateNodesExtendedError(t *testing.T) {
+	sb := createSchemaBuilder()
+	client := utils.Must(NewTestClient(
+		utils.Must(os.MkdirTemp("", "entro_test")),
+		sb,
+	))
+
+	ctx := context.Background()
+	userModel := utils.Must(client.Model("user"))
+
+	// Error predicate.
+	{
+		_, err := userModel.Mutation().Where(
+			&db.Predicate{
+				Field:    "id",
+				Operator: db.OpIN,
+				Value:    1,
+			},
+		).Update(ctx, entity.New())
+		assert.Error(t, err)
+	}
+
+	// Invalid block $add
+	{
+		_, err := userModel.Mutation().
+			Where(db.EQ("id", 1)).
+			Update(ctx, entity.New().Set("$add", entity.New().Set("invalid", 1)))
+		assert.Error(t, err)
+	}
+
+	// Invalid block $clear
+	{
+		_, err := userModel.Mutation().
+			Where(db.EQ("id", 1)).
+			Update(ctx, entity.New().Set("$clear", entity.New().Set("invalid", 1)))
+		assert.Error(t, err)
+	}
+
+	// Invalid block $set
+	{
+		_, err := userModel.Mutation().
+			Where(db.EQ("id", 1)).
+			Update(ctx, entity.New().Set("$set", entity.New().Set("invalid", 1)))
+		assert.Error(t, err)
+	}
 }

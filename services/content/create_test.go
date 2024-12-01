@@ -52,14 +52,14 @@ func TestContentServiceCreateNormal(t *testing.T) {
 func TestContentServiceCreateUser(t *testing.T) {
 	cs, server := createContentService(t)
 
-	// Case 1: There is no password field
+	// Cannot create user through content service
 	req := httptest.NewRequest("POST", "/content/user", bytes.NewReader([]byte(`{"name": "test blog"}`)))
 	resp := utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
 
 	// Case 2: Success
-	req = httptest.NewRequest("POST", "/content/user", bytes.NewReader([]byte(`{"username": "testuser", "password": "testpassword"}`)))
+	req = httptest.NewRequest("POST", "/content/user", bytes.NewReader([]byte(`{"username": "testuser", "password": "testpassword", "provider": "local"}`)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)

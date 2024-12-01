@@ -7,9 +7,9 @@ import (
 
 	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
 type Blog struct {
@@ -63,8 +63,8 @@ func main() {
 	app.OnPostDBQuery(func(
 		ctx context.Context,
 		query *db.QueryOption,
-		entities []*schema.Entity,
-	) ([]*schema.Entity, error) {
+		entities []*entity.Entity,
+	) ([]*entity.Entity, error) {
 		// This hook will be executed after getting data from the database
 		// You can use it to modify the data or to add some extra logic
 		// For example, we add a description to the tags

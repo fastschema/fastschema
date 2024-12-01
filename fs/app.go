@@ -34,6 +34,7 @@ type Hookable interface {
 type App interface {
 	Hookable
 	Key() string
+	Name() string
 	Config() *Config
 	SchemaBuilder() *schema.Builder
 	DB() db.Client
@@ -44,6 +45,10 @@ type App interface {
 	Roles() []*Role
 	Disk(names ...string) Disk
 	Disks() []Disk
+	GetAuthProvider(name string) AuthProvider
+
+	Mailer(...string) Mailer
+	Mailers() []Mailer
 
 	AddResource(resource *Resource)
 	AddMiddlewares(hooks ...Middleware)

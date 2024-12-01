@@ -11,8 +11,8 @@ import (
 
 	fhws "github.com/fasthttp/websocket"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 	rs "github.com/fastschema/fastschema/services/realtime"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/stretchr/testify/assert"
@@ -170,7 +170,7 @@ func TestRealtimeContent(t *testing.T) {
 	ctx := context.Background()
 	time.Sleep(10 * time.Millisecond)
 	go func() {
-		createdID, err9 := model.Create(ctx, schema.NewEntity().Set("name", "test"))
+		createdID, err9 := model.Create(ctx, entity.New().Set("name", "test"))
 		assert.NoError(t, err9)
 		assert.Greater(t, createdID, uint64(0))
 	}()
@@ -187,10 +187,10 @@ func TestRealtimeContent(t *testing.T) {
 	assert.NoError(t, resp10.Body.Close())
 	time.Sleep(10 * time.Millisecond)
 	go func() {
-		createdID, err10 := model.Create(ctx, schema.NewEntity().Set("name", "test2"))
+		createdID, err10 := model.Create(ctx, entity.New().Set("name", "test2"))
 		assert.NoError(t, err10)
 
-		_, err10 = model.Mutation().Where(db.EQ("id", createdID)).Update(ctx, schema.NewEntity().Set("name", "test2 updated"))
+		_, err10 = model.Mutation().Where(db.EQ("id", createdID)).Update(ctx, entity.New().Set("name", "test2 updated"))
 		assert.NoError(t, err10)
 	}()
 
@@ -201,12 +201,12 @@ func TestRealtimeContent(t *testing.T) {
 	assert.NoError(t, conn10.WriteMessage(fhws.CloseMessage, websocket.FormatCloseMessage(1000, "close")))
 
 	// Connect and subscribe to the update event with specific ID
-	blogID := utils.Must(model.Create(ctx, schema.NewEntity().Set("name", "test3")))
+	blogID := utils.Must(model.Create(ctx, entity.New().Set("name", "test3")))
 	conn11, resp11, err11 := dial(fmt.Sprintf("ws://localhost:55555/api/realtime/content?schema=blog&event=update&id=%d", blogID), nil)
 	assert.NoError(t, err11)
 	assert.NoError(t, resp11.Body.Close())
 	go func() {
-		_, err11 = model.Mutation().Where(db.EQ("id", blogID)).Update(ctx, schema.NewEntity().Set("name", "test3 updated"))
+		_, err11 = model.Mutation().Where(db.EQ("id", blogID)).Update(ctx, entity.New().Set("name", "test3 updated"))
 		assert.NoError(t, err11)
 	}()
 
@@ -235,7 +235,7 @@ func TestRealtimeContent(t *testing.T) {
 	assert.NoError(t, err13)
 	assert.NoError(t, resp13.Body.Close())
 	go func() {
-		_, err13 = model.Create(ctx, schema.NewEntity().Set("name", "test4"))
+		_, err13 = model.Create(ctx, entity.New().Set("name", "test4"))
 		assert.NoError(t, err13)
 	}()
 	time.Sleep(10 * time.Millisecond)
@@ -246,10 +246,10 @@ func TestRealtimeContent(t *testing.T) {
 	assert.NoError(t, err14)
 	assert.NoError(t, resp14.Body.Close())
 	go func() {
-		_, err14 = model.Create(ctx, schema.NewEntity().Set("name", "test5"))
+		_, err14 = model.Create(ctx, entity.New().Set("name", "test5"))
 		assert.NoError(t, err14)
 
-		_, err14 = model.Mutation().Where(db.EQ("name", "test5")).Update(ctx, schema.NewEntity().Set("name", "test5 updated"))
+		_, err14 = model.Mutation().Where(db.EQ("name", "test5")).Update(ctx, entity.New().Set("name", "test5 updated"))
 		assert.NoError(t, err14)
 	}()
 	time.Sleep(10 * time.Millisecond)

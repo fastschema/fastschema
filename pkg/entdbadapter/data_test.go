@@ -11,6 +11,7 @@ import (
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -22,7 +23,7 @@ type MockTestCreateData struct {
 	Name        string
 	Schema      string
 	InputJSON   string
-	Run         func(model db.Model, entity *schema.Entity) error
+	Run         func(model db.Model, entity *entity.Entity) error
 	Expect      func(sqlmock.Sqlmock)
 	ExpectError string
 	Transaction bool
@@ -32,7 +33,7 @@ type MockTestUpdateData struct {
 	Name         string
 	Schema       string
 	InputJSON    string
-	Run          func(model db.Model, entity *schema.Entity) (int, error)
+	Run          func(model db.Model, entity *entity.Entity) (int, error)
 	Expect       func(sqlmock.Sqlmock)
 	Predicates   []*db.Predicate
 	WantErr      bool
@@ -82,9 +83,9 @@ type MockTestQueryData struct {
 		limit, offset uint,
 		order []string,
 		columns ...string,
-	) ([]*schema.Entity, error)
+	) ([]*entity.Entity, error)
 	ExpectError    string
-	ExpectEntities []*schema.Entity
+	ExpectEntities []*entity.Entity
 }
 
 func createSchemaBuilderFromDir(schemaDir string) *schema.Builder {
@@ -294,7 +295,7 @@ func MockRunCreateTests(
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			fmt.Printf("Running test: %s\n", tt.Name)
-			entity, err := schema.NewEntityFromJSON(tt.InputJSON)
+			e, err := entity.NewEntityFromJSON(tt.InputJSON)
 			require.NoError(t, err)
 
 			client, err := NewMockExpectClient(createMockClient, sb, tt.Expect, tt.Transaction)
@@ -305,13 +306,13 @@ func MockRunCreateTests(
 
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model, entity *schema.Entity) error {
-					_, err := model.Mutation().Create(context.Background(), entity)
+				runFn = func(model db.Model, e *entity.Entity) error {
+					_, err := model.Mutation().Create(context.Background(), e)
 					return err
 				}
 			}
 
-			err = runFn(model, entity)
+			err = runFn(model, e)
 			if err != nil {
 				assert.Equal(t, tt.ExpectError, err.Error())
 			}
@@ -333,23 +334,23 @@ func MockRunUpdateTests(
 			fmt.Printf("Running test: %s\n", tt.Name)
 			client, err := NewMockExpectClient(createMockClient, sb, tt.Expect, tt.Transaction)
 			require.NoError(t, err)
-			entity, err := schema.NewEntityFromJSON(tt.InputJSON)
+			e, err := entity.NewEntityFromJSON(tt.InputJSON)
 			require.NoError(t, err)
 
 			model, err := client.Model(tt.Schema)
 			require.NoError(t, err)
 			runFn := tt.Run
 			if runFn == nil {
-				runFn = func(model db.Model, entity *schema.Entity) (int, error) {
+				runFn = func(model db.Model, e *entity.Entity) (int, error) {
 					mut := model.Mutation()
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
-					return mut.Update(context.Background(), entity)
+					return mut.Update(context.Background(), e)
 				}
 			}
 
-			affected, err := runFn(model, entity)
+			affected, err := runFn(model, e)
 			require.Equal(t, tt.WantErr, err != nil, err)
 			if len(extended) > 0 && extended[0] {
 				require.Equal(t, tt.WantAffected, affected)
@@ -457,7 +458,7 @@ func MockDefaultQueryRunFn(
 	limit, offset uint,
 	order []string,
 	columns ...string,
-) ([]*schema.Entity, error) {
+) ([]*entity.Entity, error) {
 	query := model.Query()
 	if len(predicates) > 0 {
 		query = query.Where(predicates...)

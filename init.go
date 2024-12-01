@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"runtime/debug"
 	"strings"
 
 	"github.com/fastschema/fastschema/db"
@@ -15,6 +16,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/fastschema/fastschema/pkg/mailer"
 	"github.com/fastschema/fastschema/pkg/rclonefs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/pkg/zaplogger"
@@ -28,24 +30,27 @@ import (
 var embedDashStatic embed.FS
 
 func init() {
-	fs.RegisterAuthProviderMaker("local", auth.NewLocalAuthProvider)
-	fs.RegisterAuthProviderMaker("github", auth.NewGithubAuthProvider)
-	fs.RegisterAuthProviderMaker("google", auth.NewGoogleAuthProvider)
+	fs.RegisterAuthProviderMaker(auth.ProviderLocal, auth.NewLocalAuthProvider)
+	fs.RegisterAuthProviderMaker(auth.ProviderGithub, auth.NewGithubAuthProvider)
+	fs.RegisterAuthProviderMaker(auth.ProviderGoogle, auth.NewGoogleAuthProvider)
 }
 
 func (a *App) init() (err error) {
-	plugins, err := plugins.NewManager(path.Join(a.dataDir, "plugins"))
-	if err != nil {
+	var pluginsManager *plugins.Manager
+	if pluginsManager, err = plugins.NewManager(a.pluginsDir); err != nil {
 		return err
 	}
 
 	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v\n%s", r, string(debug.Stack()))
+		}
 		if err == nil {
-			err = plugins.Init(a)
+			err = pluginsManager.Init(a)
 		}
 	}()
 
-	if err = plugins.Config(a); err != nil {
+	if err = pluginsManager.Config(a); err != nil {
 		return err
 	}
 
@@ -65,11 +70,15 @@ func (a *App) init() (err error) {
 		return err
 	}
 
-	if err = a.createResources(); err != nil {
+	a.createServices()
+
+	a.createResources()
+
+	if err = a.createDBClient(); err != nil {
 		return err
 	}
 
-	if err = a.createDBClient(); err != nil {
+	if err := a.createMailClients(); err != nil {
 		return err
 	}
 
@@ -109,6 +118,7 @@ func (a *App) prepareConfig() (err error) {
 	a.publicDir = path.Join(a.dataDir, "public")
 	a.schemasDir = path.Join(a.dataDir, "schemas")
 	a.migrationDir = path.Join(a.dataDir, "migrations")
+	a.pluginsDir = path.Join(a.dataDir, "plugins")
 	envFile := path.Join(a.dataDir, ".env")
 
 	if err = utils.MkDirs(
@@ -137,6 +147,10 @@ func (a *App) prepareConfig() (err error) {
 
 	if a.config.AppKey == "" {
 		a.config.AppKey = utils.Env("APP_KEY")
+	}
+
+	if a.config.AppName == "" {
+		a.config.AppName = utils.Env("APP_NAME", "FastSchema")
 	}
 
 	if a.config.Port == "" {
@@ -180,12 +194,6 @@ func (a *App) prepareConfig() (err error) {
 			a.startupMessages,
 			fmt.Sprintf("APP_KEY is not set. A new key is generated and saved to %s", envFile),
 		)
-	}
-
-	if a.config.AuthConfig == nil && utils.Env("AUTH") != "" {
-		if err := json.Unmarshal([]byte(utils.Env("AUTH")), &a.config.AuthConfig); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -251,37 +259,33 @@ func (a *App) createSetupPage() error {
 }
 
 func (a *App) createDisks() (err error) {
+	storage := utils.Env("STORAGE")
 	if a.config.StorageConfig == nil {
-		a.config.StorageConfig = &fs.StorageConfig{}
+		if storage != "" {
+			if err := json.Unmarshal([]byte(storage), &a.config.StorageConfig); err != nil {
+				return err
+			}
+		} else {
+			a.config.StorageConfig = &fs.StorageConfig{}
+		}
 	}
 
 	defaultDiskName := a.config.StorageConfig.DefaultDisk
-	if defaultDiskName == "" {
-		defaultDiskName = utils.Env("STORAGE_DEFAULT_DISK", "")
-	}
-
-	storageDisksConfig := a.config.StorageConfig.DisksConfig
-	if utils.Env("STORAGE_DISKS") != "" && storageDisksConfig == nil {
-		if err := json.Unmarshal([]byte(utils.Env("STORAGE_DISKS")), &storageDisksConfig); err != nil {
-			return err
-		}
-	}
-
 	// if threre is no disk config, add a default disk
-	if storageDisksConfig == nil {
+	if a.config.StorageConfig.Disks == nil {
 		if defaultDiskName == "" {
 			defaultDiskName = "public"
 		}
-		storageDisksConfig = []*fs.DiskConfig{{
+		a.config.StorageConfig.Disks = []*fs.DiskConfig{{
 			Name:       "public",
 			Driver:     "local",
-			PublicPath: "/files",
-			BaseURL:    fmt.Sprintf("%s/files", a.config.BaseURL),
+			PublicPath: "/",
+			BaseURL:    fmt.Sprintf("%s/", a.config.BaseURL),
 			Root:       a.publicDir,
 		}}
 	}
 
-	if a.disks, err = rclonefs.NewFromConfig(storageDisksConfig, a.dataDir); err != nil {
+	if a.disks, err = rclonefs.NewFromConfig(a.config.StorageConfig.Disks, a.dataDir); err != nil {
 		return err
 	}
 
@@ -323,15 +327,24 @@ func (a *App) createLogger() (err error) {
 
 func (a *App) createAuthProviders() (err error) {
 	if a.config.AuthConfig == nil {
-		a.config.AuthConfig = &fs.AuthConfig{}
+		if utils.Env("AUTH") != "" {
+			if err := json.Unmarshal([]byte(utils.Env("AUTH")), &a.config.AuthConfig); err != nil {
+				return err
+			}
+		} else {
+			a.config.AuthConfig = &fs.AuthConfig{}
+		}
 	}
 
 	if a.config.AuthConfig.EnabledProviders == nil {
 		a.config.AuthConfig.EnabledProviders = []string{}
 	}
 
-	if !utils.Contains(a.config.AuthConfig.EnabledProviders, "local") {
-		a.config.AuthConfig.EnabledProviders = append(a.config.AuthConfig.EnabledProviders, "local")
+	if !utils.Contains(a.config.AuthConfig.EnabledProviders, auth.ProviderLocal) {
+		a.config.AuthConfig.EnabledProviders = append(
+			a.config.AuthConfig.EnabledProviders,
+			auth.ProviderLocal,
+		)
 	}
 
 	availableProviders := fs.AuthProviders()
@@ -341,7 +354,7 @@ func (a *App) createAuthProviders() (err error) {
 		}
 
 		if !utils.Contains(availableProviders, name) {
-			return fmt.Errorf("auth provider %s is not available", name)
+			return fmt.Errorf("auth provider %s is not founud", name)
 		}
 
 		config := a.config.AuthConfig.Providers[name]
@@ -351,8 +364,10 @@ func (a *App) createAuthProviders() (err error) {
 			return err
 		}
 
-		if la, ok := provider.(*auth.LocalAuthProvider); ok {
-			la.Init(a.DB, a.Key)
+		if la, ok := provider.(*auth.LocalProvider); ok {
+			la.Init(a.DB, a.Key, a.Name, func() string {
+				return a.config.BaseURL
+			}, a.Mailer)
 		}
 
 		a.authProviders[name] = provider
@@ -419,6 +434,54 @@ func (a *App) createDBClient() (err error) {
 
 	if err := a.UpdateCache(context.Background()); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (a *App) createMailClients() (err error) {
+	if a.config.MailConfig == nil {
+		if utils.Env("MAIL") != "" {
+			if err := json.Unmarshal([]byte(utils.Env("MAIL")), &a.config.MailConfig); err != nil {
+				return err
+			}
+		} else {
+			a.config.MailConfig = &fs.MailConfig{}
+		}
+	}
+
+	if a.config.MailConfig == nil || len(a.config.MailConfig.Clients) == 0 {
+		return nil
+	}
+
+	if !utils.IsValidEmail(a.config.MailConfig.SenderMail) {
+		return fmt.Errorf("invalid sender mail: %s", a.config.MailConfig.SenderMail)
+	}
+
+	if a.config.MailConfig.SenderName == "" {
+		a.config.MailConfig.SenderName = a.config.AppName
+	}
+
+	defaultClientName := a.config.MailConfig.DefaultClientName
+	if a.mailClients, err = mailer.NewMailersFromConfig(a.config.MailConfig); err != nil {
+		return err
+	}
+
+	foundDefaultClient := false
+	for _, client := range a.mailClients {
+		if client.Name() == defaultClientName {
+			a.defaultMailClient = client
+			foundDefaultClient = true
+			break
+		}
+	}
+
+	if defaultClientName != "" && !foundDefaultClient {
+		return fmt.Errorf("default mail client [%s] not found", defaultClientName)
+	}
+
+	if a.defaultMailClient == nil && len(a.mailClients) > 0 {
+		a.defaultMailClient = a.mailClients[0]
 	}
 
 	return nil

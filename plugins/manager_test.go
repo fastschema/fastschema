@@ -47,7 +47,9 @@ func TestManager(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, manager)
 
-	sampleFsApp := utils.Must(fastschema.New(&fs.Config{}))
+	sampleFsApp := utils.Must(fastschema.New(&fs.Config{
+		Dir: utils.Must(os.MkdirTemp("", "fastschema")),
+	}))
 	assert.NoError(t, manager.Config(sampleFsApp))
 	assert.NoError(t, manager.Init(sampleFsApp))
 }

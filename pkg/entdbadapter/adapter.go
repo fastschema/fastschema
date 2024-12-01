@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -99,7 +100,7 @@ func (d *Adapter) Query(
 	ctx context.Context,
 	query string,
 	args ...any,
-) ([]*schema.Entity, error) {
+) ([]*entity.Entity, error) {
 	option := &db.QueryOption{Query: query, Args: args}
 	if err := runPreDBQueryHooks(ctx, d, option); err != nil {
 		return nil, err
@@ -136,25 +137,30 @@ func (d *Adapter) SchemaBuilder() *schema.Builder {
 // Model return the model from given name.
 //
 //	Support finding model from name or types
-//	If types is provided, it will use types to find the model instead of name
-func (d *Adapter) Model(name string, types ...any) (db.Model, error) {
-	if len(types) > 0 {
-		var tt reflect.Type
-		if rType, ok := types[0].(reflect.Type); ok {
-			tt = rType
-		} else {
-			tt = utils.GetDereferencedType(types[0])
-		}
-
-		model, ok := d.typesModels[tt]
-		if !ok {
-			return nil, fmt.Errorf("model %s not found", tt.Name())
-		}
-
-		return model, nil
+//	If the input model is a string, it will use the name to find the model
+//	Others, it will use the types of the input to find the model
+func (d *Adapter) Model(model any) (db.Model, error) {
+	if model == nil {
+		return nil, fmt.Errorf("model is nil")
 	}
 
-	return d.model(name)
+	if name, ok := model.(string); ok {
+		return d.model(name)
+	}
+
+	var tt reflect.Type
+	if rType, ok := model.(reflect.Type); ok {
+		tt = rType
+	} else {
+		tt = utils.GetDereferencedType(model)
+	}
+
+	typeModel, ok := d.typesModels[tt]
+	if !ok {
+		return nil, fmt.Errorf("model %s not found", tt.Name())
+	}
+
+	return typeModel, nil
 }
 
 func (d *Adapter) model(name string) (*Model, error) {
@@ -192,8 +198,7 @@ func (d *Adapter) init() error {
 		if err != nil {
 			return fmt.Errorf(
 				"relation model %s not found: %w",
-				r.TargetSchemaName,
-				err,
+				r.TargetSchemaName, err,
 			)
 		}
 
@@ -325,10 +330,6 @@ func (d *Adapter) NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, er
 	), nil
 }
 
-func (d *Adapter) CreateDBModel(s *schema.Schema, relations ...*schema.Relation) db.Model {
-	return d.CreateModel(s, relations...)
-}
-
 // CreateModel create a new model from schema
 func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *Model {
 	m := &Model{
@@ -353,7 +354,7 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 		Attr:      "UNSIGNED",
 		Key:       entSchema.UniqueKey,
 		Type:      field.TypeUint64,
-		Name:      schema.FieldID,
+		Name:      entity.FieldID,
 		Increment: true,
 		Unique:    true,
 	}

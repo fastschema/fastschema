@@ -20,16 +20,16 @@ func TestRegisterAuthProviderMakerErrorDup(t *testing.T) {
 		r := recover()
 		assert.Equal(t, "auth: Register called twice for auth provider test", r)
 	}()
-	fs.RegisterAuthProviderMaker("test", func(map[string]string, string) (fs.AuthProvider, error) {
+	fs.RegisterAuthProviderMaker("test", func(fs.Map, string) (fs.AuthProvider, error) {
 		return nil, nil
 	})
-	fs.RegisterAuthProviderMaker("test", func(map[string]string, string) (fs.AuthProvider, error) {
+	fs.RegisterAuthProviderMaker("test", func(fs.Map, string) (fs.AuthProvider, error) {
 		return nil, nil
 	})
 }
 
 func TestCreateAuthProviderSuccess(t *testing.T) {
-	fs.RegisterAuthProviderMaker("emptyauthprovider", func(map[string]string, string) (fs.AuthProvider, error) {
+	fs.RegisterAuthProviderMaker("emptyauthprovider", func(fs.Map, string) (fs.AuthProvider, error) {
 		return nil, nil
 	})
 	assert.Contains(t, fs.AuthProviders(), "emptyauthprovider")
@@ -54,7 +54,7 @@ func TestCreateAuthProvider(t *testing.T) {
 	assert.Nil(t, invalidProvider)
 	assert.Equal(t, "auth: unknown auth provider \"invalidprovider\"", err.Error())
 
-	fs.RegisterAuthProviderMaker("testauthprovider", func(map[string]string, string) (fs.AuthProvider, error) {
+	fs.RegisterAuthProviderMaker("testauthprovider", func(fs.Map, string) (fs.AuthProvider, error) {
 		return &TestAuthProvider{}, nil
 	})
 	provider, err := fs.CreateAuthProvider("testauthprovider", nil, "")
@@ -65,7 +65,7 @@ func TestCreateAuthProvider(t *testing.T) {
 func TestAuthConfigClone(t *testing.T) {
 	ac := &fs.AuthConfig{
 		EnabledProviders: []string{"test"},
-		Providers: map[string]map[string]string{
+		Providers: map[string]fs.Map{
 			"test": {"key": "value"},
 		},
 	}

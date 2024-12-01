@@ -7,13 +7,13 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/schema"
+	"github.com/fastschema/fastschema/entity"
 )
 
 // Delete deletes entities from the database
 func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 	var hooks = &db.Hooks{}
-	var originalEntities []*schema.Entity
+	var originalEntities []*entity.Entity
 	if m.client != nil {
 		hooks = m.client.Hooks()
 		if len(hooks.PostDBDelete) > 0 {

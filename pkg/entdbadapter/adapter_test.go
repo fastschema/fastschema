@@ -49,32 +49,27 @@ func TestNewEdgeStepOptionError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, edgeStepOption)
 }
-func TestAdapterCreateDBModel(t *testing.T) {
-	adapter := createMockAdapter(t)
-	s := &schema.Schema{}
-	relations := []*schema.Relation{{Name: "relation1"}, {Name: "relation2"}}
-
-	model := adapter.CreateDBModel(s, relations...)
-
-	assert.NotNil(t, model)
-}
 
 func TestModel(t *testing.T) {
 	adapter := createMockAdapter(t)
 
+	// case 1: nil model
+	_, err := adapter.Model(nil)
+	assert.Error(t, err)
+
 	// case 1: model not found
 	type testStruct struct{}
-	_, err := adapter.Model("", &testStruct{})
+	_, err = adapter.Model(&testStruct{})
 	assert.Error(t, err)
 
 	// case 2: model found
-	roleModel, err := adapter.Model("", &fs.Role{})
+	roleModel, err := adapter.Model(&fs.Role{})
 	assert.NoError(t, err)
 	assert.NotNil(t, roleModel)
 
 	// case 3: using reflection
 	rtype := reflect.TypeOf(fs.Role{})
-	roleModel, err = adapter.Model("", rtype)
+	roleModel, err = adapter.Model(rtype)
 	assert.NoError(t, err)
 	assert.NotNil(t, roleModel)
 }
@@ -108,18 +103,4 @@ func TestExec(t *testing.T) {
 	entities, err := client.Query(ctx, "SELECT ?, ?", 1, 2)
 	assert.Error(t, err)
 	assert.Nil(t, entities)
-}
-
-func TestCreateModel(t *testing.T) {
-	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))
-	sb := createSchemaBuilder()
-
-	client, err := NewTestClient(migrationDir, sb)
-	assert.NoError(t, err)
-
-	s, err := schema.NewSchemaFromJSON(userSchemaJSON)
-	assert.NoError(t, err)
-
-	m := client.(*Adapter).CreateDBModel(s)
-	assert.NotNil(t, m)
 }

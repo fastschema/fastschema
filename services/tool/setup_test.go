@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
@@ -46,20 +47,7 @@ func TestSetup(t *testing.T) {
 	sb = utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
 	entDB = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 
-	// Case 2: Invalid password
-	err = toolservice.Setup(
-		context.Background(),
-		entDB,
-		logger,
-		"admin",
-		"admin@local.ltd",
-		"",
-	)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), `hash: input cannot be empty`)
-
-	// Case 3: Success
+	// Case 2: Success
 	assert.NoError(t, toolservice.Setup(
 		context.Background(),
 		entDB,
@@ -77,7 +65,8 @@ func TestSetup(t *testing.T) {
 
 	assert.Equal(t, 3, roleCount)
 	userModel := utils.Must(entDB.Model("user"))
-	adminUser := utils.Must(userModel.Query(db.EQ("username", "admin")).First(context.Background()))
+	ctx := context.WithValue(context.Background(), "keeppassword", "true")
+	adminUser := utils.Must(userModel.Query(db.EQ("username", "admin")).First(ctx))
 	assert.Equal(t, "admin", adminUser.Get("username"))
 	assert.Equal(t, "admin@local.ltd", adminUser.Get("email"))
 
@@ -124,7 +113,8 @@ func TestResetAdminPasswordSuccess(t *testing.T) {
 
 	// Verify password change
 	userModel := utils.Must(entDB.Model("user"))
-	adminUser := utils.Must(userModel.Query(db.EQ("id", 1)).First(context.Background()))
+	ctx := context.WithValue(context.Background(), "keeppassword", "true")
+	adminUser := utils.Must(userModel.Query(db.EQ("id", 1)).First(ctx))
 	checkPassword := utils.CheckHash("newpassword", adminUser.GetString("password"))
 	assert.NoError(t, checkPassword)
 }
@@ -181,9 +171,10 @@ func TestResetAdminPasswordUserNotAdmin(t *testing.T) {
 	utils.Must(db.Create[*fs.User](context.Background(), entDB, fs.Map{
 		"username": "user",
 		"email":    "user@local.ltd",
+		"provider": "local",
 		"password": utils.Must(utils.GenerateHash("123")),
 		"active":   true,
-		"roles":    []*schema.Entity{},
+		"roles":    []*entity.Entity{},
 	}))
 
 	// Attempt to reset password for non-admin user

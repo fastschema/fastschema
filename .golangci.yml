@@ -9,6 +9,14 @@ linters-settings:
       - github.com/fastschema/fastschema/pkg/utils.WriteFile
       - io.Copy
       - (*ariga.io/atlas/sql/migrate.Planner).WritePlan
+  stylecheck:
+    checks:
+      - all
+      - '-ST1003'
+  staticcheck:
+    checks:
+      - all
+      - '-SA1029'
   dupl:
     threshold: 100
   funlen:
@@ -17,6 +25,7 @@ linters-settings:
   gosec:
     excludes:
       - G115
+      - G402
 
 linters:
   disable-all: true
@@ -51,6 +60,14 @@ issues:
         - funlen
         - gosec
         - gocritic
+      stylecheck:
+        checks:
+          - all
+          - '-ST1003'
+      staticcheck:
+        checks:
+          - all
+          - '-SA1029'
     - path: pkg/entdbadapter/query.go
       linters:
         - funlen

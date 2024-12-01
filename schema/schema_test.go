@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +21,7 @@ func TestSchema(t *testing.T) {
 	assert.NoError(t, s.Init(false))
 	assert.True(t, s.initialized)
 	assert.Equal(t, &Field{
-		Name:  FieldID,
+		Name:  entity.FieldID,
 		Type:  TypeUint64,
 		Label: "ID",
 		DB: &FieldDB{
@@ -33,12 +34,12 @@ func TestSchema(t *testing.T) {
 		Sortable:      true,
 		IsSystemField: true,
 		IsLocked:      true,
-	}, s.Field(FieldID))
+	}, s.Field(entity.FieldID))
 	assert.True(t, len(s.dbColumns) > 0)
 
-	assert.NotNil(t, s.Field(FieldCreatedAt))
-	assert.NotNil(t, s.Field(FieldUpdatedAt))
-	assert.NotNil(t, s.Field(FieldDeletedAt))
+	assert.NotNil(t, s.Field(entity.FieldCreatedAt))
+	assert.NotNil(t, s.Field(entity.FieldUpdatedAt))
+	assert.NotNil(t, s.Field(entity.FieldDeletedAt))
 
 	s2, err := NewSchemaFromJSONFile("../tests/data/schemas/user.json")
 	assert.NoError(t, err)
@@ -46,7 +47,7 @@ func TestSchema(t *testing.T) {
 
 	s2.DisableTimestamp = true
 	assert.NoError(t, s2.Init(true))
-	f := s2.Field(FieldID)
+	f := s2.Field(entity.FieldID)
 	assert.Nil(t, f)
 }
 

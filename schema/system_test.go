@@ -413,6 +413,7 @@ func TestCreateSchemaWithComplexField(t *testing.T) {
 		Language       Language   `json:"language" fs.relation:"{'type':'o2m','schema':'language','field':'categories'}"`
 		Posts          []*Post    `json:"posts" fs.relation:"{'type':'o2m','owner':true,'optional':true,'schema':'post','field':'category'}"`
 		IgnorePosts    []*Post    `ignore_json:"posts"`
+		WithGetter     string     `json:"with_getter" fs.getter:"samplegetter"`
 	}
 
 	ss, err := schema.CreateSchema(Category{})
@@ -458,6 +459,13 @@ func TestCreateSchemaWithComplexField(t *testing.T) {
 				Owner:            true,
 				Optional:         true,
 			},
+		},
+		{
+			IsSystemField: true,
+			Type:          schema.TypeString,
+			Name:          "with_getter",
+			Label:         "With Getter",
+			Getter:        "samplegetter",
 		},
 	}
 
@@ -585,4 +593,37 @@ func TestCreateSchemaDuplicatedFields(t *testing.T) {
 	ss, err := schema.CreateSchema(Category{})
 	assert.Nil(t, ss)
 	assert.Contains(t, err.Error(), "field category.slug already exists")
+}
+
+func TestCreateSchemaWithGetterSetter(t *testing.T) {
+	type Category struct {
+		Name       string `json:"name"`
+		WithGetter string `json:"with_getter" fs.getter:"samplegetter"`
+		WithSetter string `json:"with_setter" fs.setter:"samplesetter"`
+	}
+
+	ss, err := schema.CreateSchema(Category{})
+	assert.NoError(t, err)
+	assert.Equal(t, "category", ss.Name)
+	assert.Equal(t, "categories", ss.Namespace)
+
+	expectedFields := []*schema.Field{
+		createField(schema.TypeString, "name", "Name"),
+		{
+			IsSystemField: true,
+			Type:          schema.TypeString,
+			Name:          "with_getter",
+			Label:         "With Getter",
+			Getter:        "samplegetter",
+		},
+		{
+			IsSystemField: true,
+			Type:          schema.TypeString,
+			Name:          "with_setter",
+			Label:         "With Setter",
+			Setter:        "samplesetter",
+		},
+	}
+
+	assert.Equal(t, expectedFields, ss.Fields)
 }

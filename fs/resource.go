@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
 type StaticFs struct {
@@ -109,6 +109,7 @@ func NewResource[Input, Output any](
 		resources:  make([]*Resource, 0),
 		handler: func(ctx Context) (any, error) {
 			var input Input
+
 			if parseInput {
 				if err := ctx.Bind(&input); err != nil {
 					return nil, errors.BadRequest(err.Error())
@@ -122,6 +123,8 @@ func NewResource[Input, Output any](
 	if len(metas) > 0 {
 		resource.meta = metas[0]
 	}
+
+	resource.generateID("")
 
 	return resource
 }
@@ -232,16 +235,17 @@ func WS[Input, Output any](name string, handler HandlerFn[Input, Output], metas 
 	return createResourceWithMethod(name, "WS", handler, metas...)
 }
 
-func (r *Resource) generateID(parentID string) string {
+func (r *Resource) generateID(parentID string) {
 	if parentID == "" {
-		return r.name
+		r.id = r.name
+		return
 	}
 
-	return parentID + "." + r.name
+	r.id = parentID + "." + r.name
 }
 
 func (r *Resource) add(resource *Resource) (self *Resource) {
-	resource.id = resource.generateID(r.id)
+	resource.generateID(r.id)
 	r.resources = append(r.resources, resource)
 	return r
 }
@@ -313,21 +317,17 @@ func (r *Resource) Add(resources ...*Resource) (self *Resource) {
 // The id is in the format of "group1.group2.group3.resource"
 // While group1, group2 and group3 are name of the groups and resource is the name of the resource
 func (r *Resource) Find(resourceID string) *Resource {
-	var matchedResource *Resource = nil
-	parts := strings.Split(resourceID, ".")
-	currentResource := r
+	if r.id == resourceID {
+		return r
+	}
 
-	for _, part := range parts {
-		for _, resource := range currentResource.resources {
-			if resource.name == part {
-				matchedResource = resource
-				currentResource = resource
-				break
-			}
+	for _, resource := range r.resources {
+		if found := resource.Find(resourceID); found != nil {
+			return found
 		}
 	}
 
-	return matchedResource
+	return nil
 }
 
 // ID returns the id of the resource
@@ -385,7 +385,6 @@ func (r *Resource) Group(name string, metas ...*Meta) (group *Resource) {
 		groupResource.meta = metas[0]
 	}
 
-	groupResource.generateID(r.id)
 	r.add(groupResource)
 
 	return groupResource
@@ -469,7 +468,7 @@ func (r *Resource) Print() {
 		}
 	}
 
-	for i := 0; i < level; i++ {
+	for i := 1; i < level; i++ {
 		fmt.Print("  ")
 	}
 
@@ -512,16 +511,16 @@ func (r *Resource) Init() error {
 
 // MarshalJSON marshals the resource to json
 func (r *Resource) MarshalJSON() ([]byte, error) {
-	entity := schema.NewEntity().
+	e := entity.New().
 		Set("id", r.id).
 		Set("name", r.name)
 
 	if r.group {
-		entity.Set("group", r.group)
+		e.Set("group", r.group)
 	}
 
 	if r.meta != nil {
-		entity.Set("meta", r.meta)
+		e.Set("meta", r.meta)
 	}
 
 	// if len(r.signature) > 0 {
@@ -529,8 +528,8 @@ func (r *Resource) MarshalJSON() ([]byte, error) {
 	// }
 
 	if len(r.resources) > 0 {
-		entity.Set("resources", r.resources)
+		e.Set("resources", r.resources)
 	}
 
-	return entity.MarshalJSON()
+	return e.MarshalJSON()
 }

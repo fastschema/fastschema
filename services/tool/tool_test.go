@@ -77,4 +77,8 @@ func TestToolService(t *testing.T) {
 	assert.Contains(t, response, `"totalSchemas":5`)
 	assert.Contains(t, response, `"totalUsers":0`)
 	assert.Contains(t, response, `"totalFiles":0`)
+
+	api := fs.NewResourcesManager().Group("api")
+	toolService.CreateResource(api)
+	assert.NotNil(t, api.Find("api.tool.stats"))
 }
