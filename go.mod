@@ -18,7 +18,7 @@ require (
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gofiber/contrib/websocket v1.3.2
 	github.com/gofiber/fiber/v2 v2.52.5
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/google/uuid v1.6.0
 	github.com/hjson/hjson-go/v4 v4.4.0
 	github.com/iancoleman/strcase v0.3.0
@@ -28,7 +28,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/ogen-go/ogen v1.4.1
 	github.com/otiai10/copy v1.14.0
-	github.com/rclone/rclone v1.68.0
+	github.com/rclone/rclone v1.68.2
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v2 v2.27.4
 	github.com/valyala/fasthttp v1.55.0
