@@ -47,8 +47,22 @@ func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 		r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
 			Root:       staticResource.Root,
 			PathPrefix: staticResource.PathPrefix,
+			Next: func(c *fiber.Ctx) bool {
+				// skip serving static files for root path
+				return c.Path() == "/"
+			},
 		}))
 	}
+
+	// The public directory is served at root path
+	// If the request path file is not found,
+	// filesystem will set status to 404
+	// We need to reset status to 200 because
+	// we want to continue to resolve the request
+	r.server.App.Use(func(c *fiber.Ctx) error {
+		c.Status(fiber.StatusOK)
+		return c.Next()
+	})
 
 	var getHooks = func() *fs.Hooks {
 		return &fs.Hooks{}
@@ -131,41 +145,37 @@ func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodDa
 	methodHandler.Handler(methodHandler.Path, func(c *Context) error {
 		for _, hook := range hooks.PreResolve {
 			if err := hook(c); err != nil {
-				result := fs.NewResult(nil, err)
-				if result.Error != nil && result.Error.Status != 0 {
-					c.Status(result.Error.Status)
+				if c.result = fs.NewResult(nil, err); c.result.Error.Status != 0 {
+					c.Status(c.result.Error.Status)
 				}
 
-				return c.JSON(result)
+				return c.JSON(c.result)
 			}
 		}
 
-		result := fs.NewResult(r.Handler()(c))
-		if result.Error != nil && result.Error.Status != 0 {
-			c.Status(result.Error.Status)
-		}
-
-		c.Result(result)
+		c.result = fs.NewResult(r.Handler()(c))
 		for _, hook := range hooks.PostResolve {
 			if err := hook(c); err != nil {
-				result := fs.NewResult(nil, err)
-
-				if result.Error != nil && result.Error.Status != 0 {
-					c.Status(result.Error.Status)
-				}
-
-				return c.JSON(result)
+				c.result = fs.NewResult(nil, err)
+				break
 			}
+		}
+
+		if c.result.Error != nil {
+			if c.result.Error.Status != 0 {
+				c.Status(c.result.Error.Status)
+			}
+			return c.JSON(c.result)
 		}
 
 		// Send raw bytes
-		bytes, ok := result.Data.([]byte)
+		bytes, ok := c.result.Data.([]byte)
 		if ok {
 			return c.Send(bytes)
 		}
 
 		// Send http response
-		httpResponse, ok := result.Data.(*fs.HTTPResponse)
+		httpResponse, ok := c.result.Data.(*fs.HTTPResponse)
 		if ok {
 			status := httpResponse.StatusCode
 			if status == 0 {
@@ -191,6 +201,6 @@ func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodDa
 			return c.Status(status).Send(httpResponse.Body)
 		}
 
-		return c.JSON(result)
+		return c.JSON(c.result)
 	}, r)
 }

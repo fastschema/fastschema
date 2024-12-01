@@ -13,6 +13,8 @@ import (
 	"golang.org/x/oauth2/github"
 )
 
+const ProviderGithub = "github"
+
 type GithubAccessTokenResponse struct {
 	Scope       string `json:"scope"`
 	TokenType   string `json:"token_type"`
@@ -35,17 +37,20 @@ type GithubAuthProvider struct {
 	userInfoURL    string
 }
 
-func NewGithubAuthProvider(config Config, redirectURL string) (fs.AuthProvider, error) {
-	if config["client_id"] == "" || config["client_secret"] == "" {
+func NewGithubAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
+	clientID := fs.MapValue(config, "client_id", "")
+	clientSecret := fs.MapValue(config, "client_secret", "")
+	if clientID == "" ||
+		clientSecret == "" {
 		return nil, fmt.Errorf("github client id or secret is not set")
 	}
 
 	githubAuthProvider := &GithubAuthProvider{
-		accessTokenURL: config["access_token_url"],
-		userInfoURL:    config["user_info_url"],
+		accessTokenURL: fs.MapValue(config, "access_token_url", ""),
+		userInfoURL:    fs.MapValue(config, "user_info_url", ""),
 		oauth: &oauth2.Config{
-			ClientID:     config["client_id"],
-			ClientSecret: config["client_secret"],
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
 			RedirectURL:  redirectURL,
 			Endpoint:     github.Endpoint,
 		},
@@ -63,7 +68,10 @@ func NewGithubAuthProvider(config Config, redirectURL string) (fs.AuthProvider, 
 }
 
 func (ga *GithubAuthProvider) Name() string {
-	return "github"
+	return ProviderGithub
+}
+
+func (ga *GithubAuthProvider) WithResources(resource *fs.Resource) {
 }
 
 func (ga *GithubAuthProvider) Login(c fs.Context) (_ any, err error) {
@@ -109,7 +117,7 @@ func (ga *GithubAuthProvider) getUser(code string) (*GithubUserResponse, error) 
 	userResponse, err := utils.SendRequest[GithubUserResponse](
 		"GET",
 		ga.userInfoURL,
-		Config{"Authorization": fmt.Sprintf("token %s", accessToken)},
+		map[string]string{"Authorization": fmt.Sprintf("token %s", accessToken)},
 		nil,
 	)
 	if err != nil {
@@ -120,7 +128,7 @@ func (ga *GithubAuthProvider) getUser(code string) (*GithubUserResponse, error) 
 }
 
 func (ga *GithubAuthProvider) getAccessToken(code string) (string, error) {
-	requestBody, _ := json.Marshal(Config{
+	requestBody, _ := json.Marshal(map[string]string{
 		"code":          code,
 		"client_id":     ga.oauth.ClientID,
 		"client_secret": ga.oauth.ClientSecret,
@@ -129,7 +137,7 @@ func (ga *GithubAuthProvider) getAccessToken(code string) (string, error) {
 	accessTokenResponse, err := utils.SendRequest[GithubAccessTokenResponse](
 		"POST",
 		ga.accessTokenURL,
-		Config{
+		map[string]string{
 			"Content-Type": "application/json",
 			"Accept":       "application/json",
 		},

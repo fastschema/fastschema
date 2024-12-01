@@ -45,7 +45,8 @@ func TestRelation(t *testing.T) {
 	assert.Equal(t, "user.id-post.owner", relation.GetBackRefName())
 	assert.Equal(t, false, relation.IsSameType())
 	assert.Equal(t, true, relation.HasFKs())
-	relation.CreateFKFields()
+	_, err := relation.CreateFKFields()
+	assert.NoError(t, err)
 
 	assert.Equal(t, "relation node post.owner: 'user' is not found", NewRelationNodeError(schema, field).Error())
 	assert.Equal(t, "backref relation for post.owner is not valid: 'user.id', please check the 'field' property in the 'user.id' relation definition", NewRelationBackRefError(relation).Error())

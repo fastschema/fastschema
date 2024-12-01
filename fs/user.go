@@ -13,7 +13,7 @@ type User struct {
 	ID       uint64 `json:"id,omitempty"`
 	Username string `json:"username,omitempty"`
 	Email    string `json:"email,omitempty" fs:"optional"`
-	Password string `json:"password,omitempty" fs:"optional"`
+	Password string `json:"password,omitempty" fs:"optional" fs.setter:"$args.Exist && $args.Value != '' ? $hash($args.Value) : $undefined" fs.getter:"$context.Value('keeppassword') == 'true' ? $args.Value : $undefined"`
 
 	Active           bool   `json:"active,omitempty" fs:"optional"`
 	Provider         string `json:"provider,omitempty" fs:"optional"`

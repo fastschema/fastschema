@@ -8,6 +8,9 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/avelino/awesome-go" target="_blank" rel="noopener">
+    <img src="https://awesome.re/mentioned-badge.svg" alt="Mentioned in Awesome Go" />
+  </a>
   <a href="https://pkg.go.dev/github.com/fastschema/fastschema#section-readme" target="_blank" rel="noopener">
     <img src="https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white" alt="Go.Dev reference" />
   </a>
@@ -33,7 +36,7 @@
 </p>
 
 <p align="center">
-  <em>FastSchema is a Go web framework and headless CMS for building dynamic web applications. Designed to simplify the creation and management of structured content, FastSchema automates the generation of databases and provides CRUD APIs effortlessly.</em>
+  <em>FastSchema is a Backend as a Service (BaaS) and Go web framework for building dynamic web applications. Designed to simplify backend development, FastSchema automates the generation of databases, provides ready-to-use CRUD APIs, and offers tools for managing structured content effortlessly</em>
 </p>
 
 ## Table of Contents
@@ -61,7 +64,7 @@ Check out our introduction video to get a quick overview of FastSchema:
 
 ## Try it out
 
-Launch a headless CMS in seconds or utilize as a web framework.
+Launch a complete backend in seconds or utilize it as a versatile web framework. FastSchema combines the ease of a Backend as a Service with the flexibility to manage real-time data and structured content seamlessly.
 
 ### Run the Docker Container:
 
@@ -100,10 +103,9 @@ development process and allowing you to focus on creating rich, dynamic content.
 
 ## Use Cases
 
-- **A Headless CMS (No-Code Solution)**
+- **A BaaS platform with Headless CMS capabilities (No-Code Solution).**
 
-  FastSchema is an ideal solution for building headless CMS applications that require dynamic content modeling without
-  writing a line of code.
+  FastSchema is an ideal solution for building backend applications, including headless CMS, with dynamic content modeling and real-time capabilities—all without writing a line of code.
 
   It is designed to support API-first development, allowing you to define your content models and generate RESTful APIs
   effortlessly.

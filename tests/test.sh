@@ -14,9 +14,9 @@ if [ "$#" -gt 0 ]; then
   fi
 
   testFile=$1
-  echo "Testing $testFile"
 
   if [ -d "$testFile" ]; then
+    echo "Testing dir $testFile"
     cd $testFile
     testFiles=$(go list ./... | grep -v /.vscode | grep -v /tests/data)
     for s in $testFiles; do
@@ -25,14 +25,16 @@ if [ "$#" -gt 0 ]; then
       fi;
     done
   else
-    go test -covermode=atomic -coverprofile $coverageFile.txt -failfast -v -p 1 $testFile;
+    echo "Testing file $testFile"
+    fileDir=$(dirname $testFile)
+    cd $fileDir
+    go test -covermode=atomic -coverprofile $coverageFile.txt -failfast -race -v -p 1;
   fi
 else
   echo "Testing all"
   gotestsum -f testname -- ./... -failfast -race -count=1 -coverprofile=$coverageFile.txt -covermode=atomic
   go tool cover -html=$coverageFile.txt -o $coverageFile.html
 fi
-
 
 go tool cover -html=$coverageFile.txt -o $coverageFile.html
 

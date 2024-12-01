@@ -87,3 +87,28 @@ func TestMockLoggerMessages(t *testing.T) {
 	assert.Equal(t, "Error", l.Messages[1].Type)
 	assert.Equal(t, "Debug", l.Messages[2].Type)
 }
+
+func TestConfigClone(t *testing.T) {
+	// Test case 1: Clone should return a new instance with the same values
+	config := &logger.Config{
+		Development:    true,
+		LogFile:        "logfile.log",
+		CallerSkip:     2,
+		DisableConsole: false,
+	}
+	clone := config.Clone()
+	assert.NotNil(t, clone)
+	assert.Equal(t, config, clone)
+	assert.False(t, config == clone)
+
+	// Test case 2: Modifying the clone should not affect the original config
+	clone.Development = false
+	clone.LogFile = "newlogfile.log"
+	clone.CallerSkip = 3
+	clone.DisableConsole = true
+
+	assert.NotEqual(t, config.Development, clone.Development)
+	assert.NotEqual(t, config.LogFile, clone.LogFile)
+	assert.NotEqual(t, config.CallerSkip, clone.CallerSkip)
+	assert.NotEqual(t, config.DisableConsole, clone.DisableConsole)
+}

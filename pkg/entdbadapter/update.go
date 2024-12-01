@@ -7,12 +7,13 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/fastschema/fastschema/entity"
+	"github.com/fastschema/fastschema/expr"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
 // Update updates the entity and returns the updated entity
-func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, err error) {
+func (m *Mutation) Update(ctx context.Context, e *entity.Entity) (affected int, err error) {
 	if m.model == nil || m.model.schema == nil {
 		return 0, fmt.Errorf("model or schema %s not found", m.model.name)
 	}
@@ -22,7 +23,15 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 		return 0, fmt.Errorf("client is not an ent adapter")
 	}
 
-	var originalEntities []*schema.Entity
+	if err := m.model.schema.ApplySetters(ctx, e, expr.Config{
+		DB: func() expr.DBLike {
+			return m.client
+		},
+	}); err != nil {
+		return 0, err
+	}
+
+	var originalEntities []*entity.Entity
 	if m.client != nil {
 		hooks := m.client.Hooks()
 		if len(hooks.PostDBUpdate) > 0 {
@@ -80,9 +89,7 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 			}
 			continue
 		case "$expr":
-			if err := m.ProcessUpdateBlockExpr(entAdapter, pair.Value); err != nil {
-				return 0, err
-			}
+			m.ProcessUpdateBlockExpr(entAdapter, pair.Value)
 			continue
 		case "$set":
 			if err := m.ProcessUpdateBlockSet(entAdapter, pair.Value); err != nil {
@@ -103,7 +110,7 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 		m.shouldUpdateTimestamps
 	if hasFieldsUpdate && !m.model.schema.DisableTimestamp {
 		m.updateSpec.Modifiers = append(m.updateSpec.Modifiers, func(u *sql.UpdateBuilder) {
-			u.Set(schema.FieldUpdatedAt, NOW(m.client.Dialect()))
+			u.Set(entity.FieldUpdatedAt, NOW(m.client.Dialect()))
 		})
 	}
 
@@ -129,29 +136,24 @@ func (m *Mutation) Update(ctx context.Context, e *schema.Entity) (affected int, 
 }
 
 // ProcessUpdateBlockExpr processes the $expr block
-func (m *Mutation) ProcessUpdateBlockExpr(entAdapter EntAdapter, fieldValue any) error {
-	if expr, ok := fieldValue.(*schema.Entity); ok {
+func (m *Mutation) ProcessUpdateBlockExpr(entAdapter EntAdapter, fieldValue any) {
+	if expr, ok := fieldValue.(*entity.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
-			if err := m.ProcessFieldExpr(entAdapter, pair.Key, pair.Value); err != nil {
-				return err
-			}
+			m.ProcessFieldExpr(entAdapter, pair.Key, pair.Value)
 		}
 	}
-
-	return nil
 }
 
 // ProcessFieldExpr processes a field in the $expr block
-func (m *Mutation) ProcessFieldExpr(entAdapter EntAdapter, k string, v any) error {
+func (m *Mutation) ProcessFieldExpr(entAdapter EntAdapter, k string, v any) {
 	m.updateSpec.Modifiers = append(m.updateSpec.Modifiers, func(u *sql.UpdateBuilder) {
 		u.Set(k, sql.Expr(v.(string)))
 	})
-	return nil
 }
 
 // ProcessUpdateBlockAdd processes the $add block
 func (m *Mutation) ProcessUpdateBlockAdd(entAdapter EntAdapter, fieldValue any) error {
-	if expr, ok := fieldValue.(*schema.Entity); ok {
+	if expr, ok := fieldValue.(*entity.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
 			if err := m.ProcessFieldAdd(entAdapter, pair.Key, pair.Value); err != nil {
 				return err
@@ -206,7 +208,7 @@ func (m *Mutation) ProcessFieldAdd(entAdapter EntAdapter, k string, v any) error
 
 // ProcessUpdateBlockClear processes the $clear block
 func (m *Mutation) ProcessUpdateBlockClear(entAdapter EntAdapter, fieldValue any) error {
-	if expr, ok := fieldValue.(*schema.Entity); ok {
+	if expr, ok := fieldValue.(*entity.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
 			if err := m.ProcessFieldClear(entAdapter, pair.Key, pair.Value); err != nil {
 				return err
@@ -263,7 +265,7 @@ func (m *Mutation) ProcessFieldClear(entAdapter EntAdapter, k string, v any) err
 
 // ProcessUpdateBlockSet processes the $set block
 func (m *Mutation) ProcessUpdateBlockSet(entAdapter EntAdapter, fieldValue any) error {
-	if expr, ok := fieldValue.(*schema.Entity); ok {
+	if expr, ok := fieldValue.(*entity.Entity); ok {
 		for pair := expr.First(); pair != nil; pair = pair.Next() {
 			if err := m.ProcessUpdateFieldSet(entAdapter, pair.Key, pair.Value); err != nil {
 				return err

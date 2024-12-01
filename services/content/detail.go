@@ -4,13 +4,13 @@ import (
 	"strings"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
-func (cs *ContentService) Detail(c fs.Context, _ any) (*schema.Entity, error) {
+func (cs *ContentService) Detail(c fs.Context, _ any) (*entity.Entity, error) {
 	id := c.ArgInt("id")
 	schemaName := c.Arg("schema")
 	model, err := cs.DB().Model(schemaName)

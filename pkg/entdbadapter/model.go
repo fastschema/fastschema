@@ -8,6 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	ef "entgo.io/ent/schema/field"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -84,7 +85,7 @@ func (m *Model) Query(predicates ...*db.Predicate) db.Querier {
 		model:           m,
 		client:          m.client,
 		predicates:      predicates,
-		entities:        []*schema.Entity{},
+		entities:        []*entity.Entity{},
 		withEdgesFields: []*schema.Field{},
 	}
 
@@ -93,11 +94,11 @@ func (m *Model) Query(predicates ...*db.Predicate) db.Querier {
 			Table: m.schema.Namespace,
 			ID: &sqlgraph.FieldSpec{
 				Type:   ef.TypeUint64,
-				Column: schema.FieldID,
+				Column: entity.FieldID,
 			},
 		},
 		ScanValues: func(columns []string) ([]any, error) {
-			q.entities = append(q.entities, schema.NewEntity())
+			q.entities = append(q.entities, entity.New())
 			return scanValues(m.schema, columns)
 		},
 		Assign: func(columns []string, values []any) error {
@@ -122,13 +123,13 @@ func (m *Model) Mutation() db.Mutator {
 }
 
 // Create creates a new entity
-func (m *Model) Create(ctx context.Context, e *schema.Entity) (_ uint64, err error) {
+func (m *Model) Create(ctx context.Context, e *entity.Entity) (_ uint64, err error) {
 	return m.Mutation().Create(ctx, e)
 }
 
 // CreateFromJSON creates a new entity from JSON
 func (m *Model) CreateFromJSON(ctx context.Context, json string) (_ uint64, err error) {
-	entity, err := schema.NewEntityFromJSON(json)
+	entity, err := entity.NewEntityFromJSON(json)
 
 	if err != nil {
 		return 0, err

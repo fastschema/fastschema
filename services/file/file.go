@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
-	"github.com/fastschema/fastschema/schema"
 )
 
 type AppLike interface {
@@ -25,11 +25,17 @@ func New(app AppLike) *FileService {
 	}
 }
 
+func (m *FileService) CreateResource(api *fs.Resource) {
+	api.Group("file").
+		Add(fs.NewResource("upload", m.Upload, &fs.Meta{Post: "/upload"})).
+		Add(fs.NewResource("delete", m.Delete, &fs.Meta{Delete: "/"}))
+}
+
 func (m *FileService) FileListHook(
 	ctx context.Context,
 	query *db.QueryOption,
-	entities []*schema.Entity,
-) ([]*schema.Entity, error) {
+	entities []*entity.Entity,
+) ([]*entity.Entity, error) {
 	if query.Schema == nil {
 		return entities, nil
 	}

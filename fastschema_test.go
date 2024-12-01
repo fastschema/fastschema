@@ -14,6 +14,7 @@ import (
 
 	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
@@ -36,8 +37,7 @@ func clearEnvs(t *testing.T) {
 		"DB_PORT",
 		"DB_USER",
 		"DB_PASS",
-		"STORAGE_DEFAULT_DISK",
-		"STORAGE_DISKS",
+		"STORAGE",
 	}
 
 	for _, key := range envKeys {
@@ -88,8 +88,16 @@ func TestFastSchemaCustomDirDefault(t *testing.T) {
 }
 
 func TestFastSchemaPrepareConfig(t *testing.T) {
-	clearEnvs(t)
+	readonlyDir := "/dev/null"
 	config := &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               readonlyDir,
+	}
+	_, err := fastschema.New(config)
+	assert.Error(t, err)
+
+	clearEnvs(t)
+	config = &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 	}
@@ -126,17 +134,40 @@ func TestFastschema(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 
+	assert.NotNil(t, app.Name())
 	assert.NotNil(t, app.Config())
 	assert.NotNil(t, app.Logger())
 	assert.NotNil(t, app.DB())
 	assert.NotNil(t, app.SchemaBuilder())
 	assert.NotNil(t, app.Resources())
+	assert.NotNil(t, app.Services())
 	assert.NotNil(t, app.Roles())
 	assert.NotNil(t, app.Hooks())
 	assert.NotEmpty(t, app.Key())
 	assert.NotEmpty(t, app.Disk())
 	assert.NotNil(t, app.Disk("public"))
 	assert.Nil(t, app.Disk("invalid"))
+}
+
+func TestFastschemaSchemaBuilder(t *testing.T) {
+	clearEnvs(t)
+	config := &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+	}
+	a, err := fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, a)
+	assert.NotNil(t, a.SchemaBuilder())
+
+	// Create schema builder error
+	config = &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+		SystemSchemas:     []any{"invalid"},
+	}
+	_, err = fastschema.New(config)
+	assert.Error(t, err)
 }
 
 func TestFastschemaDisk(t *testing.T) {
@@ -148,35 +179,115 @@ func TestFastschemaDisk(t *testing.T) {
 		Dir:               t.TempDir(),
 	}
 	a := utils.Must(fastschema.New(config))
-	assert.Len(t, a.Disks(), 1)
+	assert.GreaterOrEqual(t, len(a.Disks()), 1)
 	assert.Equal(t, "public", a.Disks()[0].Name())
 	assert.Equal(t, path.Join(config.Dir, "data", "public"), a.Disk().Root())
 
 	// Case 2: Invalid disks env
-	t.Setenv("STORAGE_DISKS", "invalid json")
+	t.Setenv("STORAGE", "invalid json")
 	a, err := fastschema.New(config)
 	assert.Error(t, err)
 	assert.Nil(t, a)
 
-	// Case 3: Invalid default disk
-	clearEnvs(t)
-	t.Setenv("STORAGE_DEFAULT_DISK", "invalid")
-	_, err = fastschema.New(config)
-	assert.Error(t, err)
-
-	// Case 4: Invalid disks config (has no root)
-	clearEnvs(t)
-	_, err = fastschema.New(&fs.Config{
+	// Case 3: Invalid disks config (has no root)
+	config = &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		StorageConfig: &fs.StorageConfig{
 			DefaultDisk: "local_private",
-			DisksConfig: []*fs.DiskConfig{{
+			Disks: []*fs.DiskConfig{{
 				Name:       "local_private",
 				Driver:     "local",
 				PublicPath: "/files",
 			}},
 		},
+	}
+	clearEnvs(t)
+	_, err = fastschema.New(config)
+	assert.Error(t, err)
+
+	// Case 4: Invalid default disk
+	config.StorageConfig.DefaultDisk = "invalid"
+	config.StorageConfig.Disks[0].Root = "./private"
+	_, err = fastschema.New(config)
+	assert.Error(t, err)
+}
+
+func TestFastschemaMailer(t *testing.T) {
+	clearEnvs(t)
+	config := &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+	}
+	a, err := fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, a)
+	assert.Nil(t, a.Mailer())
+
+	config = &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+		MailConfig: &fs.MailConfig{
+			SenderMail:        "admin@site.local",
+			DefaultClientName: "test",
+			Clients: []fs.Map{
+				{
+					"name":     "test",
+					"driver":   "smtp",
+					"host":     "site.local",
+					"port":     587,
+					"username": "test",
+					"password": "test",
+				},
+			},
+		},
+	}
+
+	a, err = fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, a)
+	assert.NotNil(t, a.Mailer())
+	assert.NotNil(t, a.Mailer("test"))
+	assert.Nil(t, a.Mailer("invalid"))
+	assert.Len(t, a.Mailers(), 1)
+
+	// Invalid sender email
+	config.MailConfig.SenderMail = "invalid"
+	_, err = fastschema.New(config)
+	assert.Error(t, err)
+
+	// Client without host
+	config.MailConfig.SenderMail = "admin@site.local"
+	config.MailConfig.Clients[0]["host"] = ""
+	_, err = fastschema.New(config)
+	assert.Error(t, err)
+
+	// Invalid default client
+	config.MailConfig.Clients[0]["host"] = "site.local"
+	config.MailConfig.DefaultClientName = "invalid"
+	_, err = fastschema.New(config)
+	assert.Error(t, err)
+
+	// There is no default client config
+	config.MailConfig.DefaultClientName = ""
+	a, err = fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, a)
+	assert.Equal(t, "test", a.Mailer().Name())
+
+	// User mail config from env
+	t.Setenv("MAIL", `{"sender_mail":"accounts@fastschema.com","default_client":"testsmtp","clients":[{"name":"testsmtp","driver":"smtp","host":"site.local","port":2525,"username":"test","password":"test"}]}`)
+	a, err = fastschema.New(&fs.Config{
+		HideResourcesInfo: true,
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, a)
+	assert.NotNil(t, a.Mailer())
+
+	// Invalid email config from env
+	t.Setenv("MAIL", `invalid json`)
+	_, err = fastschema.New(&fs.Config{
+		HideResourcesInfo: true,
 	})
 	assert.Error(t, err)
 }
@@ -202,6 +313,17 @@ func TestFastschemaLogger(t *testing.T) {
 	mockLogger, ok := a.Logger().(*logger.MockLogger)
 	assert.True(t, ok)
 	assert.NotNil(t, mockLogger)
+
+	// Logger with read-only file'
+	config = &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+		LoggerConfig: &logger.Config{
+			LogFile: "/dev/null/test.log",
+		},
+	}
+	_, err = fastschema.New(config)
+	assert.Error(t, err)
 }
 
 func TestFastschemaDBClient(t *testing.T) {
@@ -265,8 +387,51 @@ func TestFastschemaReload(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, a)
 
-	// reload error
+	// reload
 	assert.NoError(t, a.Reload(context.Background(), nil))
+
+	// Reload error because of invalid migration
+	assert.Error(t, a.Reload(context.Background(), &db.Migration{
+		RenameTables: []*db.RenameItem{{
+			From: "invalid",
+			To:   "invalid",
+		}},
+	}))
+
+	// Reload error because app dir is removed
+	assert.NoError(t, os.RemoveAll(a.Dir()))
+	assert.Error(t, a.Reload(context.Background(), nil))
+}
+
+func TestFastschemaUpdateCache(t *testing.T) {
+	clearEnvs(t)
+	ctx := context.Background()
+	config := &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+	}
+	a, err := fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, a)
+
+	// reload
+	assert.NoError(t, a.UpdateCache(ctx))
+
+	// Error compile role rule
+	rs1, err := a.DB().Exec(ctx, "INSERT INTO roles (id, name, rule) VALUES (1, 'testrole', 'invalid')")
+	assert.NoError(t, err)
+	assert.Error(t, a.UpdateCache(ctx))
+
+	// Error compile permission value
+	_, err = a.DB().Exec(ctx, "UPDATE roles SET rule = NULL WHERE id = ?", utils.Must(rs1.LastInsertId()))
+	assert.NoError(t, err)
+	_, err = a.DB().Exec(ctx, "INSERT INTO permissions (role_id, resource, value) VALUES (?, 'testpermission', 'invalid')", utils.Must(rs1.LastInsertId()))
+	assert.NoError(t, err)
+	assert.Error(t, a.UpdateCache(ctx))
+
+	// Error db client is closed
+	assert.NoError(t, a.DB().Close())
+	assert.Error(t, a.UpdateCache(ctx))
 }
 
 func TestFastschemaSetup(t *testing.T) {
@@ -351,10 +516,10 @@ func TestFastschemaResources(t *testing.T) {
 	a.OnPostDBQuery(func(
 		ctx context.Context,
 		query *db.QueryOption,
-		entities []*schema.Entity,
-	) ([]*schema.Entity, error) {
+		entities []*entity.Entity,
+	) ([]*entity.Entity, error) {
 		if query.Schema.Name == "file" {
-			entities = append(entities, schema.NewEntity(1))
+			entities = append(entities, entity.New(1))
 		}
 		return entities, nil
 	})
@@ -370,7 +535,7 @@ func TestFastschemaResources(t *testing.T) {
 		return nil
 	})
 
-	a.OnPreDBCreate(func(ctx context.Context, schema *schema.Schema, createData *schema.Entity) error {
+	a.OnPreDBCreate(func(ctx context.Context, schema *schema.Schema, createData *entity.Entity) error {
 		assert.NotNil(t, schema)
 		assert.NotNil(t, createData)
 		return nil
@@ -379,7 +544,7 @@ func TestFastschemaResources(t *testing.T) {
 	a.OnPostDBCreate(func(
 		ctx context.Context,
 		schema *schema.Schema,
-		dataCreate *schema.Entity,
+		dataCreate *entity.Entity,
 		id uint64,
 	) error {
 		assert.NotNil(t, schema)
@@ -392,7 +557,7 @@ func TestFastschemaResources(t *testing.T) {
 		ctx context.Context,
 		schema *schema.Schema,
 		predicates []*db.Predicate,
-		updateData *schema.Entity,
+		updateData *entity.Entity,
 	) error {
 		assert.NotNil(t, schema)
 		assert.NotNil(t, updateData)
@@ -403,8 +568,8 @@ func TestFastschemaResources(t *testing.T) {
 		ctx context.Context,
 		schema *schema.Schema,
 		predicates []*db.Predicate,
-		updateData *schema.Entity,
-		originalEntities []*schema.Entity,
+		updateData *entity.Entity,
+		originalEntities []*entity.Entity,
 		affected int,
 	) error {
 		assert.NotNil(t, schema)
@@ -422,7 +587,7 @@ func TestFastschemaResources(t *testing.T) {
 		ctx context.Context,
 		schema *schema.Schema,
 		predicates []*db.Predicate,
-		originalEntities []*schema.Entity,
+		originalEntities []*entity.Entity,
 		affected int,
 	) error {
 		assert.NotNil(t, schema)
@@ -537,6 +702,14 @@ func TestFastschemaResources(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `/docs/openapi.json`)
+
+	// Test config
+	req = httptest.NewRequest("GET", "/api/config", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp = utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"version":"`)
 }
 
 func TestFastschemaStart(t *testing.T) {
@@ -577,7 +750,7 @@ func TestFastSchemaCustomConfiguration(t *testing.T) {
 		},
 		StorageConfig: &fs.StorageConfig{
 			// DefaultDisk: "local_public",
-			DisksConfig: []*fs.DiskConfig{
+			Disks: []*fs.DiskConfig{
 				{
 					Name:       "local_public",
 					Driver:     "local",
@@ -601,18 +774,46 @@ func TestFastSchemaCustomConfiguration(t *testing.T) {
 
 func TestFastSchemaGetAuthProvider(t *testing.T) {
 	clearEnvs(t)
-	// Case 1: Error
+	// Case 0: Load invalid auth from env
+	t.Setenv("AUTH", `invalid json`)
 	config := &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+	}
+	app, err := fastschema.New(config)
+	assert.Error(t, err)
+	assert.Nil(t, app)
+
+	// Case 1: Duplicate provider
+	authConfig := &fs.AuthConfig{
+		EnabledProviders: []string{"github", "github"},
+		Providers: map[string]fs.Map{
+			"github": {
+				"client_id":     "test",
+				"client_secret": "test",
+			},
+		},
+	}
+	config = &fs.Config{
+		HideResourcesInfo: true,
+		Dir:               t.TempDir(),
+		AuthConfig:        authConfig,
+	}
+	_, err = fastschema.New(config)
+	assert.Error(t, err)
+
+	// Case 3: Error
+	config = &fs.Config{
 		HideResourcesInfo: true,
 		Dir:               t.TempDir(),
 		AuthConfig: &fs.AuthConfig{
 			EnabledProviders: []string{"github"},
-			Providers: map[string]map[string]string{
+			Providers: map[string]fs.Map{
 				"github": {},
 			},
 		},
 	}
-	app, err := fastschema.New(config)
+	app, err = fastschema.New(config)
 	assert.Error(t, err)
 	assert.Nil(t, app)
 
@@ -621,7 +822,7 @@ func TestFastSchemaGetAuthProvider(t *testing.T) {
 		Dir:               t.TempDir(),
 		AuthConfig: &fs.AuthConfig{
 			EnabledProviders: []string{"github"},
-			Providers: map[string]map[string]string{
+			Providers: map[string]fs.Map{
 				"github": {
 					"client_id":     "test",
 					"client_secret": "test",
@@ -640,4 +841,19 @@ func TestFastSchemaGetAuthProvider(t *testing.T) {
 	provider := app.GetAuthProvider("github")
 	assert.NotNil(t, provider)
 	assert.Equal(t, "github", provider.Name())
+}
+
+func TestFastSchemaHTTPAdaptor(t *testing.T) {
+	clearEnvs(t)
+	config := &fs.Config{
+		Dir: t.TempDir(),
+	}
+	a, err := fastschema.New(config)
+	assert.NoError(t, err)
+	assert.NotNil(t, a)
+
+	// Test HTTPAdaptor with initialized resources
+	handler, err := a.HTTPAdaptor()
+	assert.NoError(t, err)
+	assert.NotNil(t, handler)
 }

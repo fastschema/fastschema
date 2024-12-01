@@ -4,9 +4,9 @@ import (
 	"time"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
-	"github.com/fastschema/fastschema/schema"
 )
 
 type LoginResponse struct {
@@ -31,7 +31,7 @@ func (as *AuthService) Callback(c fs.Context, _ any) (u *LoginResponse, err erro
 
 	user, err := provider.Callback(c)
 	if err != nil {
-		return nil, errors.InternalServerError(err.Error())
+		return nil, err
 	}
 
 	if user == nil {
@@ -79,7 +79,7 @@ func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*LoginRe
 			"username":          providerUser.Username,
 			"email":             providerUser.Email,
 			"active":            true,
-			"roles":             []*schema.Entity{schema.NewEntity(fs.RoleUser.ID)},
+			"roles":             []*entity.Entity{entity.New(fs.RoleUser.ID)},
 		}); err != nil {
 			return nil, err
 		}

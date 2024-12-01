@@ -4,12 +4,13 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCommon(t *testing.T) {
-	assert.Equal(t, "id", FieldID)
+	assert.Equal(t, "id", entity.FieldID)
 
 	assert.Equal(t, "bool", TypeBool.String())
 	assert.Equal(t, "invalid", endFieldTypes.String())

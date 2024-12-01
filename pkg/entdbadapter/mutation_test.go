@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/schema"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,14 +26,14 @@ func TestMutation(t *testing.T) {
 	_, err := mutation.GetRelationEntityIDs("test", 1)
 	assert.Equal(t, "relation value for test.test is invalid", err.Error())
 
-	entity := schema.NewEntity(1)
-	relationEntityIDs, err := mutation.GetRelationEntityIDs("test", entity)
+	e := entity.New(1)
+	relationEntityIDs, err := mutation.GetRelationEntityIDs("test", e)
 	assert.Nil(t, err)
 	assert.Equal(t, []driver.Value{uint64(1)}, relationEntityIDs)
 
-	relationEntityIDs, err = mutation.GetRelationEntityIDs("test", []*schema.Entity{
-		schema.NewEntity(1),
-		schema.NewEntity(2),
+	relationEntityIDs, err = mutation.GetRelationEntityIDs("test", []*entity.Entity{
+		entity.New(1),
+		entity.New(2),
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, []driver.Value{uint64(1), uint64(2)}, relationEntityIDs)
@@ -47,7 +47,7 @@ func TestMutationGetRelationEntityIDsNil(t *testing.T) {
 	assert.Equal(t, expected, value)
 
 	mutation2 := &Mutation{}
-	value2, err := mutation2.GetRelationEntityIDs("test", schema.NewEntity())
+	value2, err := mutation2.GetRelationEntityIDs("test", entity.New())
 	assert.NoError(t, err)
 	assert.Equal(t, []driver.Value{}, value2)
 
@@ -56,6 +56,6 @@ func TestMutationGetRelationEntityIDsNil(t *testing.T) {
 			name: "test",
 		},
 	}
-	_, err = mutation3.GetRelationEntityIDs("test", schema.NewEntity(0))
+	_, err = mutation3.GetRelationEntityIDs("test", entity.New(0))
 	assert.Error(t, err)
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -50,28 +51,28 @@ func (rs *RealtimeService) Content(c fs.Context, _ any) (any, error) {
 type RealtimeCreateData struct {
 	Schema *schema.Schema
 	ID     uint64
-	Data   *schema.Entity
+	Data   *entity.Entity
 }
 
 type RealtimeUpdateData struct {
 	Schema           *schema.Schema
 	Predicates       []*db.Predicate
-	UpdateData       *schema.Entity
-	OriginalEntities []*schema.Entity
+	UpdateData       *entity.Entity
+	OriginalEntities []*entity.Entity
 	Affected         int
 }
 
 type RealtimeDeleteData struct {
 	Schema           *schema.Schema
 	Predicates       []*db.Predicate
-	OriginalEntities []*schema.Entity
+	OriginalEntities []*entity.Entity
 	Affected         int
 }
 
 func (rs *RealtimeService) ContentCreateHook(
 	ctx context.Context,
 	schema *schema.Schema,
-	dataCreate *schema.Entity,
+	dataCreate *entity.Entity,
 	id uint64,
 ) error {
 	go rs.Broadcast([]string{
@@ -91,8 +92,8 @@ func (rs *RealtimeService) ContentUpdateHook(
 	ctx context.Context,
 	schema *schema.Schema,
 	predicates []*db.Predicate,
-	updateData *schema.Entity,
-	originalEntities []*schema.Entity,
+	updateData *entity.Entity,
+	originalEntities []*entity.Entity,
 	affected int,
 ) error {
 	topics := []string{
@@ -126,7 +127,7 @@ func (rs *RealtimeService) ContentDeleteHook(
 	ctx context.Context,
 	schema *schema.Schema,
 	predicates []*db.Predicate,
-	originalEntities []*schema.Entity,
+	originalEntities []*entity.Entity,
 	affected int,
 ) error {
 	topics := []string{
@@ -171,7 +172,7 @@ type WSContentSerializeData struct {
 }
 
 func (tc *WSContentSerializer) Serialize(data any) (msg []byte, err error) {
-	query := db.Builder[*schema.Entity](tc.db(), tc.schema.Name)
+	query := db.Builder[*entity.Entity](tc.db(), tc.schema.Name)
 	if len(tc.fields) > 0 {
 		query.Select(strings.Split(tc.fields, ",")...)
 	}
@@ -200,7 +201,7 @@ func (tc *WSContentSerializer) Serialize(data any) (msg []byte, err error) {
 			return nil, nil
 		}
 
-		updateIDs := utils.Map(realtimeUpdate.OriginalEntities, func(e *schema.Entity) any {
+		updateIDs := utils.Map(realtimeUpdate.OriginalEntities, func(e *entity.Entity) any {
 			return e.ID()
 		})
 

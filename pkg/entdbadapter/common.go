@@ -18,6 +18,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -161,7 +162,8 @@ func CreateDebugFN(config *db.Config) func(ctx context.Context, args ...any) {
 		}
 
 		if config.Logger != nil {
-			config.Logger.Debug(args...)
+			// config.Logger.Debug(args...)
+			config.Logger.WithContext(nil, 5).Debug(args...)
 		} else {
 			fmt.Println(args...)
 		}
@@ -374,7 +376,7 @@ func driverQuery(
 	ctx context.Context,
 	query string,
 	args any,
-) ([]*schema.Entity, error) {
+) ([]*entity.Entity, error) {
 	var rows = &dialectsql.Rows{}
 	if err := driver.Query(ctx, query, args, rows); err != nil {
 		return nil, err
@@ -385,14 +387,14 @@ func driverQuery(
 		return nil, err
 	}
 
-	entities := []*schema.Entity{}
+	entities := []*entity.Entity{}
 	for rows.Next() {
 		values := createRowsScanValues(columns, columnTypes)
 		if err := rows.Scan(values...); err != nil {
 			return nil, err
 		}
 
-		entity := schema.NewEntity()
+		e := entity.New()
 		for i, column := range columns {
 			scanType := columnTypes[i].ScanType()
 			databaseTypeName := columnTypes[i].DatabaseTypeName()
@@ -401,16 +403,16 @@ func driverQuery(
 				if value, ok := values[i].(*sql.NullTime); !ok {
 					return nil, fieldTypeError("Time", values[i])
 				} else if value.Valid {
-					entity.Set(column, value.Time)
+					e.Set(column, value.Time)
 				}
 
 				continue
 			}
 
-			entity.Set(column, values[i])
+			e.Set(column, values[i])
 		}
 
-		entities = append(entities, entity)
+		entities = append(entities, e)
 	}
 
 	return entities, nil

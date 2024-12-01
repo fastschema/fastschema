@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-type AuthProviderMaker func(map[string]string, string) (AuthProvider, error)
+type AuthProviderMaker func(Map, string) (AuthProvider, error)
 type AuthProvider interface {
 	Name() string
 	Login(Context) (any, error)
@@ -33,7 +33,7 @@ func RegisterAuthProviderMaker(name string, fn AuthProviderMaker) {
 }
 
 // CreateAuthProvider creates an auth provider by the provided name.
-func CreateAuthProvider(name string, config map[string]string, redirectURL string) (AuthProvider, error) {
+func CreateAuthProvider(name string, config Map, redirectURL string) (AuthProvider, error) {
 	authProviderMakersMu.RLock()
 	defer authProviderMakersMu.RUnlock()
 	fn, ok := authProviderMakers[name]
@@ -56,8 +56,8 @@ func AuthProviders() []string {
 }
 
 type AuthConfig struct {
-	EnabledProviders []string                     `json:"enabled_providers"`
-	Providers        map[string]map[string]string `json:"providers"`
+	EnabledProviders []string       `json:"enabled_providers"`
+	Providers        map[string]Map `json:"providers"`
 }
 
 func (ac *AuthConfig) Clone() *AuthConfig {
@@ -67,7 +67,7 @@ func (ac *AuthConfig) Clone() *AuthConfig {
 
 	clone := &AuthConfig{
 		EnabledProviders: make([]string, len(ac.EnabledProviders)),
-		Providers:        make(map[string]map[string]string),
+		Providers:        make(map[string]Map),
 	}
 
 	copy(clone.EnabledProviders, ac.EnabledProviders)

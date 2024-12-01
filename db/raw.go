@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/fastschema/fastschema/schema"
+	"github.com/fastschema/fastschema/entity"
 )
 
 func Exec(ctx context.Context, client Client, query string, args ...any) (sql.Result, error) {
@@ -17,13 +17,13 @@ func Query[T any](ctx context.Context, client Client, query string, args ...any)
 		return nil, err
 	}
 
-	// if T is *schema.Entity, return the rows as is
+	// if T is *entity.Entity, return the rows as is
 	var t T
-	if _, ok := any(t).(*schema.Entity); ok {
+	if _, ok := any(t).(*entity.Entity); ok {
 		return any(rows).([]T), nil
 	}
 
-	// if T is not *schema.Entity, bind the rows to the struct T
+	// if T is not *entity.Entity, bind the rows to the struct T
 	for _, row := range rows {
 		var t T
 		if err := BindStruct(row, &t); err != nil {

@@ -8,11 +8,6 @@ import (
 	"time"
 )
 
-const FieldID = "id"
-const FieldCreatedAt = "created_at"
-const FieldUpdatedAt = "updated_at"
-const FieldDeletedAt = "deleted_at"
-
 // FieldEnum define the data struct for an enum field
 type FieldEnum struct {
 	Value string `json:"value"`

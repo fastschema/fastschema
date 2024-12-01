@@ -257,7 +257,7 @@ func (s *Schema) CreateField(sf reflect.StructField) (*Field, error) {
 // ExtendFieldByTag extends the given field by parsing the struct field tag and updating the field properties accordingly.
 //
 //	Common properties format:
-//	- E.g: `fs:"type=string,name=custom_name,label=Custom Label,size=10,multiple,unique,optional,sortable,filterable,default=10"`
+//	- E.g: `fs:"type=string;name=custom_name;label=Custom Label;size=10;multiple;unique;optional;sortable;filterable;default=10"`
 //	- Supported field properties:
 //		- type: Tag fs="type=string".
 //		- name: Use json tag to customize the field name, e.g. `json:"custom_name"`.
@@ -375,6 +375,18 @@ func (s *Schema) ExtendFieldByTag(sf reflect.StructField, field *Field) error {
 		}
 
 		field.DB = db
+	}
+
+	// Custom setter for the field
+	setterTag := sf.Tag.Get("fs.setter")
+	if setterTag != "" {
+		field.Setter = setterTag
+	}
+
+	// Custom getter for the field
+	getterTag := sf.Tag.Get("fs.getter")
+	if getterTag != "" {
+		field.Getter = getterTag
 	}
 
 	return nil

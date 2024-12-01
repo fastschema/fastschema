@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
@@ -86,7 +87,7 @@ func (s *Schema) Init(disableIDColumn bool) error {
 
 	if !disableIDColumn {
 		newIDField := &Field{}
-		newIDField.Name = FieldID
+		newIDField.Name = entity.FieldID
 		newIDField.Type = TypeUint64
 		newIDField.IsSystemField = true
 		newIDField.IsLocked = true
@@ -100,7 +101,7 @@ func (s *Schema) Init(disableIDColumn bool) error {
 		newIDField.Filterable = true
 		newIDField.Sortable = true
 
-		existedIDField := s.Field(FieldID)
+		existedIDField := s.Field(entity.FieldID)
 		// If ID field already exists, merge the new ID field with the existing one
 		if existedIDField != nil {
 			MergeFields(existedIDField, newIDField)
@@ -110,7 +111,9 @@ func (s *Schema) Init(disableIDColumn bool) error {
 	}
 
 	for _, f := range s.Fields {
-		f.Init(s.Name)
+		if err := f.Init(s.Name); err != nil {
+			return err
+		}
 		if !f.Type.IsRelationType() {
 			s.dbColumns = append(s.dbColumns, f.Name)
 		}
@@ -118,9 +121,9 @@ func (s *Schema) Init(disableIDColumn bool) error {
 
 	if !s.DisableTimestamp {
 		timeFields := [][4]string{
-			{FieldCreatedAt, "Created At", "false", "NOW()"},
-			{FieldUpdatedAt, "Updated At", "true"},
-			{FieldDeletedAt, "Deleted At", "true"},
+			{entity.FieldCreatedAt, "Created At", "false", "NOW()"},
+			{entity.FieldUpdatedAt, "Updated At", "true"},
+			{entity.FieldDeletedAt, "Deleted At", "true"},
 		}
 
 		for _, timeField := range timeFields {
@@ -145,7 +148,9 @@ func (s *Schema) Init(disableIDColumn bool) error {
 			} else {
 				s.dbColumns = append(s.dbColumns, timeField[0])
 				s.Fields = append(s.Fields, tsField)
-				tsField.Init()
+				if err := tsField.Init(); err != nil {
+					return err
+				}
 			}
 		}
 	}

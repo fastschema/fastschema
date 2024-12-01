@@ -1,62 +1,182 @@
 package auth
 
 import (
-	"time"
+	"fmt"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
-type LoginData struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
+const ProviderLocal = "local"
+
+// activationMethod: auto, manual, email
+//
+//	auto: user is activated automatically
+//	manual: user is activated manually by admin
+//	email: user is activated by email
+type LocalProvider struct {
+	db               func() db.Client
+	appKey           func() string
+	appName          func() string
+	appBaseURL       func() string
+	mailer           func(names ...string) fs.Mailer
+	config           fs.Map
+	activationMethod string
+	activationURL    string
+	recoveryURL      string
 }
 
-type LoginResponse struct {
-	Token   string    `json:"token"`
-	Expires time.Time `json:"expires"`
+func NewLocalAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
+	la := &LocalProvider{
+		config:           config,
+		activationMethod: fs.MapValue(config, "activation_method", "manual"),
+		activationURL:    fs.MapValue(config, "activation_url", ""),
+		recoveryURL:      fs.MapValue(config, "recovery_url", ""),
+	}
+
+	return la, nil
 }
 
-type LocalAuthProvider struct {
-	db     func() db.Client
-	appKey func() string
-}
-
-func NewLocalAuthProvider(config Config, redirectURL string) (fs.AuthProvider, error) {
-	return &LocalAuthProvider{}, nil
-}
-
-func (la *LocalAuthProvider) Init(db func() db.Client, appKey func() string) {
+func (la *LocalProvider) Init(
+	db func() db.Client,
+	appKey func() string,
+	appName func() string,
+	appBaseURL func() string,
+	mailer func(names ...string) fs.Mailer,
+) {
 	la.db = db
 	la.appKey = appKey
+	la.appName = appName
+	la.mailer = mailer
+	la.appBaseURL = appBaseURL
+
+	if la.activationURL == "" {
+		la.activationURL = fmt.Sprintf(
+			"%s/auth/local/activate",
+			appBaseURL(),
+		)
+	}
+
+	if la.recoveryURL == "" {
+		la.recoveryURL = fmt.Sprintf(
+			"%s/auth/local/recover",
+			appBaseURL(),
+		)
+	}
 }
 
-func (la *LocalAuthProvider) Name() string {
-	return "local"
+func (la *LocalProvider) Name() string {
+	return ProviderLocal
 }
 
-func (la *LocalAuthProvider) Login(c fs.Context) (_ any, err error) {
-	loginEntity, err := c.Payload()
-	if err != nil {
+func (la *LocalProvider) Login(c fs.Context) (_ any, err error) {
+	return nil, nil
+}
+
+func (la *LocalProvider) Callback(c fs.Context) (user *fs.User, err error) {
+	return nil, nil
+}
+
+func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation, error) {
+	if err := ValidateRegisterData(c, c.Logger(), la.db(), payload); err != nil {
 		return nil, err
 	}
 
-	loginData, err := schema.BindEntity[*LoginData](loginEntity)
-	if err != nil {
-		return nil, err
+	userEntity := payload.Entity(la.activationMethod, la.Name())
+	if err := db.WithTx(la.db(), c, func(tx db.Client) error {
+		user, err := db.Builder[*fs.User](tx).Create(c, userEntity)
+		if err != nil {
+			c.Logger().Errorf(MSG_USER_SAVE_ERROR+": %w", err)
+			return ERR_SAVE_USER
+		}
+
+		if _, err = db.Builder[*fs.User](tx).
+			Where(db.EQ("id", user.ID)).
+			Update(c, entity.New().Set("provider_id", user.ID)); err != nil {
+			return ERR_SAVE_USER
+		}
+
+		user.ProviderID = fmt.Sprintf("%d", user.ID)
+		email, err := CreateActivationEmail(la, user)
+		if err != nil {
+			c.Logger().Error(MSG_CREATE_ACTIVATION_MAIL_ERROR, err)
+			return ERR_SAVE_USER
+		}
+
+		go SendConfirmationEmail(la, c.Logger(), email)
+
+		return nil
+	}); err != nil {
+		c.Logger().Error(MSG_USER_SAVE_ERROR, err)
+		return nil, ERR_SAVE_USER
 	}
 
-	if loginData == nil || loginData.Login == "" || loginData.Password == "" {
-		return nil, errors.BadRequest("login and password are required")
+	return &Activation{Activation: la.activationMethod}, nil
+}
+
+func (la *LocalProvider) Activate(c fs.Context, _ any) (*Activation, error) {
+	userID, err := ValidateConfirmationToken(c.Arg("token"), la.appKey())
+	if err != nil {
+		c.Logger().Errorf(MSG_INVALID_TOKEN+": %w", err)
+		return nil, ERR_INVALID_TOKEN
+	}
+
+	if _, err = db.Builder[*fs.User](la.db()).
+		Where(db.EQ("id", userID)).
+		Where(db.EQ("active", false)).
+		Update(c, entity.New().Set("active", true)); err != nil {
+		c.Logger().Errorf(MSG_USER_ACTIVATION_ERROR+": %w", err)
+		return nil, errors.BadRequest(MSG_USER_ACTIVATION_ERROR)
+	}
+
+	return &Activation{Activation: "activated"}, nil
+}
+
+func (la *LocalProvider) SendActivationLink(c fs.Context, data *Confirmation) (*Activation, error) {
+	if la.activationMethod != "email" {
+		return nil, errors.BadRequest()
+	}
+	// Only send the new activation link if:
+	// - The confirmation token is valid
+	// - The confirmation token is expired
+	userID, err := ValidateConfirmationToken(data.Token, la.appKey())
+	if err == nil || !errors.Is(err, ERR_TOKEN_EXPIRED) {
+		return nil, ERR_INVALID_TOKEN
 	}
 
 	user, err := db.Builder[*fs.User](la.db()).
+		Where(db.EQ("id", userID)).
+		Where(db.EQ("active", false)).
+		Select("id", "username", "email").
+		First(c)
+	if err != nil {
+		return nil, ERR_INVALID_TOKEN
+	}
+
+	email, err := CreateActivationEmail(la, user)
+	if err != nil {
+		c.Logger().Error(MSG_CREATE_ACTIVATION_MAIL_ERROR, err)
+		return nil, errors.BadRequest(MSG_CREATE_ACTIVATION_MAIL_ERROR)
+	}
+
+	go SendConfirmationEmail(la, c.Logger(), email)
+
+	return &Activation{Activation: la.activationMethod}, nil
+}
+
+func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (_ *LoginResponse, err error) {
+	if payload == nil || payload.Login == "" || payload.Password == "" {
+		return nil, errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
+	}
+
+	c.Local("keeppassword", "true")
+	user, err := db.Builder[*fs.User](la.db()).
 		Where(db.Or(
-			db.EQ("username", loginData.Login),
-			db.EQ("email", loginData.Login),
+			db.EQ("username", payload.Login),
+			db.EQ("email", payload.Login),
 		)).
 		Select(
 			"id",
@@ -68,25 +188,26 @@ func (la *LocalAuthProvider) Login(c fs.Context) (_ any, err error) {
 			"provider_username",
 			"active",
 			"roles",
-			schema.FieldCreatedAt,
-			schema.FieldUpdatedAt,
-			schema.FieldDeletedAt,
+			entity.FieldCreatedAt,
+			entity.FieldUpdatedAt,
+			entity.FieldDeletedAt,
 		).
 		First(c)
 	if err != nil && !db.IsNotFound(err) {
-		return nil, err
+		c.Logger().Error(err)
+		return nil, errors.InternalServerError(MSG_CHECKING_USER_ERROR)
 	}
 
 	if user == nil {
-		return nil, errors.Unauthorized("invalid login or password")
-	}
-
-	if err := utils.CheckHash(loginData.Password, user.Password); err != nil {
-		return nil, errors.Unauthorized("invalid login or password")
+		return nil, errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
 	}
 
 	if !user.Active {
-		return nil, errors.Unauthorized("user is not active")
+		return nil, errors.Unauthorized(MSG_USER_IS_INACTIVE)
+	}
+
+	if err := utils.CheckHash(payload.Password, user.Password); err != nil {
+		return nil, errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
 	}
 
 	jwtToken, exp, err := user.JwtClaim(la.appKey())
@@ -97,6 +218,58 @@ func (la *LocalAuthProvider) Login(c fs.Context) (_ any, err error) {
 	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
 }
 
-func (la *LocalAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
-	return nil, nil
+// Masking error reason for security reasons
+func (la *LocalProvider) Recover(c fs.Context, data *Recovery) (_ bool, err error) {
+	if !utils.IsValidEmail(data.Email) {
+		return false, errors.UnprocessableEntity(MSG_INVALID_EMAIL)
+	}
+
+	user, err := db.Builder[*fs.User](la.db()).
+		Where(db.EQ("email", data.Email)).
+		Where(db.EQ("provider", la.Name())).
+		Select("id", "email").
+		First(c)
+	if err != nil && !db.IsNotFound(err) {
+		c.Logger().Error(err)
+		return false, errors.InternalServerError(MSG_CHECKING_USER_ERROR)
+	}
+
+	if user == nil {
+		return true, nil
+	}
+
+	email, err := CreateRecoveryEmail(la, user)
+	if err != nil {
+		c.Logger().Errorf(MSG_CREATEP_RECOVERY_MAIL_ERROR+": %w", err)
+		return false, errors.BadRequest(MSG_CREATEP_RECOVERY_MAIL_ERROR)
+	}
+
+	go SendConfirmationEmail(la, c.Logger(), email)
+
+	return true, nil
+}
+
+func (la *LocalProvider) RecoverCheck(c fs.Context, data *Confirmation) (_ bool, err error) {
+	userID, err := ValidateConfirmationToken(data.Token, la.appKey())
+	return userID > 0, err
+}
+
+func (la *LocalProvider) ResetPassword(c fs.Context, data *ResetPassword) (_ bool, err error) {
+	userID, err := ValidateConfirmationToken(data.Token, la.appKey())
+	if err != nil {
+		return false, err
+	}
+
+	if data.Password == "" || data.ConfirmPassword == "" || data.Password != data.ConfirmPassword {
+		return false, errors.UnprocessableEntity(MSG_INVALID_PASSWORD)
+	}
+
+	if _, err := db.Builder[*fs.User](la.db()).
+		Where(db.EQ("id", userID)).
+		Update(c, entity.New().Set("password", data.Password)); err != nil {
+		c.Logger().Errorf(MSG_USER_SAVE_ERROR+": %w", err)
+		return false, ERR_SAVE_USER
+	}
+
+	return true, nil
 }

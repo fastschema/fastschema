@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
-	"github.com/fastschema/fastschema/schema"
 	"github.com/gofiber/fiber/v2"
 	"github.com/valyala/fasthttp"
 )
@@ -19,7 +19,7 @@ type Context struct {
 	args     map[string]string
 	resource *fs.Resource
 	result   *fs.Result
-	entity   *schema.Entity
+	entity   *entity.Entity
 	logger   logger.Logger
 }
 
@@ -29,6 +29,11 @@ func (c *Context) Result(results ...*fs.Result) *fs.Result {
 	}
 
 	return c.result
+}
+
+func (c *Context) SetArg(name, value string) string {
+	c.args[name] = value
+	return value
 }
 
 func (c *Context) Args() map[string]string {
@@ -53,7 +58,15 @@ func (c *Context) ArgInt(name string, defaults ...int) int {
 	return v
 }
 
-func (c *Context) Payload() (*schema.Entity, error) {
+func (c *Context) IP() string {
+	return c.Ctx.IP()
+}
+
+func (c *Context) Body() ([]byte, error) {
+	return c.Ctx.Body(), nil
+}
+
+func (c *Context) Payload() (*entity.Entity, error) {
 	if c.entity != nil {
 		return c.entity, nil
 	}
@@ -63,7 +76,7 @@ func (c *Context) Payload() (*schema.Entity, error) {
 		return nil, nil
 	}
 
-	c.entity = schema.NewEntity()
+	c.entity = entity.New()
 	if err := c.entity.UnmarshalJSON(body); err != nil {
 		return nil, err
 	}

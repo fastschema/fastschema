@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -132,7 +133,7 @@ func CreatePredicatesFromFilterObject(
 		return []*Predicate{}, nil
 	}
 
-	filterEntity, err := schema.NewEntityFromJSON(filterObject)
+	filterEntity, err := entity.NewEntityFromJSON(filterObject)
 	if err != nil {
 		return nil, filterError(err)
 	}
@@ -149,7 +150,7 @@ func CreatePredicatesFromFilterMap(
 		return []*Predicate{}, nil
 	}
 
-	filterEntity := schema.NewEntityFromMap(filterObject)
+	filterEntity := entity.NewEntityFromMap(filterObject)
 
 	return createObjectPredicates(sb, s, filterEntity)
 }
@@ -162,13 +163,13 @@ func CreatePredicatesFromFilterMap(
 func createObjectPredicates(
 	sb *schema.Builder,
 	s *schema.Schema,
-	filterObject *schema.Entity,
+	filterObject *entity.Entity,
 ) ([]*Predicate, error) {
 	var predicates = make([]*Predicate, 0)
 
 	for pair := filterObject.First(); pair != nil; pair = pair.Next() {
 		if pair.Key == "$or" || pair.Key == "$and" {
-			opEntities, ok := pair.Value.([]*schema.Entity)
+			opEntities, ok := pair.Value.([]*entity.Entity)
 			if !ok {
 				return nil, errors.New("invalid $or/$and value")
 			}
@@ -297,7 +298,7 @@ func createFieldPredicate(
 	// If the value is an entity, it means there are some operators. E.g.
 	// { "age": { "$gt": 1, "$lt": 10 } }
 	// --> create predicates for each operator
-	case *schema.Entity:
+	case *entity.Entity:
 		predicates := []*Predicate{}
 		for p := fieldValue.First(); p != nil; p = p.Next() {
 			op := stringToOperatorTypes[p.Key]

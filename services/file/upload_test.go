@@ -74,7 +74,7 @@ func TestFileServiceUpload(t *testing.T) {
 
 	// Case 2: Error due to invalid file
 	userModel := utils.Must(ms.DB().Model("user"))
-	assert.True(t, utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "test", "password": "123"}`)) > 0)
+	assert.True(t, utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "test", "password": "123", "provider": "local"}`)) > 0)
 
 	req = httptest.NewRequest("POST", "/file/upload", body)
 	req.Header.Add("Content-Type", mw.FormDataContentType())

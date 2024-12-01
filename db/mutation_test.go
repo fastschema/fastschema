@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
-	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,16 +42,16 @@ func TestMutation(t *testing.T) {
 	_, err = db.Update[testPost](ctx, client, fs.Map{"title": "tutorial"}, nil)
 	assert.Contains(t, err.Error(), "model testPost not found")
 
-	// Case 8: Create with schema.Entity: Invalid schema name
-	_, err = db.Create[*schema.Entity](ctx, client, fs.Map{"name": "Tutorial"}, "invalid")
+	// Case 8: Create with entity.Entity: Invalid schema name
+	_, err = db.Create[*entity.Entity](ctx, client, fs.Map{"name": "Tutorial"}, "invalid")
 	assert.ErrorContains(t, err, "model invalid not found")
 
-	// Case 9: Create with schema.Entity: no schema name
-	_, err = db.Create[*schema.Entity](ctx, client, fs.Map{"name": "Tutorial"})
-	assert.ErrorContains(t, err, "schema name is required for type schema.Entity")
+	// Case 9: Create with entity.Entity: no schema name
+	_, err = db.Create[*entity.Entity](ctx, client, fs.Map{"name": "Tutorial"})
+	assert.ErrorContains(t, err, "schema name is required for type entity.Entity")
 
-	// Case 10: Create with schema.Entity: Success
-	cat, err := db.Create[*schema.Entity](ctx, client, fs.Map{"name": "Tutorial"}, "category")
+	// Case 10: Create with entity.Entity: Success
+	cat, err := db.Create[*entity.Entity](ctx, client, fs.Map{"name": "Tutorial"}, "category")
 	assert.NoError(t, err)
 	assert.Equal(t, "Tutorial", cat.Get("name"))
 
@@ -69,12 +69,12 @@ func TestMutation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Tutorial updated", updatedCategories[0].Name)
 
-	// Case 13: Update with schema.Entity: Invalid data
-	_, err = db.Update[schema.Entity](ctx, client, "invalid", nil)
+	// Case 13: Update with entity.Entity: Invalid data
+	_, err = db.Update[entity.Entity](ctx, client, "invalid", nil)
 	assert.ErrorContains(t, err, "cannot create entity")
 
-	// Case 14: Update with schema.Entity: Success
-	updatedCats, err := db.Update[*schema.Entity](
+	// Case 14: Update with entity.Entity: Success
+	updatedCats, err := db.Update[*entity.Entity](
 		ctx,
 		client,
 		fs.Map{"name": "Tutorial updated 2"},

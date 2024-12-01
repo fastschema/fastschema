@@ -14,7 +14,7 @@ Below is a description of how to use and configure the `Minio` provider.
 
 ### Configuration
 
-To use the `Minio` provider, configure it with your storage settings. Here's an example of how to set up the `STORAGE_DISKS` environment variable for a MinIO configuration:
+To use the `Minio` provider, configure it with your storage settings. Here's an example of how to set up the `STORAGE` environment variable for a MinIO configuration:
 
 ```json
 [

@@ -15,6 +15,15 @@ type Config struct {
 	DisableConsole bool   `json:"disable_console"`
 }
 
+func (c *Config) Clone() *Config {
+	return &Config{
+		Development:    c.Development,
+		LogFile:        c.LogFile,
+		CallerSkip:     c.CallerSkip,
+		DisableConsole: c.DisableConsole,
+	}
+}
+
 type Logger interface {
 	Info(...any)
 	Infof(string, ...any)
@@ -71,7 +80,7 @@ func (l *MockLogger) Info(params ...any) {
 	defer l.mu.Unlock()
 
 	if !l.Silence {
-		printLog(params...)
+		printLog("info", params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Info", Params: params})
 }
@@ -86,7 +95,7 @@ func (l *MockLogger) Debug(params ...any) {
 	defer l.mu.Unlock()
 
 	if !l.Silence {
-		printLog(params...)
+		printLog("debug", params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Debug", Params: params})
 }
@@ -96,7 +105,7 @@ func (l *MockLogger) Warn(params ...any) {
 	defer l.mu.Unlock()
 
 	if !l.Silence {
-		printLog(params...)
+		printLog("warn", params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Warn", Params: params})
 }
@@ -106,7 +115,7 @@ func (l *MockLogger) Error(params ...any) {
 	defer l.mu.Unlock()
 
 	if !l.Silence {
-		printLog(params...)
+		printLog("error", params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Error", Params: params})
 }
@@ -121,7 +130,7 @@ func (l *MockLogger) DPanic(params ...any) {
 	defer l.mu.Unlock()
 
 	if !l.Silence {
-		printLog(params...)
+		printLog("dpanic", params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "DPanic", Params: params})
 }
@@ -131,7 +140,7 @@ func (l *MockLogger) Panic(params ...any) {
 	defer l.mu.Unlock()
 
 	if !l.Silence {
-		printLog(params...)
+		printLog("panic", params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Panic", Params: params})
 }
@@ -141,13 +150,13 @@ func (l *MockLogger) Fatal(params ...any) {
 	defer l.mu.Unlock()
 
 	if !l.Silence {
-		printLog(params...)
+		printLog("fatal", params...)
 	}
 	l.Messages = append(l.Messages, &MockLoggerMessage{Type: "Fatal", Params: params})
 }
 
-func printLog(a ...any) {
+func printLog(level string, a ...any) {
 	timeStr := time.Now().Format(time.RFC3339Nano)
-	a = append([]any{timeStr}, a...)
+	a = append([]any{"[" + level + "]", timeStr}, a...)
 	fmt.Println(a...)
 }

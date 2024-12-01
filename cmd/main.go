@@ -14,7 +14,7 @@ import (
 func main() {
 	app := &cli.App{
 		Name:  "fastschema",
-		Usage: "Headless CMS",
+		Usage: "BaaS",
 		Commands: []*cli.Command{
 			{
 				Name:  "setup",
@@ -57,7 +57,8 @@ func main() {
 				Usage: "Start the fastschema application",
 				Action: func(c *cli.Context) error {
 					app := utils.Must(fastschema.New(&fs.Config{
-						Dir: c.Args().Get(0),
+						Dir:               c.Args().Get(0),
+						HideResourcesInfo: true,
 					}))
 
 					return app.Start()

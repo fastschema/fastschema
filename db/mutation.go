@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/errors"
-	"github.com/fastschema/fastschema/schema"
 )
 
 /** Mutation related methods **/
@@ -29,18 +29,17 @@ func (m *QueryBuilder[T]) Create(ctx context.Context, dataCreate any) (t T, err 
 
 	q := Builder[T](m.client, m.schemaName)
 
-	return q.Where(EQ(schema.FieldID, id)).First(ctx)
+	return q.Where(EQ(entity.FieldID, id)).First(ctx)
 }
 
 // CreateFromJSON creates a new entity from JSON
 func (m *QueryBuilder[T]) CreateFromJSON(ctx context.Context, json string) (t T, err error) {
-	entity, err := schema.NewEntityFromJSON(json)
-
+	e, err := entity.NewEntityFromJSON(json)
 	if err != nil {
 		return t, err
 	}
 
-	return m.Create(ctx, entity)
+	return m.Create(ctx, e)
 }
 
 // Update updates the entity and returns the updated entities
@@ -117,16 +116,16 @@ func Delete[T any](
 	return Builder[T](client, schemas...).Where(predicates...).Delete(ctx)
 }
 
-func typesToEntity(t any) (*schema.Entity, error) {
-	var entity *schema.Entity
+func typesToEntity(t any) (*entity.Entity, error) {
+	var e *entity.Entity
 	switch data := t.(type) {
-	case *schema.Entity:
-		entity = data
+	case *entity.Entity:
+		e = data
 	case map[string]any:
-		entity = schema.NewEntityFromMap(data)
+		e = entity.NewEntityFromMap(data)
 	default:
 		return nil, errors.BadRequest("mutation data must be an entity or a map")
 	}
 
-	return entity, nil
+	return e, nil
 }

@@ -2,10 +2,10 @@ package contentservice
 
 import (
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
 func isDeletable(id int, schemaName string) error {
@@ -40,7 +40,7 @@ func (cs *ContentService) Delete(c fs.Context, _ any) (any, error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	return schema.NewEntity(uint64(id)), nil
+	return entity.New(uint64(id)), nil
 }
 
 func (cs *ContentService) BulkDelete(c fs.Context, _ any) (int, error) {

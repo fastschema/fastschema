@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -31,6 +32,12 @@ func (as *AuthService) ParseUser(c fs.Context) error {
 	return c.Next()
 }
 
+type GlobalModifier struct {
+	EQ         func(field string, value any, relationFields ...string) *db.Predicate
+	Predicate  *db.Predicate
+	Predicates func(ps []any) []*db.Predicate
+}
+
 func (as *AuthService) Authorize(c fs.Context) error {
 	resource := c.Resource()
 	if resource == nil {
@@ -54,7 +61,11 @@ func (as *AuthService) Authorize(c fs.Context) error {
 
 	user := c.User()
 	if user == nil {
-		user = fs.GuestUser
+		user = &fs.User{
+			ID:       0,
+			Username: "",
+			Roles:    as.GetRolesFromIDs([]uint64{fs.RoleGuest.ID}),
+		}
 	}
 
 	// Allow root user to access all routes.
@@ -72,15 +83,8 @@ func (as *AuthService) Authorize(c fs.Context) error {
 		return errors.Forbidden("User is inactive")
 	}
 
-	// Check for all user roles for this action.
-	// If any role has permission value allow, then allow.
-	for _, role := range user.Roles {
-		permission := as.GetPermission(role.ID, resourceID)
-
-		// if permission value is allow, then allow
-		if permission.Value == fs.PermissionTypeAllow.String() {
-			return nil
-		}
+	if as.AuthUserCan(c, user, resourceID) {
+		return nil
 	}
 
 	return utils.If(

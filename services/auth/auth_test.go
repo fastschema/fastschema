@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
 	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
@@ -25,14 +27,16 @@ type testApp struct {
 	restResolver  *rr.RestfulResolver
 	authService   *as.AuthService
 
-	adminUser         *fs.User
-	normalUser        *fs.User
-	inactiveUser      *fs.User
-	notFoundUser      *fs.User
-	adminToken        string
-	normalUserToken   string
-	inactiveUserToken string
-	notFoundUserToken string
+	adminUser          *fs.User
+	normalUser         *fs.User
+	inactiveUser       *fs.User
+	seniorityUser      *fs.User
+	notFoundUser       *fs.User
+	adminToken         string
+	normalUserToken    string
+	inactiveUserToken  string
+	seniorityUserToken string
+	notFoundUserToken  string
 }
 
 func (s testApp) DB() db.Client {
@@ -44,9 +48,27 @@ func (s testApp) Key() string {
 }
 
 func (s testApp) Roles() []*fs.Role {
-	return utils.Must(
-		db.Builder[*fs.Role](s.db).Select("id", "name", "root", "permissions").Get(context.Background()),
-	)
+	roles := utils.Must(db.Builder[*fs.Role](s.db).Select(
+		"id",
+		"name",
+		"description",
+		"root",
+		"rule",
+		"permissions",
+		entity.FieldCreatedAt,
+		entity.FieldUpdatedAt,
+		entity.FieldDeletedAt,
+	).Get(context.Background()))
+
+	for _, role := range roles {
+		utils.Must("", role.Compile())
+
+		for _, permission := range role.Permissions {
+			utils.Must("", permission.Compile())
+		}
+	}
+
+	return roles
 }
 
 func (s testApp) GetAuthProvider(name string) fs.AuthProvider {
@@ -103,25 +125,60 @@ func createTestApp(t *testing.T) *testApp {
 
 	roleModel := utils.Must(dbc.Model("role"))
 	userModel := utils.Must(dbc.Model("user"))
-	appRoles := []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest}
+	seniorityRole := &fs.Role{
+		ID:   4,
+		Name: "seniority",
+		Root: false,
+		Rule: `let userId = $context.User().ID;
+		let foundUsers = $db.Query($context, "SELECT created_at FROM users WHERE id = ?", userId);
+		foundUsers[0].Get("created_at") < date("2023-01-01")
+		`,
+	}
+	appRoles := []*fs.Role{
+		fs.RoleAdmin,
+		fs.RoleUser,
+		fs.RoleGuest,
+		seniorityRole,
+	}
 
 	for _, r := range appRoles {
-		utils.Must(roleModel.Create(context.Background(), schema.NewEntity().
+		utils.Must(roleModel.Create(context.Background(), entity.New().
 			Set("name", r.Name).
-			Set("root", r.Root),
+			Set("root", r.Root).
+			Set("rule", r.Rule),
 		))
 	}
 
-	utils.Must(userModel.Create(context.Background(), schema.NewEntity().
+	utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "adminuser").
 		Set("password", "adminuser").
-		Set("roles", []*schema.Entity{schema.NewEntity(1)}),
+		Set("provider", "local").
+		Set("active", true).
+		Set("roles", []*entity.Entity{entity.New(1)}),
 	))
 
-	utils.Must(userModel.Create(context.Background(), schema.NewEntity().
+	utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "normaluser").
 		Set("password", "normaluser").
-		Set("roles", []*schema.Entity{schema.NewEntity(2)}),
+		Set("provider", "local").
+		Set("active", true).
+		Set("roles", []*entity.Entity{entity.New(2)}),
+	))
+
+	utils.Must(userModel.Create(context.Background(), entity.New().
+		Set("username", "inactiveuser").
+		Set("password", "inactiveuser").
+		Set("provider", "local").
+		Set("active", false).
+		Set("roles", []*entity.Entity{entity.New(2)}),
+	))
+
+	utils.Must(userModel.Create(context.Background(), entity.New().
+		Set("username", "seniorityuser").
+		Set("password", "seniorityuser").
+		Set("provider", "local").
+		Set("active", true).
+		Set("roles", []*entity.Entity{entity.New(4)}),
 	))
 
 	// There are three resources in this test: content.list, content.detail and content.meta
@@ -129,34 +186,50 @@ func createTestApp(t *testing.T) *testApp {
 	// And no permission set for content.meta
 	// We expect that user with role user should have access to content.list but not content.detail and content.meta
 	permissionModel := utils.Must(dbc.Model("permission"))
-	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
+
+	// Role user should have access to api.content.blog.list
+	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "api.content.blog.list").
 		Set("value", fs.PermissionTypeAllow.String()).
 		Set("role_id", fs.RoleUser.ID),
 	))
-	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
+
+	// Role user should not have access to api.content.blog.detail
+	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "api.content.blog.detail").
 		Set("value", fs.PermissionTypeDeny.String()).
 		Set("role_id", fs.RoleUser.ID),
 	))
 
+	// Role seniority should have access to api.content.blog.list
+	utils.Must(permissionModel.Create(context.Background(), entity.New().
+		Set("resource", "api.content.blog.list").
+		Set("value", fs.PermissionTypeAllow.String()).
+		Set("role_id", seniorityRole.ID),
+	))
+
 	// Realtime permissions for role user
-	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
+	// Role user should have access to api.realtime.content.blog.list
+	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "api.realtime.content.blog.list").
 		Set("value", fs.PermissionTypeAllow.String()).
 		Set("role_id", fs.RoleUser.ID),
 	))
-	utils.Must(permissionModel.Create(context.Background(), schema.NewEntity().
+
+	// Role user should not have access to api.realtime.content.blog.update
+	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "api.realtime.content.blog.update").
 		Set("value", fs.PermissionTypeDeny.String()).
 		Set("role_id", fs.RoleUser.ID),
 	))
 
+	localProvider := utils.Must(auth.NewLocalAuthProvider(fs.Map{}, ""))
 	testApp := &testApp{
 		sb: sb,
 		db: dbc,
 		authProviders: map[string]fs.AuthProvider{
 			"testauthprovider": testAuthProvider{},
+			"local":            localProvider,
 		},
 		adminUser: &fs.User{
 			ID:       1,
@@ -179,8 +252,15 @@ func createTestApp(t *testing.T) *testApp {
 			Roles:    []*fs.Role{fs.RoleUser},
 			RoleIDs:  []uint64{2},
 		},
-		notFoundUser: &fs.User{
+		seniorityUser: &fs.User{
 			ID:       4,
+			Username: "seniorityuser",
+			Active:   true,
+			Roles:    []*fs.Role{seniorityRole},
+			RoleIDs:  []uint64{4},
+		},
+		notFoundUser: &fs.User{
+			ID:       5,
 			Username: "notfounduser",
 			Active:   true,
 			Roles:    []*fs.Role{fs.RoleUser},
@@ -191,6 +271,7 @@ func createTestApp(t *testing.T) *testApp {
 	testApp.adminToken, _, _ = testApp.adminUser.JwtClaim(testApp.Key())
 	testApp.normalUserToken, _, _ = testApp.normalUser.JwtClaim(testApp.Key())
 	testApp.inactiveUserToken, _, _ = testApp.inactiveUser.JwtClaim(testApp.Key())
+	testApp.seniorityUserToken, _, _ = testApp.seniorityUser.JwtClaim(testApp.Key())
 	testApp.notFoundUserToken, _, _ = testApp.notFoundUser.JwtClaim(testApp.Key())
 
 	testApp.authService = as.New(testApp)
@@ -258,8 +339,26 @@ func createTestApp(t *testing.T) *testApp {
 	assert.NoError(t, testApp.resources.Init())
 	testApp.restResolver = rr.NewRestfulResolver(&rr.ResolverConfig{
 		ResourceManager: testApp.resources,
-		Logger:          logger.CreateMockLogger(true),
+		Logger:          logger.CreateMockLogger(false),
 	})
 
 	return testApp
+}
+
+func TestCreateResource(t *testing.T) {
+	testApp := createTestApp(t)
+	api := fs.NewResourcesManager().Group("api")
+	testApp.authService.CreateResource(api, testApp.authProviders)
+
+	assert.NotNil(t, api.Find("api.auth.me"))
+	assert.NotNil(t, api.Find("api.auth.local.login"))
+	assert.NotNil(t, api.Find("api.auth.local.register"))
+	assert.NotNil(t, api.Find("api.auth.local.activate"))
+	assert.NotNil(t, api.Find("api.auth.local.activate/send"))
+	assert.NotNil(t, api.Find("api.auth.local.recover"))
+	assert.NotNil(t, api.Find("api.auth.local.recover/check"))
+	assert.NotNil(t, api.Find("api.auth.local.recover/reset"))
+	assert.NotNil(t, api.Find("api.auth.local.recover"))
+	assert.NotNil(t, api.Find("api.auth.provider.login"))
+	assert.NotNil(t, api.Find("api.auth.provider.callback"))
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,16 +24,18 @@ func TestConfigClone(t *testing.T) {
 		DBConfig:     &db.Config{},
 		StorageConfig: &fs.StorageConfig{
 			DefaultDisk: "local",
-			DisksConfig: []*fs.DiskConfig{},
+			Disks:       []*fs.DiskConfig{},
 		},
 		HideResourcesInfo: true,
 		SystemSchemas:     []any{"schema1", "schema2"},
 		AuthConfig: &fs.AuthConfig{
-			EnabledProviders: []string{"local"},
-			Providers: map[string]map[string]string{
+			EnabledProviders: []string{auth.ProviderLocal},
+			Providers: map[string]fs.Map{
 				"local": {},
 			},
 		},
+		MailConfig:   &fs.MailConfig{},
+		LoggerConfig: &logger.Config{},
 		Hooks: &fs.Hooks{
 			PreResolve:  []fs.ResolveHook{},
 			PostResolve: []fs.ResolveHook{},
@@ -65,7 +68,7 @@ func TestConfigClone(t *testing.T) {
 	// Ensure deep copy of StorageConfig
 	assert.Equal(t, config.StorageConfig, clone.StorageConfig)
 	assert.Equal(t, config.StorageConfig.DefaultDisk, clone.StorageConfig.DefaultDisk)
-	assert.Equal(t, config.StorageConfig.DisksConfig, clone.StorageConfig.DisksConfig)
+	assert.Equal(t, config.StorageConfig.Disks, clone.StorageConfig.Disks)
 
 	// Ensure deep copy of AuthConfig
 	assert.Equal(t, config.AuthConfig.EnabledProviders, clone.AuthConfig.EnabledProviders)

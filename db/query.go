@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/fastschema/fastschema/schema"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -68,7 +68,7 @@ func (q *QueryBuilder[T]) Get(ctx context.Context) ([]T, error) {
 	}
 
 	var t T
-	_, tIsEntity := any(t).(*schema.Entity)
+	_, tIsEntity := any(t).(*entity.Entity)
 
 	result := make([]T, 0)
 	for _, e := range entities {
@@ -128,7 +128,7 @@ func BindStruct(src any, target any) error {
 		TagName: "json",
 		Result:  target,
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(func(from, to reflect.Type, data any) (any, error) {
-			if e, ok := data.(*schema.Entity); ok {
+			if e, ok := data.(*entity.Entity); ok {
 				return e.ToMap(), nil
 			}
 

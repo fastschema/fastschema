@@ -12,6 +12,7 @@ import (
 	dialectSql "entgo.io/ent/dialect/sql"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/google/uuid"
@@ -76,9 +77,9 @@ func TestAssignValues(t *testing.T) {
 	userSchema := &schema.Schema{}
 	assert.Nil(t, json.Unmarshal([]byte(testUserSchemaJSON), userSchema))
 	assert.NoError(t, userSchema.Init(false))
-	entity := schema.NewEntity(1)
+	e := entity.New(1)
 
-	err := assignValues(userSchema, entity, []string{"id", "name"}, []any{1})
+	err := assignValues(userSchema, e, []string{"id", "name"}, []any{1})
 	assert.Equal(t, "mismatch number of scan values: 1 != 2", err.Error())
 
 	type args struct {
@@ -304,12 +305,12 @@ func TestAssignValues(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		err := assignValues(userSchema, entity, []string{tt.column}, []any{tt.value})
+		err := assignValues(userSchema, e, []string{tt.column}, []any{tt.value})
 		if tt.expectError != "" {
 			assert.Equal(t, tt.expectError, err.Error())
 		} else {
 			assert.NoError(t, err)
-			assert.Equal(t, tt.expectValue, entity.Get(tt.column))
+			assert.Equal(t, tt.expectValue, e.Get(tt.column))
 		}
 	}
 }
@@ -411,9 +412,9 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "John").
 						AddRow(2, "Doe"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John"),
-				schema.NewEntity(2).Set("name", "Doe"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John"),
+				entity.New(2).Set("name", "Doe"),
 			},
 		},
 		{
@@ -430,8 +431,8 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John"),
 			},
 		},
 		{
@@ -451,8 +452,8 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "car1"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "car1"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "car1"),
 			},
 		},
 		{
@@ -480,8 +481,8 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John"),
 			},
 		},
 		{
@@ -515,8 +516,8 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "car1"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "car1"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "car1"),
 			},
 		},
 		{
@@ -536,11 +537,11 @@ func TestQuery(t *testing.T) {
 						AddRow(2, "Pet 2", uint64(1)).
 						AddRow(3, "Pet 3", uint64(1)))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John").Set("pets", []*schema.Entity{
-					schema.NewEntity(1).Set("name", "Pet 1").Set("owner_id", uint64(1)),
-					schema.NewEntity(2).Set("name", "Pet 2").Set("owner_id", uint64(1)),
-					schema.NewEntity(3).Set("name", "Pet 3").Set("owner_id", uint64(1)),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Pet 1").Set("owner_id", uint64(1)),
+					entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(1)),
+					entity.New(3).Set("name", "Pet 3").Set("owner_id", uint64(1)),
 				}),
 			},
 		},
@@ -563,21 +564,21 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "John").
 						AddRow(2, "Jane"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).
 					Set("name", "Pet 1").
 					Set("owner_id", uint64(1)).
-					Set("owner", schema.NewEntity(1).
+					Set("owner", entity.New(1).
 						Set("name", "John")),
-				schema.NewEntity(2).
+				entity.New(2).
 					Set("name", "Pet 2").
 					Set("owner_id", uint64(1)).
-					Set("owner", schema.NewEntity(1).
+					Set("owner", entity.New(1).
 						Set("name", "John")),
-				schema.NewEntity(3).
+				entity.New(3).
 					Set("name", "Pet 3").
 					Set("owner_id", uint64(2)).
-					Set("owner", schema.NewEntity(2).
+					Set("owner", entity.New(2).
 						Set("name", "Jane")),
 			},
 		},
@@ -594,10 +595,10 @@ func TestQuery(t *testing.T) {
 						AddRow(2, "Node 2", uint64(1)).
 						AddRow(3, "Node 3", uint64(1)))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "Node 1").Set("children", []*schema.Entity{
-					schema.NewEntity(2).Set("name", "Node 2").Set("parent_id", uint64(1)),
-					schema.NewEntity(3).Set("name", "Node 3").Set("parent_id", uint64(1)),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "Node 1").Set("children", []*entity.Entity{
+					entity.New(2).Set("name", "Node 2").Set("parent_id", uint64(1)),
+					entity.New(3).Set("name", "Node 3").Set("parent_id", uint64(1)),
 				}),
 			},
 		},
@@ -615,9 +616,9 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "Node 1").
 						AddRow(2, "Node 2"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(3).Set("name", "Node 3").Set("parent_id", 1).Set("parent", schema.NewEntity(1).Set("name", "Node 1")),
-				schema.NewEntity(4).Set("name", "Node 4").Set("parent_id", 2).Set("parent", schema.NewEntity(2).Set("name", "Node 2")),
+			ExpectEntities: []*entity.Entity{
+				entity.New(3).Set("name", "Node 3").Set("parent_id", 1).Set("parent", entity.New(1).Set("name", "Node 1")),
+				entity.New(4).Set("name", "Node 4").Set("parent_id", 2).Set("parent", entity.New(2).Set("name", "Node 2")),
 			},
 		},
 		{
@@ -634,9 +635,9 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
 						AddRow(1, "1234", 1))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John").Set("card", schema.NewEntity(1).Set("number", "1234").Set("owner_id", 1)),
-				schema.NewEntity(2).Set("name", "Jane"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("card", entity.New(1).Set("number", "1234").Set("owner_id", 1)),
+				entity.New(2).Set("name", "Jane"),
 			},
 		},
 		{
@@ -652,9 +653,9 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("number", "1234").Set("owner_id", 1).Set("owner", schema.NewEntity(1).Set("name", "John")),
-				schema.NewEntity(2).Set("number", "5678").Set("owner_id", 2),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("number", "1234").Set("owner_id", 1).Set("owner", entity.New(1).Set("name", "John")),
+				entity.New(2).Set("number", "5678").Set("owner_id", 2),
 			},
 		},
 		{
@@ -670,9 +671,9 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name", "prev_id"}).
 						AddRow(2, "Node 2", 1))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "Node 1").Set("next", schema.NewEntity(2).Set("name", "Node 2").Set("prev_id", 1)),
-				schema.NewEntity(2).Set("name", "Node 2"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "Node 1").Set("next", entity.New(2).Set("name", "Node 2").Set("prev_id", 1)),
+				entity.New(2).Set("name", "Node 2"),
 			},
 		},
 		{
@@ -689,9 +690,9 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "Node 1"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "Node 1"),
-				schema.NewEntity(2).Set("name", "Node 2").Set("prev_id", 1).Set("prev", schema.NewEntity(1).Set("name", "Node 1")),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "Node 1"),
+				entity.New(2).Set("name", "Node 2").Set("prev_id", 1).Set("prev", entity.New(1).Set("name", "Node 1")),
 			},
 		},
 		{
@@ -709,9 +710,9 @@ func TestQuery(t *testing.T) {
 						AddRow(2, "Jane", 1).
 						AddRow(1, "John", 2))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John").Set("spouse_id", 2).Set("spouse", schema.NewEntity(2).Set("name", "Jane").Set("spouse_id", 1)),
-				schema.NewEntity(2).Set("name", "Jane").Set("spouse_id", 1).Set("spouse", schema.NewEntity(1).Set("name", "John").Set("spouse_id", 2)),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("spouse_id", 2).Set("spouse", entity.New(2).Set("name", "Jane").Set("spouse_id", 1)),
+				entity.New(2).Set("name", "Jane").Set("spouse_id", 1).Set("spouse", entity.New(1).Set("name", "John").Set("spouse_id", 2)),
 			},
 		},
 		{
@@ -730,13 +731,13 @@ func TestQuery(t *testing.T) {
 						AddRow(11, 2, "Jane").
 						AddRow(22, 3, "Bob"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(11).Set("name", "Group 11").Set("users", []*schema.Entity{
-					schema.NewEntity(1).Set("name", "John"),
-					schema.NewEntity(2).Set("name", "Jane"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
+					entity.New(1).Set("name", "John"),
+					entity.New(2).Set("name", "Jane"),
 				}),
-				schema.NewEntity(22).Set("name", "Group 22").Set("users", []*schema.Entity{
-					schema.NewEntity(3).Set("name", "Bob"),
+				entity.New(22).Set("name", "Group 22").Set("users", []*entity.Entity{
+					entity.New(3).Set("name", "Bob"),
 				}),
 			},
 		},
@@ -757,15 +758,15 @@ func TestQuery(t *testing.T) {
 						AddRow(1, 22, "Group 22").
 						AddRow(2, 11, "Group 11"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John").Set("groups", []*schema.Entity{
-					schema.NewEntity(11).Set("name", "Group 11"),
-					schema.NewEntity(22).Set("name", "Group 22"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("groups", []*entity.Entity{
+					entity.New(11).Set("name", "Group 11"),
+					entity.New(22).Set("name", "Group 22"),
 				}),
-				schema.NewEntity(2).Set("name", "Jane").Set("groups", []*schema.Entity{
-					schema.NewEntity(11).Set("name", "Group 11"),
+				entity.New(2).Set("name", "Jane").Set("groups", []*entity.Entity{
+					entity.New(11).Set("name", "Group 11"),
 				}),
-				schema.NewEntity(3).Set("name", "Bob").Set("groups", []*schema.Entity{}),
+				entity.New(3).Set("name", "Bob").Set("groups", []*entity.Entity{}),
 			},
 		},
 		{
@@ -785,15 +786,15 @@ func TestQuery(t *testing.T) {
 						AddRow(1, 3, "Bob").
 						AddRow(2, 3, "Bob"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John").Set("following", []*schema.Entity{
-					schema.NewEntity(2).Set("name", "Jane"),
-					schema.NewEntity(3).Set("name", "Bob"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("following", []*entity.Entity{
+					entity.New(2).Set("name", "Jane"),
+					entity.New(3).Set("name", "Bob"),
 				}),
-				schema.NewEntity(2).Set("name", "Jane").Set("following", []*schema.Entity{
-					schema.NewEntity(3).Set("name", "Bob"),
+				entity.New(2).Set("name", "Jane").Set("following", []*entity.Entity{
+					entity.New(3).Set("name", "Bob"),
 				}),
-				schema.NewEntity(3).Set("name", "Bob").Set("following", []*schema.Entity{}),
+				entity.New(3).Set("name", "Bob").Set("following", []*entity.Entity{}),
 			},
 		},
 		{
@@ -813,15 +814,15 @@ func TestQuery(t *testing.T) {
 						AddRow(1, 3, "Bob").
 						AddRow(2, 3, "Bob"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John").Set("followers", []*schema.Entity{
-					schema.NewEntity(2).Set("name", "Jane"),
-					schema.NewEntity(3).Set("name", "Bob"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("followers", []*entity.Entity{
+					entity.New(2).Set("name", "Jane"),
+					entity.New(3).Set("name", "Bob"),
 				}),
-				schema.NewEntity(2).Set("name", "Jane").Set("followers", []*schema.Entity{
-					schema.NewEntity(3).Set("name", "Bob"),
+				entity.New(2).Set("name", "Jane").Set("followers", []*entity.Entity{
+					entity.New(3).Set("name", "Bob"),
 				}),
-				schema.NewEntity(3).Set("name", "Bob").Set("followers", []*schema.Entity{}),
+				entity.New(3).Set("name", "Bob").Set("followers", []*entity.Entity{}),
 			},
 		},
 		{
@@ -841,15 +842,15 @@ func TestQuery(t *testing.T) {
 						AddRow(1, 3, "Bob").
 						AddRow(2, 3, "Bob"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John").Set("friends", []*schema.Entity{
-					schema.NewEntity(2).Set("name", "Jane"),
-					schema.NewEntity(3).Set("name", "Bob"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("friends", []*entity.Entity{
+					entity.New(2).Set("name", "Jane"),
+					entity.New(3).Set("name", "Bob"),
 				}),
-				schema.NewEntity(2).Set("name", "Jane").Set("friends", []*schema.Entity{
-					schema.NewEntity(3).Set("name", "Bob"),
+				entity.New(2).Set("name", "Jane").Set("friends", []*entity.Entity{
+					entity.New(3).Set("name", "Bob"),
 				}),
-				schema.NewEntity(3).Set("name", "Bob").Set("friends", []*schema.Entity{}),
+				entity.New(3).Set("name", "Bob").Set("friends", []*entity.Entity{}),
 			},
 		},
 		{
@@ -866,9 +867,9 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
 						AddRow(1, "1234", 1))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John").Set("card", schema.NewEntity(1).Set("number", "1234").Set("owner_id", 1)),
-				schema.NewEntity(2).Set("name", "Jane"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("card", entity.New(1).Set("number", "1234").Set("owner_id", 1)),
+				entity.New(2).Set("name", "Jane"),
 			},
 		},
 		{
@@ -884,9 +885,9 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name", "age"}).
 						AddRow(1, "John", 8))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("number", "1234").Set("owner_id", 1).Set("owner", schema.NewEntity(1).Set("name", "John").Set("age", 8)),
-				schema.NewEntity(2).Set("number", "5678").Set("owner_id", 2),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("number", "1234").Set("owner_id", 1).Set("owner", entity.New(1).Set("name", "John").Set("age", 8)),
+				entity.New(2).Set("number", "5678").Set("owner_id", 2),
 			},
 		},
 		{
@@ -908,11 +909,11 @@ func TestQuery(t *testing.T) {
 						AddRow(2, "Pet 2", createdAt, uint64(1)).
 						AddRow(3, "Pet 3", createdAt, uint64(1)))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "John").Set("pets", []*schema.Entity{
-					schema.NewEntity(1).Set("name", "Pet 1").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", uint64(1)),
-					schema.NewEntity(2).Set("name", "Pet 2").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", uint64(1)),
-					schema.NewEntity(3).Set("name", "Pet 3").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", uint64(1)),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Pet 1").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", uint64(1)),
+					entity.New(2).Set("name", "Pet 2").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", uint64(1)),
+					entity.New(3).Set("name", "Pet 3").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", uint64(1)),
 				}),
 			},
 		},
@@ -936,10 +937,10 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "John", 5).
 						AddRow(2, "Jane", 8))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(1).Set("name", "Pet 1").Set("owner_id", 1).Set("owner", schema.NewEntity(1).Set("name", "John").Set("age", 5)),
-				schema.NewEntity(2).Set("name", "Pet 2").Set("owner_id", 1).Set("owner", schema.NewEntity(1).Set("name", "John").Set("age", 5)),
-				schema.NewEntity(3).Set("name", "Pet 3").Set("owner_id", 2).Set("owner", schema.NewEntity(2).Set("name", "Jane").Set("age", 8)),
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "Pet 1").Set("owner_id", 1).Set("owner", entity.New(1).Set("name", "John").Set("age", 5)),
+				entity.New(2).Set("name", "Pet 2").Set("owner_id", 1).Set("owner", entity.New(1).Set("name", "John").Set("age", 5)),
+				entity.New(3).Set("name", "Pet 3").Set("owner_id", 2).Set("owner", entity.New(2).Set("name", "Jane").Set("age", 8)),
 			},
 		},
 		{
@@ -958,13 +959,13 @@ func TestQuery(t *testing.T) {
 						AddRow(11, 2, "Jane").
 						AddRow(22, 3, "Bob"))
 			},
-			ExpectEntities: []*schema.Entity{
-				schema.NewEntity(11).Set("name", "Group 11").Set("users", []*schema.Entity{
-					schema.NewEntity(1).Set("name", "John"),
-					schema.NewEntity(2).Set("name", "Jane"),
+			ExpectEntities: []*entity.Entity{
+				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
+					entity.New(1).Set("name", "John"),
+					entity.New(2).Set("name", "Jane"),
 				}),
-				schema.NewEntity(22).Set("name", "Group 22").Set("users", []*schema.Entity{
-					schema.NewEntity(3).Set("name", "Bob"),
+				entity.New(22).Set("name", "Group 22").Set("users", []*entity.Entity{
+					entity.New(3).Set("name", "Bob"),
 				}),
 			},
 		},
@@ -1072,7 +1073,7 @@ func TestNoFKNodeError(t *testing.T) {
 
 func TestInvalidEntityArrayError(t *testing.T) {
 	err := invalidEntityArrayError("schemaName", "fieldName", []int{1, 2, 3})
-	expectedErr := `edge values schemaName.fieldName=[1 2 3] ([]int) is not []*schema.Entity`
+	expectedErr := `edge values schemaName.fieldName=[1 2 3] ([]int) is not []*entity.Entity`
 	assert.EqualError(t, err, expectedErr)
 }
 

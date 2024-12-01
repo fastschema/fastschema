@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
@@ -143,84 +144,84 @@ func TestCreateFieldPredicate(t *testing.T) {
 		},
 		{
 			field:       "name",
-			value:       utils.Must(schema.NewEntityFromJSON(`{"$eq": false}`)),
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$eq": false}`)),
 			expectError: "filter error: invalid value for field name.$eq (string) = false (bool)",
 		},
 		{
 			field:        "name",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$eq": "test"}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$eq": "test"}`)),
 			expectResult: []*Predicate{EQ("name", "test")},
 		},
 		{
 			field:        "name",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$neq": "test"}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$neq": "test"}`)),
 			expectResult: []*Predicate{NEQ("name", "test")},
 		},
 		{
 			field:        "age",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$gt": 1}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$gt": 1}`)),
 			expectResult: []*Predicate{GT("age", float64(1))},
 		},
 		{
 			field:        "age",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$gte": 5}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$gte": 5}`)),
 			expectResult: []*Predicate{GTE("age", float64(5))},
 		},
 		{
 			field:        "age",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$lt": 5}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$lt": 5}`)),
 			expectResult: []*Predicate{LT("age", float64(5))},
 		},
 		{
 			field:        "age",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$lte": 5}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$lte": 5}`)),
 			expectResult: []*Predicate{LTE("age", float64(5))},
 		},
 		{
 			field:        "name",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$like": "test%"}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$like": "test%"}`)),
 			expectResult: []*Predicate{Like("name", "test%")},
 		},
 		{
 			field:       "name",
-			value:       utils.Must(schema.NewEntityFromJSON(`{"$like": 1}`)),
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$like": 1}`)),
 			expectError: "filter error: invalid value for field name.$like (string) = 1 (float64)",
 		},
 		{
 			field:        "age",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$in": [1, 2, 3]}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$in": [1, 2, 3]}`)),
 			expectResult: []*Predicate{In("age", []any{float64(1), float64(2), float64(3)})},
 		},
 		{
 			field:       "age",
-			value:       utils.Must(schema.NewEntityFromJSON(`{"$in": 2}`)),
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$in": 2}`)),
 			expectError: "filter error: $in operator must be an array",
 		},
 		{
 			field: "age",
-			value: utils.Must(schema.NewEntityFromJSON(`{"$nin": [1, 2, 3]}`)),
+			value: utils.Must(entity.NewEntityFromJSON(`{"$nin": [1, 2, 3]}`)),
 			expectResult: []*Predicate{
 				NotIn("age", []any{float64(1), float64(2), float64(3)}),
 			},
 		},
 		{
 			field:       "age",
-			value:       utils.Must(schema.NewEntityFromJSON(`{"$nin": 2}`)),
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$nin": 2}`)),
 			expectError: "filter error: $nin operator must be an array",
 		},
 		{
 			field:        "age",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$null": true}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$null": true}`)),
 			expectResult: []*Predicate{Null("age", true)},
 		},
 		{
 			field:        "age",
-			value:        utils.Must(schema.NewEntityFromJSON(`{"$null": false}`)),
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$null": false}`)),
 			expectResult: []*Predicate{Null("age", false)},
 		},
 		{
 			field:       "age",
-			value:       utils.Must(schema.NewEntityFromJSON(`{"$null": "ok"}`)),
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$null": "ok"}`)),
 			expectError: "filter error: $null operator must be a boolean",
 		},
 		{
@@ -454,7 +455,7 @@ func TestCreateObjectPredicates(t *testing.T) {
 			actual, err := createObjectPredicates(
 				b,
 				userSchema,
-				utils.Must(schema.NewEntityFromJSON(tt.filter)),
+				utils.Must(entity.NewEntityFromJSON(tt.filter)),
 			)
 			if err != nil {
 				assert.Equal(t, tt.expectError, err.Error())

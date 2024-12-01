@@ -17,7 +17,7 @@ func DBDeleteNodes(t *testing.T, client db.Client) {
 			WantAffected: 1,
 			ClearTables:  []string{"users", "cards", "pets"},
 			Prepare: func(t *testing.T, m db.Model) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
 			},
 			Expect: func(t *testing.T, m db.Model) {
 				entity, err := m.Query().Where(db.EQ("id", 1)).Only(Ctx())
@@ -32,9 +32,9 @@ func DBDeleteNodes(t *testing.T, client db.Client) {
 			Predicates:   []*db.Predicate{db.LT("id", 3)},
 			ClearTables:  []string{"users"},
 			Prepare: func(t *testing.T, m db.Model) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 3", "username": "user3" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{ "name": "User 3", "username": "user3", "provider": "local" }`))
 			},
 			Expect: func(t *testing.T, m db.Model) {
 				entities, err := m.Query().Get(Ctx())
@@ -52,7 +52,8 @@ func DBDeleteNodes(t *testing.T, client db.Client) {
 			Prepare: func(t *testing.T, m db.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{
 					"name": "User 1",
-					"username": "user1"
+					"username": "user1",
+					"provider": "local"
 				}`))
 				utils.Must(utils.Must(client.Model("card")).CreateFromJSON(Ctx(), `{
 					"number": "123456789",
@@ -72,11 +73,13 @@ func DBDeleteNodes(t *testing.T, client db.Client) {
 			Prepare: func(t *testing.T, m db.Model) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{
 					"name": "User 1",
-					"username": "user1"
+					"username": "user1",
+					"provider": "local"
 				}`))
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{
 					"name": "User 2",
-					"username": "user2"
+					"username": "user2",
+					"provider": "local"
 				}`))
 				utils.Must(utils.Must(client.Model("card")).CreateFromJSON(Ctx(), `{
 					"number": "123456789",
@@ -110,6 +113,7 @@ func DBDeleteNodes(t *testing.T, client db.Client) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{
 					"name": "User 1",
 					"username": "user1",
+					"provider": "local",
 					"groups": [
 						{ "id": 1 },
 						{ "id": 2 }

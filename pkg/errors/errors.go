@@ -96,7 +96,7 @@ func Is(err, target error) bool {
 	var e, t *Error
 	if errors.As(err, &e) {
 		if errors.As(target, &t) {
-			return errors.Is(e.base, t.base)
+			return e.Status == t.Status && errors.Is(e.base, t.base)
 		}
 		return errors.Is(e.base, target)
 	}

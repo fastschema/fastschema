@@ -50,7 +50,7 @@ func TestStorageConfigCloneNil(t *testing.T) {
 func TestStorageConfigClone(t *testing.T) {
 	sc := &fs.StorageConfig{
 		DefaultDisk: "test",
-		DisksConfig: []*fs.DiskConfig{
+		Disks: []*fs.DiskConfig{
 			{
 				Name:            "test1",
 				Driver:          "test1",
@@ -85,20 +85,20 @@ func TestStorageConfigClone(t *testing.T) {
 	clone := sc.Clone()
 
 	assert.Equal(t, sc.DefaultDisk, clone.DefaultDisk)
-	assert.Equal(t, len(sc.DisksConfig), len(clone.DisksConfig))
-	for i := range sc.DisksConfig {
-		assert.Equal(t, sc.DisksConfig[i].Name, clone.DisksConfig[i].Name)
-		assert.Equal(t, sc.DisksConfig[i].Driver, clone.DisksConfig[i].Driver)
-		assert.Equal(t, sc.DisksConfig[i].Root, clone.DisksConfig[i].Root)
-		assert.Equal(t, sc.DisksConfig[i].BaseURL, clone.DisksConfig[i].BaseURL)
-		assert.Equal(t, sc.DisksConfig[i].GetBaseURL(), clone.DisksConfig[i].GetBaseURL())
-		assert.Equal(t, sc.DisksConfig[i].Provider, clone.DisksConfig[i].Provider)
-		assert.Equal(t, sc.DisksConfig[i].Endpoint, clone.DisksConfig[i].Endpoint)
-		assert.Equal(t, sc.DisksConfig[i].Region, clone.DisksConfig[i].Region)
-		assert.Equal(t, sc.DisksConfig[i].Bucket, clone.DisksConfig[i].Bucket)
-		assert.Equal(t, sc.DisksConfig[i].AccessKeyID, clone.DisksConfig[i].AccessKeyID)
-		assert.Equal(t, sc.DisksConfig[i].SecretAccessKey, clone.DisksConfig[i].SecretAccessKey)
-		assert.Equal(t, sc.DisksConfig[i].ACL, clone.DisksConfig[i].ACL)
+	assert.Equal(t, len(sc.Disks), len(clone.Disks))
+	for i := range sc.Disks {
+		assert.Equal(t, sc.Disks[i].Name, clone.Disks[i].Name)
+		assert.Equal(t, sc.Disks[i].Driver, clone.Disks[i].Driver)
+		assert.Equal(t, sc.Disks[i].Root, clone.Disks[i].Root)
+		assert.Equal(t, sc.Disks[i].BaseURL, clone.Disks[i].BaseURL)
+		assert.Equal(t, sc.Disks[i].GetBaseURL(), clone.Disks[i].GetBaseURL())
+		assert.Equal(t, sc.Disks[i].Provider, clone.Disks[i].Provider)
+		assert.Equal(t, sc.Disks[i].Endpoint, clone.Disks[i].Endpoint)
+		assert.Equal(t, sc.Disks[i].Region, clone.Disks[i].Region)
+		assert.Equal(t, sc.Disks[i].Bucket, clone.Disks[i].Bucket)
+		assert.Equal(t, sc.Disks[i].AccessKeyID, clone.Disks[i].AccessKeyID)
+		assert.Equal(t, sc.Disks[i].SecretAccessKey, clone.Disks[i].SecretAccessKey)
+		assert.Equal(t, sc.Disks[i].ACL, clone.Disks[i].ACL)
 	}
 }
 func TestContextKeyString(t *testing.T) {

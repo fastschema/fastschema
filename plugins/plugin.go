@@ -71,7 +71,7 @@ func (p *Plugin) Config(app AppLike) (err error) {
 		app,
 		p.program,
 		nil,
-	)); err != nil && strings.Contains(err.Error(), "is not found") {
+	)); err != nil && strings.Contains(err.Error(), "function Config is not found") {
 		err = nil
 	}
 
@@ -93,7 +93,7 @@ func (p *Plugin) Init(app AppLike) (err error) {
 			p.program,
 			set,
 		),
-	}); err != nil && strings.Contains(err.Error(), "is not found") {
+	}); err != nil && strings.Contains(err.Error(), "function Init is not found") {
 		err = nil
 	}
 

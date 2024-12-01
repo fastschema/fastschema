@@ -74,7 +74,7 @@ func TestContentServiceBulkDelete(t *testing.T) {
 	blogModel := utils.Must(cs.DB().Model("blog"))
 	utils.Must(blogModel.CreateFromJSON(context.Background(), `{"name": "test blog"}`))
 	userModel := utils.Must(cs.DB().Model("user"))
-	utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "admin"}`))
+	utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "admin", "provider": "local"}`))
 
 	// Case 4: delete fail with root user
 	filterUser := url.QueryEscape(`{"username":{"$like":"%admin%"}}`)

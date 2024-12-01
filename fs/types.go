@@ -9,6 +9,22 @@ import (
 // Map is a shortcut for map[string]any
 type Map = map[string]any
 
+func MapValue[V any](m Map, key string, defaultValues ...V) V {
+	if v, ok := m[key]; ok {
+		value, ok := v.(V)
+		if ok {
+			return value
+		}
+	}
+
+	var defaultValue V
+	if len(defaultValues) > 0 {
+		defaultValue = defaultValues[0]
+	}
+
+	return defaultValue
+}
+
 var SystemSchemaTypes = []any{
 	Role{},
 	Permission{},
@@ -17,13 +33,20 @@ var SystemSchemaTypes = []any{
 }
 
 type Arg struct {
-	Type        ArgType `json:"type"`
-	Required    bool    `json:"required"`
-	Description string  `json:"description"`
-	Example     any     `json:"example"`
+	Type        ArgType                                         `json:"type"`
+	Required    bool                                            `json:"required"`
+	Description string                                          `json:"description"`
+	Example     any                                             `json:"example"`
+	Parser      func(c Context, originalValue any) (any, error) `json:"-"`
 }
 
 type Args map[string]Arg
+
+type Modifier struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Example     any    `json:"example"`
+}
 
 // Meta hold extra data, ex: request method, path, etc
 type Meta struct {
@@ -242,4 +265,8 @@ func (t *ArgType) UnmarshalJSON(b []byte) error {
 	}
 
 	return nil
+}
+
+func CreateArg(t ArgType, desc string) Arg {
+	return Arg{Type: t, Required: true, Description: desc}
 }

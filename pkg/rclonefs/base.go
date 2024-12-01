@@ -14,9 +14,6 @@ import (
 	"github.com/rclone/rclone/fs/object"
 )
 
-// var filenameRemoveCharsRegexp = regexp.MustCompile(`[^a-zA-Z0-9_\-\.]`)
-// var dashRegexp = regexp.MustCompile(`\-+`)
-
 type BaseRcloneDisk struct {
 	rclonefs.Fs
 	Disk           string `json:"name"`

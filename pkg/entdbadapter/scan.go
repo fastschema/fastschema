@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	dialectsql "entgo.io/ent/dialect/sql"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/google/uuid"
@@ -157,7 +158,7 @@ func scanValues(s *schema.Schema, columns []string) ([]any, error) {
 }
 
 // assignValues assigns the given values to the entity.
-func assignValues(s *schema.Schema, entity *schema.Entity, columns []string, values []any) error {
+func assignValues(s *schema.Schema, entity *entity.Entity, columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}

@@ -18,6 +18,7 @@ func TestFileServiceDeleteErrorNotFound(t *testing.T) {
 	_ = utils.Must(userModel.CreateFromJSON(context.Background(), `{
 		"username": "test",
 		"password": "test",
+		"provider": "local"
 	}`))
 
 	fileModel := utils.Must(ms.DB().Model("file"))
@@ -43,6 +44,7 @@ func TestFileServiceDelete(t *testing.T) {
 	_ = utils.Must(userModel.CreateFromJSON(context.Background(), `{
 		"username": "test",
 		"password": "test",
+		"provider": "local"
 	}`))
 	fileModel := utils.Must(ms.DB().Model("file"))
 	fileID := utils.Must(fileModel.CreateFromJSON(context.Background(), `{

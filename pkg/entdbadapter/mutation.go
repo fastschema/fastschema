@@ -6,7 +6,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/schema"
+	"github.com/fastschema/fastschema/entity"
 )
 
 // Mutation holds the entity mutation data
@@ -31,12 +31,12 @@ func (m *Mutation) GetRelationEntityIDs(fieldName string, fieldValue any) ([]dri
 		return nil, nil
 	}
 
-	relationEntities := make([]*schema.Entity, 0)
-	relationEntity, ok := fieldValue.(*schema.Entity)
+	relationEntities := make([]*entity.Entity, 0)
+	relationEntity, ok := fieldValue.(*entity.Entity)
 	if ok {
 		relationEntities = append(relationEntities, relationEntity)
 	} else {
-		relationEntities, ok = fieldValue.([]*schema.Entity)
+		relationEntities, ok = fieldValue.([]*entity.Entity)
 		if !ok {
 			return nil, fmt.Errorf(
 				"relation value for %s.%s is invalid",

@@ -25,6 +25,7 @@ type testApp struct {
 }
 
 func newTestAppFromConfig(t *testing.T, config *fs.Config) *testApp {
+	config.Dir = utils.Must(os.MkdirTemp("", "fastschema"))
 	schemasDir := filepath.Join(config.Dir, "schemas")
 	migrationsDir := filepath.Join(config.Dir, "migrations")
 

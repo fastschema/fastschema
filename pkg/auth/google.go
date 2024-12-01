@@ -11,6 +11,8 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+const ProviderGoogle = "google"
+
 type GoogleUserResponse struct {
 	ID      string `json:"id"`
 	Email   string `json:"email"`
@@ -23,16 +25,18 @@ type GoogleAuthProvider struct {
 	userInfoURL string
 }
 
-func NewGoogleAuthProvider(config Config, redirectURL string) (fs.AuthProvider, error) {
-	if config["client_id"] == "" || config["client_secret"] == "" {
+func NewGoogleAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
+	clientID := fs.MapValue(config, "client_id", "")
+	clientSecret := fs.MapValue(config, "client_secret", "")
+	if clientID == "" || clientSecret == "" {
 		return nil, fmt.Errorf("google client id or secret is not set")
 	}
 
 	googleAuthProvider := &GoogleAuthProvider{
-		userInfoURL: config["user_info_url"],
+		userInfoURL: fs.MapValue(config, "user_info_url", ""),
 		oauth: &oauth2.Config{
-			ClientID:     config["client_id"],
-			ClientSecret: config["client_secret"],
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
 			Endpoint:     google.Endpoint,
 			RedirectURL:  redirectURL,
 			Scopes: []string{
@@ -43,7 +47,7 @@ func NewGoogleAuthProvider(config Config, redirectURL string) (fs.AuthProvider, 
 	}
 
 	if config["access_token_url"] != "" {
-		googleAuthProvider.oauth.Endpoint.TokenURL = config["access_token_url"]
+		googleAuthProvider.oauth.Endpoint.TokenURL = fs.MapValue(config, "access_token_url", "")
 	}
 
 	if googleAuthProvider.userInfoURL == "" {
@@ -54,7 +58,7 @@ func NewGoogleAuthProvider(config Config, redirectURL string) (fs.AuthProvider, 
 }
 
 func (as *GoogleAuthProvider) Name() string {
-	return "google"
+	return ProviderGoogle
 }
 
 func (as *GoogleAuthProvider) Login(c fs.Context) (_ any, err error) {

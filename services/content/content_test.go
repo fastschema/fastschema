@@ -16,8 +16,9 @@ import (
 )
 
 type testApp struct {
-	sb *schema.Builder
-	db db.Client
+	sb        *schema.Builder
+	db        db.Client
+	resources *fs.ResourcesManager
 }
 
 func (s testApp) DB() db.Client {
@@ -77,9 +78,10 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 	}`)
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
-	contentService := cs.New(&testApp{sb: sb, db: db})
-	resources := fs.NewResourcesManager()
-	resources.Group("content").
+	testApp := &testApp{sb: sb, db: db}
+	contentService := cs.New(testApp)
+	testApp.resources = fs.NewResourcesManager()
+	testApp.resources.Group("content").
 		Add(fs.NewResource("list", contentService.List, &fs.Meta{
 			Get: "/:schema",
 		})).
@@ -102,9 +104,9 @@ func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 			Delete: "/:schema/:id",
 		}))
 
-	assert.NoError(t, resources.Init())
+	assert.NoError(t, testApp.resources.Init())
 	restResolver := rr.NewRestfulResolver(&rr.ResolverConfig{
-		ResourceManager: resources,
+		ResourceManager: testApp.resources,
 		Logger:          logger.CreateMockLogger(true),
 	})
 
@@ -115,4 +117,18 @@ func TestNewContentService(t *testing.T) {
 	service, server := createContentService(t)
 	assert.NotNil(t, service)
 	assert.NotNil(t, server)
+}
+
+func TestCreateResource(t *testing.T) {
+	api := fs.NewResourcesManager().Group("api")
+	service, _ := createContentService(t)
+
+	service.CreateResource(api)
+	assert.NotNil(t, api.Find("api.content.list"))
+	assert.NotNil(t, api.Find("api.content.detail"))
+	assert.NotNil(t, api.Find("api.content.create"))
+	assert.NotNil(t, api.Find("api.content.bulk-update"))
+	assert.NotNil(t, api.Find("api.content.update"))
+	assert.NotNil(t, api.Find("api.content.bulk-delete"))
+	assert.NotNil(t, api.Find("api.content.delete"))
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -66,21 +67,21 @@ func TestDBConfigClone(t *testing.T) {
 
 func TestHooksClone(t *testing.T) {
 	hooks := &db.Hooks{
-		PostDBQuery: []db.PostDBQuery{func(ctx context.Context, option *db.QueryOption, entities []*schema.Entity) ([]*schema.Entity, error) {
+		PostDBQuery: []db.PostDBQuery{func(ctx context.Context, option *db.QueryOption, entities []*entity.Entity) ([]*entity.Entity, error) {
 			return nil, nil
 		}},
-		PostDBCreate: []db.PostDBCreate{func(ctx context.Context, schema *schema.Schema, dataCreate *schema.Entity, id uint64) error {
+		PostDBCreate: []db.PostDBCreate{func(ctx context.Context, schema *schema.Schema, dataCreate *entity.Entity, id uint64) error {
 			return nil
 		}},
-		PostDBUpdate: []db.PostDBUpdate{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *schema.Entity, originalEntities []*schema.Entity, affected int) error {
+		PostDBUpdate: []db.PostDBUpdate{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *entity.Entity, originalEntities []*entity.Entity, affected int) error {
 			return nil
 		}},
-		PostDBDelete: []db.PostDBDelete{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, originalEntities []*schema.Entity, affected int) error {
+		PostDBDelete: []db.PostDBDelete{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, originalEntities []*entity.Entity, affected int) error {
 			return nil
 		}},
 		PreDBQuery:  []db.PreDBQuery{func(ctx context.Context, option *db.QueryOption) error { return nil }},
-		PreDBCreate: []db.PreDBCreate{func(ctx context.Context, schema *schema.Schema, createData *schema.Entity) error { return nil }},
-		PreDBUpdate: []db.PreDBUpdate{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *schema.Entity) error {
+		PreDBCreate: []db.PreDBCreate{func(ctx context.Context, schema *schema.Schema, createData *entity.Entity) error { return nil }},
+		PreDBUpdate: []db.PreDBUpdate{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *entity.Entity) error {
 			return nil
 		}},
 		PreDBDelete: []db.PreDBDelete{func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate) error { return nil }},
