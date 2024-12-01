@@ -28,7 +28,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/ogen-go/ogen v1.4.1
 	github.com/otiai10/copy v1.14.0
-	github.com/rclone/rclone v1.68.0
+	github.com/rclone/rclone v1.68.2
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v2 v2.27.4
 	github.com/valyala/fasthttp v1.55.0
