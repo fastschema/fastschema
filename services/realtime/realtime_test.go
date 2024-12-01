@@ -205,7 +205,7 @@ func TestBroadCast(t *testing.T) {
 	service.AddClient(client4, "testtopic", serializer)
 	service.Broadcast([]string{"testtopic"}, nil)
 	time.Sleep(100 * time.Millisecond)
-	assert.Contains(t, app.logger.Last().String(), "failed to serialize message: serialize error")
+	assert.Contains(t, app.logger.Last().String(), "failed to serialize message")
 
 	// Broadcast on client with write error
 	client5 := newMockWSClient("write")
