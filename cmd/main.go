@@ -57,8 +57,7 @@ func main() {
 				Usage: "Start the fastschema application",
 				Action: func(c *cli.Context) error {
 					app := utils.Must(fastschema.New(&fs.Config{
-						Dir:               c.Args().Get(0),
-						HideResourcesInfo: true,
+						Dir: c.Args().Get(0),
 					}))
 
 					return app.Start()

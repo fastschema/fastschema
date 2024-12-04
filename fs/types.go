@@ -33,20 +33,13 @@ var SystemSchemaTypes = []any{
 }
 
 type Arg struct {
-	Type        ArgType                                         `json:"type"`
-	Required    bool                                            `json:"required"`
-	Description string                                          `json:"description"`
-	Example     any                                             `json:"example"`
-	Parser      func(c Context, originalValue any) (any, error) `json:"-"`
+	Type        ArgType `json:"type"`
+	Required    bool    `json:"required"`
+	Description string  `json:"description"`
+	Example     any     `json:"example"`
 }
 
 type Args map[string]Arg
-
-type Modifier struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Example     any    `json:"example"`
-}
 
 // Meta hold extra data, ex: request method, path, etc
 type Meta struct {
