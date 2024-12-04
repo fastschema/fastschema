@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -30,12 +29,6 @@ func (as *AuthService) ParseUser(c fs.Context) error {
 	}
 
 	return c.Next()
-}
-
-type GlobalModifier struct {
-	EQ         func(field string, value any, relationFields ...string) *db.Predicate
-	Predicate  *db.Predicate
-	Predicates func(ps []any) []*db.Predicate
 }
 
 func (as *AuthService) Authorize(c fs.Context) error {
