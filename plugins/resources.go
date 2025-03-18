@@ -8,7 +8,7 @@ import (
 )
 
 type Resource struct {
-	fsResource *fs.Resource
+	FsResource *fs.Resource
 	program    *Program
 	set        map[string]any
 }
@@ -19,27 +19,35 @@ func NewResource(
 	set map[string]any,
 ) *Resource {
 	return &Resource{
-		fsResource: fsResource,
+		FsResource: fsResource,
 		program:    program,
 		set:        set,
 	}
 }
 
-func (r *Resource) Find(resourceID string) *fs.Resource {
-	return r.fsResource.Find(resourceID)
-}
+func (r *Resource) Find(resourceID string) *Resource {
+	fsResource := r.FsResource.Find(resourceID)
+	if fsResource == nil {
+		return nil
+	}
 
+	return &Resource{
+		program:    r.program,
+		set:        r.set,
+		FsResource: fsResource,
+	}
+}
 func (r *Resource) Group(name string, metas ...*fs.Meta) *Resource {
 	return &Resource{
 		program:    r.program,
 		set:        r.set,
-		fsResource: r.fsResource.Group(name, metas...),
+		FsResource: r.FsResource.Group(name, metas...),
 	}
 }
 
 func (r *Resource) Add(handler goja.Value, metas ...*fs.Meta) (*Resource, error) {
 	return r, r.program.WithFuncName(handler, func(fnName string) {
-		r.fsResource.Add(fs.NewResource(fnName, func(c fs.Context, _ any) (_ any, err error) {
+		r.FsResource.Add(fs.NewResource(fnName, func(c fs.Context, _ any) (_ any, err error) {
 			result, err := r.program.CallFunc(fnName, r.set, c)
 			if err != nil {
 				return nil, err

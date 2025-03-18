@@ -2,6 +2,7 @@ package rclonefs
 
 import (
 	"context"
+	"net/url"
 	"os"
 
 	"github.com/fastschema/fastschema/fs"
@@ -67,8 +68,10 @@ func (r *RcloneLocal) LocalPublicPath() string {
 }
 
 func (r *RcloneLocal) URL(filepath string) string {
+	baseURL := r.config.BaseURL
 	if r.config.GetBaseURL != nil {
-		return r.config.GetBaseURL() + "/" + filepath
+		baseURL = r.config.GetBaseURL()
 	}
-	return r.config.BaseURL + "/" + filepath
+	url, _ := url.JoinPath(baseURL, r.config.PublicPath, filepath)
+	return url
 }

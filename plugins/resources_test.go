@@ -73,7 +73,7 @@ func TestHtmlResource(t *testing.T) {
 	assert.NotNil(t, apiResource)
 
 	pingResource := apiResource.Find("api.Ping")
-	pingHandler := pingResource.Handler()
+	pingHandler := pingResource.FsResource.Handler()
 	response, err := pingHandler(nil)
 	assert.Nil(t, err)
 	httpResponse, ok := response.(*fs.HTTPResponse)
