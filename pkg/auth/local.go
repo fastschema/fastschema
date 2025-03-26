@@ -117,11 +117,12 @@ func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation,
 	return &Activation{Activation: la.activationMethod}, nil
 }
 
-func (la *LocalProvider) Activate(c fs.Context, _ any) (*Activation, error) {
-	userID, err := ValidateConfirmationToken(c.Arg("token"), la.appKey())
+func (la *LocalProvider) Activate(c fs.Context, data *Confirmation) (*Activation, error) {
+	userID, err := ValidateConfirmationToken(data.Token, la.appKey())
 	if err != nil {
-		c.Logger().Errorf(MSG_INVALID_TOKEN+": %w", err)
-		return nil, ERR_INVALID_TOKEN
+		err = fmt.Errorf(MSG_INVALID_TOKEN+": %w", err)
+		c.Logger().Error(err)
+		return nil, err
 	}
 
 	if _, err = db.Builder[*fs.User](la.db()).
