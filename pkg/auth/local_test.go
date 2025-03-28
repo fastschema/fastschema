@@ -160,11 +160,11 @@ func TestLocalAuthRegister(t *testing.T) {
 func TestLocalAuthActivation(t *testing.T) {
 	config := &testAppConfig{activation: "manual", createData: true}
 	provider := createLocalAuthProvider(config)
-	server := createServer(t, fs.Get("/user/activate", provider.Activate, &fs.Meta{Public: true}))
+	server := createServer(t, fs.Post("/user/activate", provider.Activate, &fs.Meta{Public: true}))
 
 	// Case 1: Invalid token
 	{
-		req := httptest.NewRequest("GET", "/user/activate?token=123", nil)
+		req := httptest.NewRequest("POST", "/user/activate", bytes.NewReader([]byte("{}")))
 		resp, _ := server.Test(req)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 400, resp.StatusCode)
@@ -174,7 +174,7 @@ func TestLocalAuthActivation(t *testing.T) {
 	// Case 2: Success
 	token := utils.Must(utils.CreateConfirmationToken(1, config.key))
 	{
-		req := httptest.NewRequest("GET", "/user/activate?token="+token, nil)
+		req := httptest.NewRequest("POST", "/user/activate?token="+token, bytes.NewReader([]byte(`{"token": "`+token+`"}`)))
 		resp, _ := server.Test(req)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 200, resp.StatusCode)
@@ -183,7 +183,7 @@ func TestLocalAuthActivation(t *testing.T) {
 
 	// Case 3: User already activated
 	{
-		req := httptest.NewRequest("GET", "/user/activate?token="+token, nil)
+		req := httptest.NewRequest("POST", "/user/activate", bytes.NewReader([]byte(`{"token": "`+token+`"}`)))
 		resp, _ := server.Test(req)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 200, resp.StatusCode)
@@ -192,7 +192,7 @@ func TestLocalAuthActivation(t *testing.T) {
 	// Case 4: Update status failed
 	{
 		assert.NoError(t, config.db.Close())
-		req := httptest.NewRequest("GET", "/user/activate?token="+token, nil)
+		req := httptest.NewRequest("POST", "/user/activate", bytes.NewReader([]byte(`{"token": "`+token+`"}`)))
 		resp, _ := server.Test(req)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 400, resp.StatusCode)

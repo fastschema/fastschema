@@ -73,7 +73,7 @@ func TestRcloneLocalURL(t *testing.T) {
 
 	// Test the URL method with an empty file path
 	emptyFilepath := ""
-	expectedEmptyURL := "http://example.com/"
+	expectedEmptyURL := "http://example.com"
 	actualEmptyURL := rl.URL(emptyFilepath)
 	assert.Equal(t, expectedEmptyURL, actualEmptyURL)
 
