@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -106,6 +107,18 @@ func (f *Field) Clone() *Field {
 
 // IsValidValue returns true if the value is valid for the column
 func (f *Field) IsValidValue(value any) bool {
+	// If value is a pointer, dereference it.
+	if value != nil {
+		for {
+			v := reflect.ValueOf(value)
+			if v.Kind() == reflect.Ptr && !v.IsNil() {
+				value = v.Elem().Interface()
+			} else {
+				break
+			}
+		}
+	}
+
 	if valueArray, ok := value.([]any); ok {
 		for _, v := range valueArray {
 			if !f.IsValidValue(v) {
