@@ -38,7 +38,7 @@ func (p *ConfigActions) AddSchemas(schemas ...map[string]any) error {
 		newSchemas = append(newSchemas, ss)
 	}
 
-	p.Config.SystemSchemas = append(p.Config.SystemSchemas, newSchemas...)
+	p.SystemSchemas = append(p.SystemSchemas, newSchemas...)
 
 	return nil
 }

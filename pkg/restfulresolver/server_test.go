@@ -123,7 +123,7 @@ func TestServerListen(t *testing.T) {
 		server2 := restfulresolver.New(config)
 		err := server2.Listen(":8080")
 		assert.Error(t, err)
-		assert.NoError(t, server.App.Shutdown())
+		assert.NoError(t, server.Shutdown())
 	}()
 	err := server.Listen(":8080")
 	assert.NoError(t, err)
