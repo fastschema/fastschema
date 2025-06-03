@@ -1,80 +1,82 @@
-run:
-  go: "1.19"
-  concurrency: 4
-  timeout: 10m
+version: "2"
 
-linters-settings:
-  errcheck:
-    exclude-functions:
-      - github.com/fastschema/fastschema/pkg/utils.WriteFile
-      - io.Copy
-      - (*ariga.io/atlas/sql/migrate.Planner).WritePlan
-  stylecheck:
-    checks:
-      - all
-      - '-ST1003'
-  staticcheck:
-    checks:
-      - all
-      - '-SA1029'
-  dupl:
-    threshold: 100
-  funlen:
-    lines: 150
-    statements: 140
-  gosec:
-    excludes:
-      - G115
-      - G402
+run:
+  concurrency: 4
+  go: "1.19"
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - asciicheck
     - bodyclose
-    # - depguard
     - dogsled
-    # - dupl
     - errcheck
     - funlen
     - gocritic
-    - gofmt
     - goheader
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - misspell
     - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unused
     - whitespace
+  settings:
+    dupl:
+      threshold: 100
+    errcheck:
+      exclude-functions:
+        - github.com/fastschema/fastschema/pkg/utils.WriteFile
+        - io.Copy
+        - (*ariga.io/atlas/sql/migrate.Planner).WritePlan
+    funlen:
+      lines: 150
+      statements: 140
+    gosec:
+      excludes:
+        - G115
+        - G402
+    staticcheck:
+      checks:
+        - all
+        - -SA1029
+        - -ST1003
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+          - funlen
+          - gocritic
+          - gosec
+        path: _test\.go
+      - linters:
+          - funlen
+        path: pkg/entdbadapter/query.go
+      - linters:
+          - govet
+        path: schema/system_test.go
+      - linters:
+          - staticcheck
+        path: \.go
+        text: SA1019
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - dupl
-        - funlen
-        - gosec
-        - gocritic
-      stylecheck:
-        checks:
-          - all
-          - '-ST1003'
-      staticcheck:
-        checks:
-          - all
-          - '-SA1029'
-    - path: pkg/entdbadapter/query.go
-      linters:
-        - funlen
-    - path: schema/system_test.go
-      linters:
-        - govet
-    - path: \.go
-      linters:
-        - staticcheck
-      text: SA1019
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
