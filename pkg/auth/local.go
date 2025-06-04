@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
@@ -95,14 +96,15 @@ func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation,
 
 		if _, err = db.Builder[*fs.User](tx).
 			Where(db.EQ("id", user.ID)).
-			Update(c, entity.New().Set("provider_id", user.ID)); err != nil {
+			Update(c, entity.New().Set("provider_id", strconv.FormatUint(user.ID, 10))); err != nil {
+			c.Logger().Errorf(MSG_USER_UPDATE_PROVIDER_ID_ERROR, err)
 			return ERR_SAVE_USER
 		}
 
 		user.ProviderID = fmt.Sprintf("%d", user.ID)
 		email, err := CreateActivationEmail(la, user)
 		if err != nil {
-			c.Logger().Error(MSG_CREATE_ACTIVATION_MAIL_ERROR, err)
+			c.Logger().Errorf(MSG_CREATE_ACTIVATION_MAIL_ERROR, err)
 			return ERR_SAVE_USER
 		}
 
@@ -110,7 +112,7 @@ func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation,
 
 		return nil
 	}); err != nil {
-		c.Logger().Error(MSG_USER_SAVE_ERROR, err)
+		c.Logger().Errorf(MSG_USER_SAVE_ERROR, err)
 		return nil, ERR_SAVE_USER
 	}
 
