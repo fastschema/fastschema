@@ -40,7 +40,7 @@ func NewLocal(config *RcloneLocalConfig) (fs.Disk, error) {
 		},
 	}
 
-	rl.BaseRcloneDisk.GetURL = rl.URL
+	rl.GetURL = rl.URL
 
 	if err := os.MkdirAll(config.Root, os.ModePerm); err != nil {
 		return nil, err

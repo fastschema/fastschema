@@ -58,7 +58,7 @@ func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 		},
 	}
 
-	rs3.BaseRcloneDisk.GetURL = rs3.URL
+	rs3.GetURL = rs3.URL
 	cfgMap := &configmap.Simple{}
 	cfgMap.Set("provider", config.Provider)
 	cfgMap.Set("bucket", config.Bucket)
