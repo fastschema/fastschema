@@ -91,7 +91,7 @@ func (r *RestfulResolver) Start(address string) error {
 }
 
 func (r *RestfulResolver) Shutdown() error {
-	return r.server.App.Shutdown()
+	return r.server.Shutdown()
 }
 
 func RegisterResourceRoutes(

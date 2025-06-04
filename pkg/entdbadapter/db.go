@@ -219,7 +219,7 @@ func NewDBAdapter(
 			return nil, err
 		}
 
-		a.typesModels[s.SystemSchema.RType] = typeModel
+		a.typesModels[s.RType] = typeModel
 	}
 
 	return a, nil

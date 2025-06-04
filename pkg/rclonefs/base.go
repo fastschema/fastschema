@@ -108,7 +108,7 @@ func (r *BaseRcloneDisk) PutMultipart(
 }
 
 func (r *BaseRcloneDisk) Delete(ctx context.Context, filePath string) error {
-	obj, err := r.Fs.NewObject(ctx, filePath)
+	obj, err := r.NewObject(ctx, filePath)
 
 	if err != nil {
 		return err

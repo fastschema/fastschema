@@ -125,7 +125,7 @@ func (c *Context) Hostname() string {
 }
 
 func (c *Context) Base() string {
-	return c.Ctx.Protocol() + "://" + c.Ctx.Hostname()
+	return c.Protocol() + "://" + c.Ctx.Hostname()
 }
 
 func (c *Context) Method() string {
@@ -154,7 +154,7 @@ func (c *Context) Status(v int) *Context {
 }
 
 func (c *Context) Local(key string, value ...any) (val any) {
-	return c.Ctx.Locals(key, value...)
+	return c.Locals(key, value...)
 }
 
 func (c *Context) Logger() logger.Logger {
@@ -179,15 +179,15 @@ func (c *Context) JSON(v any) error {
 
 func (c *Context) Header(key string, vals ...string) string {
 	if len(vals) > 0 {
-		c.Ctx.Set(key, vals[0])
+		c.Set(key, vals[0])
 		return vals[0]
 	}
 
-	return c.Ctx.Get(key)
+	return c.Get(key)
 }
 
 func (c *Context) Cookie(name string, values ...*Cookie) string {
-	cookieValue := c.Ctx.Cookies(name)
+	cookieValue := c.Cookies(name)
 	if len(values) > 0 {
 		v := values[0]
 		cookie := fiber.Cookie{
@@ -221,12 +221,12 @@ func (c *Context) Redirect(path string) error {
 
 func (c *Context) Bind(v any) error {
 	// if there is no content type header, we assume it's JSON
-	if c.Ctx.Get("Content-Type") == "" {
-		c.Ctx.Set("Content-Type", "application/json")
+	if c.Get("Content-Type") == "" {
+		c.Set("Content-Type", "application/json")
 		c.Ctx.Request().Header.Set("Content-Type", "application/json")
 	}
 
-	return c.Ctx.BodyParser(v)
+	return c.BodyParser(v)
 }
 
 func (c *Context) Files() ([]*fs.File, error) {

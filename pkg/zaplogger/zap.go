@@ -91,7 +91,7 @@ func NewZapLogger(config *logger.Config) (_ *ZapLogger, err error) {
 func (l *ZapLogger) WithContext(context logger.LogContext, callerSkips ...int) logger.Logger {
 	callerSkips = append(callerSkips, 0)
 	return &ZapLogger{
-		Logger:     l.Logger.WithOptions(zap.AddCallerSkip(callerSkips[0])),
+		Logger:     l.WithOptions(zap.AddCallerSkip(callerSkips[0])),
 		LogContext: context,
 		config:     l.config,
 	}
