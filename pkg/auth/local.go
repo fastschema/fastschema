@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
@@ -95,7 +96,7 @@ func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation,
 
 		if _, err = db.Builder[*fs.User](tx).
 			Where(db.EQ("id", user.ID)).
-			Update(c, entity.New().Set("provider_id", string(user.ID))); err != nil {
+			Update(c, entity.New().Set("provider_id", strconv.FormatUint(user.ID, 10))); err != nil {
 			c.Logger().Errorf(MSG_USER_UPDATE_PROVIDER_ID_ERROR, err)
 			return ERR_SAVE_USER
 		}
