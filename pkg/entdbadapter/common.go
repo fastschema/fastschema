@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	atlasMigrate "ariga.io/atlas/sql/migrate"
@@ -22,6 +23,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	_ "github.com/ncruces/go-sqlite3/vfs/memdb"
 )
 
 // RelMaps map the relation type to the ent relation type
@@ -37,6 +39,15 @@ var dialectMap = map[string]string{
 	"pgx":      dialect.Postgres,
 	"postgres": dialect.Postgres,
 	"sqlite":   dialect.SQLite,
+	"sqlite3":  dialect.SQLite,
+}
+
+var goSqlDriverNameMap = map[string]string{
+	"mysql":    "mysql",
+	"pgx":      "pgx",
+	"postgres": "pgx",
+	"sqlite":   "sqlite3",
+	"sqlite3":  "sqlite3",
 }
 
 // entFieldTypesMapper map the field type to the ent field type
@@ -129,8 +140,9 @@ func CreateDBDSN(config *db.Config) string {
 	}
 
 	if config.Driver == "sqlite" {
-		if config.Name == ":memory:" {
-			return ":memory:?cache=shared&_fk=1&_pragma=foreign_keys(1)"
+		if after, ok := strings.CutPrefix(config.Name, ":memory:"); ok {
+			name := after
+			return fmt.Sprintf("file:/fastschema_%s.db?vfs=memdb&_fk=1&_pragma=foreign_keys(1)", name)
 		}
 
 		dsn = fmt.Sprintf(

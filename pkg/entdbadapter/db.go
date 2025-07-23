@@ -12,6 +12,7 @@ import (
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -31,7 +32,7 @@ func NewTestClient(
 	})
 	return NewClient(&db.Config{
 		Driver:       "sqlite",
-		Name:         ":memory:",
+		Name:         ":memory:_" + utils.RandomString(10),
 		MigrationDir: migrationDir,
 		LogQueries:   false,
 		Hooks:        hookFns[0],
@@ -55,7 +56,12 @@ func NewEntClient(
 		return nil, errors.New("schema builder is required")
 	}
 
-	if db, err = sql.Open(config.Driver, CreateDBDSN(config)); err != nil {
+	driverName := goSqlDriverNameMap[config.Driver]
+	if driverName == "" {
+		driverName = config.Driver
+	}
+
+	if db, err = sql.Open(driverName, CreateDBDSN(config)); err != nil {
 		return nil, err
 	}
 
