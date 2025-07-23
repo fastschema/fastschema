@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -42,7 +43,7 @@ func NewGithubAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, 
 	clientSecret := fs.MapValue(config, "client_secret", "")
 	if clientID == "" ||
 		clientSecret == "" {
-		return nil, fmt.Errorf("github client id or secret is not set")
+		return nil, errors.New("github client id or secret is not set")
 	}
 
 	githubAuthProvider := &GithubAuthProvider{
@@ -87,7 +88,7 @@ func (ga *GithubAuthProvider) Login(c fs.Context) (_ any, err error) {
 func (ga *GithubAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 	// should check c.Arg("state") for invalid oauth Github state
 	if c.Arg("code") == "" {
-		return nil, fmt.Errorf("github auth: callback code is empty")
+		return nil, errors.New("github auth: callback code is empty")
 	}
 
 	githubUser, err := ga.getUser(c.Arg("code"))
@@ -117,7 +118,7 @@ func (ga *GithubAuthProvider) getUser(code string) (*GithubUserResponse, error) 
 	userResponse, err := utils.SendRequest[GithubUserResponse](
 		"GET",
 		ga.userInfoURL,
-		map[string]string{"Authorization": fmt.Sprintf("token %s", accessToken)},
+		map[string]string{"Authorization": "token " + accessToken},
 		nil,
 	)
 	if err != nil {
@@ -128,11 +129,14 @@ func (ga *GithubAuthProvider) getUser(code string) (*GithubUserResponse, error) 
 }
 
 func (ga *GithubAuthProvider) getAccessToken(code string) (string, error) {
-	requestBody, _ := json.Marshal(map[string]string{
+	requestBody, err := json.Marshal(map[string]string{
 		"code":          code,
 		"client_id":     ga.oauth.ClientID,
 		"client_secret": ga.oauth.ClientSecret,
 	})
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal access token request body: %w", err)
+	}
 
 	accessTokenResponse, err := utils.SendRequest[GithubAccessTokenResponse](
 		"POST",

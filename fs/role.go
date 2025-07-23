@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fastschema/fastschema/expr"
+	"github.com/fastschema/fastschema/pkg/errors"
 )
 
 // RoleAdmin is the admin role
@@ -63,16 +64,16 @@ func (r *Role) Check(c context.Context, config expr.Config) error {
 
 	result, err := r.RuleProgram.Run(c, r, config)
 	if err != nil {
-		return fmt.Errorf("error running role rule: %v", err)
+		return fmt.Errorf("error running role rule: %w", err)
 	}
 
 	check, err := result.Value()
 	if err != nil {
-		return fmt.Errorf("error getting role rule value: %v", err)
+		return fmt.Errorf("error getting role rule value: %w", err)
 	}
 
 	if !check {
-		return fmt.Errorf("role rule returned false")
+		return errors.New("role rule returned false")
 	}
 
 	return nil

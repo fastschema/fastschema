@@ -10,21 +10,22 @@ import (
 )
 
 var (
-	MSG_USER_SAVE_ERROR              = "error saving user"
-	MSG_USER_ACTIVATION_ERROR        = "error activating user"
-	MSG_INVALID_TOKEN                = "invalid token"
-	MSG_TOKEN_EXPIRED                = "token expired"
-	MSG_CREATE_ACTIVATION_MAIL_ERROR = "error while creating activation email"
-	MSG_CREATEP_RECOVERY_MAIL_ERROR  = "error while creating recovery email"
-	MSG_INVALID_EMAIL                = "invalid email"
-	MSG_INVALID_PASSWORD             = "invalid password"
-	MSG_INVALID_LOGIN_OR_PASSWORD    = "invalid login or password"
-	MSG_USER_IS_INACTIVE             = "user is inactive"
-	MSG_INVALID_REGISTRATION         = "username, email, password and confirm_password are required"
-	MSG_SEND_ACTIVATION_EMAIL_ERROR  = "error while sending activation email"
-	MSG_MAILER_NOT_SET               = "mailer is not set"
-	MSG_CHECKING_USER_ERROR          = "error checking user"
-	MSG_USER_EXISTS                  = "user already exists"
+	MSG_USER_SAVE_ERROR               = "error saving user"
+	MSG_USER_ACTIVATION_ERROR         = "error activating user"
+	MSG_INVALID_TOKEN                 = "invalid token"
+	MSG_TOKEN_EXPIRED                 = "token expired"
+	MSG_CREATE_ACTIVATION_MAIL_ERROR  = "error while creating activation email: %w"
+	MSG_USER_UPDATE_PROVIDER_ID_ERROR = "error while update provider id: %w"
+	MSG_CREATEP_RECOVERY_MAIL_ERROR   = "error while creating recovery email"
+	MSG_INVALID_EMAIL                 = "invalid email"
+	MSG_INVALID_PASSWORD              = "invalid password"
+	MSG_INVALID_LOGIN_OR_PASSWORD     = "invalid login or password"
+	MSG_USER_IS_INACTIVE              = "user is inactive"
+	MSG_INVALID_REGISTRATION          = "username, email, password and confirm_password are required"
+	MSG_SEND_ACTIVATION_EMAIL_ERROR   = "error while sending activation email"
+	MSG_MAILER_NOT_SET                = "mailer is not set"
+	MSG_CHECKING_USER_ERROR           = "error checking user"
+	MSG_USER_EXISTS                   = "user already exists"
 
 	ERR_SAVE_USER     = errors.InternalServerError(MSG_USER_SAVE_ERROR)
 	ERR_INVALID_TOKEN = errors.BadRequest(MSG_INVALID_TOKEN)

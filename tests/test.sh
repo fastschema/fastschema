@@ -32,7 +32,7 @@ if [ "$#" -gt 0 ]; then
   fi
 else
   echo "Testing all"
-  gotestsum -f testname -- ./... -failfast -race -count=1 -coverprofile=$coverageFile.txt -covermode=atomic
+  gotestsum -f testname -- ./... -failfast -race -count=1 -v -coverprofile=$coverageFile.txt -covermode=atomic
   go tool cover -html=$coverageFile.txt -o $coverageFile.html
 fi
 

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -29,7 +30,7 @@ func NewGoogleAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, 
 	clientID := fs.MapValue(config, "client_id", "")
 	clientSecret := fs.MapValue(config, "client_secret", "")
 	if clientID == "" || clientSecret == "" {
-		return nil, fmt.Errorf("google client id or secret is not set")
+		return nil, errors.New("google client id or secret is not set")
 	}
 
 	googleAuthProvider := &GoogleAuthProvider{
@@ -70,7 +71,7 @@ func (as *GoogleAuthProvider) Login(c fs.Context) (_ any, err error) {
 func (as *GoogleAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 	// should check c.Arg("state") for invalid oauth Google state
 	if c.Arg("code") == "" {
-		return nil, fmt.Errorf("callback code is empty")
+		return nil, errors.New("callback code is empty")
 	}
 
 	googleUser, err := as.getUser(c.Arg("code"))
@@ -94,7 +95,7 @@ func (as *GoogleAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 func (as *GoogleAuthProvider) getUser(code string) (*GoogleUserResponse, error) {
 	token, err := as.oauth.Exchange(context.Background(), code)
 	if err != nil {
-		return nil, fmt.Errorf("google auth code exchange error: %s", err.Error())
+		return nil, fmt.Errorf("google auth code exchange error: %w", err)
 	}
 
 	userResponse, err := utils.SendRequest[GoogleUserResponse](

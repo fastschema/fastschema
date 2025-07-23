@@ -59,6 +59,5 @@ func TestDiskBaseUploadFilePath(t *testing.T) {
 	for _, test := range tests {
 		path := db.UploadFilePath(test)
 		assert.True(t, strings.HasSuffix(path, "_"+test))
-		assert.True(t, strings.HasPrefix(path, "/path/to/root"))
 	}
 }

@@ -2,6 +2,7 @@ package entdbadapter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	entSchema "entgo.io/ent/dialect/sql/schema"
@@ -99,14 +100,14 @@ func (m *Model) Query(predicates ...*db.Predicate) db.Querier {
 		},
 		ScanValues: func(columns []string) ([]any, error) {
 			q.entities = append(q.entities, entity.New())
-			return scanValues(m.schema, columns)
+			return schemaScanValues(m.schema, columns)
 		},
 		Assign: func(columns []string, values []any) error {
 			if len(q.entities) == 0 {
-				return fmt.Errorf("assign called without calling ScanValues")
+				return errors.New("assign called without calling ScanValues")
 			}
 			entity := q.entities[len(q.entities)-1]
-			return assignValues(m.schema, entity, columns, values)
+			return schemaAssignValues(m.schema, entity, columns, values)
 		},
 	}
 

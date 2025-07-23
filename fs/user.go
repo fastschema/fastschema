@@ -32,6 +32,7 @@ type User struct {
 // UserJwtClaims is a struct that contains the user jwt claims
 type UserJwtClaims struct {
 	jwt.RegisteredClaims
+
 	User *User `json:"user"`
 }
 

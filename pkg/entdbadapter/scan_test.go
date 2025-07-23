@@ -35,13 +35,14 @@ func TestScan(t *testing.T) {
 		ctx,
 		`SELECT
 			? as bool_column,
+			? as int_column,
 			? as int64_column,
 			? as uint64_column,
 			? as time_column
 		`,
 		[]any{
 			true,
-			1,
+			5,
 			int64(1),
 			uint64(1),
 			time.Now(),
@@ -54,6 +55,7 @@ func TestScan(t *testing.T) {
 	json := rows[0].String()
 
 	assert.Contains(t, json, `"bool_column":1`)
+	assert.Contains(t, json, `"int_column":5`)
 	assert.Contains(t, json, `"int64_column":1`)
 	assert.Contains(t, json, `"uint64_column":1`)
 	assert.Contains(t, json, `"time_column":`)
@@ -128,8 +130,7 @@ func TestCreateRowsScanValues(t *testing.T) {
 		{time.Time{}, new(time.Time)},
 	}
 
-	columns := []string{}
-	columnTypes := []SQLColumnType{}
+	columns := []SQLColumn{}
 	expected := []any{}
 
 	for _, testValue := range testValues {
@@ -139,8 +140,11 @@ func TestCreateRowsScanValues(t *testing.T) {
 		}
 
 		columnName, columnType, value := createSQLColumnType(testValue[0], dbTypeName)
-		columns = append(columns, columnName)
-		columnTypes = append(columnTypes, columnType)
+		columns = append(columns, SQLColumn{
+			Name:      columnName,
+			Type:      columnType,
+			FieldType: schema.FieldTypeFromReflectType(columnType.ScanType()),
+		})
 
 		if len(testValue) > 1 {
 			expected = append(expected, testValue[1])
@@ -149,7 +153,7 @@ func TestCreateRowsScanValues(t *testing.T) {
 		}
 	}
 
-	values := createRowsScanValues(columns, columnTypes)
+	values := rawRowsScanValues(columns)
 	assert.NotNil(t, values)
 
 	for i, e := range expected {

@@ -1,7 +1,7 @@
 package db
 
 import (
-	"fmt"
+	"errors"
 	"reflect"
 
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -37,7 +37,7 @@ func Builder[T any](client Client, schemas ...string) *QueryBuilder[T] {
 // model returns the actual model of the builder.
 func (q *QueryBuilder[T]) model() (Model, error) {
 	if q.rType != nil && q.rType.String() == "entity.Entity" && q.schemaName == "" {
-		return nil, fmt.Errorf("schema name is required for type entity.Entity")
+		return nil, errors.New("schema name is required for type entity.Entity")
 	}
 
 	// if the schema name is not empty, use the schema name

@@ -13,9 +13,10 @@ import (
 
 type ConfigActions struct {
 	*fs.Config `json:"config"`
-	app        AppLike
-	program    *Program
-	set        map[string]any
+
+	app     AppLike
+	program *Program
+	set     map[string]any
 }
 
 func NewConfigActions(app AppLike, program *Program, set map[string]any) *ConfigActions {
@@ -38,7 +39,7 @@ func (p *ConfigActions) AddSchemas(schemas ...map[string]any) error {
 		newSchemas = append(newSchemas, ss)
 	}
 
-	p.Config.SystemSchemas = append(p.Config.SystemSchemas, newSchemas...)
+	p.SystemSchemas = append(p.SystemSchemas, newSchemas...)
 
 	return nil
 }

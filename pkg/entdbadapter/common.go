@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	atlasMigrate "ariga.io/atlas/sql/migrate"
@@ -22,6 +23,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	_ "github.com/ncruces/go-sqlite3/vfs/memdb"
 )
 
 // RelMaps map the relation type to the ent relation type
@@ -37,6 +39,15 @@ var dialectMap = map[string]string{
 	"pgx":      dialect.Postgres,
 	"postgres": dialect.Postgres,
 	"sqlite":   dialect.SQLite,
+	"sqlite3":  dialect.SQLite,
+}
+
+var goSqlDriverNameMap = map[string]string{
+	"mysql":    "mysql",
+	"pgx":      "pgx",
+	"postgres": "pgx",
+	"sqlite":   "sqlite3",
+	"sqlite3":  "sqlite3",
 }
 
 // entFieldTypesMapper map the field type to the ent field type
@@ -129,8 +140,9 @@ func CreateDBDSN(config *db.Config) string {
 	}
 
 	if config.Driver == "sqlite" {
-		if config.Name == ":memory:" {
-			return ":memory:?cache=shared&_fk=1&_pragma=foreign_keys(1)"
+		if after, ok := strings.CutPrefix(config.Name, ":memory:"); ok {
+			name := after
+			return fmt.Sprintf("file:/fastschema_%s.db?vfs=memdb&_fk=1&_pragma=foreign_keys(1)", name)
 		}
 
 		dsn = fmt.Sprintf(
@@ -352,8 +364,10 @@ func NOW(dialect string) any {
 }
 
 func isDateTimeColumn(scanType reflect.Type, databaseTypeName string) bool {
-	isStructTime := scanType != nil && scanType.Kind() == reflect.Struct && scanType.String() == "time.Time"
 	isSQLTime := databaseTypeName == "DATETIME"
+	isStructTime := scanType != nil &&
+		scanType.Kind() == reflect.Struct &&
+		scanType.String() == "time.Time"
 	return isStructTime || isSQLTime
 }
 
@@ -382,34 +396,30 @@ func driverQuery(
 		return nil, err
 	}
 
-	columns, columnTypes, err := getRowsColumns(rows)
+	columns, err := getRowsColumns(rows)
 	if err != nil {
 		return nil, err
 	}
 
 	entities := []*entity.Entity{}
 	for rows.Next() {
-		values := createRowsScanValues(columns, columnTypes)
+		values := rawRowsScanValues(columns)
 		if err := rows.Scan(values...); err != nil {
 			return nil, err
 		}
 
 		e := entity.New()
 		for i, column := range columns {
-			scanType := columnTypes[i].ScanType()
-			databaseTypeName := columnTypes[i].DatabaseTypeName()
-
-			if isDateTimeColumn(scanType, databaseTypeName) {
-				if value, ok := values[i].(*sql.NullTime); !ok {
-					return nil, fieldTypeError("Time", values[i])
-				} else if value.Valid {
-					e.Set(column, value.Time)
-				}
-
-				continue
+			if v, err := columnAssignValue(
+				columns[i].Name,
+				columns[i].FieldType,
+				values[i],
+				e,
+			); err != nil {
+				return nil, fmt.Errorf("columnAssignValue for column '%v': %w", column, err)
+			} else {
+				e.Set(column.Name, v)
 			}
-
-			e.Set(column, values[i])
 		}
 
 		entities = append(entities, e)

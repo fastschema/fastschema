@@ -41,7 +41,7 @@ func WSContentEventFromString(s string) WSContentEvent {
 	return WSContentEventInvalid
 }
 
-// String returns the string value of the type
+// String returns the string value of the type.
 func (t WSContentEvent) String() string {
 	if t < endWSContentEvents {
 		return wsContentEventToStrings[t]
@@ -54,7 +54,7 @@ func (t WSContentEvent) Valid() bool {
 	return t > WSContentEventInvalid && t < endWSContentEvents
 }
 
-// MarshalJSON marshals the enum as a quoted json string
+// MarshalJSON marshals the enum as a quoted json string.
 func (t WSContentEvent) MarshalJSON() ([]byte, error) {
 	eventStr, ok := wsContentEventToStrings[t]
 	if !ok {

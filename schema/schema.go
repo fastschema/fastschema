@@ -22,9 +22,10 @@ type SchemaDB struct {
 
 // Schema holds the node data.
 type Schema struct {
-	initialized   bool
-	dbColumns     []string `json:"-"`
 	*SystemSchema `json:"-"`
+
+	initialized bool
+	dbColumns   []string `json:"-"`
 
 	Name             string    `json:"name"`
 	Namespace        string    `json:"namespace"`

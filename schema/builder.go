@@ -145,7 +145,7 @@ func (b *Builder) SaveToDir(dir string) error {
 	}
 
 	for _, schema := range b.schemas {
-		schemaFile := path.Join(dir, fmt.Sprintf("%s.json", schema.Name))
+		schemaFile := path.Join(dir, schema.Name+".json")
 		if err := schema.SaveToFile(schemaFile); err != nil {
 			return err
 		}
@@ -183,7 +183,7 @@ func (b *Builder) Init() (err error) {
 
 // SchemaFile returns the json file path of a schema
 func (b *Builder) SchemaFile(name string) string {
-	return path.Join(b.dir, fmt.Sprintf("%s.json", name))
+	return path.Join(b.dir, name+".json")
 }
 
 // Schemas returns all schemas

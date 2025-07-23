@@ -65,12 +65,12 @@ func (p *Permission) Check(c context.Context, config expr.Config) error {
 
 	result, err := p.RuleProgram.Run(c, p, config)
 	if err != nil {
-		return fmt.Errorf("error running permission rule: %v", err)
+		return fmt.Errorf("error running permission rule: %w", err)
 	}
 
 	check, err := result.Value()
 	if err != nil {
-		return fmt.Errorf("error getting permission rule value: %v", err)
+		return fmt.Errorf("error getting permission rule value: %w", err)
 	}
 
 	if !check {

@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -50,7 +51,7 @@ func (f *Field) Init(schemaNames ...string) (err error) {
 
 	if f.Type == TypeFile {
 		if len(schemaNames) == 0 {
-			return fmt.Errorf("schema names are required for file field")
+			return errors.New("schema names are required for file field")
 		}
 		f.Relation = &Relation{
 			Type:             utils.If(f.IsMultiple, M2M, O2M),

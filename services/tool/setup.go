@@ -2,6 +2,7 @@ package toolservice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 
@@ -30,7 +31,7 @@ func Setup(
 		if err != nil {
 			logger.Error(err)
 			if err := tx.Rollback(); err != nil {
-				logger.Error("rollback error: %v", err)
+				logger.Errorf("rollback error: %w", err)
 			}
 		}
 	}()
@@ -94,13 +95,13 @@ func ResetAdminPassword(ctx context.Context,
 		if err != nil {
 			fmt.Println(err)
 			if err := tx.Rollback(); err != nil {
-				_ = fmt.Errorf("rollback error: %v", err)
+				_ = fmt.Errorf("rollback error: %w", err)
 			}
 		}
 	}()
 
 	if password == "" {
-		return fmt.Errorf("password cannot be empty")
+		return errors.New("password cannot be empty")
 	}
 
 	admin, err := db.Builder[*fs.User](tx).
@@ -116,11 +117,11 @@ func ResetAdminPassword(ctx context.Context,
 	}
 
 	if admin == nil {
-		return fmt.Errorf("cannot find admin user. Please setup the app first")
+		return errors.New("cannot find admin user. Please setup the app first")
 	}
 
 	if !admin.IsRoot() {
-		return fmt.Errorf("user is not an admin")
+		return errors.New("user is not an admin")
 	}
 
 	utils.Must(db.Update[*fs.User](ctx, tx, fs.Map{

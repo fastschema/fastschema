@@ -56,10 +56,11 @@ func NewResult(data any, err error) *Result {
 	result := &Result{Data: data}
 
 	if err != nil {
-		if _, ok := err.(*errors.Error); !ok {
+		var fsError *errors.Error
+		if !errors.As(err, &fsError) {
 			result.Error = errors.From(err)
 		} else {
-			result.Error = err.(*errors.Error)
+			result.Error = fsError
 		}
 
 		return result

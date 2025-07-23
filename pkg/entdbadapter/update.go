@@ -3,6 +3,7 @@ package entdbadapter
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql"
@@ -20,7 +21,7 @@ func (m *Mutation) Update(ctx context.Context, e *entity.Entity) (affected int, 
 
 	entAdapter, ok := m.client.(EntAdapter)
 	if !ok {
-		return 0, fmt.Errorf("client is not an ent adapter")
+		return 0, errors.New("client is not an ent adapter")
 	}
 
 	if err := m.model.schema.ApplySetters(ctx, e, expr.Config{

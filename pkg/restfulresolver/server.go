@@ -12,6 +12,7 @@ import (
 
 type Server struct {
 	*fiber.App
+
 	logger logger.Logger
 }
 

@@ -145,7 +145,7 @@ func TestCreateDBDSN(t *testing.T) {
 	expectedSQLiteDSN := "file:database?cache=shared&_fk=1&_pragma=foreign_keys(1)"
 	assert.Equal(t, expectedSQLiteDSN, CreateDBDSN(config))
 	config.Name = ":memory:"
-	expectedSQLiteMemoryDSN := ":memory:?cache=shared&_fk=1&_pragma=foreign_keys(1)"
+	expectedSQLiteMemoryDSN := "file:/fastschema_.db?vfs=memdb&_fk=1&_pragma=foreign_keys(1)"
 	assert.Equal(t, expectedSQLiteMemoryDSN, CreateDBDSN(config))
 }
 

@@ -33,6 +33,7 @@ func (d *DB) Builder(schemaName string) (*Builder, error) {
 
 type Builder struct {
 	*db.QueryBuilder[*entity.Entity]
+
 	client db.Client
 	schema *schema.Schema
 }

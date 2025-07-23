@@ -30,6 +30,7 @@ type SchemaUpdate struct {
 	newSchemaBuilderDir  string                    // Create a new directory to store the new schema files
 	newSchemaBuilder     *schema.Builder           // the new schema builder used to store the new schema files
 	updateSchemas        map[string]*schema.Schema // schemas that need to be updated, includes: current schema, related schemas
+	systemSchemas        []any                     // inherited system schemas, like User, Role, etc.
 }
 
 func (ss *SchemaService) Update(
@@ -41,6 +42,7 @@ func (ss *SchemaService) Update(
 		updateData:           updateData,
 		currentSchemaBuilder: ss.app.SchemaBuilder(),
 		updateSchemas:        map[string]*schema.Schema{},
+		systemSchemas:        ss.app.SystemSchemas(),
 	}
 
 	if su.currentSchema, err = su.currentSchemaBuilder.Schema(c.Arg("name")); err != nil {
@@ -104,13 +106,13 @@ func (su *SchemaUpdate) update() (err error) {
 
 	// Write the updated schema files to the new schema directory
 	for _, s := range su.updateSchemas {
-		schemaFile := path.Join(su.newSchemaBuilderDir, fmt.Sprintf("%s.json", s.Name))
+		schemaFile := path.Join(su.newSchemaBuilderDir, s.Name+".json")
 		if err = s.SaveToFile(schemaFile); err != nil {
 			return err
 		}
 	}
 
-	su.newSchemaBuilder, err = schema.NewBuilderFromDir(su.newSchemaBuilderDir)
+	su.newSchemaBuilder, err = schema.NewBuilderFromDir(su.newSchemaBuilderDir, su.systemSchemas...)
 	if err != nil {
 		return err
 	}
@@ -136,7 +138,7 @@ func (su *SchemaUpdate) update() (err error) {
 	return su.renameDir()
 }
 
-// if the target schema is not existed in updateSchemas, add it
+// if the target schema is not existed in updateSchemas, add it.
 func (su *SchemaUpdate) setUpdateRelationSchema(relation *schema.Relation) error {
 	if _, ok := su.updateSchemas[relation.TargetSchemaName]; !ok {
 		targetSchema, err := su.currentSchemaBuilder.Schema(relation.TargetSchemaName)
@@ -150,7 +152,7 @@ func (su *SchemaUpdate) setUpdateRelationSchema(relation *schema.Relation) error
 	return nil
 }
 
-// Add the back reference fields to the relation target schemas
+// Add the back reference fields to the relation target schemas.
 func (su *SchemaUpdate) applyAddNewRelationFields() error {
 	// loop through all the fields in the new schema data
 	// and check if the relation field is added
@@ -311,7 +313,7 @@ func (su *SchemaUpdate) applyRenameRelationField(newField *schema.Field) (err er
 	return nil
 }
 
-// Remove the back reference field from the relation target schema
+// Remove the back reference field from the relation target schema.
 func (su *SchemaUpdate) applyRemoveRelationFields() error {
 	// loop through all the fields in the current schema
 	// and check if the relation field is removed
@@ -340,8 +342,8 @@ func (su *SchemaUpdate) applyRemoveRelationFields() error {
 }
 
 // When updating relation fields, there are two cases:
-//   - Add new relation fields: need to add the back reference fields to the relation target schemas
-//   - Remove relation fields: need to remove the back reference fields from the relation target schemas
+//   - Add new relation fields: need to add the back reference fields to the relation target schemas.
+//   - Remove relation fields: need to remove the back reference fields from the relation target schemas.
 func (su *SchemaUpdate) updateRelatedSchemasBackRefs() (err error) {
 	if err := su.applyRemoveRelationFields(); err != nil {
 		return err
@@ -354,7 +356,7 @@ func (su *SchemaUpdate) updateRelatedSchemasBackRefs() (err error) {
 	return nil
 }
 
-// updateBasicData update the data that only exist in the schema json files
+// updateBasicData update the data that only exist in the schema json files.
 func (su *SchemaUpdate) updateBasicData() (err error) {
 	// overwrite the current schema with the new schema
 	su.updateSchemas[su.updateData.Data.Name] = su.updateData.Data
@@ -374,7 +376,7 @@ func (su *SchemaUpdate) applyRenameSchema() (err error) {
 	newSchemaName := ""
 	if su.currentSchema.Name != su.updateData.Data.Name {
 		newSchemaName = su.updateData.Data.Name
-		currentSchemaFile := path.Join(su.newSchemaBuilderDir, fmt.Sprintf("%s.json", su.currentSchema.Name))
+		currentSchemaFile := path.Join(su.newSchemaBuilderDir, su.currentSchema.Name+".json")
 
 		// if the name is changed:
 		// 	- remove the current schema from the update schemas

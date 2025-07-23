@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
+	"errors"
 	"reflect"
 
 	"entgo.io/ent/dialect"
@@ -45,7 +45,7 @@ func NewTx(ctx context.Context, client db.Client) (*Tx, error) {
 func (tx *Tx) NewEdgeSpec(r *schema.Relation, nodeIDs []driver.Value) (*sqlgraph.EdgeSpec, error) {
 	entAdapter, ok := tx.client.(EntAdapter)
 	if !ok {
-		return nil, fmt.Errorf("client is not an ent adapter")
+		return nil, errors.New("client is not an ent adapter")
 	}
 
 	return entAdapter.NewEdgeSpec(r, nodeIDs)
@@ -54,7 +54,7 @@ func (tx *Tx) NewEdgeSpec(r *schema.Relation, nodeIDs []driver.Value) (*sqlgraph
 func (tx *Tx) NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, error) {
 	entAdapter, ok := tx.client.(EntAdapter)
 	if !ok {
-		return nil, fmt.Errorf("client is not an ent adapter")
+		return nil, errors.New("client is not an ent adapter")
 	}
 	return entAdapter.NewEdgeStepOption(r)
 }

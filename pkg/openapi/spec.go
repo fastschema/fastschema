@@ -184,7 +184,7 @@ func (oas *OpenAPISpec) ResolveSchemaReferences() {
 			fieldName := strings.Split(field.Tag.Get("json"), ",")[0]
 			fieldName = utils.If(fieldName == "", field.Name, fieldName)
 
-			// if if field is not exported or fieldName is "-", skip it
+			// if field is not exported or fieldName is "-", skip it
 			if field.PkgPath != "" || fieldName == "-" {
 				continue
 			}

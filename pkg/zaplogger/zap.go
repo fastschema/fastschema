@@ -15,6 +15,7 @@ import (
 type ZapLogger struct {
 	*zap.Logger
 	logger.LogContext
+
 	config *logger.Config
 }
 
@@ -91,7 +92,7 @@ func NewZapLogger(config *logger.Config) (_ *ZapLogger, err error) {
 func (l *ZapLogger) WithContext(context logger.LogContext, callerSkips ...int) logger.Logger {
 	callerSkips = append(callerSkips, 0)
 	return &ZapLogger{
-		Logger:     l.Logger.WithOptions(zap.AddCallerSkip(callerSkips[0])),
+		Logger:     l.WithOptions(zap.AddCallerSkip(callerSkips[0])),
 		LogContext: context,
 		config:     l.config,
 	}
@@ -123,8 +124,7 @@ func (l *ZapLogger) Error(params ...any) {
 }
 
 func (l *ZapLogger) Errorf(msg string, params ...any) {
-	msg = fmt.Sprintf(msg, params...)
-	l.Error(msg)
+	l.Error(fmt.Errorf(msg, params...))
 }
 
 func (l *ZapLogger) DPanic(params ...any) {

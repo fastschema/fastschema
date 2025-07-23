@@ -2,6 +2,7 @@ package entdbadapter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -45,7 +46,7 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ uint64, err 
 
 	entAdapter, ok := m.client.(EntAdapter)
 	if !ok {
-		return 0, fmt.Errorf("client is not an ent adapter")
+		return 0, errors.New("client is not an ent adapter")
 	}
 
 	var c *Column
