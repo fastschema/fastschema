@@ -25,6 +25,7 @@ type Middleware func(c Context) error
 // ResourcesManager is a resource manager that can be used to manage resources
 type ResourcesManager struct {
 	*Resource
+
 	Middlewares []Middleware
 	Hooks       func() *Hooks
 }

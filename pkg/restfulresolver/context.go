@@ -16,6 +16,7 @@ import (
 type Context struct {
 	*fiber.Ctx
 	*fasthttp.RequestCtx
+
 	args     map[string]string
 	resource *fs.Resource
 	result   *fs.Result

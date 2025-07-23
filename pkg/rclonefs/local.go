@@ -21,6 +21,7 @@ type RcloneLocalConfig struct {
 type RcloneLocal struct {
 	*fs.DiskBase
 	*BaseRcloneDisk
+
 	config *RcloneLocalConfig
 }
 

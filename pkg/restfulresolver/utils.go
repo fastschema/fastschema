@@ -36,8 +36,8 @@ func TransformMiddlewares(inputs []fs.Middleware) []Handler {
 	for _, middleware := range inputs {
 		middlewares = append(middlewares, func(c *Context) error {
 			if err := middleware(c); err != nil {
-				fiberError, ok := err.(*fiber.Error)
-				if ok {
+				var fiberError *fiber.Error
+				if errors.As(err, &fiberError) {
 					err = errors.GetErrorByStatus(fiberError.Code, err)
 				}
 

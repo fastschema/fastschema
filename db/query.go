@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -73,7 +74,11 @@ func (q *QueryBuilder[T]) Get(ctx context.Context) ([]T, error) {
 	result := make([]T, 0)
 	for _, e := range entities {
 		if tIsEntity {
-			result = append(result, any(e).(T))
+			if converted, ok := any(e).(T); ok {
+				result = append(result, converted)
+			} else {
+				return nil, fmt.Errorf("failed to convert entity to type %T", t)
+			}
 			continue
 		}
 
@@ -113,7 +118,7 @@ func (q *QueryBuilder[T]) Only(ctx context.Context) (t T, err error) {
 	}
 
 	if len(entities) > 1 {
-		return t, fmt.Errorf("more than one entity found")
+		return t, errors.New("more than one entity found")
 	}
 
 	if len(entities) == 0 {

@@ -210,15 +210,14 @@ type Model interface {
 
 // QueryOption is a struct that contains query options
 //
-//	Column and Unique are used for count query
+//	Column and Unique are used for count query.
 type QueryOption struct {
-	// Model      Model        `json:"model"`
 	Schema     *schema.Schema `json:"schema"`
 	Limit      uint           `json:"limit"`
 	Offset     uint           `json:"offset"`
-	Columns    []string       `json:"columns"`
+	Columns    *[]string      `json:"columns"`
 	Order      []string       `json:"order"`
-	Predicates []*Predicate   `json:"predicates"`
+	Predicates *[]*Predicate  `json:"predicates"`
 	Query      string         `json:"query"`
 	Args       any            `json:"args"`
 	// For count query

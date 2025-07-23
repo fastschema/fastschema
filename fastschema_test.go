@@ -38,6 +38,7 @@ func clearEnvs(t *testing.T) {
 		"DB_USER",
 		"DB_PASS",
 		"STORAGE",
+		"MAIL",
 	}
 
 	for _, key := range envKeys {

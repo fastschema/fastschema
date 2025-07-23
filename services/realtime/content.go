@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/fastschema/fastschema/db"
@@ -35,7 +36,7 @@ func (rs *RealtimeService) Content(c fs.Context, _ any) (any, error) {
 				break
 			}
 
-			c.Logger().Errorf("failed to read message: %v", err)
+			c.Logger().Errorf("failed to read message: %w", err)
 			break
 		}
 
@@ -76,7 +77,7 @@ func (rs *RealtimeService) ContentCreateHook(
 	id uint64,
 ) error {
 	go rs.Broadcast([]string{
-		fmt.Sprintf("content.%s", schema.Name),
+		"content." + schema.Name,
 		fmt.Sprintf("content.%s.create", schema.Name),
 		fmt.Sprintf("content.%s.create.%d", schema.Name, id),
 	}, &RealtimeCreateData{
@@ -97,7 +98,7 @@ func (rs *RealtimeService) ContentUpdateHook(
 	affected int,
 ) error {
 	topics := []string{
-		fmt.Sprintf("content.%s", schema.Name),
+		"content." + schema.Name,
 		fmt.Sprintf("content.%s.update", schema.Name),
 	}
 
@@ -131,7 +132,7 @@ func (rs *RealtimeService) ContentDeleteHook(
 	affected int,
 ) error {
 	topics := []string{
-		fmt.Sprintf("content.%s", schema.Name),
+		"content." + schema.Name,
 		fmt.Sprintf("content.%s.delete", schema.Name),
 	}
 
@@ -267,7 +268,7 @@ func (rs *RealtimeService) createContentSerializer(c fs.Context) (*WSContentSeri
 	}
 
 	if id > 0 {
-		topicParts = append(topicParts, fmt.Sprintf("%d", id))
+		topicParts = append(topicParts, strconv.FormatUint(id, 10))
 	}
 
 	schema, err := rs.DB().SchemaBuilder().Schema(schemaName)
@@ -278,7 +279,7 @@ func (rs *RealtimeService) createContentSerializer(c fs.Context) (*WSContentSeri
 	if filter != "" {
 		predicates, err = db.CreatePredicatesFromFilterObject(rs.DB().SchemaBuilder(), schema, filter)
 		if err != nil {
-			return nil, fmt.Errorf("realtime.content: invalid filter: %v", err)
+			return nil, fmt.Errorf("realtime.content: invalid filter: %w", err)
 		}
 	}
 

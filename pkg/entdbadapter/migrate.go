@@ -54,10 +54,12 @@ func (d *Adapter) Migrate(
 		return entSchema.ApplyFunc(func(ctx context.Context, conn entDialect.ExecQuerier, plan *atlasMigrate.Plan) error {
 			defer func() {
 				if len(plan.Changes) > 0 {
-					atlasMigrate.NewPlanner(nil, migrationDir, []atlasMigrate.PlannerOption{
+					if err := atlasMigrate.NewPlanner(nil, migrationDir, []atlasMigrate.PlannerOption{
 						atlasMigrate.WithFormatter(sqltool.GolangMigrateFormatter),
 						atlasMigrate.PlanWithChecksum(true),
-					}...).WritePlan(plan)
+					}...).WritePlan(plan); err != nil {
+						panic(fmt.Errorf("writing migration plan: %w", err))
+					}
 				}
 			}()
 

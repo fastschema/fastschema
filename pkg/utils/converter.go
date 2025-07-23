@@ -1,13 +1,17 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/fastschema/fastschema/pkg/errors"
+)
 
 func IntToUint[
 	IN ~int | ~int8 | ~int16 | ~int32 | ~int64,
 	OUT ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64,
 ](value IN) (OUT, error) {
 	if value < 0 {
-		return 0, fmt.Errorf("negative value cannot be converted to uint")
+		return 0, errors.New("negative value cannot be converted to uint")
 	}
 
 	return OUT(value), nil
@@ -18,7 +22,7 @@ func IntPointerToUint[
 	OUT ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64,
 ](value *IN) (OUT, error) {
 	if value == nil || *value < 0 {
-		return 0, fmt.Errorf("nil pointer or negative value cannot be converted to uint")
+		return 0, errors.New("nil pointer or negative value cannot be converted to uint")
 	}
 
 	return OUT(*value), nil
@@ -29,7 +33,7 @@ func UintPointerToUint[
 	OUT ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64,
 ](value *IN) (OUT, error) {
 	if value == nil {
-		return 0, fmt.Errorf("nil pointer cannot be converted to uint")
+		return 0, errors.New("nil pointer cannot be converted to uint")
 	}
 
 	return OUT(*value), nil
@@ -40,7 +44,7 @@ func FloatPointerToUint[
 	OUT ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64,
 ](value *IN) (OUT, error) {
 	if value == nil || *value < 0 {
-		return 0, fmt.Errorf("nil pointer or negative value cannot be converted to uint")
+		return 0, errors.New("nil pointer or negative value cannot be converted to uint")
 	}
 
 	return OUT(*value), nil
@@ -51,12 +55,12 @@ func FloatToUint[
 	OUT ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64,
 ](value IN) (OUT, error) {
 	if value < 0 {
-		return 0, fmt.Errorf("negative value cannot be converted to uint")
+		return 0, errors.New("negative value cannot be converted to uint")
 	}
 
 	// Only allow conversion if the value is a whole number.
 	if value != IN(int64(value)) {
-		return 0, fmt.Errorf("float value must be a whole number")
+		return 0, errors.New("float value must be a whole number")
 	}
 
 	return OUT(value), nil
@@ -115,7 +119,6 @@ func AnyToUint[
 	case *float64:
 		return FloatPointerToUint[float64, OUT](v)
 	default:
-		err = fmt.Errorf("unsupported type when converting to uint: %T", value)
-		return
+		return out, fmt.Errorf("unsupported type when converting to uint: %T", value)
 	}
 }

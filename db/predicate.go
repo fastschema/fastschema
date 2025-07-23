@@ -155,11 +155,12 @@ func CreatePredicatesFromFilterMap(
 	return createObjectPredicates(sb, s, filterEntity)
 }
 
-// createObjectPredicates creates predicates from a filter object
-// Each field in the filter object is connected by AND
+// createObjectPredicates creates predicates from a filter object.
+// Each field in the filter object is connected by AND.
 // If the field is $or or $and, the field value is an array of filter objects (array of entities)
-// Otherwise, the field value is a single entity that contains the filter for the field (e.g. { "age": { "$gt": 1, "$lt": 10 } })
-// Returns an array of predicates
+// Otherwise, the field value is a single entity that
+// contains the filter for the field (e.g. { "age": { "$gt": 1, "$lt": 10 } }).
+// Returns an array of predicates.
 func createObjectPredicates(
 	sb *schema.Builder,
 	s *schema.Schema,
@@ -272,6 +273,9 @@ func createObjectPredicates(
 			p.RelationFieldNames = fieldRelations
 			predicates = append(predicates, p)
 		} else {
+			if len(fieldPredicates) == 0 {
+				return nil, errors.New("invalid field predicates")
+			}
 			p := fieldPredicates[0]
 			p.RelationFieldNames = fieldRelations
 			predicates = append(predicates, p)
@@ -327,23 +331,27 @@ func createFieldPredicate(
 			case OpLTE:
 				predicates = append(predicates, LTE(field.Name, p.Value))
 			case OpLIKE:
-				predicates = append(predicates, Like(field.Name, p.Value.(string)))
+				stringVal, ok := p.Value.(string)
+				if !ok {
+					return nil, filterError(errors.New("$like operator must be a string"))
+				}
+				predicates = append(predicates, Like(field.Name, stringVal))
 			case OpIN:
 				arrayVal, ok := p.Value.([]any)
 				if !ok {
-					return nil, filterError(fmt.Errorf("$in operator must be an array"))
+					return nil, filterError(errors.New("$in operator must be an array"))
 				}
 				predicates = append(predicates, In(field.Name, arrayVal))
 			case OpNIN:
 				arrayVal, ok := p.Value.([]any)
 				if !ok {
-					return nil, filterError(fmt.Errorf("$nin operator must be an array"))
+					return nil, filterError(errors.New("$nin operator must be an array"))
 				}
 				predicates = append(predicates, NotIn(field.Name, arrayVal))
 			case OpNULL:
 				boolVal, ok := p.Value.(bool)
 				if !ok {
-					return nil, filterError(fmt.Errorf("$null operator must be a boolean"))
+					return nil, filterError(errors.New("$null operator must be a boolean"))
 				}
 				predicates = append(predicates, Null(field.Name, boolVal))
 			}

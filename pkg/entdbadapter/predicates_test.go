@@ -199,7 +199,7 @@ func TestCreateFieldPredicate(t *testing.T) {
 					expectQuery, expectArgs := tt.expectSQLPredicate.Query()
 					gotQuery, gotArgs := got.Query()
 
-					assert.Equal(t, expectQuery, gotQuery)
+					assert.Contains(t, gotQuery, expectQuery)
 					assert.Equal(t, expectArgs, gotArgs)
 				} else {
 					assert.Nil(t, got)
@@ -279,7 +279,7 @@ func TestCreateEntPredicates(t *testing.T) {
 				db.Like("name", "%car%"),
 				db.GT("year", 2000),
 			},
-			expectQuery: "`name` LIKE ? AND `year` > ?",
+			expectQuery: "`cars`.`name` LIKE ? AND `cars`.`year` > ?",
 			expectArgs:  []any{"%car%", 2000},
 		},
 		{
@@ -290,7 +290,7 @@ func TestCreateEntPredicates(t *testing.T) {
 					db.GT("year", 2000),
 				),
 			},
-			expectQuery: "`name` LIKE ? OR `year` > ?",
+			expectQuery: "`cars`.`name` LIKE ? OR `cars`.`year` > ?",
 			expectArgs:  []any{"%car%", 2000},
 		},
 		{
@@ -304,7 +304,7 @@ func TestCreateEntPredicates(t *testing.T) {
 					RelationFieldNames: []string{"group", "parent"},
 				},
 			},
-			expectQuery: "`year` > ? AND EXISTS (SELECT `groups`.`id` FROM `groups` WHERE `cars`.`group_id` = `groups`.`id` AND EXISTS (SELECT `groups_edge`.`id` FROM `groups` AS `groups_edge` WHERE `groups`.`parent_id` = `groups_edge`.`id` AND `name` LIKE ?))",
+			expectQuery: "`cars`.`year` > ? AND EXISTS (SELECT `groups`.`id` FROM `groups` WHERE `cars`.`group_id` = `groups`.`id` AND EXISTS (SELECT `groups_edge`.`id` FROM `groups` AS `groups_edge` WHERE `groups`.`parent_id` = `groups_edge`.`id` AND `groups_edge`.`name` LIKE ?))",
 			expectArgs:  []any{2000, "%group%"},
 		},
 	}

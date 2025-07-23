@@ -46,6 +46,7 @@ type Confirmation struct {
 
 type ResetPassword struct {
 	*Confirmation
+
 	Password        string `json:"password"`
 	ConfirmPassword string `json:"confirm_password"`
 }

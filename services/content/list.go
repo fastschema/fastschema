@@ -10,7 +10,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/errors"
 )
 
-// Pagination is a struct that contains pagination info and the data
+// Pagination is a struct that contains pagination info and the data.
 type Pagination struct {
 	Total       uint             `json:"total"`
 	PerPage     uint             `json:"per_page"`
@@ -19,7 +19,7 @@ type Pagination struct {
 	Items       []*entity.Entity `json:"items"`
 }
 
-// NewPagination creates a new pagination struct
+// NewPagination creates a new pagination struct.
 func NewPagination(total, perPage, currentPage uint, items []*entity.Entity) *Pagination {
 	return &Pagination{
 		Total:       total,

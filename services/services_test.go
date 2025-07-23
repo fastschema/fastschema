@@ -36,6 +36,7 @@ func (a *testApp) Logger() logger.Logger                       { return nil }
 func (a *testApp) Roles() []*fs.Role                           { return nil }
 func (a *testApp) Resources() *fs.ResourcesManager             { return nil }
 func (a *testApp) SchemaBuilder() *schema.Builder              { return nil }
+func (a *testApp) SystemSchemas() []any                        { return fs.SystemSchemaTypes }
 func (a *testApp) UpdateCache(context.Context) error           { return nil }
 func (a *testApp) Mailer(...string) fs.Mailer                  { return nil }
 func (a *testApp) Mailers() []fs.Mailer                        { return nil }

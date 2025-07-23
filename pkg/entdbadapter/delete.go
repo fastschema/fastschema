@@ -2,6 +2,7 @@ package entdbadapter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql"
@@ -40,7 +41,7 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 
 	entAdapter, ok := m.client.(EntAdapter)
 	if !ok {
-		return 0, fmt.Errorf("client is not an ent adapter")
+		return 0, errors.New("client is not an ent adapter")
 	}
 
 	if len(m.predicates) > 0 {

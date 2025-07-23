@@ -17,7 +17,7 @@ func WithTx(client Client, c context.Context, fn func(tx Client) error) (err err
 	defer func() {
 		if err != nil {
 			if e := tx.Rollback(); e != nil {
-				err = fmt.Errorf("error while rolling back transaction: %w, original error: %v", e, err)
+				err = fmt.Errorf("error while rolling back transaction: %w, original error: %w", e, err)
 			}
 		} else {
 			if e := tx.Commit(); e != nil {

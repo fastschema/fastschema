@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -141,7 +142,7 @@ func (d *Adapter) SchemaBuilder() *schema.Builder {
 //	Others, it will use the types of the input to find the model
 func (d *Adapter) Model(model any) (db.Model, error) {
 	if model == nil {
-		return nil, fmt.Errorf("model is nil")
+		return nil, errors.New("model is nil")
 	}
 
 	if name, ok := model.(string); ok {

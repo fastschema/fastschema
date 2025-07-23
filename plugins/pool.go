@@ -14,6 +14,7 @@ import (
 
 type VM struct {
 	*goja.Runtime
+
 	poolKey string
 }
 
@@ -63,6 +64,7 @@ func (p *VMPool) Get() *VM {
 
 type VMPools struct {
 	sync.Mutex
+
 	pools map[string]*VMPool
 }
 

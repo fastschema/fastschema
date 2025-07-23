@@ -3,6 +3,7 @@ package entdbadapter
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -51,7 +52,7 @@ func NewEntClient(
 	)
 
 	if schemaBuilder == nil {
-		return nil, fmt.Errorf("schema builder is required")
+		return nil, errors.New("schema builder is required")
 	}
 
 	if db, err = sql.Open(config.Driver, CreateDBDSN(config)); err != nil {
@@ -77,7 +78,7 @@ func NewEntClient(
 
 	entAdapter, ok := adapter.(EntAdapter)
 	if !ok {
-		return nil, fmt.Errorf("invalid adapter")
+		return nil, errors.New("invalid adapter")
 	}
 
 	if config.LogQueries {
@@ -151,12 +152,12 @@ func (d *Adapter) Reload(
 
 			oldEntJunctionModel, ok := oldJunctionModel.(*Model)
 			if !ok {
-				return nil, fmt.Errorf("model is not an ent model")
+				return nil, errors.New("model is not an ent model")
 			}
 
 			newEntJunctionModel, ok := newJunctionModel.(*Model)
 			if !ok {
-				return nil, fmt.Errorf("model is not an ent model")
+				return nil, errors.New("model is not an ent model")
 			}
 
 			newJunctionTable := newEntJunctionModel.GetEntTable()

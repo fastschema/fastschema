@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	MSG_USER_SAVE_ERROR               = "error saving user: %w"
+	MSG_USER_SAVE_ERROR               = "error saving user"
 	MSG_USER_ACTIVATION_ERROR         = "error activating user"
 	MSG_INVALID_TOKEN                 = "invalid token"
 	MSG_TOKEN_EXPIRED                 = "token expired"

@@ -16,6 +16,7 @@ import (
 
 type BaseRcloneDisk struct {
 	rclonefs.Fs
+
 	Disk           string `json:"name"`
 	GetURL         func(string) string
 	UploadFilePath func(string) string

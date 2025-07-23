@@ -13,6 +13,7 @@ type AppLike interface {
 	Reload(ctx context.Context, migration *db.Migration) error
 	SchemaBuilder() *schema.Builder
 	Disk(names ...string) fs.Disk
+	SystemSchemas() []any
 }
 
 type SchemaService struct {

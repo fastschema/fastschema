@@ -174,7 +174,7 @@ func (a *App) prepareConfig() (err error) {
 	}
 
 	if a.config.BaseURL == "" {
-		a.config.BaseURL = fmt.Sprintf("http://localhost:%s", a.config.Port)
+		a.config.BaseURL = "http://localhost:" + a.config.Port
 	}
 
 	if a.config.DashURL == "" {
@@ -192,7 +192,7 @@ func (a *App) prepareConfig() (err error) {
 
 		a.startupMessages = append(
 			a.startupMessages,
-			fmt.Sprintf("APP_KEY is not set. A new key is generated and saved to %s", envFile),
+			"APP_KEY is not set. A new key is generated and saved to "+envFile,
 		)
 	}
 
@@ -249,10 +249,7 @@ func (a *App) createSetupPage() error {
 			setupToken,
 		)
 
-		a.startupMessages = append(a.startupMessages, fmt.Sprintf(
-			"Visit the following URL to setup the app: %s",
-			setupURL,
-		))
+		a.startupMessages = append(a.startupMessages, "Visit the following URL to setup the app: "+setupURL)
 	}
 
 	return nil
@@ -280,7 +277,7 @@ func (a *App) createDisks() (err error) {
 			Name:       "public",
 			Driver:     "local",
 			PublicPath: "/",
-			BaseURL:    fmt.Sprintf("%s/", a.config.BaseURL),
+			BaseURL:    a.config.BaseURL + "/",
 			Root:       a.publicDir,
 		}}
 	}
@@ -379,7 +376,7 @@ func (a *App) createAuthProviders() (err error) {
 func (a *App) createSchemaBuilder() (err error) {
 	if a.schemaBuilder, err = schema.NewBuilderFromDir(
 		a.schemasDir,
-		append(fs.SystemSchemaTypes, a.config.SystemSchemas...)...,
+		a.SystemSchemas()...,
 	); err != nil {
 		return err
 	}
@@ -424,7 +421,7 @@ func (a *App) createDBClient() (err error) {
 		a.config.DBConfig.Name = path.Join(a.dataDir, "fastschema.db")
 		a.startupMessages = append(
 			a.startupMessages,
-			fmt.Sprintf("Using default sqlite db file: %s", a.config.DBConfig.Name),
+			"Using default sqlite db file: "+a.config.DBConfig.Name,
 		)
 	}
 
@@ -489,7 +486,7 @@ func (a *App) createMailClients() (err error) {
 
 func (a *App) getAppDir() {
 	defer func() {
-		a.startupMessages = append(a.startupMessages, fmt.Sprintf("Using app directory: %s", a.dir))
+		a.startupMessages = append(a.startupMessages, "Using app directory: "+a.dir)
 	}()
 
 	if a.config.Dir == "" {

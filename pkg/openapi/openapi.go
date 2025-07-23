@@ -133,7 +133,7 @@ func (oas *OpenAPISpec) Schema(name string) *ogen.Schema {
 	return oas.ogenSpec.Components.Schemas[name]
 }
 
-// CreateResourcesForSchemas creates resources for the system schemas
+// CreateResourcesForSchemas creates resources for the system schemas.
 func (oas *OpenAPISpec) CreateResourcesForSchemas() {
 	if oas.config.SchemaBuilder == nil {
 		return

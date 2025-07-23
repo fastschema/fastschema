@@ -31,6 +31,7 @@ type RcloneS3Config struct {
 type RcloneS3 struct {
 	*fs.DiskBase
 	*BaseRcloneDisk
+
 	config *RcloneS3Config
 }
 

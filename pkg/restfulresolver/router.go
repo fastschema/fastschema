@@ -9,6 +9,7 @@ import (
 
 type Router struct {
 	*fiber.App
+
 	fiberGroup *fiber.Group
 	logger     logger.Logger
 }

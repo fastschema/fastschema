@@ -1,27 +1,52 @@
-version: "2"
+version: '2'
 
 run:
   concurrency: 4
-  go: "1.19"
+  go: '1.19'
 
 linters:
-  default: none
-  enable:
-    - asciicheck
-    - bodyclose
-    - dogsled
-    - errcheck
-    - funlen
-    - gocritic
-    - goheader
-    - gosec
-    - govet
-    - ineffassign
-    - misspell
-    - staticcheck
-    - unconvert
-    - unused
-    - whitespace
+  default: all
+  disable:
+    - containedctx
+    - contextcheck
+    - cyclop
+    - depguard
+    - dupl
+    - err113
+    - exhaustive
+    - exhaustruct
+    - forbidigo
+    - forcetypeassert
+    - funcorder
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocyclo
+    - godot
+    - inamedparam
+    - interfacebloat
+    - ireturn
+    - lll
+    - maintidx
+    - mnd
+    - nestif
+    - nilnil
+    - nlreturn
+    - noctx
+    - noinlineerr
+    - nonamedreturns
+    - prealloc
+    - recvcheck
+    - revive
+    - tagalign
+    - tagliatelle
+    - usestdlibvars
+    - varnamelen
+    - wastedassign
+    - wrapcheck
+    - wsl
+    - wsl_v5
   settings:
     dupl:
       threshold: 100
@@ -70,6 +95,7 @@ linters:
       - third_party$
       - builtin$
       - examples$
+      - _test\.go
 
 formatters:
   enable:

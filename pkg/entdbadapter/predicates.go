@@ -173,27 +173,27 @@ func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 	switch predicate.Operator {
 	case db.OpEQ:
 		return func(s *sql.Selector) *sql.Predicate {
-			return sql.EQ(columnWrap(predicate.Field), predicate.Value)
+			return sql.EQ(columnWrap(predicate.Field, s), predicate.Value)
 		}, nil
 	case db.OpNEQ:
 		return func(s *sql.Selector) *sql.Predicate {
-			return sql.NEQ(columnWrap(predicate.Field), predicate.Value)
+			return sql.NEQ(columnWrap(predicate.Field, s), predicate.Value)
 		}, nil
 	case db.OpGT:
 		return func(s *sql.Selector) *sql.Predicate {
-			return sql.GT(columnWrap(predicate.Field), predicate.Value)
+			return sql.GT(columnWrap(predicate.Field, s), predicate.Value)
 		}, nil
 	case db.OpGTE:
 		return func(s *sql.Selector) *sql.Predicate {
-			return sql.GTE(columnWrap(predicate.Field), predicate.Value)
+			return sql.GTE(columnWrap(predicate.Field, s), predicate.Value)
 		}, nil
 	case db.OpLT:
 		return func(s *sql.Selector) *sql.Predicate {
-			return sql.LT(columnWrap(predicate.Field), predicate.Value)
+			return sql.LT(columnWrap(predicate.Field, s), predicate.Value)
 		}, nil
 	case db.OpLTE:
 		return func(s *sql.Selector) *sql.Predicate {
-			return sql.LTE(columnWrap(predicate.Field), predicate.Value)
+			return sql.LTE(columnWrap(predicate.Field, s), predicate.Value)
 		}, nil
 	case db.OpLIKE:
 		stringValue, ok := predicate.Value.(string)
@@ -208,7 +208,7 @@ func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 		}
 
 		return func(s *sql.Selector) *sql.Predicate {
-			return sql.Like(columnWrap(predicate.Field), stringValue)
+			return sql.Like(columnWrap(predicate.Field, s), stringValue)
 		}, nil
 	case db.OpIN, db.OpNIN:
 		arrayValue, ok := predicate.Value.([]any)
@@ -224,12 +224,12 @@ func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 
 		return func(s *sql.Selector) *sql.Predicate {
 			op := utils.If(predicate.Operator == db.OpIN, sql.In, sql.NotIn)
-			return op(columnWrap(predicate.Field), arrayValue...)
+			return op(columnWrap(predicate.Field, s), arrayValue...)
 		}, nil
 	case db.OpNULL:
 		return func(s *sql.Selector) *sql.Predicate {
 			op := utils.If(predicate.Value == true, sql.IsNull, sql.NotNull)
-			return op(columnWrap(predicate.Field))
+			return op(columnWrap(predicate.Field, s))
 		}, nil
 	default:
 		return nil, fmt.Errorf("operator %s not supported", predicate.Operator)
