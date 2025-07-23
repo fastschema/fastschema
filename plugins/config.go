@@ -13,9 +13,10 @@ import (
 
 type ConfigActions struct {
 	*fs.Config `json:"config"`
-	app        AppLike
-	program    *Program
-	set        map[string]any
+
+	app     AppLike
+	program *Program
+	set     map[string]any
 }
 
 func NewConfigActions(app AppLike, program *Program, set map[string]any) *ConfigActions {

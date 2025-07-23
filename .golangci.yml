@@ -10,7 +10,6 @@ linters:
     - containedctx
     - contextcheck
     - cyclop
-    - godot
     - depguard
     - dupl
     - err113
@@ -24,16 +23,18 @@ linters:
     - gocognit
     - goconst
     - gocyclo
+    - godot
     - inamedparam
     - interfacebloat
     - ireturn
     - lll
-    - mnd
     - maintidx
+    - mnd
     - nestif
     - nilnil
     - nlreturn
     - noctx
+    - noinlineerr
     - nonamedreturns
     - prealloc
     - recvcheck
@@ -45,6 +46,7 @@ linters:
     - wastedassign
     - wrapcheck
     - wsl
+    - wsl_v5
   settings:
     dupl:
       threshold: 100

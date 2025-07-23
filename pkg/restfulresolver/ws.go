@@ -88,6 +88,7 @@ type BaseContext = Context
 
 type WSContext struct {
 	*BaseContext
+
 	wsClient *WSClient
 }
 

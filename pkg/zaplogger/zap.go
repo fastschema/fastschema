@@ -15,6 +15,7 @@ import (
 type ZapLogger struct {
 	*zap.Logger
 	logger.LogContext
+
 	config *logger.Config
 }
 
