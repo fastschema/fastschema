@@ -32,7 +32,10 @@ func (r *Result[T]) Value() (T, error) {
 }
 
 type Env[ArgType any] struct {
-	Context   context.Context              `expr:"$context"`
+	// TODO:
+	// Using 'any' instead of context.Context to avoid interface method checks by expr-lang/expr.
+	// The actual value passed is fs.Context which has additional methods beyond context.Context.
+	Context   any                          `expr:"$context"`
 	Args      ArgType                      `expr:"$args"`
 	DB        *DB                          `expr:"$db"`
 	Undefined *Undefined                   `expr:"$undefined"`

@@ -35,13 +35,14 @@ func TestScan(t *testing.T) {
 		ctx,
 		`SELECT
 			? as bool_column,
+			? as int_column,
 			? as int64_column,
 			? as uint64_column,
 			? as time_column
 		`,
 		[]any{
 			true,
-			1,
+			5,
 			int64(1),
 			uint64(1),
 			time.Now(),
@@ -54,6 +55,7 @@ func TestScan(t *testing.T) {
 	json := rows[0].String()
 
 	assert.Contains(t, json, `"bool_column":1`)
+	assert.Contains(t, json, `"int_column":5`)
 	assert.Contains(t, json, `"int64_column":1`)
 	assert.Contains(t, json, `"uint64_column":1`)
 	assert.Contains(t, json, `"time_column":`)

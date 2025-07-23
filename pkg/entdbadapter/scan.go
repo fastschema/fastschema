@@ -273,6 +273,12 @@ func columnAssignValue(
 		} else if v.Valid {
 			return v.Float64, nil
 		}
+	default:
+		if v, ok := value.(*any); !ok {
+			return nil, fieldTypeError("*any", value)
+		} else if v != nil {
+			return *v, nil
+		}
 	}
 
 	return nil, nil

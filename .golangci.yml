@@ -24,6 +24,7 @@ linters:
     - goconst
     - gocyclo
     - godot
+    - godox
     - inamedparam
     - interfacebloat
     - ireturn

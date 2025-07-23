@@ -11,7 +11,9 @@ import (
 	"github.com/fastschema/fastschema/schema"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "modernc.org/sqlite"
+
+	_ "github.com/ncruces/go-sqlite3/driver"
+	_ "github.com/ncruces/go-sqlite3/embed"
 )
 
 // SupportDrivers returns list of supported drivers.
