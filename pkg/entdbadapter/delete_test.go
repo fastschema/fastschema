@@ -24,7 +24,7 @@ func TestDeleteNodes(t *testing.T) {
 			Schema:     "user",
 			Predicates: []*db.Predicate{db.EQ("id", 1)},
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `users` WHERE `id` = ?")).
+				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `users` WHERE `users`.`id` = ?")).
 					WithArgs(1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
@@ -37,7 +37,7 @@ func TestDeleteNodes(t *testing.T) {
 				db.Like("name", "%test%"),
 			},
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `users` WHERE (`id` > ? AND `id` < ?) AND `name` LIKE ?")).
+				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `users` WHERE (`users`.`id` > ? AND `users`.`id` < ?) AND `users`.`name` LIKE ?")).
 					WithArgs(1, 10, "%test%").
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},

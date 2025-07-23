@@ -123,8 +123,7 @@ func (l *ZapLogger) Error(params ...any) {
 }
 
 func (l *ZapLogger) Errorf(msg string, params ...any) {
-	msg = fmt.Sprintf(msg, params...)
-	l.Error(msg)
+	l.Error(fmt.Errorf(msg, params...))
 }
 
 func (l *ZapLogger) DPanic(params ...any) {

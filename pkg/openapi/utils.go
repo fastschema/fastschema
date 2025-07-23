@@ -11,7 +11,7 @@ import (
 	"github.com/ogen-go/ogen"
 )
 
-// CreateParameters creates openapi parameters from app args
+// CreateParameters creates openapi parameters from app args.
 func CreateParameters(args fs.Args, params []string) ([]*ogen.Parameter, error) {
 	parameters := make([]*ogen.Parameter, 0, len(args))
 	for argName, arg := range args {
@@ -48,7 +48,7 @@ func CreateParameters(args fs.Args, params []string) ([]*ogen.Parameter, error) 
 	return parameters, nil
 }
 
-// MergeParameters merges two slices of parameters
+// MergeParameters merges two slices of parameters.
 func MergeParameters(first []*ogen.Parameter, second []*ogen.Parameter) []*ogen.Parameter {
 	result := make([]*ogen.Parameter, 0, len(first)+len(second))
 	result = append(result, first...)

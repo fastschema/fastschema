@@ -136,7 +136,7 @@ func Encrypt(stringToEncrypt string, key string) (string, error) {
 	}
 
 	ciphertext := aesGCM.Seal(nonce, nonce, plaintext, nil)
-	return fmt.Sprintf("%x", ciphertext), nil
+	return hex.EncodeToString(ciphertext), nil
 }
 
 func Decrypt(encryptedString string, key string) (string, error) {

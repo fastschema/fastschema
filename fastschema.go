@@ -78,6 +78,10 @@ func New(config *fs.Config) (_ *App, err error) {
 	return a, nil
 }
 
+func (a *App) SystemSchemas() []any {
+	return append(fs.SystemSchemaTypes, a.config.SystemSchemas...)
+}
+
 func (a *App) AddResource(resource *fs.Resource) {
 	a.resources.Add(resource)
 }
@@ -89,7 +93,6 @@ func (a *App) AddMiddlewares(middlewares ...fs.Middleware) {
 	)
 }
 
-// Resolve hooks
 func (a *App) OnPreResolve(middlewares ...fs.Middleware) {
 	a.config.Hooks.PreResolve = append(
 		a.config.Hooks.PreResolve,
@@ -104,7 +107,6 @@ func (a *App) OnPostResolve(middlewares ...fs.Middleware) {
 	)
 }
 
-// DB Query hooks
 func (a *App) OnPreDBQuery(hooks ...db.PreDBQuery) {
 	a.config.Hooks.DBHooks.PreDBQuery = append(
 		a.config.Hooks.DBHooks.PreDBQuery,
@@ -119,7 +121,6 @@ func (a *App) OnPostDBQuery(hooks ...db.PostDBQuery) {
 	)
 }
 
-// DB Exec hooks
 func (a *App) OnPreDBExec(hooks ...db.PreDBExec) {
 	a.config.Hooks.DBHooks.PreDBExec = append(
 		a.config.Hooks.DBHooks.PreDBExec,
@@ -134,7 +135,6 @@ func (a *App) OnPostDBExec(hooks ...db.PostDBExec) {
 	)
 }
 
-// DB Create hooks
 func (a *App) OnPreDBCreate(hooks ...db.PreDBCreate) {
 	a.config.Hooks.DBHooks.PreDBCreate = append(
 		a.config.Hooks.DBHooks.PreDBCreate,
@@ -149,7 +149,6 @@ func (a *App) OnPostDBCreate(hooks ...db.PostDBCreate) {
 	)
 }
 
-// DB Update hooks
 func (a *App) OnPreDBUpdate(hooks ...db.PreDBUpdate) {
 	a.config.Hooks.DBHooks.PreDBUpdate = append(
 		a.config.Hooks.DBHooks.PreDBUpdate,
@@ -164,7 +163,6 @@ func (a *App) OnPostDBUpdate(hooks ...db.PostDBUpdate) {
 	)
 }
 
-// DB Delete hooks
 func (a *App) OnPreDBDelete(hooks ...db.PreDBDelete) {
 	a.config.Hooks.DBHooks.PreDBDelete = append(
 		a.config.Hooks.DBHooks.PreDBDelete,
@@ -351,7 +349,7 @@ func (a *App) CreateOpenAPISpec(overrides ...bool) ([]byte, error) {
 }
 
 func (a *App) Start() error {
-	addr := fmt.Sprintf(":%s", a.config.Port)
+	addr := ":" + a.config.Port
 	if err := a.resources.Init(); err != nil {
 		return err
 	}

@@ -46,7 +46,7 @@ func (ss *SchemaService) Export(c fs.Context, schemasExport *SchemasExport) (any
 		}
 
 		// Create a zip entry for the file
-		zipFile, err := zipWriter.Create(fmt.Sprintf("%s.json", schema))
+		zipFile, err := zipWriter.Create(schema + ".json")
 		if err != nil {
 			return nil, err
 		}

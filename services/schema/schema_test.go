@@ -150,6 +150,10 @@ func (s *testApp) SchemaBuilder() *schema.Builder {
 	return s.sb
 }
 
+func (s *testApp) SystemSchemas() []any {
+	return fs.SystemSchemaTypes
+}
+
 func (s testApp) Disk(names ...string) fs.Disk {
 	return s.disks[0]
 }

@@ -1,6 +1,7 @@
 package restfulresolver
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -31,17 +32,17 @@ func NewWSClient(conn *websocket.Conn) *WSClient {
 	}
 }
 
-// ID returns the ID of the connection
+// ID returns the ID of the connection.
 func (c *WSClient) ID() string {
 	return c.id
 }
 
-// Close closes the connection without any error
+// Close closes the connection without any error.
 func (c *WSClient) Close(msgs ...string) error {
 	return c.CloseWithCode(fs.WSCloseNormalClosure, append(msgs, "")[0])
 }
 
-// CloseWithCode closes the connection with the given code and message
+// CloseWithCode closes the connection with the given code and message.
 func (c *WSClient) CloseWithCode(code fs.WSCloseType, msg string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -73,10 +74,10 @@ func (c *WSClient) Write(data []byte, messageTypes ...fs.WSMessageType) error {
 	return c.conn.WriteMessage(messageTypes[0].Int(), data)
 }
 
-// IsCloseNormal checks if the close error is a normal closure
+// IsCloseNormal checks if the close error is a normal closure.
 func (c *WSClient) IsCloseNormal(err error) bool {
-	wce, ok := err.(*fhws.CloseError)
-	if ok && utils.Contains(closeNormals, fs.WSCloseTypeFromInt(wce.Code)) {
+	var wce *fhws.CloseError
+	if errors.As(err, &wce) && utils.Contains(closeNormals, fs.WSCloseTypeFromInt(wce.Code)) {
 		return true
 	}
 

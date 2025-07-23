@@ -37,6 +37,7 @@ type App interface {
 	Name() string
 	Config() *Config
 	SchemaBuilder() *schema.Builder
+	SystemSchemas() []any
 	DB() db.Client
 	Resources() *ResourcesManager
 	Reload(ctx context.Context, migration *db.Migration) (err error)

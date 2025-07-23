@@ -34,7 +34,7 @@ func CreateMiddlewareRequestLog(statics []*fs.StaticFs) func(c *Context) error {
 
 	return func(c *Context) error {
 		for _, path := range ignoreLogPaths {
-			if strings.Contains(c.Path(), path) {
+			if strings.HasPrefix(c.Path(), path) {
 				return c.Next()
 			}
 		}
@@ -48,6 +48,7 @@ func CreateMiddlewareRequestLog(statics []*fs.StaticFs) func(c *Context) error {
 			"method":  c.Method(),
 			"path":    c.Path(),
 			"ip":      c.IP(),
+			"queries": c.Queries(),
 		}
 
 		if err != nil {

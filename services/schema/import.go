@@ -40,7 +40,7 @@ func (ss *SchemaService) Import(c fs.Context, _ any) (fs.Map, error) {
 	}
 
 	// get all schemas from directory
-	schemas, err := schema.GetSchemasFromDir(fmt.Sprintf("%s/", tmpDir))
+	schemas, err := schema.GetSchemasFromDir(tmpDir + "/")
 	if err != nil {
 		return nil, err
 	}

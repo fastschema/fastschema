@@ -31,7 +31,7 @@ func (p *Program) VerifyJsFunc(functionValue goja.Value) (string, error) {
 	if functionNameValue == nil {
 		functionNameValue = functionObject.Get("name")
 		if functionNameValue == nil {
-			return "", fmt.Errorf("[jsvm] function name is nil")
+			return "", errors.New("[jsvm] function name is nil")
 		}
 	}
 
@@ -95,7 +95,8 @@ func (p *Program) CallFunc(functionName string, set map[string]any, args ...any)
 	})...)
 
 	if err != nil {
-		if jserr, ok := err.(*goja.Exception); ok {
+		var jserr *goja.Exception
+		if errors.As(err, &jserr) {
 			return nil, fmt.Errorf("[jsvm] Exception: %s", jserr.String())
 		}
 

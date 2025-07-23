@@ -84,7 +84,7 @@ func main() {
 	// Add a resource for pre resolve hook
 	app.AddResource(fs.Get("/pre-resolve", func(c fs.Context, _ any) (any, error) {
 		custom := c.Local("custom").(string)
-		return fmt.Sprintf("Custom value from pre resolve hook: %s", custom), nil
+		return "Custom value from pre resolve hook: " + custom, nil
 	}, &fs.Meta{Public: true}))
 	// response: {"data":"This is a custom value from the pre resolve hook"}
 

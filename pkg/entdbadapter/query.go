@@ -3,6 +3,7 @@ package entdbadapter
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -32,9 +33,9 @@ func (q *Query) Options() *db.QueryOption {
 	return &db.QueryOption{
 		Limit:      q.limit,
 		Offset:     q.offset,
-		Columns:    q.fields,
+		Columns:    &q.fields,
 		Order:      q.order,
-		Predicates: q.predicates,
+		Predicates: &q.predicates,
 		Schema:     q.model.schema,
 	}
 }
@@ -78,7 +79,7 @@ func (q *Query) Count(ctx context.Context, options ...*db.QueryOption) (int, err
 
 	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
-		return 0, fmt.Errorf("client is not an ent adapter")
+		return 0, errors.New("client is not an ent adapter")
 	}
 
 	opts := q.Options()
@@ -143,7 +144,7 @@ func (q *Query) Only(ctx context.Context) (*entity.Entity, error) {
 	}
 
 	if len(entities) > 1 {
-		return nil, fmt.Errorf("more than one entity found")
+		return nil, errors.New("more than one entity found")
 	}
 
 	if len(entities) == 0 {
@@ -209,7 +210,7 @@ func (q *Query) Get(ctx context.Context) ([]*entity.Entity, error) {
 
 	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
-		return nil, fmt.Errorf("client is not an ent adapter")
+		return nil, errors.New("client is not an ent adapter")
 	}
 
 	builder := sql.Dialect(entAdapter.Driver().Dialect())
@@ -225,7 +226,11 @@ func (q *Query) Get(ctx context.Context) ([]*entity.Entity, error) {
 		if err != nil {
 			return nil, err
 		}
+		currentPredicate := q.querySpec.Predicate
 		q.querySpec.Predicate = func(s *sql.Selector) {
+			if currentPredicate != nil {
+				currentPredicate(s)
+			}
 			s.Where(sql.And(sqlPredicatesFn(s)...))
 		}
 	}
@@ -562,7 +567,7 @@ func (q *Query) loadOwnerEdges(
 }
 
 func fieldTypeError(fieldType string, fieldValue any) error {
-	return fmt.Errorf("unexpected type %T for field type %s", fieldValue, fieldType)
+	return fmt.Errorf("expected value of type '%s', got '%T'", fieldType, fieldValue)
 }
 
 func invalidFKError(edgeSchemaName, fkColumn string, id uint64, err error) error {

@@ -128,8 +128,7 @@ func TestCreateRowsScanValues(t *testing.T) {
 		{time.Time{}, new(time.Time)},
 	}
 
-	columns := []string{}
-	columnTypes := []SQLColumnType{}
+	columns := []SQLColumn{}
 	expected := []any{}
 
 	for _, testValue := range testValues {
@@ -139,8 +138,11 @@ func TestCreateRowsScanValues(t *testing.T) {
 		}
 
 		columnName, columnType, value := createSQLColumnType(testValue[0], dbTypeName)
-		columns = append(columns, columnName)
-		columnTypes = append(columnTypes, columnType)
+		columns = append(columns, SQLColumn{
+			Name:      columnName,
+			Type:      columnType,
+			FieldType: schema.FieldTypeFromReflectType(columnType.ScanType()),
+		})
 
 		if len(testValue) > 1 {
 			expected = append(expected, testValue[1])
@@ -149,7 +151,7 @@ func TestCreateRowsScanValues(t *testing.T) {
 		}
 	}
 
-	values := createRowsScanValues(columns, columnTypes)
+	values := rawRowsScanValues(columns)
 	assert.NotNil(t, values)
 
 	for i, e := range expected {

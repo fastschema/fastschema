@@ -23,7 +23,7 @@ func TestScanValues(t *testing.T) {
 	userSchema := &schema.Schema{}
 	assert.Nil(t, json.Unmarshal([]byte(testUserSchemaJSON), userSchema))
 	assert.NoError(t, userSchema.Init(false))
-	results := utils.Must(scanValues(userSchema, []string{
+	results := utils.Must(schemaScanValues(userSchema, []string{
 		"json_field",
 		"bytes_field",
 		"bool_field",
@@ -79,7 +79,7 @@ func TestAssignValues(t *testing.T) {
 	assert.NoError(t, userSchema.Init(false))
 	e := entity.New(1)
 
-	err := assignValues(userSchema, e, []string{"id", "name"}, []any{1})
+	err := schemaAssignValues(userSchema, e, []string{"id", "name"}, []any{1})
 	assert.Equal(t, "mismatch number of scan values: 1 != 2", err.Error())
 
 	type args struct {
@@ -103,7 +103,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "bool_field",
 			value:       true,
-			expectError: "unexpected type bool for field type Bool",
+			expectError: "expected value of type '*sql.NullBool', got 'bool'",
 		},
 		{
 			column:      "time_field",
@@ -113,7 +113,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "time_field",
 			value:       1,
-			expectError: "unexpected type int for field type Time",
+			expectError: "expected value of type '*sql.NullTime', got 'int'",
 		},
 		{
 			column: "json_field",
@@ -130,7 +130,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "json_field",
 			value:       1,
-			expectError: "unexpected type int for field type JSON",
+			expectError: "expected value of type '*[]byte', got 'int'",
 		},
 		{
 			column:      "uuid_field",
@@ -140,7 +140,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "uuid_field",
 			value:       1,
-			expectError: "unexpected type int for field type UUID",
+			expectError: "expected value of type '*uuid.UUID', got 'int'",
 		},
 		{
 			column:      "bytes_field",
@@ -150,7 +150,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "bytes_field",
 			value:       1,
-			expectError: "unexpected type int for field type Bytes",
+			expectError: "expected value of type '*[]byte', got 'int'",
 		},
 		{
 			column:      "enum_field",
@@ -160,7 +160,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "enum_field",
 			value:       "hello",
-			expectError: "unexpected type string for field type Enum",
+			expectError: "expected value of type '*sql.NullString', got 'string'",
 		},
 		{
 			column:      "string_field",
@@ -170,7 +170,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "string_field",
 			value:       "hello",
-			expectError: "unexpected type string for field type String",
+			expectError: "expected value of type '*sql.NullString', got 'string'",
 		},
 		{
 			column:      "text_field",
@@ -180,7 +180,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "text_field",
 			value:       "hello",
-			expectError: "unexpected type string for field type Text",
+			expectError: "expected value of type '*sql.NullString', got 'string'",
 		},
 		{
 			column:      "int8_field",
@@ -190,7 +190,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "int8_field",
 			value:       1,
-			expectError: "unexpected type int for field type Int8",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "int16_field",
@@ -200,7 +200,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "int16_field",
 			value:       1,
-			expectError: "unexpected type int for field type Int16",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "int32_field",
@@ -210,7 +210,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "int32_field",
 			value:       1,
-			expectError: "unexpected type int for field type Int32",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "int_field",
@@ -220,7 +220,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "int_field",
 			value:       1,
-			expectError: "unexpected type int for field type Int",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "int64_field",
@@ -230,7 +230,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "int64_field",
 			value:       1,
-			expectError: "unexpected type int for field type Int64",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "uint8_field",
@@ -240,7 +240,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "uint8_field",
 			value:       1,
-			expectError: "unexpected type int for field type Uint8",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "uint16_field",
@@ -250,7 +250,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "uint16_field",
 			value:       1,
-			expectError: "unexpected type int for field type Uint16",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "uint32_field",
@@ -260,7 +260,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "uint32_field",
 			value:       1,
-			expectError: "unexpected type int for field type Uint32",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "uint_field",
@@ -270,7 +270,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "uint_field",
 			value:       1,
-			expectError: "unexpected type int for field type Uint",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "uint64_field",
@@ -280,7 +280,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "uint64_field",
 			value:       1,
-			expectError: "unexpected type int for field type Uint64",
+			expectError: "expected value of type '*sql.NullInt64', got 'int'",
 		},
 		{
 			column:      "float32_field",
@@ -290,7 +290,7 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "float32_field",
 			value:       1,
-			expectError: "unexpected type int for field type Float32",
+			expectError: "expected value of type '*sql.NullFloat64', got 'int'",
 		},
 		{
 			column:      "float64_field",
@@ -300,14 +300,14 @@ func TestAssignValues(t *testing.T) {
 		{
 			column:      "float64_field",
 			value:       1,
-			expectError: "unexpected type int for field type Float64",
+			expectError: "expected value of type '*sql.NullFloat64', got 'int'",
 		},
 	}
 
 	for _, tt := range tests {
-		err := assignValues(userSchema, e, []string{tt.column}, []any{tt.value})
+		err := schemaAssignValues(userSchema, e, []string{tt.column}, []any{tt.value})
 		if tt.expectError != "" {
-			assert.Equal(t, tt.expectError, err.Error())
+			assert.Contains(t, err.Error(), tt.expectError)
 		} else {
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectValue, e.Get(tt.column))
@@ -335,7 +335,7 @@ func TestCount(t *testing.T) {
 				}
 			}`,
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(`users`.`id`) FROM `users` WHERE `id` > ?")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(`users`.`id`) FROM `users` WHERE `users`.`id` > ?")).
 					WithArgs(float64(1)).
 					WillReturnRows(mock.NewRows([]string{"count"}).AddRow(11))
 			},
@@ -351,7 +351,7 @@ func TestCount(t *testing.T) {
 			}`,
 			Column: "name",
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(`users`.`name`) FROM `users` WHERE `id` > ?")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(`users`.`name`) FROM `users` WHERE `users`.`id` > ?")).
 					WithArgs(float64(1)).
 					WillReturnRows(mock.NewRows([]string{"count"}).AddRow(11))
 			},
@@ -367,7 +367,7 @@ func TestCount(t *testing.T) {
 			}`,
 			Unique: true,
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(DISTINCT `users`.`id`) FROM `users` WHERE `id` > ?")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(DISTINCT `users`.`id`) FROM `users` WHERE `users`.`id` > ?")).
 					WithArgs(float64(1)).
 					WillReturnRows(mock.NewRows([]string{"count"}).AddRow(11))
 			},
@@ -384,7 +384,7 @@ func TestCount(t *testing.T) {
 			Column: "status",
 			Unique: true,
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(DISTINCT `users`.`status`) FROM `users` WHERE `id` > ?")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(DISTINCT `users`.`status`) FROM `users` WHERE `users`.`id` > ?")).
 					WithArgs(float64(1)).
 					WillReturnRows(mock.NewRows([]string{"count"}).AddRow(11))
 			},
@@ -426,7 +426,7 @@ func TestQuery(t *testing.T) {
 				}
 			}`,
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `age` > ?")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`age` > ?")).
 					WithArgs(float64(5)).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John"))
@@ -447,7 +447,7 @@ func TestQuery(t *testing.T) {
 			Offset: 20,
 			Order:  []string{"-id", "name"},
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cars` WHERE `name` LIKE ? ORDER BY `id` DESC, `name` ASC LIMIT 10 OFFSET 20")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cars` WHERE `cars`.`name` LIKE ? ORDER BY `id` DESC, `name` ASC LIMIT 10 OFFSET 20")).
 					WithArgs("%car%").
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "car1"))
@@ -511,7 +511,7 @@ func TestQuery(t *testing.T) {
 				}
 			}`,
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cars` WHERE `name` LIKE ? AND EXISTS (SELECT `users`.`id` FROM `users` WHERE `cars`.`owner_id` = `users`.`id` AND `users`.`id` IN (SELECT `groups_users`.`users` FROM `groups_users` JOIN `groups` AS `t1` ON `groups_users`.`groups` = `t1`.`id` WHERE `name` LIKE ?))")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cars` WHERE `cars`.`name` LIKE ? AND EXISTS (SELECT `users`.`id` FROM `users` WHERE `cars`.`owner_id` = `users`.`id` AND `users`.`id` IN (SELECT `groups_users`.`users` FROM `groups_users` JOIN `groups` AS `t1` ON `groups_users`.`groups` = `t1`.`id` WHERE `t1`.`name` LIKE ?))")).
 					WithArgs("%car%", "%admin%").
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "car1"))
@@ -531,7 +531,7 @@ func TestQuery(t *testing.T) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `pets` WHERE `owner_id` IN (?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `pets` WHERE `pets`.`owner_id` IN (?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
 						AddRow(1, "Pet 1", uint64(1)).
 						AddRow(2, "Pet 2", uint64(1)).
@@ -559,7 +559,7 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "Pet 1", uint64(1)).
 						AddRow(2, "Pet 2", uint64(1)).
 						AddRow(3, "Pet 3", uint64(2)))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `id` IN (?, ?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John").
 						AddRow(2, "Jane"))
@@ -590,7 +590,7 @@ func TestQuery(t *testing.T) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `nodes`.`id`, `nodes`.`name` FROM `nodes`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "Node 1"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `nodes` WHERE `parent_id` IN (?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `nodes` WHERE `nodes`.`parent_id` IN (?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "parent_id"}).
 						AddRow(2, "Node 2", uint64(1)).
 						AddRow(3, "Node 3", uint64(1)))
@@ -611,7 +611,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name", "parent_id"}).
 						AddRow(3, "Node 3", 1).
 						AddRow(4, "Node 4", 2))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `nodes` WHERE `id` IN (?, ?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `nodes` WHERE `nodes`.`id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "Node 1").
 						AddRow(2, "Node 2"))
@@ -630,7 +630,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John").
 						AddRow(2, "Jane"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cards` WHERE `owner_id` IN (?, ?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cards` WHERE `cards`.`owner_id` IN (?, ?)")).
 					WithArgs(1, 2).
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
 						AddRow(1, "1234", 1))
@@ -649,7 +649,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
 						AddRow(1, "1234", 1).
 						AddRow(2, "5678", 2))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `id` IN (?, ?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John"))
 			},
@@ -667,7 +667,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "Node 1").
 						AddRow(2, "Node 2"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `nodes` WHERE `prev_id` IN (?, ?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `nodes` WHERE `nodes`.`prev_id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "prev_id"}).
 						AddRow(2, "Node 2", 1))
 			},
@@ -685,7 +685,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name", "prev_id"}).
 						AddRow(1, "Node 1", nil).
 						AddRow(2, "Node 2", 1))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `nodes` WHERE `id` IN (?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `nodes` WHERE `nodes`.`id` IN (?)")).
 					WithArgs(1).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "Node 1"))
@@ -704,7 +704,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name", "spouse_id"}).
 						AddRow(1, "John", 2).
 						AddRow(2, "Jane", 1))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `id` IN (?, ?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?, ?)")).
 					WithArgs(2, 1).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "spouse_id"}).
 						AddRow(2, "Jane", 1).
@@ -862,7 +862,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John").
 						AddRow(2, "Jane"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `cards`.`id`, `cards`.`number`, `cards`.`owner_id` FROM `cards` WHERE `owner_id` IN (?, ?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `cards`.`id`, `cards`.`number`, `cards`.`owner_id` FROM `cards` WHERE `cards`.`owner_id` IN (?, ?)")).
 					WithArgs(1, 2).
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
 						AddRow(1, "1234", 1))
@@ -881,7 +881,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
 						AddRow(1, "1234", 1).
 						AddRow(2, "5678", 2))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name`, `users`.`age` FROM `users` WHERE `id` IN (?, ?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name`, `users`.`age` FROM `users` WHERE `users`.`id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "age"}).
 						AddRow(1, "John", 8))
 			},
@@ -903,7 +903,7 @@ func TestQuery(t *testing.T) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `pets`.`id`, `pets`.`name`, `pets`.`created_at`, `pets`.`owner_id` FROM `pets` WHERE `owner_id` IN (?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `pets`.`id`, `pets`.`name`, `pets`.`created_at`, `pets`.`owner_id` FROM `pets` WHERE `pets`.`owner_id` IN (?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "created_at", "owner_id"}).
 						AddRow(1, "Pet 1", createdAt, uint64(1)).
 						AddRow(2, "Pet 2", createdAt, uint64(1)).
@@ -932,7 +932,7 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "Pet 1", uint64(1)).
 						AddRow(2, "Pet 2", uint64(1)).
 						AddRow(3, "Pet 3", uint64(2)))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name`, `users`.`age` FROM `users` WHERE `id` IN (?, ?)")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name`, `users`.`age` FROM `users` WHERE `users`.`id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "age"}).
 						AddRow(1, "John", 5).
 						AddRow(2, "Jane", 8))
@@ -990,26 +990,26 @@ func TestFirstOnly(t *testing.T) {
 		Driver: "sqlmock",
 	}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 
-	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `name` = ? LIMIT 1")).
+	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ? LIMIT 1")).
 		WithArgs("user1").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}).
 			AddRow(1, "user1"))
-	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `name` = ? LIMIT 1")).
+	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ? LIMIT 1")).
 		WithArgs("user2").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}))
 
-	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `name` = ?")).
+	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ?")).
 		WithArgs("user3").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}).
 			AddRow(3, "user3"))
 
-	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `name` = ?")).
+	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ?")).
 		WithArgs("user4").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}).
 			AddRow(4, "user4").
 			AddRow(44, "user44"))
 
-	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `name` = ?")).
+	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ?")).
 		WithArgs("user5").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}))
 
@@ -1049,9 +1049,9 @@ func TestQueryOptions(t *testing.T) {
 	expected := &db.QueryOption{
 		Limit:      q.limit,
 		Offset:     q.offset,
-		Columns:    q.fields,
+		Columns:    &q.fields,
 		Order:      q.order,
-		Predicates: q.predicates,
+		Predicates: &q.predicates,
 		Schema:     q.model.schema,
 	}
 
@@ -1079,7 +1079,7 @@ func TestInvalidEntityArrayError(t *testing.T) {
 
 func TestScanValuesError(t *testing.T) {
 	schema := &schema.Schema{}
-	v, err := scanValues(schema, []string{"test"})
+	v, err := schemaScanValues(schema, []string{"test"})
 	assert.Equal(t, []any{new(any)}, v)
 	assert.NoError(t, err)
 }
