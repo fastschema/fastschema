@@ -189,21 +189,23 @@ func (q *Query) parseNestedFields(fields []string) ([]string, map[string][]strin
 	processedFields := []string{}
 
 	for _, originalField := range fields {
-		processField := originalField
-		if strings.Contains(originalField, ".") {
-			// Get the first part of the field path and the remaining path
-			dotIndex := strings.Index(originalField, ".")
-			if dotIndex == -1 || dotIndex == 0 || dotIndex == len(originalField)-1 {
-				return nil, nil, fmt.Errorf(`invalid column name %q`, originalField)
-			}
-
-			// The first part is the edge name, and the remaining path is the nested field
-			firstField := originalField[:dotIndex]
-			remainingPath := originalField[dotIndex+1:]
-			processField = firstField
-			// The remaining path will be processed recursively by the edge loader's Get() call
-			edgeColumns[firstField] = utils.Unique(append(edgeColumns[firstField], remainingPath))
+		if !strings.Contains(originalField, ".") {
+			processedFields = append(processedFields, originalField)
+			continue
 		}
+
+		// Get the first part of the field path and the remaining path
+		dotIndex := strings.Index(originalField, ".")
+		if dotIndex == 0 || dotIndex == len(originalField)-1 {
+			return nil, nil, fmt.Errorf(`invalid column name %q`, originalField)
+		}
+
+		// The first part is the edge name, and the remaining path is the nested field
+		firstField := originalField[:dotIndex]
+		remainingPath := originalField[dotIndex+1:]
+		processField := firstField
+		// The remaining path will be processed recursively by the edge loader's Get() call
+		edgeColumns[firstField] = utils.Unique(append(edgeColumns[firstField], remainingPath))
 
 		processedFields = append(processedFields, processField)
 	}
@@ -657,17 +659,17 @@ func (q *Query) loadOwnerEdges(
 		if strings.Contains(col, ".") {
 			nestedFields = append(nestedFields, col)
 			continue
-		} else {
-			column, err := edgeModel.Column(col)
-			if err != nil {
-				return fmt.Errorf("invalid column %q for model %s: %w", col, edgeModel.name, err)
-			}
+		}
 
-			if column.field.Type.IsRelationType() {
-				relationFields = append(relationFields, col)
-			} else {
-				directColumns = append(directColumns, col)
-			}
+		column, err := edgeModel.Column(col)
+		if err != nil {
+			return fmt.Errorf("invalid column %q for model %s: %w", col, edgeModel.name, err)
+		}
+
+		if column.field.Type.IsRelationType() {
+			relationFields = append(relationFields, col)
+		} else {
+			directColumns = append(directColumns, col)
 		}
 	}
 
