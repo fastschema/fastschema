@@ -84,7 +84,7 @@ func (m *Model) DBColumns() []string {
 func (m *Model) Query(predicates ...*db.Predicate) db.Querier {
 	defaultPredicates := []*db.Predicate{}
 
-	if m.client.Config().UseSoftDeletes {
+	if m.client != nil && m.client.Config().UseSoftDeletes {
 		defaultPredicates = append(defaultPredicates, db.Null("deleted_at", true))
 	}
 

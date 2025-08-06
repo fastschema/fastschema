@@ -41,7 +41,7 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 		)
 	}
 
-	if m.client.Config().UseSoftDeletes {
+	if m.client != nil && m.client.Config().UseSoftDeletes {
 		if affected, err = m.model.
 			Mutation().
 			Where(m.predicates...).

@@ -215,6 +215,7 @@ func (q *Query) parseNestedFields(fields []string) ([]string, map[string][]strin
 func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 	var selectFieldNames []string
 	directColumnNames := []string{q.model.entIDColumn.Name}
+	fkColumns := []string{}
 	edgeColumns := map[string][]string{}
 	allSelectsAreEdges := true
 	option := q.Options()
@@ -238,7 +239,7 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 				relation := column.field.Relation
 				q.withEdgesFields = append(q.withEdgesFields, column.field)
 				if relation.Type != schema.M2M && !relation.Owner {
-					directColumnNames = append(directColumnNames, relation.GetTargetFKColumn())
+					fkColumns = append(fkColumns, relation.GetTargetFKColumn())
 				}
 			} else if fieldName != q.model.entIDColumn.Name {
 				directColumnNames = append(directColumnNames, fieldName)
@@ -247,6 +248,7 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 		}
 	}
 
+	directColumnNames = append(directColumnNames, fkColumns...)
 	directColumnNames = utils.Unique(directColumnNames)
 	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
