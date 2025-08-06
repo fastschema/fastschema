@@ -29,6 +29,36 @@ type Query struct {
 	querySpec       *sqlgraph.QuerySpec
 }
 
+func (q *Query) WithTrashed() db.Querier {
+	if !q.client.Config().UseSoftDeletes {
+		return q
+	}
+
+	// if soft deletes are enabled, predicates[0] is always "deleted_at IS NULL"
+	// we need to remove it to allow querying trashed entities
+	if len(q.predicates) > 0 && q.predicates[0].Field == "deleted_at" {
+		q.predicates = q.predicates[1:]
+	}
+
+	return q
+}
+
+func (q *Query) OnlyTrashed() db.Querier {
+	if !q.client.Config().UseSoftDeletes {
+		return q
+	}
+
+	// if soft deletes are enabled, predicates[0] is always "deleted_at IS NULL"
+	// we need to replace it with "deleted_at IS NOT NULL"
+	if len(q.predicates) > 0 && q.predicates[0].Field == "deleted_at" {
+		q.predicates[0] = db.Null("deleted_at", false)
+	} else {
+		q.predicates = append([]*db.Predicate{db.Null("deleted_at", true)}, q.predicates...)
+	}
+
+	return q
+}
+
 func (q *Query) Options() *db.QueryOption {
 	return &db.QueryOption{
 		Limit:      q.limit,
@@ -154,9 +184,37 @@ func (q *Query) Only(ctx context.Context) (*entity.Entity, error) {
 	return entities[0], nil
 }
 
+func (q *Query) parseNestedFields(fields []string) ([]string, map[string][]string, error) {
+	edgeColumns := map[string][]string{}
+	processedFields := []string{}
+
+	for _, originalField := range fields {
+		processField := originalField
+		if strings.Contains(originalField, ".") {
+			// Get the first part of the field path and the remaining path
+			dotIndex := strings.Index(originalField, ".")
+			if dotIndex == -1 || dotIndex == 0 || dotIndex == len(originalField)-1 {
+				return nil, nil, fmt.Errorf(`invalid column name %q`, originalField)
+			}
+
+			// The first part is the edge name, and the remaining path is the nested field
+			firstField := originalField[:dotIndex]
+			remainingPath := originalField[dotIndex+1:]
+			processField = firstField
+			// The remaining path will be processed recursively by the edge loader's Get() call
+			edgeColumns[firstField] = utils.Unique(append(edgeColumns[firstField], remainingPath))
+		}
+
+		processedFields = append(processedFields, processField)
+	}
+
+	return utils.Unique(processedFields), edgeColumns, nil
+}
+
 // Get returns the list of entities that match the query.
-func (q *Query) Get(ctx context.Context) ([]*entity.Entity, error) {
-	columnNames := []string{}
+func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
+	selectFieldNames := []string{}
+	directColumnNames := []string{q.model.entIDColumn.Name}
 	edgeColumns := map[string][]string{}
 	allSelectsAreEdges := true
 	option := q.Options()
@@ -166,48 +224,30 @@ func (q *Query) Get(ctx context.Context) ([]*entity.Entity, error) {
 	}
 
 	if len(q.fields) > 0 {
-		columnNames = append(columnNames, q.model.entIDColumn.Name)
+		if selectFieldNames, edgeColumns, err = q.parseNestedFields(q.fields); err != nil {
+			return nil, err
+		}
 
-		for _, columnName := range q.fields {
-			if strings.Contains(columnName, ".") {
-				parts := strings.Split(columnName, ".")
-				if len(parts) != 2 {
-					return nil, fmt.Errorf(`invalid column name %q`, columnName)
-				}
-
-				columnName = parts[0]
-				edgeColumns[columnName] = append(edgeColumns[columnName], parts[1])
-			}
-
-			column, err := q.model.Column(columnName)
+		for _, fieldName := range selectFieldNames {
+			column, err := q.model.Column(fieldName)
 			if err != nil {
 				return nil, err
 			}
 
 			if column.field.Type.IsRelationType() {
-				existedEdgeFields := utils.Filter(q.withEdgesFields, func(f *schema.Field) bool {
-					return f.Name == column.field.Name
-				})
-
-				if len(existedEdgeFields) > 0 {
-					continue
-				}
-
 				relation := column.field.Relation
 				q.withEdgesFields = append(q.withEdgesFields, column.field)
 				if relation.Type != schema.M2M && !relation.Owner {
-					columnNames = append(columnNames, relation.GetTargetFKColumn())
+					directColumnNames = append(directColumnNames, relation.GetTargetFKColumn())
 				}
-				continue
-			}
-
-			if columnName != q.model.entIDColumn.Name {
-				columnNames = append(columnNames, columnName)
+			} else if fieldName != q.model.entIDColumn.Name {
+				directColumnNames = append(directColumnNames, fieldName)
 				allSelectsAreEdges = false
 			}
 		}
 	}
 
+	directColumnNames = utils.Unique(directColumnNames)
 	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
 		return nil, errors.New("client is not an ent adapter")
@@ -215,10 +255,10 @@ func (q *Query) Get(ctx context.Context) ([]*entity.Entity, error) {
 
 	builder := sql.Dialect(entAdapter.Driver().Dialect())
 	if !allSelectsAreEdges {
-		q.querySpec.Node.Columns = columnNames
+		q.querySpec.Node.Columns = directColumnNames
 	}
 	q.querySpec.From = builder.
-		Select(columnNames...).
+		Select(directColumnNames...).
 		From(builder.Table(q.model.schema.Namespace))
 
 	if len(q.predicates) > 0 {
@@ -231,6 +271,7 @@ func (q *Query) Get(ctx context.Context) ([]*entity.Entity, error) {
 			if currentPredicate != nil {
 				currentPredicate(s)
 			}
+
 			s.Where(sql.And(sqlPredicatesFn(s)...))
 		}
 	}
@@ -411,20 +452,46 @@ func (q *Query) loadEdgesM2M(
 	relation := field.Relation
 	conditionColumn := utils.If(relation.IsBidi(), relation.SchemaName, relation.BackRef.FieldName)
 	joinColumn := utils.If(relation.IsBidi(), relation.SchemaName, relation.FieldName)
+
+	// Separate direct columns from nested field paths and relation fields
+	directColumns := []string{}
+	nestedFields := []string{}
+	relationFields := []string{}
+
+	for _, col := range edgeColumns {
+		if strings.Contains(col, ".") {
+			nestedFields = append(nestedFields, col)
+			continue
+		}
+
+		column, err := edgeModel.Column(col)
+		if err != nil {
+			return fmt.Errorf("invalid column %q for model %s: %w", col, edgeModel.name, err)
+		}
+
+		if column.field.Type.IsRelationType() {
+			relationFields = append(relationFields, col)
+		} else {
+			directColumns = append(directColumns, col)
+		}
+	}
+
 	entEdgeQuery.querySpec.Predicate = func(s *sql.Selector) {
 		joinJuntion := sql.Table(relation.JunctionTable)
 		s.Join(joinJuntion).On(joinJuntion.C(joinColumn), s.C(edgeModel.entIDColumn.Name))
 		s.Where(sql.InValues(joinJuntion.C(conditionColumn), edgeIDs...))
 		s.Select(joinJuntion.C(relation.BackRef.FieldName) + " AS " + relation.BackRef.FieldName + "_id")
 
-		if len(edgeColumns) == 0 {
-			edgeColumns = edgeModel.DBColumns()
-		}
-		if !utils.Contains(edgeColumns, edgeModel.entIDColumn.Name) {
-			edgeColumns = append([]string{edgeModel.entIDColumn.Name}, edgeColumns...)
+		// Need complete entity data for recursive loading
+		if len(directColumns) == 0 || len(relationFields) > 0 || len(nestedFields) > 0 {
+			directColumns = edgeModel.DBColumns()
 		}
 
-		s.AppendSelect(utils.Map(edgeColumns, func(c string) string {
+		if !utils.Contains(directColumns, edgeModel.entIDColumn.Name) {
+			directColumns = append([]string{edgeModel.entIDColumn.Name}, directColumns...)
+		}
+
+		s.AppendSelect(utils.Map(directColumns, func(c string) string {
 			return s.C(c)
 		})...)
 		s.SetDistinct(false)
@@ -452,6 +519,16 @@ func (q *Query) loadEdgesM2M(
 	}
 
 	entEdgeQuery.order = []string{edgeModel.entIDColumn.Name}
+
+	// Add nested fields and relation fields to the edge query for recursive processing
+	for _, col := range nestedFields {
+		entEdgeQuery.fields = append(entEdgeQuery.fields, col)
+	}
+
+	for _, col := range relationFields {
+		entEdgeQuery.fields = append(entEdgeQuery.fields, col)
+	}
+
 	neighbors, err := entEdgeQuery.Get(ctx)
 	if err != nil {
 		return err
@@ -498,7 +575,44 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 		return nil
 	}
 
-	edgeQuery := edgeModel.Query().Select(edgeColumns...).Where(db.In(edgeModel.entIDColumn.Name, ids))
+	// Separate direct columns from nested field paths and relation fields
+	directColumns := []string{}
+	nestedFields := []string{}
+	relationFields := []string{}
+
+	for _, col := range edgeColumns {
+		if strings.Contains(col, ".") {
+			nestedFields = append(nestedFields, col)
+			continue
+		}
+
+		column, err := edgeModel.Column(col)
+		if err != nil {
+			return fmt.Errorf("invalid column %q for model %s: %w", col, edgeModel.name, err)
+		}
+
+		if column.field.Type.IsRelationType() {
+			relationFields = append(relationFields, col)
+		} else {
+			directColumns = append(directColumns, col)
+		}
+	}
+
+	edgeQuery := edgeModel.Query()
+	if len(directColumns) > 0 {
+		edgeQuery = edgeQuery.Select(directColumns...)
+	}
+
+	// Add nested fields and relation fields for recursive processing
+	if len(nestedFields) > 0 || len(relationFields) > 0 {
+		entEdgeQuery, ok := edgeQuery.(*Query)
+		if ok {
+			entEdgeQuery.fields = append(entEdgeQuery.fields, nestedFields...)
+			entEdgeQuery.fields = append(entEdgeQuery.fields, relationFields...)
+		}
+	}
+
+	edgeQuery = edgeQuery.Where(db.In(edgeModel.entIDColumn.Name, ids))
 	neighbors, err := edgeQuery.Get(ctx)
 	if err != nil {
 		return err
@@ -538,11 +652,48 @@ func (q *Query) loadOwnerEdges(
 		nodeids[entityID] = entity
 	}
 
-	if len(edgeColumns) > 0 && !utils.Contains(edgeColumns, fkColumn) {
-		edgeColumns = append(edgeColumns, fkColumn)
+	// Separate direct columns from nested field paths and relation fields
+	directColumns := []string{}
+	nestedFields := []string{}
+	relationFields := []string{}
+
+	for _, col := range edgeColumns {
+		if strings.Contains(col, ".") {
+			nestedFields = append(nestedFields, col)
+			continue
+		} else {
+			column, err := edgeModel.Column(col)
+			if err != nil {
+				return fmt.Errorf("invalid column %q for model %s: %w", col, edgeModel.name, err)
+			}
+
+			if column.field.Type.IsRelationType() {
+				relationFields = append(relationFields, col)
+			} else {
+				directColumns = append(directColumns, col)
+			}
+		}
 	}
 
-	neighbors, err := edgeModel.Query().Select(edgeColumns...).Where(db.In(fkColumn, fks)).Get(ctx)
+	if len(directColumns) > 0 && !utils.Contains(directColumns, fkColumn) {
+		directColumns = append(directColumns, fkColumn)
+	}
+
+	edgeQuery := edgeModel.Query()
+	if len(directColumns) > 0 {
+		edgeQuery = edgeQuery.Select(directColumns...)
+	}
+
+	// Add nested fields and relation fields for recursive processing
+	if len(nestedFields) > 0 || len(relationFields) > 0 {
+		entEdgeQuery, ok := edgeQuery.(*Query)
+		if ok {
+			entEdgeQuery.fields = append(entEdgeQuery.fields, nestedFields...)
+			entEdgeQuery.fields = append(entEdgeQuery.fields, relationFields...)
+		}
+	}
+
+	neighbors, err := edgeQuery.Where(db.In(fkColumn, fks)).Get(ctx)
 	if err != nil {
 		return err
 	}

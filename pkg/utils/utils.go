@@ -51,6 +51,19 @@ func Contains[T comparable](slice []T, element T) bool {
 	return false
 }
 
+func Unique[T comparable](slice []T) []T {
+	uniqueMap := make(map[T]struct{})
+	for _, e := range slice {
+		uniqueMap[e] = struct{}{}
+	}
+
+	var uniqueSlice []T
+	for e := range uniqueMap {
+		uniqueSlice = append(uniqueSlice, e)
+	}
+	return uniqueSlice
+}
+
 func SliceEqual[T comparable](slice1 []T, slice2 []T) bool {
 	if len(slice1) != len(slice2) {
 		return false
