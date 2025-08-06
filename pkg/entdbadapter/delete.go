@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -27,6 +28,28 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 
 	if err := runPreDBDeleteHooks(ctx, m.client, m.model.schema, m.predicates); err != nil {
 		return 0, err
+	}
+
+	runPostDBDeleteHooks := func() error {
+		return runPostDBDeleteHooks(
+			ctx,
+			m.client,
+			m.model.schema,
+			m.predicates,
+			originalEntities,
+			affected,
+		)
+	}
+
+	if m.client != nil && m.client.Config().UseSoftDeletes {
+		if affected, err = m.model.
+			Mutation().
+			Where(m.predicates...).
+			Update(ctx, entity.New().Set("deleted_at", time.Now())); err != nil {
+			return 0, fmt.Errorf("soft delete error: %w", err)
+		}
+
+		return affected, runPostDBDeleteHooks()
 	}
 
 	deleteSpec := &sqlgraph.DeleteSpec{
@@ -59,12 +82,5 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 		return 0, fmt.Errorf("delete nodes error: %w", err)
 	}
 
-	return affected, runPostDBDeleteHooks(
-		ctx,
-		m.client,
-		m.model.schema,
-		m.predicates,
-		originalEntities,
-		affected,
-	)
+	return affected, runPostDBDeleteHooks()
 }
