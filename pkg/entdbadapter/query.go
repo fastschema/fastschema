@@ -213,7 +213,7 @@ func (q *Query) parseNestedFields(fields []string) ([]string, map[string][]strin
 
 // Get returns the list of entities that match the query.
 func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
-	selectFieldNames := []string{}
+	var selectFieldNames []string
 	directColumnNames := []string{q.model.entIDColumn.Name}
 	edgeColumns := map[string][]string{}
 	allSelectsAreEdges := true
@@ -521,14 +521,8 @@ func (q *Query) loadEdgesM2M(
 	entEdgeQuery.order = []string{edgeModel.entIDColumn.Name}
 
 	// Add nested fields and relation fields to the edge query for recursive processing
-	for _, col := range nestedFields {
-		entEdgeQuery.fields = append(entEdgeQuery.fields, col)
-	}
-
-	for _, col := range relationFields {
-		entEdgeQuery.fields = append(entEdgeQuery.fields, col)
-	}
-
+	entEdgeQuery.fields = append(entEdgeQuery.fields, nestedFields...)
+	entEdgeQuery.fields = append(entEdgeQuery.fields, relationFields...)
 	neighbors, err := entEdgeQuery.Get(ctx)
 	if err != nil {
 		return err
