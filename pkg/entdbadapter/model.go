@@ -126,6 +126,7 @@ func (m *Model) Mutation() db.Mutator {
 		client:     m.client,
 		autoCommit: false,
 		model:      m,
+		predicates: &[]*db.Predicate{},
 	}
 }
 

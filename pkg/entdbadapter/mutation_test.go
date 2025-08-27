@@ -21,7 +21,7 @@ func TestMutation(t *testing.T) {
 	mutation.Where(db.LT("id", 1))
 
 	assert.Equal(t, 1, len(*mutation.predicates))
-	assert.Equal(t, []*db.Predicate{db.LT("id", 1)}, mutation.predicates)
+	assert.Equal(t, &[]*db.Predicate{db.LT("id", 1)}, mutation.predicates)
 
 	_, err := mutation.GetRelationEntityIDs("test", 1)
 	assert.Equal(t, "relation value for test.test is invalid", err.Error())
