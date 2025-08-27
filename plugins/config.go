@@ -191,7 +191,7 @@ func (p *ConfigActions) OnPreDBUpdate(hooks ...goja.Value) error {
 			p.app.OnPreDBUpdate(func(
 				c context.Context,
 				schema *schema.Schema,
-				predicates []*db.Predicate,
+				predicates *[]*db.Predicate,
 				updateData *entity.Entity,
 			) (err error) {
 				_, err = p.program.CallFunc(fnName, p.set, c, schema, predicates, updateData)
@@ -211,7 +211,7 @@ func (p *ConfigActions) OnPostDBUpdate(hooks ...goja.Value) error {
 			p.app.OnPostDBUpdate(func(
 				c context.Context,
 				schema *schema.Schema,
-				predicates []*db.Predicate,
+				predicates *[]*db.Predicate,
 				updateData *entity.Entity,
 				originalEntities []*entity.Entity,
 				affected int,
@@ -233,7 +233,7 @@ func (p *ConfigActions) OnPreDBDelete(hooks ...goja.Value) error {
 			p.app.OnPreDBDelete(func(
 				c context.Context,
 				schema *schema.Schema,
-				predicates []*db.Predicate,
+				predicates *[]*db.Predicate,
 			) (err error) {
 				_, err = p.program.CallFunc(fnName, p.set, c, schema, predicates)
 				return
@@ -252,7 +252,7 @@ func (p *ConfigActions) OnPostDBDelete(hooks ...goja.Value) error {
 			p.app.OnPostDBDelete(func(
 				c context.Context,
 				schema *schema.Schema,
-				predicates []*db.Predicate,
+				predicates *[]*db.Predicate,
 				originalEntities []*entity.Entity,
 				affected int,
 			) (err error) {
