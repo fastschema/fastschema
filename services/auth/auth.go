@@ -92,7 +92,12 @@ func (as *AuthService) AuthUserCan(c fs.Context, user *fs.User, resourceID strin
 			continue
 		}
 
-		if err := as.GetPermission(role.ID, resourceID).Check(c, exprConfig); err == nil {
+		permission := as.GetPermission(role.ID, resourceID)
+		if permission == nil {
+			continue
+		}
+
+		if err := permission.Check(c, exprConfig); err == nil {
 			return true
 		} else {
 			c.Logger().Error(err)
@@ -139,5 +144,5 @@ func (as *AuthService) GetPermission(roleID uint64, resource string) *fs.Permiss
 		}
 	}
 
-	return &fs.Permission{}
+	return nil
 }
