@@ -426,7 +426,7 @@ func TestUpdateNodesPreHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PreDBUpdate: []db.PreDBUpdate{
-						func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate, updateData *entity.Entity) error {
+						func(ctx context.Context, schema *schema.Schema, predicates *[]*db.Predicate, updateData *entity.Entity) error {
 							return errors.New("hook error")
 						},
 					},

@@ -19,7 +19,7 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 	if m.client != nil {
 		hooks = m.client.Hooks()
 		if len(hooks.PostDBDelete) > 0 {
-			originalEntities, err = m.model.Query(m.predicates...).Get(ctx)
+			originalEntities, err = m.model.Query(*m.predicates...).Get(ctx)
 			if err != nil {
 				return 0, err
 			}
@@ -44,7 +44,7 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 	if m.client != nil && m.client.Config().UseSoftDeletes {
 		if affected, err = m.model.
 			Mutation().
-			Where(m.predicates...).
+			Where(*m.predicates...).
 			Update(ctx, entity.New().Set("deleted_at", time.Now())); err != nil {
 			return 0, fmt.Errorf("soft delete error: %w", err)
 		}
@@ -67,8 +67,8 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 		return 0, errors.New("client is not an ent adapter")
 	}
 
-	if len(m.predicates) > 0 {
-		sqlPredicatesFn, err := createEntPredicates(entAdapter, m.model, m.predicates)
+	if len(*m.predicates) > 0 {
+		sqlPredicatesFn, err := createEntPredicates(entAdapter, m.model, *m.predicates)
 		if err != nil {
 			return 0, err
 		}

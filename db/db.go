@@ -61,14 +61,14 @@ type PostDBCreate = func(
 type PreDBUpdate = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*Predicate,
+	predicates *[]*Predicate,
 	updateData *entity.Entity,
 ) error
 
 type PostDBUpdate = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*Predicate,
+	predicates *[]*Predicate,
 	updateData *entity.Entity,
 	originalEntities []*entity.Entity,
 	affected int,
@@ -78,13 +78,13 @@ type PostDBUpdate = func(
 type PreDBDelete = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*Predicate,
+	predicates *[]*Predicate,
 ) error
 
 type PostDBDelete = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*Predicate,
+	predicates *[]*Predicate,
 	originalEntities []*entity.Entity,
 	affected int,
 ) error

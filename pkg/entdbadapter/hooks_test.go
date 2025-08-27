@@ -57,7 +57,7 @@ func TestHooksError(t *testing.T) {
 				func(
 					ctx context.Context,
 					schema *schema.Schema,
-					predicates []*db.Predicate,
+					predicates *[]*db.Predicate,
 					updateData *entity.Entity,
 				) error {
 					return assert.AnError

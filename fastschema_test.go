@@ -557,7 +557,7 @@ func TestFastschemaResources(t *testing.T) {
 	a.OnPreDBUpdate(func(
 		ctx context.Context,
 		schema *schema.Schema,
-		predicates []*db.Predicate,
+		predicates *[]*db.Predicate,
 		updateData *entity.Entity,
 	) error {
 		assert.NotNil(t, schema)
