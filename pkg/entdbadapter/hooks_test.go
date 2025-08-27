@@ -67,7 +67,7 @@ func TestHooksError(t *testing.T) {
 				func(
 					ctx context.Context,
 					schema *schema.Schema,
-					predicates []*db.Predicate,
+					predicates *[]*db.Predicate,
 					updateData *entity.Entity,
 					originalEntities []*entity.Entity,
 					affected int,
@@ -76,7 +76,7 @@ func TestHooksError(t *testing.T) {
 				},
 			},
 			PreDBDelete: []db.PreDBDelete{
-				func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate) error {
+				func(ctx context.Context, schema *schema.Schema, predicates *[]*db.Predicate) error {
 					return assert.AnError
 				},
 			},
@@ -84,7 +84,7 @@ func TestHooksError(t *testing.T) {
 				func(
 					ctx context.Context,
 					schema *schema.Schema,
-					predicates []*db.Predicate,
+					predicates *[]*db.Predicate,
 					originalEntities []*entity.Entity,
 					affected int,
 				) error {

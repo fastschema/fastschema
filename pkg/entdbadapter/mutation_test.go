@@ -15,12 +15,12 @@ func TestMutation(t *testing.T) {
 		model: &Model{
 			name: "test",
 		},
-		predicates: []*db.Predicate{},
+		predicates: &[]*db.Predicate{},
 	}
 
 	mutation.Where(db.LT("id", 1))
 
-	assert.Equal(t, 1, len(mutation.predicates))
+	assert.Equal(t, 1, len(*mutation.predicates))
 	assert.Equal(t, []*db.Predicate{db.LT("id", 1)}, mutation.predicates)
 
 	_, err := mutation.GetRelationEntityIDs("test", 1)

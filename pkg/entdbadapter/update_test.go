@@ -471,12 +471,12 @@ func TestUpdateNodesHookError(t *testing.T) {
 						func(
 							ctx context.Context,
 							schema *schema.Schema,
-							predicates []*db.Predicate,
+							predicates *[]*db.Predicate,
 							updateData *entity.Entity,
 							originalEntities []*entity.Entity,
 							affected int,
 						) error {
-							assert.Greater(t, len(predicates), 0)
+							assert.Greater(t, len(*predicates), 0)
 							assert.Greater(t, len(originalEntities), 0)
 							assert.Greater(t, affected, 0)
 							return errors.New("hook error")
