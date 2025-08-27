@@ -57,7 +57,7 @@ type RealtimeCreateData struct {
 
 type RealtimeUpdateData struct {
 	Schema           *schema.Schema
-	Predicates       []*db.Predicate
+	Predicates       *[]*db.Predicate
 	UpdateData       *entity.Entity
 	OriginalEntities []*entity.Entity
 	Affected         int
@@ -65,7 +65,7 @@ type RealtimeUpdateData struct {
 
 type RealtimeDeleteData struct {
 	Schema           *schema.Schema
-	Predicates       []*db.Predicate
+	Predicates       *[]*db.Predicate
 	OriginalEntities []*entity.Entity
 	Affected         int
 }
@@ -92,7 +92,7 @@ func (rs *RealtimeService) ContentCreateHook(
 func (rs *RealtimeService) ContentUpdateHook(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*db.Predicate,
+	predicates *[]*db.Predicate,
 	updateData *entity.Entity,
 	originalEntities []*entity.Entity,
 	affected int,
@@ -127,7 +127,7 @@ func (rs *RealtimeService) ContentUpdateHook(
 func (rs *RealtimeService) ContentDeleteHook(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*db.Predicate,
+	predicates *[]*db.Predicate,
 	originalEntities []*entity.Entity,
 	affected int,
 ) error {

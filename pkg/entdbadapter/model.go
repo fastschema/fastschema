@@ -82,10 +82,16 @@ func (m *Model) DBColumns() []string {
 
 // Query returns a new query builder for the model
 func (m *Model) Query(predicates ...*db.Predicate) db.Querier {
+	defaultPredicates := []*db.Predicate{}
+
+	if m.client != nil && m.client.Config().UseSoftDeletes {
+		defaultPredicates = append(defaultPredicates, db.Null("deleted_at", true))
+	}
+
 	q := &Query{
 		model:           m,
 		client:          m.client,
-		predicates:      predicates,
+		predicates:      append(defaultPredicates, predicates...),
 		entities:        []*entity.Entity{},
 		withEdgesFields: []*schema.Field{},
 	}
@@ -120,6 +126,7 @@ func (m *Model) Mutation() db.Mutator {
 		client:     m.client,
 		autoCommit: false,
 		model:      m,
+		predicates: &[]*db.Predicate{},
 	}
 }
 

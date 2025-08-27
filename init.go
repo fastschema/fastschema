@@ -399,6 +399,7 @@ func (a *App) createDBClient() (err error) {
 			Port:               utils.Env("DB_PORT"),
 			LogQueries:         utils.Env("DB_LOGGING", "false") == "true",
 			DisableForeignKeys: utils.Env("DB_DISABLE_FOREIGN_KEYS", "false") == "true",
+			UseSoftDeletes:     utils.Env("DB_USE_SOFT_DELETES", "false") == "true",
 			Logger:             a.Logger(),
 			MigrationDir:       a.migrationDir,
 			Hooks: func() *db.Hooks {

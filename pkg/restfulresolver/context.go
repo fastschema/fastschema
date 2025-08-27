@@ -14,8 +14,8 @@ import (
 )
 
 type Context struct {
-	*fiber.Ctx
-	*fasthttp.RequestCtx
+	*fiber.Ctx           `json:"-"`
+	*fasthttp.RequestCtx `json:"-"`
 
 	args     map[string]string
 	resource *fs.Resource

@@ -61,14 +61,14 @@ type PostDBCreate = func(
 type PreDBUpdate = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*Predicate,
+	predicates *[]*Predicate,
 	updateData *entity.Entity,
 ) error
 
 type PostDBUpdate = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*Predicate,
+	predicates *[]*Predicate,
 	updateData *entity.Entity,
 	originalEntities []*entity.Entity,
 	affected int,
@@ -78,13 +78,13 @@ type PostDBUpdate = func(
 type PreDBDelete = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*Predicate,
+	predicates *[]*Predicate,
 ) error
 
 type PostDBDelete = func(
 	ctx context.Context,
 	schema *schema.Schema,
-	predicates []*Predicate,
+	predicates *[]*Predicate,
 	originalEntities []*entity.Entity,
 	affected int,
 ) error
@@ -142,6 +142,7 @@ type Config struct {
 	MigrationDir       string        `json:"migration_dir"`
 	IgnoreMigration    bool          `json:"ignore_migration"`
 	DisableForeignKeys bool          `json:"disable_foreign_keys"`
+	UseSoftDeletes     bool          `json:"use_soft_deletes"`
 	Hooks              func() *Hooks `json:"-"`
 }
 
@@ -228,6 +229,10 @@ type QueryOption struct {
 }
 
 type Querier interface {
+	// Find with soft-deleted records.
+	WithTrashed() Querier
+	// Find only soft-deleted records.
+	OnlyTrashed() Querier
 	Where(predicates ...*Predicate) Querier
 	Limit(limit uint) Querier
 	Offset(offset uint) Querier

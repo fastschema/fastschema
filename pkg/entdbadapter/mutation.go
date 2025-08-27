@@ -15,13 +15,13 @@ type Mutation struct {
 	client                 db.Client
 	model                  *Model
 	updateSpec             *sqlgraph.UpdateSpec
-	predicates             []*db.Predicate
+	predicates             *[]*db.Predicate
 	shouldUpdateTimestamps bool
 }
 
 // Where adds a predicate to the mutation
 func (m *Mutation) Where(predicates ...*db.Predicate) db.Mutator {
-	m.predicates = append(m.predicates, predicates...)
+	*m.predicates = append(*m.predicates, predicates...)
 	return m
 }
 

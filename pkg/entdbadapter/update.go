@@ -36,7 +36,7 @@ func (m *Mutation) Update(ctx context.Context, e *entity.Entity) (affected int, 
 	if m.client != nil {
 		hooks := m.client.Hooks()
 		if len(hooks.PostDBUpdate) > 0 {
-			originalEntities, err = m.model.Query(m.predicates...).Select("id").Get(ctx)
+			originalEntities, err = m.model.Query(*m.predicates...).Select("id").Get(ctx)
 			if err != nil {
 				return 0, err
 			}
@@ -67,8 +67,8 @@ func (m *Mutation) Update(ctx context.Context, e *entity.Entity) (affected int, 
 		},
 	}
 
-	if len(m.predicates) > 0 {
-		sqlPredicatesFn, err := createEntPredicates(entAdapter, m.model, m.predicates)
+	if len(*m.predicates) > 0 {
+		sqlPredicatesFn, err := createEntPredicates(entAdapter, m.model, *m.predicates)
 		if err != nil {
 			return 0, err
 		}
