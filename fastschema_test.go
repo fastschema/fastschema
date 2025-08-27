@@ -557,7 +557,7 @@ func TestFastschemaResources(t *testing.T) {
 	a.OnPreDBUpdate(func(
 		ctx context.Context,
 		schema *schema.Schema,
-		predicates []*db.Predicate,
+		predicates *[]*db.Predicate,
 		updateData *entity.Entity,
 	) error {
 		assert.NotNil(t, schema)
@@ -568,7 +568,7 @@ func TestFastschemaResources(t *testing.T) {
 	a.OnPostDBUpdate(func(
 		ctx context.Context,
 		schema *schema.Schema,
-		predicates []*db.Predicate,
+		predicates *[]*db.Predicate,
 		updateData *entity.Entity,
 		originalEntities []*entity.Entity,
 		affected int,
@@ -579,7 +579,7 @@ func TestFastschemaResources(t *testing.T) {
 		return nil
 	})
 
-	a.OnPreDBDelete(func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate) error {
+	a.OnPreDBDelete(func(ctx context.Context, schema *schema.Schema, predicates *[]*db.Predicate) error {
 		assert.NotNil(t, schema)
 		return nil
 	})
@@ -587,7 +587,7 @@ func TestFastschemaResources(t *testing.T) {
 	a.OnPostDBDelete(func(
 		ctx context.Context,
 		schema *schema.Schema,
-		predicates []*db.Predicate,
+		predicates *[]*db.Predicate,
 		originalEntities []*entity.Entity,
 		affected int,
 	) error {

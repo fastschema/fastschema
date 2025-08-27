@@ -70,8 +70,8 @@ func TestDeleteNodesPreHookError(t *testing.T) {
 			Hooks: func() *db.Hooks {
 				return &db.Hooks{
 					PreDBDelete: []db.PreDBDelete{
-						func(ctx context.Context, schema *schema.Schema, predicates []*db.Predicate) error {
-							assert.Greater(t, len(predicates), 0)
+						func(ctx context.Context, schema *schema.Schema, predicates *[]*db.Predicate) error {
+							assert.Greater(t, len(*predicates), 0)
 							return errors.New("hook error")
 						},
 					},
@@ -112,11 +112,11 @@ func TestDeleteNodesHookError(t *testing.T) {
 						func(
 							ctx context.Context,
 							schema *schema.Schema,
-							predicates []*db.Predicate,
+							predicates *[]*db.Predicate,
 							originalEntities []*entity.Entity,
 							affected int,
 						) error {
-							assert.Greater(t, len(predicates), 0)
+							assert.Greater(t, len(*predicates), 0)
 							assert.Greater(t, len(originalEntities), 0)
 							assert.Greater(t, affected, 0)
 							return errors.New("hook error")
@@ -150,7 +150,7 @@ func TestDeleteInvalidOperator(t *testing.T) {
 			entIDColumn: &entSchema.Column{},
 		},
 		client: createMockAdapter(t),
-		predicates: []*db.Predicate{
+		predicates: &[]*db.Predicate{
 			{
 				Field:    "id",
 				Operator: db.OpInvalid,

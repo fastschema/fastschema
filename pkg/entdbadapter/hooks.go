@@ -138,7 +138,7 @@ func runPreDBUpdateHooks(
 	ctx context.Context,
 	client db.Client,
 	schema *schema.Schema,
-	predicates []*db.Predicate,
+	predicates *[]*db.Predicate,
 	updateData *entity.Entity,
 ) error {
 	if client == nil {
@@ -161,7 +161,7 @@ func runPostDBUpdateHooks(
 	ctx context.Context,
 	client db.Client,
 	schema *schema.Schema,
-	predicates []*db.Predicate,
+	predicates *[]*db.Predicate,
 	updateData *entity.Entity,
 	originalEntities []*entity.Entity,
 	affected int,
@@ -186,7 +186,7 @@ func runPreDBDeleteHooks(
 	ctx context.Context,
 	client db.Client,
 	schema *schema.Schema,
-	predicates []*db.Predicate,
+	predicates *[]*db.Predicate,
 ) error {
 	if client == nil {
 		return nil
@@ -208,7 +208,7 @@ func runPostDBDeleteHooks(
 	ctx context.Context,
 	client db.Client,
 	schema *schema.Schema,
-	predicates []*db.Predicate,
+	predicates *[]*db.Predicate,
 	originalEntities []*entity.Entity,
 	affected int,
 ) error {
