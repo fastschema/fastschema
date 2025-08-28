@@ -224,7 +224,7 @@ func TestPermission(t *testing.T) {
 	}
 
 	assert.Equal(t, 1, p.ID)
-	assert.Equal(t, 2, p.RoleID)
+	assert.Equal(t, uint64(2), p.RoleID)
 	assert.Equal(t, "resource", p.Resource)
 	assert.Equal(t, "value", p.Value)
 	assert.Equal(t, &fs.Role{Name: "role"}, p.Role)

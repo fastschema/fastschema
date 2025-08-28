@@ -61,7 +61,12 @@ func (e *Entity) UnmarshalJSON(data []byte) (err error) {
 
 				if len(nonEntityValues) > 0 {
 					e.Set(string(keyData), nonEntityValues)
+					return nil
 				}
+
+				// Fallback for empty array
+				e.Set(string(keyData), []any{})
+
 				/** End process array data **/
 
 				return nil

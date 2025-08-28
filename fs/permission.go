@@ -16,7 +16,7 @@ import (
 type Permission struct {
 	mu          sync.Mutex
 	ID          int                              `json:"id,omitempty"`
-	RoleID      int                              `json:"role_id,omitempty"`
+	RoleID      uint64                           `json:"role_id,omitempty"`
 	Resource    string                           `json:"resource,omitempty"`
 	Value       string                           `json:"value,omitempty"`
 	Modifier    string                           `json:"modifier,omitempty" fs:"type=json;optional"`
