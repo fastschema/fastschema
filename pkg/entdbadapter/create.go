@@ -17,11 +17,6 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ uint64, err 
 		return 0, fmt.Errorf("model or schema %s not found", m.model.name)
 	}
 
-	// Prevent creating an entity with an existing ID
-	if e.ID() != 0 {
-		return 0, fmt.Errorf("cannot create entity with existing ID %d", e.ID())
-	}
-
 	if err := m.model.schema.ApplySetters(ctx, e, expr.Config{
 		DB: func() expr.DBLike {
 			return m.client

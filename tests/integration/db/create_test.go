@@ -1,7 +1,6 @@
 package db
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -25,21 +24,6 @@ func DBCreateNode(t *testing.T, client db.Client) {
 				assert.Equal(t, e.ID(), entity.ID())
 				assert.Equal(t, "User 1", entity.Get("name"))
 				assert.Equal(t, uint(10), entity.Get("age"))
-			},
-		},
-		{
-			Name:        "fields/user-defined-id",
-			Schema:      "user",
-			ClearTables: []string{"users"},
-			InputJSON:   `{ "name": "User 2", "provider": "local", "username": "user2", "age": 20, "id": 2 }`,
-			WantErr:     true,
-			ExpectError: errors.New("cannot create entity with existing ID 2"),
-			Run: func(model db.Model, entity *entity.Entity) (*entity.Entity, error) {
-				createdEntityID, err := model.Create(Ctx(), entity)
-				if err != nil {
-					return nil, err
-				}
-				return model.Query(db.EQ("id", createdEntityID)).First(Ctx())
 			},
 		},
 		{

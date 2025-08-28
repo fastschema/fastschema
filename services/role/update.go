@@ -12,6 +12,20 @@ import (
 )
 
 func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
+	id := c.ArgInt("id")
+	updateRoleData, err := c.Payload()
+	if err != nil {
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	return rs.UpdateRole(c, uint64(id), updateRoleData)
+}
+
+func (rs *RoleService) UpdateRole(
+	c context.Context,
+	id uint64,
+	updateRoleData *entity.Entity,
+) (_ *fs.Role, err error) {
 	tx, err := rs.DB().Tx(c)
 	if err != nil {
 		return nil, errors.InternalServerError(err.Error())
@@ -19,26 +33,18 @@ func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
 
 	defer func() {
 		if err != nil {
-			rollback(tx, c)
+			err = fmt.Errorf("role update error: %w, rollback error: %w", err, tx.Rollback())
 			return
 		}
 
-		if err := tx.Commit(); err != nil {
-			rollback(tx, c)
+		if err = tx.Commit(); err != nil {
+			err = fmt.Errorf("commit error: %w, rollback error: %w", err, tx.Rollback())
 			err = errors.InternalServerError(err.Error())
 			return
 		}
 
-		if err = rs.UpdateCache(c); err != nil {
-			c.Logger().Error(err.Error())
-		}
+		err = rs.UpdateCache(c)
 	}()
-
-	id := c.ArgInt("id")
-	updateRoleData, err := c.Payload()
-	if err != nil {
-		return nil, errors.BadRequest(err.Error())
-	}
 
 	if err := updateRoleData.SetID(id); err != nil {
 		return nil, errors.BadRequest(err.Error())
@@ -152,6 +158,7 @@ func getPermissionsUpdate(
 			permissionsList = append(permissionsList, &fs.Permission{
 				Resource: permission.GetString("resource"),
 				Value:    value,
+				Modifier: permission.GetString("modifier", ""),
 			})
 		}
 	}
@@ -185,10 +192,4 @@ func getPermissionsUpdate(
 	}
 
 	return updatePermissions, addedPermissions, removedPermissions, nil
-}
-
-func rollback(tx db.Client, c fs.Context) {
-	if err := tx.Rollback(); err != nil {
-		c.Logger().Error(err.Error())
-	}
 }
