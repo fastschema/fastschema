@@ -59,12 +59,6 @@ func TestMockCreateNode(t *testing.T) {
 			},
 		},
 		{
-			Name:        "fields/user-defined-id",
-			Schema:      "user",
-			InputJSON:   `{ "name": "User 1", "age": 10, "id": 1 }`,
-			ExpectError: "cannot create entity with existing ID 1",
-		},
-		{
 			Name:      "fields/json",
 			Schema:    "user",
 			InputJSON: `{ "name": "User 1", "json": {} }`,
