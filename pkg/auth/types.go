@@ -20,12 +20,14 @@ type LoginResponse struct {
 type Register struct {
 	Username        string `json:"username"`
 	Email           string `json:"email"`
+	FirstName       string `json:"first_name"`
+	LastName        string `json:"last_name"`
 	Password        string `json:"password"`
 	ConfirmPassword string `json:"confirm_password"`
 }
 
 func (d *Register) Entity(activationMethod, provider string) *entity.Entity {
-	return entity.New().
+	e := entity.New().
 		Set("username", d.Username).
 		Set("email", d.Email).
 		Set("password", d.Password).
@@ -34,6 +36,16 @@ func (d *Register) Entity(activationMethod, provider string) *entity.Entity {
 		Set("roles", []*entity.Entity{
 			entity.New(fs.RoleUser.ID),
 		})
+
+	if d.FirstName != "" {
+		e.Set("first_name", d.FirstName)
+	}
+
+	if d.LastName != "" {
+		e.Set("last_name", d.LastName)
+	}
+
+	return e
 }
 
 type Recovery struct {

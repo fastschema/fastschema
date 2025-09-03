@@ -41,6 +41,24 @@ func (as *AuthService) Callback(c fs.Context, _ any) (u *LoginResponse, err erro
 	return as.createUser(c, user)
 }
 
+func (as *AuthService) Form(c fs.Context, _ any) (u *LoginResponse, err error) {
+	provider := as.GetAuthProvider(c.Arg("provider"))
+	if provider == nil {
+		return nil, errors.NotFound("invalid auth provider")
+	}
+
+	user, err := provider.Form(c)
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		return nil, errors.Unauthorized("invalid user")
+	}
+
+	return as.createUser(c, user)
+}
+
 func (as *AuthService) Me(c fs.Context, _ any) (*fs.User, error) {
 	if c.User() == nil {
 		return nil, errors.Unauthorized()

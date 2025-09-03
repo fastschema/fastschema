@@ -104,6 +104,10 @@ func (t testAuthProvider) Callback(c fs.Context) (*fs.User, error) {
 	}, nil
 }
 
+func (t testAuthProvider) Form(c fs.Context) (*fs.User, error) {
+	return nil, nil
+}
+
 func createTestApp(t *testing.T) *testApp {
 	schemaDir := utils.Must(os.MkdirTemp("", "schemas"))
 	utils.WriteFile(schemaDir+"/blog.json", `{

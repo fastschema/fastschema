@@ -84,8 +84,28 @@ func (as *GoogleAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 		ProviderID:       googleUser.ID,
 		ProviderUsername: googleUser.Email,
 
-		Username: strings.Split(googleUser.Email, "@gmail")[0],
+		Username: strings.Split(googleUser.Email, "@")[0],
 		Email:    googleUser.Email,
+		Active:   true,
+		RoleIDs:  []uint64{fs.RoleUser.ID},
+		Roles:    []*fs.Role{fs.RoleUser},
+	}, nil
+}
+
+func (as *GoogleAuthProvider) Form(c fs.Context) (_ *fs.User, err error) {
+	credential := c.FormValue("credential")
+	user, err := VerifyGoogleIDToken(context.Background(), credential, as.oauth.ClientID)
+	if err != nil {
+		return nil, errors.New("invalid id token: " + err.Error())
+	}
+
+	return &fs.User{
+		Provider:         as.Name(),
+		ProviderID:       user.Sub,
+		ProviderUsername: user.Email,
+
+		Username: strings.Split(user.Email, "@")[0],
+		Email:    user.Email,
 		Active:   true,
 		RoleIDs:  []uint64{fs.RoleUser.ID},
 		Roles:    []*fs.Role{fs.RoleUser},
