@@ -1,6 +1,7 @@
 package authservice
 
 import (
+	"strings"
 	"time"
 
 	"github.com/fastschema/fastschema/db"
@@ -94,8 +95,8 @@ func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*LoginRe
 			"provider":          providerUser.Provider,
 			"provider_id":       providerUser.ProviderID,
 			"provider_username": providerUser.ProviderUsername,
-			"username":          providerUser.Username,
-			"email":             providerUser.Email,
+			"username":          strings.TrimSpace(providerUser.Username),
+			"email":             strings.TrimSpace(providerUser.Email),
 			"active":            true,
 			"roles":             []*entity.Entity{entity.New(fs.RoleUser.ID)},
 		}); err != nil {
