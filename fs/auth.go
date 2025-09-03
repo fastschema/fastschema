@@ -11,6 +11,7 @@ type AuthProvider interface {
 	Name() string
 	Login(Context) (any, error)
 	Callback(Context) (*User, error)
+	Form(Context) (*User, error)
 }
 
 var (

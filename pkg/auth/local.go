@@ -75,6 +75,10 @@ func (la *LocalProvider) Callback(c fs.Context) (user *fs.User, err error) {
 	return nil, nil
 }
 
+func (la *LocalProvider) Form(c fs.Context) (_ *fs.User, err error) {
+	return nil, errors.New("not implemented")
+}
+
 func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation, error) {
 	if err := ValidateRegisterData(c, c.Logger(), la.db(), payload); err != nil {
 		return nil, err

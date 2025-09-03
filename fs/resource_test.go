@@ -84,25 +84,27 @@ func (c *testContext) Bind(input any) error {
 
 	return nil
 }
-func (c *testContext) Context() context.Context                { return nil }
-func (c *testContext) SetArg(string, string) string            { return "" }
-func (c *testContext) Args() map[string]string                 { return nil }
-func (c *testContext) Arg(string, ...string) string            { return "" }
-func (c *testContext) ArgInt(string, ...int) int               { return 0 }
-func (c *testContext) Body() ([]byte, error)                   { return nil, nil }
-func (c *testContext) Payload() (*entity.Entity, error)        { return nil, nil }
-func (c *testContext) Resource() *fs.Resource                  { return nil }
-func (c *testContext) AuthToken() string                       { return "" }
-func (c *testContext) Next() error                             { return nil }
-func (c *testContext) Result(...*fs.Result) *fs.Result         { return nil }
-func (c *testContext) Files() ([]*fs.File, error)              { return nil, nil }
-func (c *testContext) Redirect(string) error                   { return nil }
-func (c *testContext) WSClient() fs.WSClient                   { return nil }
-func (c *testContext) Deadline() (deadline time.Time, ok bool) { return time.Time{}, false }
-func (c *testContext) Done() <-chan struct{}                   { return nil }
-func (c *testContext) Err() error                              { return nil }
-func (c *testContext) Value(key any) any                       { return nil }
-func (c *testContext) IP() string                              { return "" }
+func (c *testContext) Context() context.Context                            { return nil }
+func (c *testContext) SetArg(string, string) string                        { return "" }
+func (c *testContext) Args() map[string]string                             { return nil }
+func (c *testContext) Arg(string, ...string) string                        { return "" }
+func (c *testContext) ArgInt(string, ...int) int                           { return 0 }
+func (c *testContext) Body() ([]byte, error)                               { return nil, nil }
+func (c *testContext) Payload() (*entity.Entity, error)                    { return nil, nil }
+func (c *testContext) BodyParser(out any) error                            { return nil }
+func (c *testContext) FormValue(key string, defaultValue ...string) string { return "" }
+func (c *testContext) Resource() *fs.Resource                              { return nil }
+func (c *testContext) AuthToken() string                                   { return "" }
+func (c *testContext) Next() error                                         { return nil }
+func (c *testContext) Result(...*fs.Result) *fs.Result                     { return nil }
+func (c *testContext) Files() ([]*fs.File, error)                          { return nil, nil }
+func (c *testContext) Redirect(string) error                               { return nil }
+func (c *testContext) WSClient() fs.WSClient                               { return nil }
+func (c *testContext) Deadline() (deadline time.Time, ok bool)             { return time.Time{}, false }
+func (c *testContext) Done() <-chan struct{}                               { return nil }
+func (c *testContext) Err() error                                          { return nil }
+func (c *testContext) Value(key any) any                                   { return nil }
+func (c *testContext) IP() string                                          { return "" }
 
 func TestNewResource(t *testing.T) {
 	r := fs.NewResource(
