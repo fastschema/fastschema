@@ -49,6 +49,10 @@ func (ta *TestAuthProvider) Callback(fs.Context) (*fs.User, error) {
 	return nil, nil
 }
 
+func (ta *TestAuthProvider) Form(fs.Context) (*fs.User, error) {
+	return nil, nil
+}
+
 func TestCreateAuthProvider(t *testing.T) {
 	invalidProvider, err := fs.CreateAuthProvider("invalidprovider", nil, "")
 	assert.Nil(t, invalidProvider)

@@ -73,6 +73,10 @@ func (as *AuthService) CreateResource(api *fs.Resource, authProviders map[string
 				Public: true,
 				Get:    "/callback",
 			}),
+			fs.NewResource("form", as.Form, &fs.Meta{
+				Public: true,
+				Post:   "/form",
+			}),
 		)
 	}
 }
