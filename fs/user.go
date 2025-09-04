@@ -11,16 +11,17 @@ import (
 type User struct {
 	_         any    `json:"-" fs:"label_field=username"`
 	ID        uint64 `json:"id,omitempty"`
-	Username  string `json:"username,omitempty"`
+	Username  string `json:"username,omitempty" fs:"optional"`
 	Email     string `json:"email,omitempty" fs:"optional"`
 	FirstName string `json:"first_name,omitempty" fs:"optional"`
 	LastName  string `json:"last_name,omitempty" fs:"optional"`
 	Password  string `json:"password,omitempty" fs:"optional" fs.setter:"$args.Exist && $args.Value != '' ? $hash($args.Value) : $undefined" fs.getter:"$context.Value('keeppassword') == 'true' ? $args.Value : $undefined"`
 
-	Active           bool   `json:"active,omitempty" fs:"optional"`
-	Provider         string `json:"provider,omitempty" fs:"optional"`
-	ProviderID       string `json:"provider_id,omitempty" fs:"optional"`
-	ProviderUsername string `json:"provider_username,omitempty" fs:"optional"`
+	Active               bool   `json:"active,omitempty" fs:"optional"`
+	Provider             string `json:"provider,omitempty" fs:"optional"`
+	ProviderID           string `json:"provider_id,omitempty" fs:"optional"`
+	ProviderUsername     string `json:"provider_username,omitempty" fs:"optional"`
+	ProviderProfileImage string `json:"provider_profile_image,omitempty" fs:"optional"`
 
 	RoleIDs []uint64 `json:"role_ids,omitempty"`
 	Roles   []*Role  `json:"roles,omitempty" fs.relation:"{'type':'m2m','schema':'role','field':'users','owner':false}"`
@@ -73,12 +74,15 @@ func (u *User) JwtClaim(key string, exps ...time.Time) (string, time.Time, error
 
 	claims := &UserJwtClaims{
 		User: &User{
-			ID:       u.ID,
-			Provider: u.Provider,
-			Username: u.Username,
-			Email:    u.Email,
-			Active:   u.Active,
-			RoleIDs:  u.RoleIDs,
+			ID:                   u.ID,
+			Provider:             u.Provider,
+			ProviderProfileImage: u.ProviderProfileImage,
+			Username:             u.Username,
+			FirstName:            u.FirstName,
+			LastName:             u.LastName,
+			Email:                u.Email,
+			Active:               u.Active,
+			RoleIDs:              u.RoleIDs,
 		},
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    utils.Env("APP_NAME"),

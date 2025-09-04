@@ -21,7 +21,7 @@ var (
 	MSG_INVALID_PASSWORD              = "invalid password"
 	MSG_INVALID_LOGIN_OR_PASSWORD     = "invalid login or password"
 	MSG_USER_IS_INACTIVE              = "user is inactive"
-	MSG_INVALID_REGISTRATION          = "username, email, password and confirm_password are required"
+	MSG_INVALID_REGISTRATION          = "email, password and confirm_password are required"
 	MSG_SEND_ACTIVATION_EMAIL_ERROR   = "error while sending activation email"
 	MSG_MAILER_NOT_SET                = "mailer is not set"
 	MSG_CHECKING_USER_ERROR           = "error checking user"
@@ -39,8 +39,18 @@ func CreateActivationEmail(la *LocalProvider, user *fs.User) (*fs.Mail, error) {
 		return nil, err
 	}
 
+	name := user.Username
+	if name == "" {
+		parts := strings.Split(user.Email, "@")
+		if len(parts) > 0 {
+			name = parts[0]
+		} else {
+			name = "there"
+		}
+	}
+
 	bodyLines := []string{
-		fmt.Sprintf(`Hey %s,`, user.Username),
+		fmt.Sprintf(`Hey %s,`, name),
 		fmt.Sprintf(`Welcome to %s! We’re excited to have you on board. To complete your account setup, please click the link below to verify your email address:`, la.appName()),
 		fmt.Sprintf(`<a href="%s">%s</a>`, activationURL, "Verify Email"),
 		`In case the link doesn’t work, please copy and paste the following URL in your browser:`,

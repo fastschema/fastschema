@@ -42,13 +42,16 @@ func (as *AuthService) Callback(c fs.Context, _ any) (u *LoginResponse, err erro
 	return as.createUser(c, user)
 }
 
-func (as *AuthService) Form(c fs.Context, _ any) (u *LoginResponse, err error) {
+func (as *AuthService) VerifyIDToken(
+	c fs.Context,
+	payload fs.IDToken,
+) (u *LoginResponse, err error) {
 	provider := as.GetAuthProvider(c.Arg("provider"))
 	if provider == nil {
 		return nil, errors.NotFound("invalid auth provider")
 	}
 
-	user, err := provider.Form(c)
+	user, err := provider.VerifyIDToken(c, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -102,11 +105,15 @@ func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*LoginRe
 		}
 
 		if providerUser.FirstName != "" {
-			userEntity["first_name"] = strings.TrimSpace(providerUser.FirstName)
+			userEntity["first_name"] = providerUser.FirstName
 		}
 
 		if providerUser.LastName != "" {
-			userEntity["last_name"] = strings.TrimSpace(providerUser.LastName)
+			userEntity["last_name"] = providerUser.LastName
+		}
+
+		if providerUser.ProviderProfileImage != "" {
+			userEntity["provider_profile_image"] = providerUser.ProviderProfileImage
 		}
 
 		if userExisted, err = db.Create[*fs.User](c, as.DB(), userEntity); err != nil {

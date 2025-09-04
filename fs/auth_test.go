@@ -49,7 +49,7 @@ func (ta *TestAuthProvider) Callback(fs.Context) (*fs.User, error) {
 	return nil, nil
 }
 
-func (ta *TestAuthProvider) Form(fs.Context) (*fs.User, error) {
+func (ta *TestAuthProvider) VerifyIDToken(c fs.Context, p fs.IDToken) (*fs.User, error) {
 	return nil, nil
 }
 

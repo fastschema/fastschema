@@ -65,7 +65,6 @@ func ValidateRegisterData(
 	payload *Register,
 ) (err error) {
 	if !utils.IsValidEmail(payload.Email) ||
-		payload.Username == "" ||
 		payload.Password == "" ||
 		payload.ConfirmPassword == "" {
 		return errors.UnprocessableEntity(MSG_INVALID_REGISTRATION)
@@ -76,10 +75,7 @@ func ValidateRegisterData(
 	}
 
 	existedUser, err := db.Builder[*fs.User](dbClient).
-		Where(db.Or(
-			db.EQ("username", payload.Username),
-			db.EQ("email", payload.Email),
-		)).
+		Where(db.EQ("email", payload.Email)).
 		Select("id").
 		First(c)
 

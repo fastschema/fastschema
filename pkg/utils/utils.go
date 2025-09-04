@@ -492,6 +492,8 @@ func SendRequest[T any](method, url string, headers map[string]string, requestBo
 		return t, err
 	}
 
+	fmt.Println(string(body))
+
 	if err := json.Unmarshal(body, &t); err != nil {
 		return t, err
 	}

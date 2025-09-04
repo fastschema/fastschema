@@ -74,9 +74,9 @@ func (as *AuthService) CreateResource(api *fs.Resource, authProviders map[string
 				Get:    "/callback",
 				Post:   "/callback",
 			}),
-			fs.NewResource("form", as.Form, &fs.Meta{
+			fs.NewResource("verify_idtoken", as.VerifyIDToken, &fs.Meta{
 				Public: true,
-				Post:   "/form",
+				Post:   "/verify_idtoken",
 			}),
 		)
 	}
