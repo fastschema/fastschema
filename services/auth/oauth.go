@@ -42,10 +42,7 @@ func (as *AuthService) Callback(c fs.Context, _ any) (u *LoginResponse, err erro
 	return as.createUser(c, user)
 }
 
-func (as *AuthService) VerifyIDToken(
-	c fs.Context,
-	payload fs.IDToken,
-) (u *LoginResponse, err error) {
+func (as *AuthService) VerifyIDToken(c fs.Context, payload fs.IDToken) (u *LoginResponse, err error) {
 	provider := as.GetAuthProvider(c.Arg("provider"))
 	if provider == nil {
 		return nil, errors.NotFound("invalid auth provider")
