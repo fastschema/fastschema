@@ -47,8 +47,9 @@ func NewGoogleAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, 
 		},
 	}
 
-	if config["access_token_url"] != "" {
-		googleAuthProvider.oauth.Endpoint.TokenURL = fs.MapValue(config, "access_token_url", "")
+	accessTokenUrl := fs.MapValue(config, "access_token_url", "")
+	if accessTokenUrl != "" {
+		googleAuthProvider.oauth.Endpoint.TokenURL = accessTokenUrl
 	}
 
 	if googleAuthProvider.userInfoURL == "" {

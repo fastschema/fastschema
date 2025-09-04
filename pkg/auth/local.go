@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
@@ -169,15 +170,16 @@ func (la *LocalProvider) SendActivationLink(c fs.Context, data *Confirmation) (*
 }
 
 func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (_ *LoginResponse, err error) {
-	if payload == nil || payload.Login == "" || payload.Password == "" {
+	if payload == nil || strings.TrimSpace(payload.Login) == "" || payload.Password == "" {
 		return nil, errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
 	}
 
+	login := strings.TrimSpace(payload.Login)
 	c.Local("keeppassword", "true")
 	user, err := db.Builder[*fs.User](la.db()).
 		Where(db.Or(
-			db.EQ("username", payload.Login),
-			db.EQ("email", payload.Login),
+			db.EQ("username", login),
+			db.EQ("email", login),
 		)).
 		Select(
 			"id",

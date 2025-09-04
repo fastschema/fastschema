@@ -1,6 +1,7 @@
 package authservice
 
 import (
+	"strings"
 	"time"
 
 	"github.com/fastschema/fastschema/db"
@@ -90,15 +91,25 @@ func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*LoginRe
 		}
 
 		// The error is not found, create a new user
-		if userExisted, err = db.Create[*fs.User](c, as.DB(), fs.Map{
+		userEntity := fs.Map{
 			"provider":          providerUser.Provider,
 			"provider_id":       providerUser.ProviderID,
 			"provider_username": providerUser.ProviderUsername,
-			"username":          providerUser.Username,
-			"email":             providerUser.Email,
+			"username":          strings.TrimSpace(providerUser.Username),
+			"email":             strings.TrimSpace(providerUser.Email),
 			"active":            true,
 			"roles":             []*entity.Entity{entity.New(fs.RoleUser.ID)},
-		}); err != nil {
+		}
+
+		if providerUser.FirstName != "" {
+			userEntity["first_name"] = strings.TrimSpace(providerUser.FirstName)
+		}
+
+		if providerUser.LastName != "" {
+			userEntity["last_name"] = strings.TrimSpace(providerUser.LastName)
+		}
+
+		if userExisted, err = db.Create[*fs.User](c, as.DB(), userEntity); err != nil {
 			return nil, err
 		}
 
