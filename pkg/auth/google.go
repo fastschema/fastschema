@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"time"
 
+	"cloud.google.com/go/auth/credentials/idtoken"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"golang.org/x/oauth2"
@@ -14,11 +15,38 @@ import (
 
 const ProviderGoogle = "google"
 
-type GoogleUserResponse struct {
-	ID      string `json:"id"`
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Picture string `json:"picture"`
+type GoogleUser struct {
+	Issuer    string    `json:"iss"`
+	Audience  string    `json:"aud"`
+	ExpiresAt time.Time `json:"exp"`
+	IssuedAt  time.Time `json:"iat"`
+
+	ID            string `json:"id"` // Using token Subject as ID
+	Email         string `json:"email"`
+	Name          string `json:"name"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Locale        string `json:"locale"`
+	Picture       string `json:"picture"`
+	EmailVerified bool   `json:"email_verified"`
+	HD            string `json:"hd"`
+}
+
+func (gu *GoogleUser) ToFSUser() *fs.User {
+	return &fs.User{
+		Provider:             ProviderGoogle,
+		ProviderID:           gu.ID,
+		ProviderUsername:     gu.Email,
+		ProviderProfileImage: gu.Picture,
+
+		Username:  gu.Email,
+		Email:     gu.Email,
+		FirstName: gu.GivenName,
+		LastName:  gu.FamilyName,
+		Active:    true,
+		RoleIDs:   []uint64{fs.RoleUser.ID},
+		Roles:     []*fs.Role{fs.RoleUser},
+	}
 }
 
 type GoogleAuthProvider struct {
@@ -80,46 +108,69 @@ func (as *GoogleAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 		return nil, err
 	}
 
-	return &fs.User{
-		Provider:         as.Name(),
-		ProviderID:       googleUser.ID,
-		ProviderUsername: googleUser.Email,
-
-		Username: strings.Split(googleUser.Email, "@")[0],
-		Email:    googleUser.Email,
-		Active:   true,
-		RoleIDs:  []uint64{fs.RoleUser.ID},
-		Roles:    []*fs.Role{fs.RoleUser},
-	}, nil
+	return googleUser.ToFSUser(), nil
 }
 
-func (as *GoogleAuthProvider) Form(c fs.Context) (_ *fs.User, err error) {
-	credential := c.FormValue("credential")
-	user, err := VerifyGoogleIDToken(context.Background(), credential, as.oauth.ClientID)
-	if err != nil {
-		return nil, errors.New("invalid id token: " + err.Error())
+func (as *GoogleAuthProvider) VerifyIDToken(c fs.Context, t fs.IDToken) (_ *fs.User, err error) {
+	if t.IDToken == "" {
+		return nil, errors.New("id token is required")
 	}
 
-	return &fs.User{
-		Provider:         as.Name(),
-		ProviderID:       user.Sub,
-		ProviderUsername: user.Email,
+	payload, err := idtoken.Validate(c, t.IDToken, as.oauth.ClientID)
+	if err != nil {
+		c.Logger().Errorf("invalid id token: %v", err)
+		return nil, errors.New("invalid id token")
+	}
 
-		Username: strings.Split(user.Email, "@")[0],
-		Email:    user.Email,
-		Active:   true,
-		RoleIDs:  []uint64{fs.RoleUser.ID},
-		Roles:    []*fs.Role{fs.RoleUser},
-	}, nil
+	// Map standard fields
+	googleUser := &GoogleUser{
+		ID: payload.Subject,
+		// Issuer:    payload.Issuer,
+		// Audience:  payload.Audience,
+		// ExpiresAt: time.Unix(payload.Expires, 0),
+		// IssuedAt:  time.Unix(payload.IssuedAt, 0),
+	}
+
+	if c := payload.Claims; c != nil {
+		// if v, ok := c["hd"].(string); ok {
+		// 	user.HD = v
+		// }
+
+		// if v, ok := c["email_verified"].(bool); ok {
+		// 	user.EmailVerified = v
+		// }
+
+		// if v, ok := c["name"].(string); ok {
+		// 	user.Name = v
+		// }
+
+		if v, ok := c["email"].(string); ok {
+			googleUser.Email = v
+		}
+
+		if v, ok := c["given_name"].(string); ok {
+			googleUser.GivenName = v
+		}
+
+		if v, ok := c["family_name"].(string); ok {
+			googleUser.FamilyName = v
+		}
+
+		if v, ok := c["picture"].(string); ok {
+			googleUser.Picture = v
+		}
+	}
+
+	return googleUser.ToFSUser(), nil
 }
 
-func (as *GoogleAuthProvider) getUser(code string) (*GoogleUserResponse, error) {
+func (as *GoogleAuthProvider) getUser(code string) (*GoogleUser, error) {
 	token, err := as.oauth.Exchange(context.Background(), code)
 	if err != nil {
 		return nil, fmt.Errorf("google auth code exchange error: %w", err)
 	}
 
-	userResponse, err := utils.SendRequest[GoogleUserResponse](
+	userResponse, err := utils.SendRequest[GoogleUser](
 		"GET",
 		as.userInfoURL+token.AccessToken,
 		map[string]string{},

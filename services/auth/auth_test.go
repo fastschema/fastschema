@@ -104,7 +104,7 @@ func (t testAuthProvider) Callback(c fs.Context) (*fs.User, error) {
 	}, nil
 }
 
-func (t testAuthProvider) Form(c fs.Context) (*fs.User, error) {
+func (t testAuthProvider) VerifyIDToken(c fs.Context, p fs.IDToken) (*fs.User, error) {
 	return nil, nil
 }
 
