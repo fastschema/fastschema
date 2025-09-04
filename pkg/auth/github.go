@@ -109,7 +109,7 @@ func (ga *GithubAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 	}, nil
 }
 
-func (ga *GithubAuthProvider) Form(c fs.Context) (_ *fs.User, err error) {
+func (ga *GithubAuthProvider) VerifyIDToken(c fs.Context, t fs.IDToken) (_ *fs.User, err error) {
 	return nil, errors.New("not implemented")
 }
 
