@@ -26,6 +26,7 @@ var (
 	MSG_MAILER_NOT_SET                = "mailer is not set"
 	MSG_CHECKING_USER_ERROR           = "error checking user"
 	MSG_USER_EXISTS                   = "user already exists"
+	MSG_EXISTING_USER_WITH_EMAIL      = "Looks like you already have an account with this email. Please log in using your existing sign-in method, or try signing up with a different email."
 
 	ERR_SAVE_USER     = errors.InternalServerError(MSG_USER_SAVE_ERROR)
 	ERR_INVALID_TOKEN = errors.BadRequest(MSG_INVALID_TOKEN)

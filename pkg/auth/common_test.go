@@ -280,7 +280,7 @@ func TestValidateRegisterData(t *testing.T) {
 					ConfirmPassword: "password",
 				},
 			},
-			wantErr: auth.MSG_USER_EXISTS,
+			wantErr: auth.MSG_EXISTING_USER_WITH_EMAIL,
 		},
 		{
 			name: "successful validation",

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 	jwt "github.com/golang-jwt/jwt/v4"
 )
 
@@ -30,6 +31,34 @@ type User struct {
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+}
+
+func (u User) Schema() *schema.Schema {
+	return &schema.Schema{
+		Fields: []*schema.Field{},
+		DB: &schema.SchemaDB{
+			Indexes: []*schema.SchemaDBIndex{
+				// unique index on provider + provider_id
+				{
+					Name:    "idx_user_provider_provider_id",
+					Unique:  true,
+					Columns: []string{"provider", "provider_id"},
+				},
+				// unique index on username
+				{
+					Name:    "idx_user_username",
+					Unique:  true,
+					Columns: []string{"username"},
+				},
+				// unique index on email
+				{
+					Name:    "idx_user_email",
+					Unique:  true,
+					Columns: []string{"email"},
+				},
+			},
+		},
+	}
 }
 
 // UserJwtClaims is a struct that contains the user jwt claims
