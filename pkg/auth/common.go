@@ -74,7 +74,7 @@ func ValidateRegisterData(
 		return errors.BadRequest(MSG_INVALID_PASSWORD)
 	}
 
-	existedUser, err := db.Builder[*fs.User](dbClient).
+	existingUser, err := db.Builder[*fs.User](dbClient).
 		Where(db.EQ("email", payload.Email)).
 		Select("id").
 		First(c)
@@ -84,8 +84,12 @@ func ValidateRegisterData(
 		return errors.BadRequest(MSG_CHECKING_USER_ERROR)
 	}
 
-	if existedUser != nil {
-		return errors.BadRequest(MSG_USER_EXISTS)
+	if existingUser != nil {
+		msg := MSG_USER_EXISTS
+		if existingUser.Provider != ProviderLocal {
+			msg = MSG_EXISTING_USER_WITH_EMAIL
+		}
+		return errors.BadRequest(msg)
 	}
 
 	return nil
