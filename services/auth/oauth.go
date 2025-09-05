@@ -7,12 +7,29 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/errors"
 )
 
 type LoginResponse struct {
 	Token   string    `json:"token"`
 	Expires time.Time `json:"expires"`
+}
+
+func (as *AuthService) Me(c fs.Context, _ any) (*fs.User, error) {
+	if c.User() == nil {
+		return nil, errors.Unauthorized()
+	}
+
+	user, err := db.Builder[*fs.User](as.DB()).Where(db.EQ("id", c.User().ID)).Only(c)
+	if err != nil {
+		if db.IsNotFound(err) {
+			return nil, errors.Unauthorized()
+		}
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func (as *AuthService) Login(c fs.Context, _ any) (_ any, err error) {
@@ -39,7 +56,7 @@ func (as *AuthService) Callback(c fs.Context, _ any) (u *LoginResponse, err erro
 		return nil, errors.Unauthorized("invalid user")
 	}
 
-	return as.createUser(c, user)
+	return as.createLoginResponse(c, user)
 }
 
 func (as *AuthService) VerifyIDToken(c fs.Context, payload fs.IDToken) (u *LoginResponse, err error) {
@@ -57,75 +74,81 @@ func (as *AuthService) VerifyIDToken(c fs.Context, payload fs.IDToken) (u *Login
 		return nil, errors.Unauthorized("invalid user")
 	}
 
-	return as.createUser(c, user)
+	return as.createLoginResponse(c, user)
 }
 
-func (as *AuthService) Me(c fs.Context, _ any) (*fs.User, error) {
-	if c.User() == nil {
-		return nil, errors.Unauthorized()
-	}
-
-	user, err := db.Builder[*fs.User](as.DB()).Where(db.EQ("id", c.User().ID)).Only(c)
-	if err != nil {
-		if db.IsNotFound(err) {
-			return nil, errors.Unauthorized()
-		}
-		return nil, err
-	}
-
-	return user, nil
-}
-
-func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*LoginResponse, error) {
-	userExisted, err := db.Builder[*fs.User](as.DB()).
+func (as *AuthService) createLoginResponse(c fs.Context, providerUser *fs.User) (*LoginResponse, error) {
+	loginUser, err := db.Builder[*fs.User](as.DB()).
 		Where(db.And(
 			db.EQ("provider", providerUser.Provider),
 			db.EQ("provider_id", providerUser.ProviderID),
 		)).
-		Only(c)
-
-	if err != nil {
-		// There is an error other than not found error
-		if !db.IsNotFound(err) {
-			return nil, err
-		}
-
-		// The error is not found, create a new user
-		userEntity := fs.Map{
-			"provider":          providerUser.Provider,
-			"provider_id":       providerUser.ProviderID,
-			"provider_username": providerUser.ProviderUsername,
-			"username":          strings.TrimSpace(providerUser.Username),
-			"email":             strings.TrimSpace(providerUser.Email),
-			"active":            true,
-			"roles":             []*entity.Entity{entity.New(fs.RoleUser.ID)},
-		}
-
-		if providerUser.FirstName != "" {
-			userEntity["first_name"] = providerUser.FirstName
-		}
-
-		if providerUser.LastName != "" {
-			userEntity["last_name"] = providerUser.LastName
-		}
-
-		if providerUser.ProviderProfileImage != "" {
-			userEntity["provider_profile_image"] = providerUser.ProviderProfileImage
-		}
-
-		if userExisted, err = db.Create[*fs.User](c, as.DB(), userEntity); err != nil {
-			return nil, err
-		}
-
-		// Set the role of the user
-		userExisted.RoleIDs = []uint64{fs.RoleUser.ID}
-		userExisted.Roles = []*fs.Role{fs.RoleUser}
+		Select("roles").
+		First(c)
+	if err != nil && !db.IsNotFound(err) {
+		return nil, err
 	}
 
-	jwtToken, exp, err := userExisted.JwtClaim(as.AppKey())
+	if loginUser == nil {
+		if loginUser, err = as.createUser(c, providerUser); err != nil {
+			return nil, err
+		}
+	}
+
+	jwtToken, exp, err := loginUser.JwtClaim(as.AppKey())
 	if err != nil {
 		return nil, err
 	}
 
 	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
+}
+
+func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*fs.User, error) {
+	// Check for existing user with same email but different provider
+	duplicateEmailUser, err := db.Builder[*fs.User](as.DB()).
+		Where(db.And(
+			db.EQ("email", providerUser.Email),
+			db.NEQ("provider", providerUser.Provider),
+		)).
+		Select("id", "email", "provider").
+		First(c)
+	if err != nil && !db.IsNotFound(err) {
+		return nil, err
+	}
+
+	if duplicateEmailUser != nil {
+		return nil, errors.Unauthorized(auth.MSG_EXISTING_USER_WITH_EMAIL)
+	}
+
+	userEntity := fs.Map{
+		"provider":          providerUser.Provider,
+		"provider_id":       providerUser.ProviderID,
+		"provider_username": providerUser.ProviderUsername,
+		"username":          strings.TrimSpace(providerUser.Username),
+		"email":             strings.TrimSpace(providerUser.Email),
+		"active":            true,
+		"roles":             []*entity.Entity{entity.New(fs.RoleUser.ID)},
+	}
+
+	if providerUser.FirstName != "" {
+		userEntity["first_name"] = providerUser.FirstName
+	}
+
+	if providerUser.LastName != "" {
+		userEntity["last_name"] = providerUser.LastName
+	}
+
+	if providerUser.ProviderProfileImage != "" {
+		userEntity["provider_profile_image"] = providerUser.ProviderProfileImage
+	}
+
+	newUser, err := db.Create[*fs.User](c, as.DB(), userEntity)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the role of the user
+	newUser.Roles = []*fs.Role{fs.RoleUser}
+
+	return newUser, nil
 }
