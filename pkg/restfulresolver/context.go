@@ -99,9 +99,15 @@ func (c *Context) Resource() *fs.Resource {
 
 func (c *Context) AuthToken() string {
 	// get token from header Authorization
-	bearer := c.Header("Authorization")
-	if len(bearer) >= 7 && bearer[:7] == "Bearer " {
-		bearer = bearer[7:]
+	authorizationHeader := c.Header("Authorization")
+	bearer := ""
+	if len(authorizationHeader) >= 7 && authorizationHeader[:7] == "Bearer " {
+		bearer = authorizationHeader[7:]
+	}
+
+	xAuthToken := c.Header("X-Auth-Token")
+	if xAuthToken != "" {
+		bearer = xAuthToken
 	}
 
 	// get token from cookie
