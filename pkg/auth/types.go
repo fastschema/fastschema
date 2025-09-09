@@ -28,7 +28,6 @@ type Register struct {
 
 func (d *Register) Entity(activationMethod, provider string) *entity.Entity {
 	e := entity.New().
-		Set("username", d.Username).
 		Set("email", d.Email).
 		Set("password", d.Password).
 		Set("active", activationMethod == "auto").
@@ -36,6 +35,10 @@ func (d *Register) Entity(activationMethod, provider string) *entity.Entity {
 		Set("roles", []*entity.Entity{
 			entity.New(fs.RoleUser.ID),
 		})
+
+	if d.Username != "" {
+		e.Set("username", d.Username)
+	}
 
 	if d.FirstName != "" {
 		e.Set("first_name", d.FirstName)
