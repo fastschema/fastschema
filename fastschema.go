@@ -359,9 +359,10 @@ func (a *App) Start() error {
 	}
 
 	a.restResolver = rs.NewRestfulResolver(&rs.ResolverConfig{
-		ResourceManager: a.resources,
-		Logger:          a.Logger(),
-		StaticFSs:       a.statics,
+		ResourceManager:    a.resources,
+		Logger:             a.Logger(),
+		StaticFSs:          a.statics,
+		MaxRequestBodySize: a.config.MaxRequestBodySize,
 	})
 
 	fmt.Printf("\n")
@@ -383,9 +384,10 @@ func (a *App) HTTPAdaptor() (http.HandlerFunc, error) {
 	}
 
 	a.restResolver = rs.NewRestfulResolver(&rs.ResolverConfig{
-		ResourceManager: a.resources,
-		Logger:          a.Logger(),
-		StaticFSs:       a.statics,
+		ResourceManager:    a.resources,
+		Logger:             a.Logger(),
+		StaticFSs:          a.statics,
+		MaxRequestBodySize: a.config.MaxRequestBodySize,
 	})
 
 	fmt.Printf("\n")

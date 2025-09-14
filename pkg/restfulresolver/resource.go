@@ -16,12 +16,17 @@ type RestfulResolver struct {
 }
 
 type ResolverConfig struct {
-	ResourceManager *fs.ResourcesManager
-	Logger          logger.Logger
-	StaticFSs       []*fs.StaticFs
+	ResourceManager    *fs.ResourcesManager
+	Logger             logger.Logger
+	StaticFSs          []*fs.StaticFs
+	AppName            string
+	MaxRequestBodySize int
 }
 
 func NewRestfulResolver(config *ResolverConfig) *RestfulResolver {
+	if config.AppName == "" {
+		config.AppName = "fastschema"
+	}
 	rs := &RestfulResolver{
 		config: config,
 	}
@@ -31,8 +36,9 @@ func NewRestfulResolver(config *ResolverConfig) *RestfulResolver {
 
 func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 	r.server = New(Config{
-		AppName: "fastschema",
-		Logger:  logger,
+		Logger:             logger,
+		AppName:            r.config.AppName,
+		MaxRequestBodySize: r.config.MaxRequestBodySize,
 	})
 	r.server.Use(append([]Handler{
 		MiddlewareCors,

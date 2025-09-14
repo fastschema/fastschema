@@ -339,6 +339,23 @@ func Env(name string, defaultValues ...string) string {
 	return value
 }
 
+func EnvInt(name string, defaultValues ...int) int {
+	value := os.Getenv(name)
+	if value == "" && len(defaultValues) > 0 {
+		return defaultValues[0]
+	}
+
+	intValue, err := strconv.Atoi(value)
+	if err != nil {
+		if len(defaultValues) > 0 {
+			return defaultValues[0]
+		}
+		return 0
+	}
+
+	return intValue
+}
+
 func ReadCloserToString(rc io.ReadCloser) (string, error) {
 	defer rc.Close()
 	data, err := io.ReadAll(rc)
