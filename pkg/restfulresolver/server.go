@@ -17,9 +17,10 @@ type Server struct {
 }
 
 type Config struct {
-	AppName     string
-	JSONEncoder utils.JSONMarshal
-	Logger      logger.Logger
+	AppName            string
+	MaxRequestBodySize int
+	JSONEncoder        utils.JSONMarshal
+	Logger             logger.Logger
 }
 
 func New(config Config) *Server {
@@ -30,6 +31,7 @@ func New(config Config) *Server {
 		EnablePrintRoutes:     false,
 		DisableStartupMessage: true,
 		JSONEncoder:           config.JSONEncoder,
+		BodyLimit:             config.MaxRequestBodySize,
 		// Prefork:       true,
 		// Immutable:     true,
 	})

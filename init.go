@@ -153,6 +153,10 @@ func (a *App) prepareConfig() (err error) {
 		a.config.AppName = utils.Env("APP_NAME", "FastSchema")
 	}
 
+	if a.config.MaxRequestBodySize == 0 {
+		a.config.MaxRequestBodySize = utils.EnvInt("MAX_REQUEST_BODY_SIZE", 4*1024*1024) // 4MB
+	}
+
 	if a.config.Port == "" {
 		a.config.Port = utils.Env("APP_PORT", "8000")
 	}
