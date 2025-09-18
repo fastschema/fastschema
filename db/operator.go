@@ -16,7 +16,12 @@ const (
 	OpGTE
 	OpLT
 	OpLTE
-	OpLIKE
+	OpLike
+	OpNotLike
+	OpContains
+	OpNotContains
+	OpContainsFold
+	OpNotContainsFold
 	OpIN
 	OpNIN
 	OpNULL
@@ -25,31 +30,41 @@ const (
 
 var (
 	operatorTypeToStrings = [...]string{
-		OpInvalid: "invalid",
-		OpEQ:      "$eq",
-		OpNEQ:     "$neq",
-		OpGT:      "$gt",
-		OpGTE:     "$gte",
-		OpLT:      "$lt",
-		OpLTE:     "$lte",
-		OpLIKE:    "$like",
-		OpIN:      "$in",
-		OpNIN:     "$nin",
-		OpNULL:    "$null",
+		OpInvalid:         "invalid",
+		OpEQ:              "$eq",
+		OpNEQ:             "$neq",
+		OpGT:              "$gt",
+		OpGTE:             "$gte",
+		OpLT:              "$lt",
+		OpLTE:             "$lte",
+		OpLike:            "$like",
+		OpNotLike:         "$notlike",
+		OpContains:        "$contains",
+		OpNotContains:     "$notcontains",
+		OpContainsFold:    "$containsfold",
+		OpNotContainsFold: "$notcontainsfold",
+		OpIN:              "$in",
+		OpNIN:             "$nin",
+		OpNULL:            "$null",
 	}
 
 	stringToOperatorTypes = map[string]OperatorType{
-		"invalid": OpInvalid,
-		"$eq":     OpEQ,
-		"$neq":    OpNEQ,
-		"$gt":     OpGT,
-		"$gte":    OpGTE,
-		"$lt":     OpLT,
-		"$lte":    OpLTE,
-		"$like":   OpLIKE,
-		"$in":     OpIN,
-		"$nin":    OpNIN,
-		"$null":   OpNULL,
+		"invalid":          OpInvalid,
+		"$eq":              OpEQ,
+		"$neq":             OpNEQ,
+		"$gt":              OpGT,
+		"$gte":             OpGTE,
+		"$lt":              OpLT,
+		"$lte":             OpLTE,
+		"$like":            OpLike,
+		"$notlike":         OpNotLike,
+		"$contains":        OpContains,
+		"$notcontains":     OpNotContains,
+		"$containsfold":    OpContainsFold,
+		"$notcontainsfold": OpNotContainsFold,
+		"$in":              OpIN,
+		"$nin":             OpNIN,
+		"$null":            OpNULL,
 	}
 )
 
@@ -85,121 +100,77 @@ func (t *OperatorType) UnmarshalJSON(b []byte) error {
 }
 
 func And(predicates ...*Predicate) *Predicate {
-	return &Predicate{
-		And: predicates,
-	}
+	return &Predicate{And: predicates}
 }
 
 func Or(predicates ...*Predicate) *Predicate {
-	return &Predicate{
-		Or: predicates,
-	}
+	return &Predicate{Or: predicates}
 }
 
 func EQ(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpEQ,
-		Value:              value,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpEQ, value, relationFields, nil, nil}
 }
 
 func NEQ(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpNEQ,
-		Value:              value,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpNEQ, value, relationFields, nil, nil}
 }
 
 func GT(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpGT,
-		Value:              value,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpGT, value, relationFields, nil, nil}
 }
 
 func GTE(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpGTE,
-		Value:              value,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpGTE, value, relationFields, nil, nil}
 }
 
 func LT(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpLT,
-		Value:              value,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpLT, value, relationFields, nil, nil}
 }
 
 func LTE(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpLTE,
-		Value:              value,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpLTE, value, relationFields, nil, nil}
 }
 
 func Like(field string, value string, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpLIKE,
-		Value:              value,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpLike, value, relationFields, nil, nil}
 }
 
-func In(field string, values []any, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpIN,
-		Value:              values,
-		RelationFieldNames: relationFields,
-	}
+func NotLike(field string, value string, relationFields ...string) *Predicate {
+	return &Predicate{field, OpNotLike, value, relationFields, nil, nil}
 }
 
-func NotIn(field string, values []any, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpNIN,
-		Value:              values,
-		RelationFieldNames: relationFields,
-	}
+func Contains(field string, value string, relationFields ...string) *Predicate {
+	return &Predicate{field, OpContains, value, relationFields, nil, nil}
+}
+
+func NotContains(field string, value string, relationFields ...string) *Predicate {
+	return &Predicate{field, OpNotContains, value, relationFields, nil, nil}
+}
+
+func ContainsFold(field string, value string, relationFields ...string) *Predicate {
+	return &Predicate{field, OpContainsFold, value, relationFields, nil, nil}
+}
+
+func NotContainsFold(field string, value string, relationFields ...string) *Predicate {
+	return &Predicate{field, OpNotContainsFold, value, relationFields, nil, nil}
+}
+
+func In[T any](field string, values []T, relationFields ...string) *Predicate {
+	return &Predicate{field, OpIN, values, relationFields, nil, nil}
+}
+
+func NotIn[T any](field string, values []T, relationFields ...string) *Predicate {
+	return &Predicate{field, OpNIN, values, relationFields, nil, nil}
 }
 
 func Null(field string, value bool, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpNULL,
-		Value:              value,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpNULL, value, relationFields, nil, nil}
 }
 
 func IsFalse(field string, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpEQ,
-		Value:              false,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpEQ, false, relationFields, nil, nil}
 }
 
 func IsTrue(field string, relationFields ...string) *Predicate {
-	return &Predicate{
-		Field:              field,
-		Operator:           OpEQ,
-		Value:              true,
-		RelationFieldNames: relationFields,
-	}
+	return &Predicate{field, OpEQ, true, relationFields, nil, nil}
 }

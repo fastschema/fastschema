@@ -195,13 +195,13 @@ func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.LTE(columnWrap(predicate.Field, s), predicate.Value)
 		}, nil
-	case db.OpLIKE:
+	case db.OpLike:
 		stringValue, ok := predicate.Value.(string)
 		if !ok {
 			return nil, fmt.Errorf(
 				"value of field %s.%s = %v (%T) must be string",
 				predicate.Field,
-				db.OpLIKE,
+				db.OpLike,
 				predicate.Value,
 				predicate.Value,
 			)
@@ -209,6 +209,81 @@ func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.Like(columnWrap(predicate.Field, s), stringValue)
+		}, nil
+	case db.OpNotLike:
+		stringValue, ok := predicate.Value.(string)
+		if !ok {
+			return nil, fmt.Errorf(
+				"value of field %s.%s = %v (%T) must be string",
+				predicate.Field,
+				db.OpNotLike,
+				predicate.Value,
+				predicate.Value,
+			)
+		}
+
+		return func(s *sql.Selector) *sql.Predicate {
+			return sql.Not(sql.Like(columnWrap(predicate.Field, s), stringValue))
+		}, nil
+	case db.OpContains:
+		stringValue, ok := predicate.Value.(string)
+		if !ok {
+			return nil, fmt.Errorf(
+				"value of field %s.%s = %v (%T) must be string",
+				predicate.Field,
+				db.OpContains,
+				predicate.Value,
+				predicate.Value,
+			)
+		}
+
+		return func(s *sql.Selector) *sql.Predicate {
+			return sql.Contains(columnWrap(predicate.Field, s), stringValue)
+		}, nil
+	case db.OpNotContains:
+		stringValue, ok := predicate.Value.(string)
+		if !ok {
+			return nil, fmt.Errorf(
+				"value of field %s.%s = %v (%T) must be string",
+				predicate.Field,
+				db.OpNotContains,
+				predicate.Value,
+				predicate.Value,
+			)
+		}
+
+		return func(s *sql.Selector) *sql.Predicate {
+			return sql.Not(sql.Contains(columnWrap(predicate.Field, s), stringValue))
+		}, nil
+	case db.OpContainsFold:
+		stringValue, ok := predicate.Value.(string)
+		if !ok {
+			return nil, fmt.Errorf(
+				"value of field %s.%s = %v (%T) must be string",
+				predicate.Field,
+				db.OpContainsFold,
+				predicate.Value,
+				predicate.Value,
+			)
+		}
+
+		return func(s *sql.Selector) *sql.Predicate {
+			return sql.ContainsFold(columnWrap(predicate.Field, s), stringValue)
+		}, nil
+	case db.OpNotContainsFold:
+		stringValue, ok := predicate.Value.(string)
+		if !ok {
+			return nil, fmt.Errorf(
+				"value of field %s.%s = %v (%T) must be string",
+				predicate.Field,
+				db.OpNotContainsFold,
+				predicate.Value,
+				predicate.Value,
+			)
+		}
+
+		return func(s *sql.Selector) *sql.Predicate {
+			return sql.Not(sql.ContainsFold(columnWrap(predicate.Field, s), stringValue))
 		}, nil
 	case db.OpIN, db.OpNIN:
 		arrayValue, ok := predicate.Value.([]any)
