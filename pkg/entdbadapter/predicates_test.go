@@ -142,7 +142,7 @@ func TestCreateFieldPredicate(t *testing.T) {
 			name: "LikeInvalid",
 			predicate: &db.Predicate{
 				Field:    "name",
-				Operator: db.OpLIKE,
+				Operator: db.OpLike,
 				Value:    1,
 			},
 			expectError: errors.New("value of field name.$like = 1 (int) must be string"),
@@ -299,7 +299,7 @@ func TestCreateEntPredicates(t *testing.T) {
 				db.GT("year", 2000),
 				{
 					Field:              "name",
-					Operator:           db.OpLIKE,
+					Operator:           db.OpLike,
 					Value:              "%group%",
 					RelationFieldNames: []string{"group", "parent"},
 				},

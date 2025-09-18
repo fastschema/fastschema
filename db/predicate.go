@@ -264,10 +264,6 @@ func createObjectPredicates(
 			}
 		}
 
-		// if err != nil {
-		// 	return nil, err
-		// }
-
 		if len(fieldPredicates) > 1 {
 			p := And(fieldPredicates...)
 			p.RelationFieldNames = fieldRelations
@@ -330,12 +326,42 @@ func createFieldPredicate(
 				predicates = append(predicates, LT(field.Name, p.Value))
 			case OpLTE:
 				predicates = append(predicates, LTE(field.Name, p.Value))
-			case OpLIKE:
+			case OpLike:
 				stringVal, ok := p.Value.(string)
 				if !ok {
 					return nil, filterError(errors.New("$like operator must be a string"))
 				}
 				predicates = append(predicates, Like(field.Name, stringVal))
+			case OpNotLike:
+				stringVal, ok := p.Value.(string)
+				if !ok {
+					return nil, filterError(errors.New("$notlike operator must be a string"))
+				}
+				predicates = append(predicates, NotLike(field.Name, stringVal))
+			case OpContains:
+				stringVal, ok := p.Value.(string)
+				if !ok {
+					return nil, filterError(errors.New("$contains operator must be a string"))
+				}
+				predicates = append(predicates, Contains(field.Name, stringVal))
+			case OpNotContains:
+				stringVal, ok := p.Value.(string)
+				if !ok {
+					return nil, filterError(errors.New("$notcontains operator must be a string"))
+				}
+				predicates = append(predicates, NotContains(field.Name, stringVal))
+			case OpContainsFold:
+				stringVal, ok := p.Value.(string)
+				if !ok {
+					return nil, filterError(errors.New("$containsfold operator must be a string"))
+				}
+				predicates = append(predicates, ContainsFold(field.Name, stringVal))
+			case OpNotContainsFold:
+				stringVal, ok := p.Value.(string)
+				if !ok {
+					return nil, filterError(errors.New("$notcontainsfold operator must be a string"))
+				}
+				predicates = append(predicates, NotContainsFold(field.Name, stringVal))
 			case OpIN:
 				arrayVal, ok := p.Value.([]any)
 				if !ok {
