@@ -49,7 +49,7 @@ func filterError(err error) error {
 // var operators = []string{"$eq", "$neq", "$gt", "$gte", "$lt", "$lte", "$like", "$in", "$nin", "$null"}
 // var rootOperators = []string{"$and", "$or"}
 
-// CreatePredicateFromFilterObject creates a predicate from a filter object
+// CreatePredicatesFromFilterObject creates a predicate from a filter object
 // A filter object is a JSON object that contains the filter for the query
 // E.g.
 //

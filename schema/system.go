@@ -14,6 +14,8 @@ import (
 //
 //	We will need to know which struct field maps to which schema field.
 //	This is done by making pairs of struct field and schema field.
+
+// FieldPair represent a pair of struct field and schema field.
 type FieldPair struct {
 	StructField string
 	SchemaField string

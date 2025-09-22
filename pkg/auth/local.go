@@ -14,6 +14,9 @@ import (
 
 const ProviderLocal = "local"
 
+// LocalProvider represents the local authentication provider.
+//
+// config:
 // activationMethod: auto, manual, email
 //
 //	auto: user is activated automatically
@@ -221,7 +224,6 @@ func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (_ *LoginR
 	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
 }
 
-// Masking error reason for security reasons.
 func (la *LocalProvider) Recover(c fs.Context, data *Recovery) (_ bool, err error) {
 	if !utils.IsValidEmail(data.Email) {
 		return false, errors.UnprocessableEntity(MSG_INVALID_EMAIL)

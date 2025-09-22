@@ -75,7 +75,7 @@ func (oas *OpenAPISpec) TypeToOgenSchema(t any, configs ...*TypeToOgenConfig) (s
 	return ogen.NewSchema()
 }
 
-// Create schema for struct type
+// CreateStructSchema creates a schema for a struct data type in the OpenAPI specification.
 //
 //	Struct may contain nested struct, so we need to use the reference schema.
 //	The reference schemas are stored in OpenAPISpec.referenceSchemas and will be created later.

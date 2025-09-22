@@ -200,7 +200,7 @@ func CreateUint64Field(name string) *Field {
 	}
 }
 
-// Merge Fields merge second field to the first field.
+// MergeFields merge second field to the first field.
 func MergeFields(f1, f2 *Field) {
 	if f2.Type.Valid() {
 		f1.Type = f2.Type

@@ -11,7 +11,7 @@ type RelationFKColumns struct {
 	TargetColumn  string `json:"target_column"`
 }
 
-// Reation define the relation structure
+// Relation define the relation structure
 type Relation struct {
 	BackRef    *Relation `json:"-"` // back reference relation
 	Name       string    `json:"-"` // relation name: auto generated
