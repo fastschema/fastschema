@@ -55,7 +55,11 @@ func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 			PathPrefix: staticResource.PathPrefix,
 			Next: func(c *fiber.Ctx) bool {
 				// skip serving static files for root path
-				return c.Path() == "/"
+				skip := c.Path() == "/"
+				if !skip {
+					c.Set("Accept-Ranges", "bytes")
+				}
+				return skip
 			},
 		}))
 	}

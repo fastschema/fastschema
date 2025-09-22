@@ -7,7 +7,10 @@ import (
 )
 
 type IDToken struct {
-	IDToken string `json:"id_token"`
+	IDToken   string `json:"id_token"`
+	Code      string `json:"code,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
 }
 
 type AuthProviderMaker func(Map, string) (AuthProvider, error)
