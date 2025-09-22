@@ -19,37 +19,40 @@ import (
 // SupportDrivers returns list of supported drivers.
 var SupportDrivers = []string{"mysql", "pgx", "sqlite"}
 
-// Query hooks
+// PreDBQuery is a hook that is called before a database query is executed.
 type PreDBQuery = func(
 	ctx context.Context,
 	option *QueryOption,
 ) error
 
+// PostDBQuery is a hook that is called after a database query is executed.
 type PostDBQuery = func(
 	ctx context.Context,
 	option *QueryOption,
 	entities []*entity.Entity,
 ) ([]*entity.Entity, error)
 
-// Exec hooks
+// PreDBExec is a hook that is called before a database exec is executed.
 type PreDBExec = func(
 	ctx context.Context,
 	option *QueryOption,
 ) error
 
+// PostDBExec is a hook that is called after a database exec is executed.
 type PostDBExec = func(
 	ctx context.Context,
 	option *QueryOption,
 	result sql.Result,
 ) error
 
-// Create hooks
+// PreDBCreate is a hook that is called before a database create is executed.
 type PreDBCreate = func(
 	ctx context.Context,
 	schema *schema.Schema,
 	createData *entity.Entity,
 ) error
 
+// PostDBCreate is a hook that is called after a database create is executed.
 type PostDBCreate = func(
 	ctx context.Context,
 	schema *schema.Schema,
@@ -57,7 +60,7 @@ type PostDBCreate = func(
 	id uint64,
 ) error
 
-// Update hooks
+// PreDBUpdate is a hook that is called before a database update is executed.
 type PreDBUpdate = func(
 	ctx context.Context,
 	schema *schema.Schema,
@@ -65,6 +68,7 @@ type PreDBUpdate = func(
 	updateData *entity.Entity,
 ) error
 
+// PostDBUpdate is a hook that is called after a database update is executed.
 type PostDBUpdate = func(
 	ctx context.Context,
 	schema *schema.Schema,
@@ -74,13 +78,14 @@ type PostDBUpdate = func(
 	affected int,
 ) error
 
-// Delete hooks
+// PreDBDelete is a hook that is called before a database delete is executed.
 type PreDBDelete = func(
 	ctx context.Context,
 	schema *schema.Schema,
 	predicates *[]*Predicate,
 ) error
 
+// PostDBDelete is a hook that is called after a database delete is executed.
 type PostDBDelete = func(
 	ctx context.Context,
 	schema *schema.Schema,

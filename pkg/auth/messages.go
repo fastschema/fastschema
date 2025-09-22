@@ -40,7 +40,11 @@ func CreateActivationEmail(la *LocalProvider, user *fs.User) (*fs.Mail, error) {
 		return nil, err
 	}
 
-	name := user.Username
+	name := user.FirstName
+	if name == "" {
+		name = user.Username
+	}
+
 	if name == "" {
 		parts := strings.Split(user.Email, "@")
 		if len(parts) > 0 {
