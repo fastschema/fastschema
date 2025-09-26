@@ -24,21 +24,24 @@ type AppLike interface {
 	Key() string
 	GetAuthProvider(string) fs.AuthProvider
 	Roles() []*fs.Role
+	JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc
 }
 
 type AuthService struct {
-	DB              func() db.Client
-	AppKey          func() string
-	GetAuthProvider func(string) fs.AuthProvider
-	Roles           func() []*fs.Role
+	DB                  func() db.Client
+	AppKey              func() string
+	GetAuthProvider     func(string) fs.AuthProvider
+	Roles               func() []*fs.Role
+	JwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
 }
 
 func New(app AppLike) *AuthService {
 	return &AuthService{
-		DB:              app.DB,
-		AppKey:          app.Key,
-		GetAuthProvider: app.GetAuthProvider,
-		Roles:           app.Roles,
+		DB:                  app.DB,
+		AppKey:              app.Key,
+		GetAuthProvider:     app.GetAuthProvider,
+		Roles:               app.Roles,
+		JwtCustomClaimsFunc: app.JwtCustomClaimsFunc,
 	}
 }
 
