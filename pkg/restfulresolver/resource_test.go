@@ -33,7 +33,7 @@ func TestNewRestResolver(t *testing.T) {
 	utils.WriteFile(staticDir+"/test.txt", "test")
 	staticFSs := []*fs.StaticFs{{
 		BasePath: "/static",
-		Root:     http.Dir(staticDir),
+		RootFS:   http.Dir(staticDir),
 	}}
 
 	resourceManager.Group("user", &fs.Meta{Prefix: "/userprefix"}).
