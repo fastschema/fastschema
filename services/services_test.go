@@ -56,6 +56,7 @@ func (a *testApp) OnPostDBUpdate(hooks ...db.PostDBUpdate)     {}
 func (a *testApp) OnPreDBDelete(hooks ...db.PreDBDelete)       {}
 func (a *testApp) OnPostDBDelete(hooks ...db.PostDBDelete)     {}
 func (a *testApp) Services() *services.Services                { return a.services }
+func (a testApp) JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc  { return nil }
 
 func TestNew(t *testing.T) {
 	app := &testApp{}

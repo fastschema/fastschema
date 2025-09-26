@@ -117,6 +117,7 @@ func createLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 		func() string { return "testApp" },
 		func() string { return "http://localhost:8080" },
 		func(names ...string) fs.Mailer { return config.mailer },
+		nil,
 	)
 
 	return localAuthProvider

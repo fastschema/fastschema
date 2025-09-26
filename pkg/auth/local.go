@@ -23,15 +23,16 @@ const ProviderLocal = "local"
 //	manual: user is activated manually by admin
 //	email: user is activated by email
 type LocalProvider struct {
-	db               func() db.Client
-	appKey           func() string
-	appName          func() string
-	appBaseURL       func() string
-	mailer           func(names ...string) fs.Mailer
-	config           fs.Map
-	activationMethod string
-	activationURL    string
-	recoveryURL      string
+	db                  func() db.Client
+	appKey              func() string
+	appName             func() string
+	appBaseURL          func() string
+	mailer              func(names ...string) fs.Mailer
+	config              fs.Map
+	activationMethod    string
+	activationURL       string
+	recoveryURL         string
+	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
 }
 
 func NewLocalAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
@@ -51,12 +52,14 @@ func (la *LocalProvider) Init(
 	appName func() string,
 	appBaseURL func() string,
 	mailer func(names ...string) fs.Mailer,
+	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc,
 ) {
 	la.db = db
 	la.appKey = appKey
 	la.appName = appName
 	la.mailer = mailer
 	la.appBaseURL = appBaseURL
+	la.jwtCustomClaimsFunc = jwtCustomClaimsFunc
 
 	if la.activationURL == "" {
 		la.activationURL = appBaseURL() + "/auth/local/activate"
@@ -216,7 +219,10 @@ func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (_ *LoginR
 		return nil, errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
 	}
 
-	jwtToken, exp, err := user.JwtClaim(la.appKey())
+	jwtToken, exp, err := user.JwtClaim(c, &fs.UserJwtConfig{
+		Key:              la.appKey(),
+		CustomClaimsFunc: nil,
+	})
 	if err != nil {
 		return nil, err
 	}
