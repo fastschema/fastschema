@@ -18,13 +18,3 @@ type Cookie struct {
 	SameSite    string    `json:"same_site"`
 	SessionOnly bool      `json:"session_only"`
 }
-
-type StaticConfig struct {
-	Compress      bool          `json:"compress"`
-	ByteRange     bool          `json:"byte_range"`
-	Browse        bool          `json:"browse"`
-	Download      bool          `json:"download"`
-	Index         string        `json:"index"`
-	CacheDuration time.Duration `json:"cache_duration"` // Default value 10 * time.Second.
-	MaxAge        int           `json:"max_age"`        // Default value 0
-}

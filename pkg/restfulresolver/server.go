@@ -94,7 +94,7 @@ func (s *Server) Group(prefix string, r *fs.Resource, handlers ...Handler) *Rout
 	}
 }
 
-func (s *Server) Static(prefix, root string, configs ...StaticConfig) {
+func (s *Server) Static(prefix, root string, configs ...fs.StaticConfig) {
 	config := fiber.Static{}
 
 	if len(configs) > 0 {

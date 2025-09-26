@@ -50,18 +50,31 @@ func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 
 	// Static files
 	for _, staticResource := range r.config.StaticFSs {
-		r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
-			Root:       staticResource.Root,
-			PathPrefix: staticResource.PathPrefix,
-			Next: func(c *fiber.Ctx) bool {
-				// skip serving static files for root path
-				skip := c.Path() == "/"
-				if !skip {
-					c.Set("Accept-Ranges", "bytes")
-				}
-				return skip
-			},
-		}))
+		if staticResource.RootFS != nil {
+			r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
+				Root:       staticResource.RootFS,
+				PathPrefix: staticResource.FSPrefix,
+				Next: func(c *fiber.Ctx) bool {
+					// skip serving static files for root path
+					return c.Path() == "/" || c.Path() == ""
+				},
+			}))
+		} else {
+			config := staticResource.Config
+			if config == nil {
+				config = &fs.StaticConfig{}
+			}
+
+			r.server.App.Static(staticResource.BasePath, staticResource.RootDir, fiber.Static{
+				Index:         config.Index,
+				Browse:        config.Browse,
+				MaxAge:        config.MaxAge,
+				Compress:      config.Compress,
+				ByteRange:     config.ByteRange,
+				Download:      config.Download,
+				CacheDuration: config.CacheDuration,
+			})
+		}
 	}
 
 	// The public directory is served at root path
