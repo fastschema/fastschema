@@ -371,9 +371,16 @@ func (a *App) createAuthProviders() (err error) {
 		}
 
 		if la, ok := provider.(*auth.LocalProvider); ok {
-			la.Init(a.DB, a.Key, a.Name, func() string {
-				return a.config.BaseURL
-			}, a.Mailer)
+			la.Init(
+				a.DB,
+				a.Key,
+				a.Name,
+				func() string {
+					return a.config.BaseURL
+				},
+				a.Mailer,
+				a.JwtCustomClaimsFunc,
+			)
 		}
 
 		a.authProviders[name] = provider

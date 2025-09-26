@@ -39,6 +39,10 @@ type testApp struct {
 	notFoundUserToken  string
 }
 
+func (s testApp) JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc {
+	return nil
+}
+
 func (s testApp) DB() db.Client {
 	return s.db
 }
@@ -272,11 +276,12 @@ func createTestApp(t *testing.T) *testApp {
 		},
 	}
 
-	testApp.adminToken, _, _ = testApp.adminUser.JwtClaim(testApp.Key())
-	testApp.normalUserToken, _, _ = testApp.normalUser.JwtClaim(testApp.Key())
-	testApp.inactiveUserToken, _, _ = testApp.inactiveUser.JwtClaim(testApp.Key())
-	testApp.seniorityUserToken, _, _ = testApp.seniorityUser.JwtClaim(testApp.Key())
-	testApp.notFoundUserToken, _, _ = testApp.notFoundUser.JwtClaim(testApp.Key())
+	jwtConfig := &fs.UserJwtConfig{Key: testApp.Key()}
+	testApp.adminToken, _, _ = testApp.adminUser.JwtClaim(nil, jwtConfig)
+	testApp.normalUserToken, _, _ = testApp.normalUser.JwtClaim(nil, jwtConfig)
+	testApp.inactiveUserToken, _, _ = testApp.inactiveUser.JwtClaim(nil, jwtConfig)
+	testApp.seniorityUserToken, _, _ = testApp.seniorityUser.JwtClaim(nil, jwtConfig)
+	testApp.notFoundUserToken, _, _ = testApp.notFoundUser.JwtClaim(nil, jwtConfig)
 
 	testApp.authService = as.New(testApp)
 	testApp.resources = fs.NewResourcesManager()
