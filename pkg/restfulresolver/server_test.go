@@ -58,7 +58,7 @@ func TestServerStatic(t *testing.T) {
 	err := utils.WriteFile(root+"/index.html", "index")
 	assert.NoError(t, err)
 
-	config := restfulresolver.StaticConfig{
+	config := fs.StaticConfig{
 		Index:         "index.html",
 		Browse:        true,
 		MaxAge:        3600,

@@ -93,7 +93,12 @@ func (a *App) init() (err error) {
 
 			a.statics = append(a.statics, &fs.StaticFs{
 				BasePath: publicPath,
-				Root:     http.Dir(disk.Root()),
+				RootDir:  disk.Root(),
+				Config: &fs.StaticConfig{
+					Compress:  true,
+					ByteRange: true,
+					Browse:    false,
+				},
 			})
 		}
 	}
@@ -103,9 +108,9 @@ func (a *App) init() (err error) {
 	}
 
 	a.statics = append(a.statics, &fs.StaticFs{
-		BasePath:   "/" + a.config.DashBaseName,
-		Root:       http.FS(embedDashStatic),
-		PathPrefix: "dash",
+		BasePath: "/" + a.config.DashBaseName,
+		RootFS:   http.FS(embedDashStatic),
+		FSPrefix: "dash",
 	})
 
 	return nil

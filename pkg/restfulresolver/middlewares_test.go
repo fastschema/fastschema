@@ -39,7 +39,7 @@ func TestMiddlewares(t *testing.T) {
 	assert.NotEmpty(t, resp.Header.Get("X-Request-Id"))
 	assert.Equal(t, "*", resp.Header.Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, "GET, POST, PUT, DELETE, OPTIONS", resp.Header.Get("Access-Control-Allow-Methods"))
-	assert.Equal(t, "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Auth-Token", resp.Header.Get("Access-Control-Allow-Headers"))
+	assert.Equal(t, "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Auth-Token, Range", resp.Header.Get("Access-Control-Allow-Headers"))
 	assert.Equal(t, 1, len(mockLogger.Messages))
 	assert.Contains(t, mockLogger.Last().String(), "Request completed")
 
