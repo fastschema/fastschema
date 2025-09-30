@@ -106,15 +106,29 @@ func (c *Context) Payload() (*entity.Entity, error) {
 	return c.entity, nil
 }
 
+func (c *Context) BodyParser(out any) error {
+	return c.Ctx.BodyParser(out)
+}
+
+func (c *Context) FormValue(key string, defaultValue ...string) string {
+	return c.Ctx.FormValue(key, defaultValue...)
+}
+
 func (c *Context) Resource() *fs.Resource {
 	return c.resource
 }
 
 func (c *Context) AuthToken() string {
 	// get token from header Authorization
-	bearer := c.Header("Authorization")
-	if len(bearer) >= 7 && bearer[:7] == "Bearer " {
-		bearer = bearer[7:]
+	authorizationHeader := c.Header("Authorization")
+	bearer := ""
+	if len(authorizationHeader) >= 7 && authorizationHeader[:7] == "Bearer " {
+		bearer = authorizationHeader[7:]
+	}
+
+	xAuthToken := c.Header("X-Auth-Token")
+	if xAuthToken != "" {
+		bearer = xAuthToken
 	}
 
 	// get token from cookie

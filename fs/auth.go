@@ -6,11 +6,19 @@ import (
 	"sync"
 )
 
+type IDToken struct {
+	IDToken   string `json:"id_token"`
+	Code      string `json:"code,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
+}
+
 type AuthProviderMaker func(Map, string) (AuthProvider, error)
 type AuthProvider interface {
 	Name() string
 	Login(Context) (any, error)
 	Callback(Context) (*User, error)
+	VerifyIDToken(Context, IDToken) (*User, error)
 }
 
 var (

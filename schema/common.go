@@ -86,7 +86,6 @@ const (
 	TypeUint16
 	TypeUint32
 	TypeUint
-	// TypeUintptr
 	TypeUint64
 	TypeFloat32
 	TypeFloat64

@@ -27,6 +27,8 @@ type Context interface {
 	ArgInt(name string, defaults ...int) int
 	Body() ([]byte, error)
 	Payload() (*entity.Entity, error)
+	BodyParser(out any) error
+	FormValue(key string, defaultValue ...string) string
 	Resource() *Resource
 	AuthToken() string
 	Next() error

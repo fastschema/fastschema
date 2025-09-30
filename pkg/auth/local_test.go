@@ -134,7 +134,9 @@ func TestLocalAuthRegister(t *testing.T) {
 		"email": "user03@local.ltd",
 		"provider": "local",
 		"password": "user03",
-		"confirm_password": "user03"
+		"confirm_password": "user03",
+		"first_name": "User",
+		"last_name": "Three"
 	}`)
 
 	// Case 3: Register failed because of invalid app key

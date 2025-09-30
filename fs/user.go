@@ -3,22 +3,27 @@ package fs
 import (
 	"time"
 
+	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 // User is a struct that contains user data
 type User struct {
-	_        any    `json:"-" fs:"label_field=username"`
-	ID       uint64 `json:"id,omitempty"`
-	Username string `json:"username,omitempty"`
-	Email    string `json:"email,omitempty" fs:"optional"`
-	Password string `json:"password,omitempty" fs:"optional" fs.setter:"$args.Exist && $args.Value != '' ? $hash($args.Value) : $undefined" fs.getter:"$context.Value('keeppassword') == 'true' ? $args.Value : $undefined"`
+	_         any    `json:"-" fs:"label_field=username"`
+	ID        uint64 `json:"id,omitempty"`
+	Username  string `json:"username,omitempty" fs:"optional"`
+	Email     string `json:"email,omitempty" fs:"optional"`
+	FirstName string `json:"first_name,omitempty" fs:"optional"`
+	LastName  string `json:"last_name,omitempty" fs:"optional"`
+	Password  string `json:"password,omitempty" fs:"optional" fs.setter:"$args.Exist && $args.Value != '' ? $hash($args.Value) : $undefined" fs.getter:"$context.Value('keeppassword') == 'true' ? $args.Value : $undefined"`
 
-	Active           bool   `json:"active,omitempty" fs:"optional"`
-	Provider         string `json:"provider,omitempty" fs:"optional"`
-	ProviderID       string `json:"provider_id,omitempty" fs:"optional"`
-	ProviderUsername string `json:"provider_username,omitempty" fs:"optional"`
+	Active               bool   `json:"active,omitempty" fs:"optional"`
+	Provider             string `json:"provider,omitempty" fs:"optional"`
+	ProviderID           string `json:"provider_id,omitempty" fs:"optional"`
+	ProviderUsername     string `json:"provider_username,omitempty" fs:"optional"`
+	ProviderProfileImage string `json:"provider_profile_image,omitempty" fs:"optional"`
 
 	RoleIDs []uint64 `json:"role_ids,omitempty"`
 	Roles   []*Role  `json:"roles,omitempty" fs.relation:"{'type':'m2m','schema':'role','field':'users','owner':false}"`
@@ -29,11 +34,47 @@ type User struct {
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 }
 
+func (u User) Schema() *schema.Schema {
+	return &schema.Schema{
+		Fields: []*schema.Field{},
+		DB: &schema.SchemaDB{
+			Indexes: []*schema.SchemaDBIndex{
+				// unique index on provider + provider_id
+				{
+					Name:    "idx_user_provider_provider_id",
+					Unique:  true,
+					Columns: []string{"provider", "provider_id"},
+				},
+				// unique index on username
+				{
+					Name:    "idx_user_username",
+					Unique:  true,
+					Columns: []string{"username"},
+				},
+				// unique index on email
+				{
+					Name:    "idx_user_email",
+					Unique:  true,
+					Columns: []string{"email"},
+				},
+			},
+		},
+	}
+}
+
 // UserJwtClaims is a struct that contains the user jwt claims
 type UserJwtClaims struct {
 	jwt.RegisteredClaims
 
 	User *User `json:"user"`
+}
+
+type JwtCustomClaimsFunc func(Context, *UserJwtClaims) (jwt.Claims, error)
+
+type UserJwtConfig struct {
+	Key              string
+	ExpiresAt        time.Time
+	CustomClaimsFunc JwtCustomClaimsFunc
 }
 
 func (u *User) IsRoot() bool {
@@ -55,7 +96,11 @@ func (u *User) IsRoot() bool {
 }
 
 // JwtClaim generates a jwt claim
-func (u *User) JwtClaim(key string, exps ...time.Time) (string, time.Time, error) {
+func (u *User) JwtClaim(c Context, config *UserJwtConfig) (string, time.Time, error) {
+	if config == nil || config.Key == "" {
+		return "", time.Time{}, errors.InternalServerError("jwt: missing secret key")
+	}
+
 	u.RoleIDs = make([]uint64, 0)
 
 	for _, role := range u.Roles {
@@ -64,19 +109,22 @@ func (u *User) JwtClaim(key string, exps ...time.Time) (string, time.Time, error
 		}
 	}
 
-	exp := time.Now().Add(time.Hour * 24 * 30)
-	if len(exps) > 0 {
-		exp = exps[0]
+	exp := config.ExpiresAt
+	if config.ExpiresAt.IsZero() {
+		exp = time.Now().Add(time.Hour * 24 * 30)
 	}
 
-	claims := &UserJwtClaims{
+	jwtClaims := &UserJwtClaims{
 		User: &User{
-			ID:       u.ID,
-			Provider: u.Provider,
-			Username: u.Username,
-			Email:    u.Email,
-			Active:   u.Active,
-			RoleIDs:  u.RoleIDs,
+			ID:                   u.ID,
+			Provider:             u.Provider,
+			ProviderProfileImage: u.ProviderProfileImage,
+			Username:             u.Username,
+			FirstName:            u.FirstName,
+			LastName:             u.LastName,
+			Email:                u.Email,
+			Active:               u.Active,
+			RoleIDs:              u.RoleIDs,
 		},
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    utils.Env("APP_NAME"),
@@ -84,8 +132,20 @@ func (u *User) JwtClaim(key string, exps ...time.Time) (string, time.Time, error
 		},
 	}
 
+	var claims jwt.Claims = jwtClaims
+	if config.CustomClaimsFunc != nil {
+		customClaims, err := config.CustomClaimsFunc(c, jwtClaims)
+		if err != nil {
+			return "", time.Time{}, err
+		}
+
+		if customClaims != nil {
+			claims = customClaims
+		}
+	}
+
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedString, err := jwtToken.SignedString([]byte(key))
+	signedString, err := jwtToken.SignedString([]byte(config.Key))
 
 	return signedString, exp, err
 }

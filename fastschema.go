@@ -48,11 +48,12 @@ type App struct {
 	mailClients       []fs.Mailer
 	defaultMailClient fs.Mailer
 
-	setupToken      string
-	startupMessages []string
-	statics         []*fs.StaticFs
-	openAPISpec     []byte
-	authProviders   map[string]fs.AuthProvider
+	setupToken          string
+	startupMessages     []string
+	statics             []*fs.StaticFs
+	openAPISpec         []byte
+	authProviders       map[string]fs.AuthProvider
+	jwtCustomClaimsFunc fs.JwtCustomClaimsFunc
 }
 
 func New(config *fs.Config) (_ *App, err error) {
@@ -175,6 +176,14 @@ func (a *App) OnPostDBDelete(hooks ...db.PostDBDelete) {
 		a.config.Hooks.DBHooks.PostDBDelete,
 		hooks...,
 	)
+}
+
+func (a *App) SetJwtCustomClaimsFunc(jwtCustomClaimsFunc fs.JwtCustomClaimsFunc) {
+	a.jwtCustomClaimsFunc = jwtCustomClaimsFunc
+}
+
+func (a *App) JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc {
+	return a.jwtCustomClaimsFunc
 }
 
 func (a *App) Name() string {
@@ -355,9 +364,10 @@ func (a *App) Start() error {
 	}
 
 	a.restResolver = rs.NewRestfulResolver(&rs.ResolverConfig{
-		ResourceManager: a.resources,
-		Logger:          a.Logger(),
-		StaticFSs:       a.statics,
+		ResourceManager:    a.resources,
+		Logger:             a.Logger(),
+		StaticFSs:          a.statics,
+		MaxRequestBodySize: a.config.MaxRequestBodySize,
 	})
 
 	fmt.Printf("\n")
@@ -379,9 +389,10 @@ func (a *App) HTTPAdaptor() (http.HandlerFunc, error) {
 	}
 
 	a.restResolver = rs.NewRestfulResolver(&rs.ResolverConfig{
-		ResourceManager: a.resources,
-		Logger:          a.Logger(),
-		StaticFSs:       a.statics,
+		ResourceManager:    a.resources,
+		Logger:             a.Logger(),
+		StaticFSs:          a.statics,
+		MaxRequestBodySize: a.config.MaxRequestBodySize,
 	})
 
 	fmt.Printf("\n")

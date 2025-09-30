@@ -54,6 +54,7 @@ type App interface {
 
 	AddResource(resource *Resource)
 	AddMiddlewares(hooks ...Middleware)
+	JwtCustomClaimsFunc() JwtCustomClaimsFunc
 }
 
 // ResolveHook is a function that can be used to add hooks to a resource

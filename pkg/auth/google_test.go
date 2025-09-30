@@ -90,4 +90,9 @@ func TestGoogleAuthCallbackSuccess(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 	assert.Equal(t, "testuser@site.local", user.Username)
+	assert.Equal(t, "testuser@site.local", user.Email)
+	assert.Equal(t, "testuser@site.local", user.ProviderUsername)
+	assert.Equal(t, "12345", user.ProviderID)
+	assert.Equal(t, "google", user.Provider)
+	assert.True(t, user.Active)
 }

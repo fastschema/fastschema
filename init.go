@@ -93,7 +93,12 @@ func (a *App) init() (err error) {
 
 			a.statics = append(a.statics, &fs.StaticFs{
 				BasePath: publicPath,
-				Root:     http.Dir(disk.Root()),
+				RootDir:  disk.Root(),
+				Config: &fs.StaticConfig{
+					Compress:  true,
+					ByteRange: true,
+					Browse:    false,
+				},
 			})
 		}
 	}
@@ -103,9 +108,9 @@ func (a *App) init() (err error) {
 	}
 
 	a.statics = append(a.statics, &fs.StaticFs{
-		BasePath:   "/" + a.config.DashBaseName,
-		Root:       http.FS(embedDashStatic),
-		PathPrefix: "dash",
+		BasePath: "/" + a.config.DashBaseName,
+		RootFS:   http.FS(embedDashStatic),
+		FSPrefix: "dash",
 	})
 
 	return nil
@@ -151,6 +156,10 @@ func (a *App) prepareConfig() (err error) {
 
 	if a.config.AppName == "" {
 		a.config.AppName = utils.Env("APP_NAME", "FastSchema")
+	}
+
+	if a.config.MaxRequestBodySize == 0 {
+		a.config.MaxRequestBodySize = utils.EnvInt("MAX_REQUEST_BODY_SIZE", 4*1024*1024) // 4MB
 	}
 
 	if a.config.Port == "" {
@@ -362,9 +371,16 @@ func (a *App) createAuthProviders() (err error) {
 		}
 
 		if la, ok := provider.(*auth.LocalProvider); ok {
-			la.Init(a.DB, a.Key, a.Name, func() string {
-				return a.config.BaseURL
-			}, a.Mailer)
+			la.Init(
+				a.DB,
+				a.Key,
+				a.Name,
+				func() string {
+					return a.config.BaseURL
+				},
+				a.Mailer,
+				a.JwtCustomClaimsFunc,
+			)
 		}
 
 		a.authProviders[name] = provider

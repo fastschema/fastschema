@@ -291,9 +291,9 @@ func TestLike(t *testing.T) {
 		value string
 		want  *Predicate
 	}{
-		{"field1", "abc", &Predicate{Field: "field1", Operator: OpLIKE, Value: "abc"}},
-		{"field2", "%def%", &Predicate{Field: "field2", Operator: OpLIKE, Value: "%def%"}},
-		{"field3", "", &Predicate{Field: "field3", Operator: OpLIKE, Value: ""}},
+		{"field1", "abc", &Predicate{Field: "field1", Operator: OpLike, Value: "abc"}},
+		{"field2", "%def%", &Predicate{Field: "field2", Operator: OpLike, Value: "%def%"}},
+		{"field3", "", &Predicate{Field: "field3", Operator: OpLike, Value: ""}},
 	}
 
 	for _, tt := range tests {

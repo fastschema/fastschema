@@ -724,7 +724,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(11, "Group 11").
 						AddRow(22, "Group 22"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`groups` AS groups_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `groups_users` AS `t1` ON `t1`.`users` = `users`.`id` WHERE `t1`.`groups` IN (?, ?) ORDER BY `id` ASC")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`groups` AS groups_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `groups_users` AS `t1` ON `t1`.`users` = `users`.`id` WHERE `t1`.`groups` IN (?, ?) ORDER BY `id` ASC")).
 					WithArgs(11, 22).
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
 						AddRow(11, 1, "John").
@@ -779,7 +779,7 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "John").
 						AddRow(2, "Jane").
 						AddRow(3, "Bob"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`followers` AS followers_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`following` = `users`.`id` WHERE `t1`.`followers` IN (?, ?, ?) ORDER BY `id` ASC")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`followers` AS followers_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`following` = `users`.`id` WHERE `t1`.`followers` IN (?, ?, ?) ORDER BY `id` ASC")).
 					WithArgs(1, 2, 3).
 					WillReturnRows(mock.NewRows([]string{"followers_id", "id", "name"}).
 						AddRow(1, 2, "Jane").
@@ -807,7 +807,7 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "John").
 						AddRow(2, "Jane").
 						AddRow(3, "Bob"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`following` AS following_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`followers` = `users`.`id` WHERE `t1`.`following` IN (?, ?, ?) ORDER BY `id` ASC")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`following` AS following_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`followers` = `users`.`id` WHERE `t1`.`following` IN (?, ?, ?) ORDER BY `id` ASC")).
 					WithArgs(1, 2, 3).
 					WillReturnRows(mock.NewRows([]string{"following_id", "id", "name"}).
 						AddRow(1, 2, "Jane").
@@ -835,7 +835,7 @@ func TestQuery(t *testing.T) {
 						AddRow(1, "John").
 						AddRow(2, "Jane").
 						AddRow(3, "Bob"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`friends` AS friends_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `friends_user` AS `t1` ON `t1`.`user` = `users`.`id` WHERE `t1`.`user` IN (?, ?, ?) ORDER BY `id` ASC")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`friends` AS friends_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `friends_user` AS `t1` ON `t1`.`user` = `users`.`id` WHERE `t1`.`user` IN (?, ?, ?) ORDER BY `id` ASC")).
 					WithArgs(1, 2, 3).
 					WillReturnRows(mock.NewRows([]string{"friends_id", "id", "name"}).
 						AddRow(1, 2, "Jane").

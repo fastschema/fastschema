@@ -27,6 +27,10 @@ func (m *mockContext) Redirect(url string) error {
 	return nil
 }
 
+func (m *mockContext) FormValue(key string, defaultValue ...string) string {
+	return ""
+}
+
 func (m *mockContext) Arg(name string, defaultValues ...string) string {
 	if value, ok := m.args[name]; ok {
 		return value
@@ -113,6 +117,7 @@ func createLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 		func() string { return "testApp" },
 		func() string { return "http://localhost:8080" },
 		func(names ...string) fs.Mailer { return config.mailer },
+		nil,
 	)
 
 	return localAuthProvider

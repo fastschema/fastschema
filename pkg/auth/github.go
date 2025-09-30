@@ -109,6 +109,10 @@ func (ga *GithubAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 	}, nil
 }
 
+func (ga *GithubAuthProvider) VerifyIDToken(c fs.Context, t fs.IDToken) (_ *fs.User, err error) {
+	return nil, errors.New("not implemented")
+}
+
 func (ga *GithubAuthProvider) getUser(code string) (*GithubUserResponse, error) {
 	accessToken, err := ga.getAccessToken(code)
 	if err != nil {
