@@ -48,7 +48,7 @@ func CreateMiddlewareRequestLog(statics []*fs.StaticFs) func(c *Context) error {
 			"method":  c.Method(),
 			"path":    c.Path(),
 			"ip":      c.IP(),
-			"queries": c.Queries(),
+			"queries": c.ctx.Queries(),
 		}
 
 		if err != nil {
@@ -78,7 +78,7 @@ func MiddlewareCookie(c *Context) error {
 func MiddlewareCors(c *Context) error {
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	c.Header("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	c.Header("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Range")
 
 	if c.Method() == "OPTIONS" {
 		c.Status(200)

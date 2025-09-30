@@ -35,6 +35,7 @@ type App interface {
 	Hookable
 	Key() string
 	Name() string
+	Dir() string
 	Config() *Config
 	SchemaBuilder() *schema.Builder
 	SystemSchemas() []any

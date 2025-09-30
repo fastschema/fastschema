@@ -16,6 +16,7 @@ require (
 	github.com/emersion/go-smtp v0.23.0
 	github.com/expr-lang/expr v1.17.5
 	github.com/fasthttp/websocket v1.5.12
+	github.com/fastschema/qjs v0.0.2
 	github.com/fatih/color v1.18.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gofiber/contrib/websocket v1.3.4
@@ -32,7 +33,7 @@ require (
 	github.com/ogen-go/ogen v1.14.0
 	github.com/otiai10/copy v1.14.1
 	github.com/rclone/rclone v1.70.3
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/valyala/fasthttp v1.64.0
 	github.com/wk8/go-ordered-map/v2 v2.1.8

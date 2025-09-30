@@ -36,7 +36,7 @@ func createTestApp(t *testing.T, wsResources []*fs.Resource, getHooks func() *fs
 	server.Use(
 		func(c *restfulresolver.Context) error {
 			if c.Arg("nouser") == "" {
-				c.Locals("user", adminUser)
+				c.Local("user", adminUser)
 			}
 			return c.Next()
 		},

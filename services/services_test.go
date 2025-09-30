@@ -26,6 +26,7 @@ type testApp struct {
 
 func (a *testApp) Key() string                                 { return "" }
 func (a *testApp) Name() string                                { return "" }
+func (a *testApp) Dir() string                                 { return "" }
 func (a *testApp) Config() *fs.Config                          { return nil }
 func (a *testApp) DB() db.Client                               { return nil }
 func (a *testApp) Disk(...string) fs.Disk                      { return nil }

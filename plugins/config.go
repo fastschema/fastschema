@@ -4,265 +4,220 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/dop251/goja"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/fastschema/qjs"
+	"github.com/mitchellh/mapstructure"
 )
 
-type ConfigActions struct {
-	*fs.Config `json:"config"`
-
-	app     AppLike
-	program *Program
-	set     map[string]any
+type AppConfig struct {
+	config *fs.Config
+	plugin *Plugin
+	app    AppLike
 }
 
-func NewConfigActions(app AppLike, program *Program, set map[string]any) *ConfigActions {
-	return &ConfigActions{
-		Config:  app.Config(),
-		app:     app,
-		program: program,
-		set:     set,
+func NewAppConfig(plugin *Plugin, app AppLike, set map[string]any) *AppConfig {
+	return &AppConfig{
+		config: app.Config(),
+		plugin: plugin,
+		app:    app,
 	}
 }
 
-func (p *ConfigActions) AddSchemas(schemas ...map[string]any) error {
-	newSchemas := []any{}
+func (c *AppConfig) Set(config map[string]any) error {
+	decoder, _ := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  c.config,
+	})
+
+	if err := decoder.Decode(config); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *AppConfig) AddSchemas(schemas ...*schema.Schema) {
 	for _, s := range schemas {
-		ss, err := schema.NewSchemaFromMap(s)
-		if err != nil {
-			return err
-		}
-
-		newSchemas = append(newSchemas, ss)
+		c.config.SystemSchemas = append(c.config.SystemSchemas, s)
 	}
-
-	p.SystemSchemas = append(p.SystemSchemas, newSchemas...)
-
-	return nil
 }
 
-func (p *ConfigActions) createResolveHook(hook goja.Value) (fs.ResolveHook, error) {
-	fnName, err := p.program.VerifyJsFunc(hook)
-	if err != nil {
-		return nil, err
-	}
-
-	return func(c fs.Context) (err error) {
-		_, err = p.program.CallFunc(fnName, p.set, c)
-		return
-	}, nil
+func (p *AppConfig) OnPreDBQuery(value *qjs.Value) (err error) {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPreDBQuery(func(c context.Context, option *db.QueryOption) (err error) {
+			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, option)
+			return
+		})
+	})
 }
 
-func (p *ConfigActions) OnPreResolve(hooks ...goja.Value) (err error) {
-	for _, hook := range hooks {
-		hookFn, err := p.createResolveHook(hook)
-		if err != nil {
-			return err
-		}
-
-		p.app.OnPreResolve(hookFn)
-	}
-
-	return nil
+func (p *AppConfig) OnPostDBQuery(value *qjs.Value) error {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPostDBQuery(func(
+			c context.Context,
+			option *db.QueryOption,
+			entities []*entity.Entity,
+		) (_ []*entity.Entity, err error) {
+			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, option, entities)
+			return entities, err
+		})
+	})
 }
 
-func (p *ConfigActions) OnPostResolve(hooks ...goja.Value) (err error) {
-	for _, hook := range hooks {
-		hookFn, err := p.createResolveHook(hook)
-		if err != nil {
+func (p *AppConfig) OnPreDBExec(value *qjs.Value) error {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPreDBExec(func(
+			c context.Context,
+			option *db.QueryOption,
+		) (err error) {
+			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, option)
 			return err
-		}
-
-		p.app.OnPostResolve(hookFn)
-	}
-
-	return nil
+		})
+	})
 }
 
-func (p *ConfigActions) OnPreDBQuery(hooks ...goja.Value) (err error) {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPreDBQuery(func(c context.Context, option *db.QueryOption) (err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, option)
-				return
-			})
-		}); err != nil {
+func (p *AppConfig) OnPostDBExec(value *qjs.Value) error {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPostDBExec(func(
+			c context.Context,
+			option *db.QueryOption,
+			result sql.Result,
+		) (err error) {
+			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, option, result)
 			return err
-		}
-	}
-
-	return nil
+		})
+	})
 }
 
-func (p *ConfigActions) OnPostDBQuery(hooks ...goja.Value) error {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPostDBQuery(func(
-				c context.Context,
-				option *db.QueryOption,
-				entities []*entity.Entity,
-			) (_ []*entity.Entity, err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, option, entities)
-				return entities, err
-			})
-		}); err != nil {
+func (p *AppConfig) OnPreDBCreate(value *qjs.Value) error {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPreDBCreate(func(
+			c context.Context,
+			schema *schema.Schema,
+			createData *entity.Entity,
+		) (err error) {
+			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, schema, createData)
 			return err
-		}
-	}
-
-	return nil
+		})
+	})
 }
 
-func (p *ConfigActions) OnPreDBExec(hooks ...goja.Value) error {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPreDBExec(func(c context.Context, option *db.QueryOption) (err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, option)
-				return
-			})
-		}); err != nil {
+func (p *AppConfig) OnPostDBCreate(value *qjs.Value) error {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPostDBCreate(func(
+			c context.Context,
+			schema *schema.Schema,
+			createData *entity.Entity,
+			createdID uint64,
+		) (err error) {
+			_, err = p.plugin.InvokeJsFunc(
+				jsFuncName,
+				c,
+				schema,
+				createData,
+				createdID,
+			)
 			return err
-		}
-	}
-
-	return nil
+		})
+	})
 }
 
-func (p *ConfigActions) OnPostDBExec(hooks ...goja.Value) error {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPostDBExec(func(
-				c context.Context,
-				option *db.QueryOption,
-				result sql.Result,
-			) (err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, option, result)
-				return
-			})
-		}); err != nil {
+func (p *AppConfig) OnPreDBUpdate(value *qjs.Value) error {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPreDBUpdate(func(
+			c context.Context,
+			schema *schema.Schema,
+			predicates *[]*db.Predicate,
+			updateData *entity.Entity,
+		) (err error) {
+			_, err = p.plugin.InvokeJsFunc(
+				jsFuncName,
+				c,
+				schema,
+				predicates,
+				updateData,
+			)
 			return err
-		}
-	}
-
-	return nil
+		})
+	})
 }
 
-func (p *ConfigActions) OnPreDBCreate(hooks ...goja.Value) error {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPreDBCreate(func(c context.Context, schema *schema.Schema, createData *entity.Entity) (err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, schema, createData)
-				return
-			})
-		}); err != nil {
+func (p *AppConfig) OnPostDBUpdate(value *qjs.Value) error {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPostDBUpdate(func(
+			c context.Context,
+			schema *schema.Schema,
+			predicates *[]*db.Predicate,
+			updateData *entity.Entity,
+			originalEntities []*entity.Entity,
+			affected int,
+		) (err error) {
+			_, err = p.plugin.InvokeJsFunc(
+				jsFuncName,
+				c,
+				schema,
+				predicates,
+				updateData,
+				originalEntities,
+				affected,
+			)
 			return err
-		}
-	}
-
-	return nil
+		})
+	})
 }
 
-func (p *ConfigActions) OnPostDBCreate(hooks ...goja.Value) error {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPostDBCreate(func(
-				c context.Context,
-				schema *schema.Schema,
-				createData *entity.Entity,
-				createdID uint64,
-			) (err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, schema, createData, createdID)
-				return
-			})
-		}); err != nil {
+func (p *AppConfig) OnPreDBDelete(value *qjs.Value) error {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPreDBDelete(func(
+			c context.Context,
+			schema *schema.Schema,
+			predicates *[]*db.Predicate,
+		) (err error) {
+			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, schema, predicates)
 			return err
-		}
-	}
-
-	return nil
+		})
+	})
 }
 
-func (p *ConfigActions) OnPreDBUpdate(hooks ...goja.Value) error {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPreDBUpdate(func(
-				c context.Context,
-				schema *schema.Schema,
-				predicates *[]*db.Predicate,
-				updateData *entity.Entity,
-			) (err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, schema, predicates, updateData)
-				return
-			})
-		}); err != nil {
+func (p *AppConfig) OnPostDBDelete(value *qjs.Value) error {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPostDBDelete(func(
+			c context.Context,
+			schema *schema.Schema,
+			predicates *[]*db.Predicate,
+			originalEntities []*entity.Entity,
+			affected int,
+		) (err error) {
+			_, err = p.plugin.InvokeJsFunc(
+				jsFuncName,
+				c,
+				schema,
+				predicates,
+				originalEntities,
+				affected,
+			)
 			return err
-		}
-	}
-
-	return nil
+		})
+	})
 }
 
-func (p *ConfigActions) OnPostDBUpdate(hooks ...goja.Value) error {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPostDBUpdate(func(
-				c context.Context,
-				schema *schema.Schema,
-				predicates *[]*db.Predicate,
-				updateData *entity.Entity,
-				originalEntities []*entity.Entity,
-				affected int,
-			) (err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, schema, predicates, updateData, originalEntities, affected)
-				return
-			})
-		}); err != nil {
+func (p *AppConfig) OnPreResolve(value *qjs.Value) (err error) {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPreResolve(func(c fs.Context) error {
+			_, err := p.plugin.InvokeJsFunc(jsFuncName, c)
 			return err
-		}
-	}
-
-	return nil
+		})
+	})
 }
 
-func (p *ConfigActions) OnPreDBDelete(hooks ...goja.Value) error {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPreDBDelete(func(
-				c context.Context,
-				schema *schema.Schema,
-				predicates *[]*db.Predicate,
-			) (err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, schema, predicates)
-				return
-			})
-		}); err != nil {
+func (p *AppConfig) OnPostResolve(value *qjs.Value) (err error) {
+	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		p.app.OnPostResolve(func(c fs.Context) error {
+			_, err := p.plugin.InvokeJsFunc(jsFuncName, c)
 			return err
-		}
-	}
-
-	return nil
-}
-
-func (p *ConfigActions) OnPostDBDelete(hooks ...goja.Value) error {
-	for _, hook := range hooks {
-		if err := p.program.WithFuncName(hook, func(fnName string) {
-			p.app.OnPostDBDelete(func(
-				c context.Context,
-				schema *schema.Schema,
-				predicates *[]*db.Predicate,
-				originalEntities []*entity.Entity,
-				affected int,
-			) (err error) {
-				_, err = p.program.CallFunc(fnName, p.set, c, schema, predicates, originalEntities, affected)
-				return
-			})
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
+		})
+	})
 }

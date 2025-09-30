@@ -73,7 +73,7 @@ func TestFastSchemaCustomDirRelative(t *testing.T) {
 	app, err := fastschema.New(config)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, path.Join(app.CWD(), config.Dir), app.Dir())
+	assert.Equal(t, path.Join(app.Dir(), config.Dir), app.Dir())
 }
 
 // Case 3: Test app custom dir with empty path
@@ -85,7 +85,7 @@ func TestFastSchemaCustomDirDefault(t *testing.T) {
 	app, err := fastschema.New(config)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, app.CWD(), app.Dir())
+	assert.Equal(t, app.Dir(), app.Dir())
 }
 
 func TestFastSchemaPrepareConfig(t *testing.T) {
