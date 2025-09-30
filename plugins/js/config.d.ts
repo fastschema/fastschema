@@ -75,21 +75,21 @@ export interface FsAppConfig {
 
   AddSchemas: (...schemas: SchemaRawData[]) => void;
 
-  OnPreResolve(...middlewares: FsMiddleware[]): void;
-  OnPostResolve(...middlewares: FsMiddleware[]): void;
+  OnPreResolve(middleware: FsMiddleware): void;
+  OnPostResolve(middleware: FsMiddleware): void;
 
-  OnPreDBQuery(...hooks: _FsPreDBQuery[]): void;
-  OnPostDBQuery(...hooks: _FsPostDBQuery[]): void;
+  OnPreDBQuery(hook: _FsPreDBQuery): void;
+  OnPostDBQuery(hook: _FsPostDBQuery): void;
 
-  OnPreDBExec(...hooks: _FsPreDBExec[]): void;
-  OnPostDBExec(...hooks: _FsPostDBExec[]): void;
+  OnPreDBExec(hook: _FsPreDBExec): void;
+  OnPostDBExec(hook: _FsPostDBExec): void;
 
-  OnPreDBCreate(...hooks: _FsPreDBCreate[]): void;
-  OnPostDBCreate(...hooks: _FsPostDBCreate[]): void;
+  OnPreDBCreate(hook: _FsPreDBCreate): void;
+  OnPostDBCreate(hook: _FsPostDBCreate): void;
 
-  OnPreDBUpdate(...hooks: _FsPreDBUpdate[]): void;
-  OnPostDBUpdate(...hooks: _FsPostDBUpdate[]): void;
+  OnPreDBUpdate(hook: _FsPreDBUpdate): void;
+  OnPostDBUpdate(hook: _FsPostDBUpdate): void;
 
-  OnPreDBDelete(...hooks: _FsPreDBDelete[]): void;
-  OnPostDBDelete(...hooks: _FsPostDBDelete[]): void;
+  OnPreDBDelete(hook: _FsPreDBDelete): void;
+  OnPostDBDelete(hook: _FsPostDBDelete): void;
 }

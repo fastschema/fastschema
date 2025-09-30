@@ -26,10 +26,10 @@ func NewAppConfig(plugin *Plugin, app AppLike, set map[string]any) *AppConfig {
 	}
 }
 
-func (c *AppConfig) Set(config map[string]any) error {
+func (ac *AppConfig) Set(config map[string]any) error {
 	decoder, _ := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		TagName: "json",
-		Result:  c.config,
+		Result:  ac.config,
 	})
 
 	if err := decoder.Decode(config); err != nil {
@@ -39,81 +39,81 @@ func (c *AppConfig) Set(config map[string]any) error {
 	return nil
 }
 
-func (c *AppConfig) AddSchemas(schemas ...*schema.Schema) {
+func (ac *AppConfig) AddSchemas(schemas ...*schema.Schema) {
 	for _, s := range schemas {
-		c.config.SystemSchemas = append(c.config.SystemSchemas, s)
+		ac.config.SystemSchemas = append(ac.config.SystemSchemas, s)
 	}
 }
 
-func (p *AppConfig) OnPreDBQuery(value *qjs.Value) (err error) {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPreDBQuery(func(c context.Context, option *db.QueryOption) (err error) {
-			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, option)
+func (ac *AppConfig) OnPreDBQuery(value *qjs.Value) (err error) {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPreDBQuery(func(c context.Context, option *db.QueryOption) (err error) {
+			_, err = ac.plugin.InvokeJsFunc(jsFuncName, c, option)
 			return
 		})
 	})
 }
 
-func (p *AppConfig) OnPostDBQuery(value *qjs.Value) error {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPostDBQuery(func(
+func (ac *AppConfig) OnPostDBQuery(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPostDBQuery(func(
 			c context.Context,
 			option *db.QueryOption,
 			entities []*entity.Entity,
 		) (_ []*entity.Entity, err error) {
-			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, option, entities)
+			_, err = ac.plugin.InvokeJsFunc(jsFuncName, c, option, entities)
 			return entities, err
 		})
 	})
 }
 
-func (p *AppConfig) OnPreDBExec(value *qjs.Value) error {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPreDBExec(func(
+func (ac *AppConfig) OnPreDBExec(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPreDBExec(func(
 			c context.Context,
 			option *db.QueryOption,
 		) (err error) {
-			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, option)
+			_, err = ac.plugin.InvokeJsFunc(jsFuncName, c, option)
 			return err
 		})
 	})
 }
 
-func (p *AppConfig) OnPostDBExec(value *qjs.Value) error {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPostDBExec(func(
+func (ac *AppConfig) OnPostDBExec(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPostDBExec(func(
 			c context.Context,
 			option *db.QueryOption,
 			result sql.Result,
 		) (err error) {
-			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, option, result)
+			_, err = ac.plugin.InvokeJsFunc(jsFuncName, c, option, result)
 			return err
 		})
 	})
 }
 
-func (p *AppConfig) OnPreDBCreate(value *qjs.Value) error {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPreDBCreate(func(
+func (ac *AppConfig) OnPreDBCreate(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPreDBCreate(func(
 			c context.Context,
 			schema *schema.Schema,
 			createData *entity.Entity,
 		) (err error) {
-			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, schema, createData)
+			_, err = ac.plugin.InvokeJsFunc(jsFuncName, c, schema, createData)
 			return err
 		})
 	})
 }
 
-func (p *AppConfig) OnPostDBCreate(value *qjs.Value) error {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPostDBCreate(func(
+func (ac *AppConfig) OnPostDBCreate(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPostDBCreate(func(
 			c context.Context,
 			schema *schema.Schema,
 			createData *entity.Entity,
 			createdID uint64,
 		) (err error) {
-			_, err = p.plugin.InvokeJsFunc(
+			_, err = ac.plugin.InvokeJsFunc(
 				jsFuncName,
 				c,
 				schema,
@@ -125,15 +125,15 @@ func (p *AppConfig) OnPostDBCreate(value *qjs.Value) error {
 	})
 }
 
-func (p *AppConfig) OnPreDBUpdate(value *qjs.Value) error {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPreDBUpdate(func(
+func (ac *AppConfig) OnPreDBUpdate(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPreDBUpdate(func(
 			c context.Context,
 			schema *schema.Schema,
 			predicates *[]*db.Predicate,
 			updateData *entity.Entity,
 		) (err error) {
-			_, err = p.plugin.InvokeJsFunc(
+			_, err = ac.plugin.InvokeJsFunc(
 				jsFuncName,
 				c,
 				schema,
@@ -145,9 +145,9 @@ func (p *AppConfig) OnPreDBUpdate(value *qjs.Value) error {
 	})
 }
 
-func (p *AppConfig) OnPostDBUpdate(value *qjs.Value) error {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPostDBUpdate(func(
+func (ac *AppConfig) OnPostDBUpdate(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPostDBUpdate(func(
 			c context.Context,
 			schema *schema.Schema,
 			predicates *[]*db.Predicate,
@@ -155,7 +155,7 @@ func (p *AppConfig) OnPostDBUpdate(value *qjs.Value) error {
 			originalEntities []*entity.Entity,
 			affected int,
 		) (err error) {
-			_, err = p.plugin.InvokeJsFunc(
+			_, err = ac.plugin.InvokeJsFunc(
 				jsFuncName,
 				c,
 				schema,
@@ -169,29 +169,29 @@ func (p *AppConfig) OnPostDBUpdate(value *qjs.Value) error {
 	})
 }
 
-func (p *AppConfig) OnPreDBDelete(value *qjs.Value) error {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPreDBDelete(func(
+func (ac *AppConfig) OnPreDBDelete(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPreDBDelete(func(
 			c context.Context,
 			schema *schema.Schema,
 			predicates *[]*db.Predicate,
 		) (err error) {
-			_, err = p.plugin.InvokeJsFunc(jsFuncName, c, schema, predicates)
+			_, err = ac.plugin.InvokeJsFunc(jsFuncName, c, schema, predicates)
 			return err
 		})
 	})
 }
 
-func (p *AppConfig) OnPostDBDelete(value *qjs.Value) error {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPostDBDelete(func(
+func (ac *AppConfig) OnPostDBDelete(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPostDBDelete(func(
 			c context.Context,
 			schema *schema.Schema,
 			predicates *[]*db.Predicate,
 			originalEntities []*entity.Entity,
 			affected int,
 		) (err error) {
-			_, err = p.plugin.InvokeJsFunc(
+			_, err = ac.plugin.InvokeJsFunc(
 				jsFuncName,
 				c,
 				schema,
@@ -204,19 +204,19 @@ func (p *AppConfig) OnPostDBDelete(value *qjs.Value) error {
 	})
 }
 
-func (p *AppConfig) OnPreResolve(value *qjs.Value) (err error) {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPreResolve(func(c fs.Context) error {
-			_, err := p.plugin.InvokeJsFunc(jsFuncName, c)
+func (ac *AppConfig) OnPreResolve(value *qjs.Value) (err error) {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPreResolve(func(c fs.Context) error {
+			_, err := ac.plugin.InvokeJsFunc(jsFuncName, c)
 			return err
 		})
 	})
 }
 
-func (p *AppConfig) OnPostResolve(value *qjs.Value) (err error) {
-	return p.plugin.WithJSFuncName(value, func(jsFuncName string) {
-		p.app.OnPostResolve(func(c fs.Context) error {
-			_, err := p.plugin.InvokeJsFunc(jsFuncName, c)
+func (ac *AppConfig) OnPostResolve(value *qjs.Value) (err error) {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPostResolve(func(c fs.Context) error {
+			_, err := ac.plugin.InvokeJsFunc(jsFuncName, c)
 			return err
 		})
 	})

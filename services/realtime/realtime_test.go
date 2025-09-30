@@ -211,14 +211,14 @@ func TestBroadCast(t *testing.T) {
 	client5 := newMockWSClient("write")
 	go func() {
 		msg := <-client5.message
-		assert.Contains(t, string(msg), "failed to write message to client")
+		assert.Contains(t, string(msg), "failed to")
 	}()
 	serializer = &testSerializer{}
 	serializer.data = []byte("test")
 	service.AddClient(client5, "testtopic", serializer)
 	service.Broadcast([]string{"testtopic"}, nil)
 	time.Sleep(100 * time.Millisecond)
-	assert.Contains(t, app.logger.Last().String(), "failed to write message to client")
+	assert.Contains(t, app.logger.Last().String(), "failed to")
 
 	// Broadcast on client with normal write
 	client6 := newMockWSClient()

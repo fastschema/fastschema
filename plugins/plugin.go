@@ -201,7 +201,7 @@ func (p *Plugin) WithJSFuncName(v *qjs.Value, cb func(jsFuncName string)) error 
 
 	jsFuncName := v.GetPropertyStr("name").String()
 	if jsFuncName == "" {
-		return fmt.Errorf("JS callback name is empty")
+		return fmt.Errorf("%s/plugin.js JS callback name is empty", p.name)
 	}
 
 	if !utils.Contains(p.exportedNames, jsFuncName) {
@@ -231,7 +231,7 @@ func (p *Plugin) Config() (err error) {
 	}
 
 	if !jsConfig.IsFunction() {
-		return fmt.Errorf("Plugin export 'Config' is not a function")
+		return fmt.Errorf("%s/plugin.js Plugin export 'Config' is not a function", p.name)
 	}
 
 	p.appConfig = NewAppConfig(p, p.app, nil)
@@ -247,7 +247,7 @@ func (p *Plugin) Init() (err error) {
 	}
 
 	if !jsConfig.IsFunction() {
-		return fmt.Errorf("Plugin export 'Init' is not a function")
+		return fmt.Errorf("%s/plugin.js Plugin export 'Init' is not a function", p.name)
 	}
 
 	_, err = defaultExports.Invoke("Init", map[string]any{

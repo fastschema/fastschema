@@ -107,11 +107,11 @@ func (c *Context) Payload() (*entity.Entity, error) {
 }
 
 func (c *Context) BodyParser(out any) error {
-	return c.Ctx.BodyParser(out)
+	return c.ctx.BodyParser(out)
 }
 
 func (c *Context) FormValue(key string, defaultValue ...string) string {
-	return c.Ctx.FormValue(key, defaultValue...)
+	return c.ctx.FormValue(key, defaultValue...)
 }
 
 func (c *Context) Resource() *fs.Resource {

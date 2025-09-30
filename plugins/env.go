@@ -130,7 +130,6 @@ func (d *DB) Rollback() error {
 	return d.getDB().Rollback()
 }
 
-// Resources access helper for plugins
 type Resource struct {
 	resource *fs.Resource
 	plugin   *Plugin
