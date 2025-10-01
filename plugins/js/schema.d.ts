@@ -73,4 +73,6 @@ export interface RenameItem {
 export interface FsEntity {
   Set: (name: string, value: any) => FsEntity;
   Get: <T = any>(name: string) => T;
+  ToJSON: () => string;
+  ToMap: () => Record<string, any>;
 }

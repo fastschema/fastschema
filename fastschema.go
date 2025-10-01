@@ -26,7 +26,7 @@ var (
 type App struct {
 	mu            sync.Mutex
 	config        *fs.Config
-	cwd           string
+	wd            string
 	dir           string
 	envFile       string
 	dataDir       string
@@ -64,7 +64,7 @@ func New(config *fs.Config) (_ *App, err error) {
 		authProviders: map[string]fs.AuthProvider{},
 	}
 
-	if a.cwd, err = os.Getwd(); err != nil {
+	if a.wd, err = os.Getwd(); err != nil {
 		return nil, err
 	}
 
@@ -188,10 +188,6 @@ func (a *App) JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc {
 
 func (a *App) Name() string {
 	return a.config.AppName
-}
-
-func (a *App) CWD() string {
-	return a.cwd
 }
 
 func (a *App) Config() *fs.Config {

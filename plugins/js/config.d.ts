@@ -1,3 +1,17 @@
+import { SchemaRawData as _SchemaRawData, FsEntity as _FsEntity } from './schema';
+import {
+  _FsPreDBQuery,
+  _FsPostDBQuery,
+  _FsPreDBExec,
+  _FsPostDBExec,
+  _FsPreDBCreate,
+  _FsPostDBCreate,
+  _FsPreDBUpdate,
+  _FsPostDBUpdate,
+  _FsPreDBDelete,
+  _FsPostDBDelete,
+} from './hooks';
+
 export interface FsLoggerConfig {
   development: boolean;
   log_file: string;
@@ -46,7 +60,7 @@ export interface FsAuthConfig {
 export interface FsAppConfig {
   dir: string;
   app_key: string;
-  port: string;
+  readonly port: string;
   base_url: string;
   dash_url: string;
   api_base_name: string;
@@ -56,4 +70,26 @@ export interface FsAppConfig {
   storage_config?: FsStorageConfig;
   hide_resources_info: boolean;
   auth_config?: FsAuthConfig;
+
+  Set: (config: { [key: string]: any }) => void;
+
+  AddSchemas: (...schemas: SchemaRawData[]) => void;
+
+  OnPreResolve(middleware: FsMiddleware): void;
+  OnPostResolve(middleware: FsMiddleware): void;
+
+  OnPreDBQuery(hook: _FsPreDBQuery): void;
+  OnPostDBQuery(hook: _FsPostDBQuery): void;
+
+  OnPreDBExec(hook: _FsPreDBExec): void;
+  OnPostDBExec(hook: _FsPostDBExec): void;
+
+  OnPreDBCreate(hook: _FsPreDBCreate): void;
+  OnPostDBCreate(hook: _FsPostDBCreate): void;
+
+  OnPreDBUpdate(hook: _FsPreDBUpdate): void;
+  OnPostDBUpdate(hook: _FsPostDBUpdate): void;
+
+  OnPreDBDelete(hook: _FsPreDBDelete): void;
+  OnPostDBDelete(hook: _FsPostDBDelete): void;
 }

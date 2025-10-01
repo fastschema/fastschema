@@ -37,7 +37,7 @@ func init() {
 
 func (a *App) init() (err error) {
 	var pluginsManager *plugins.Manager
-	if pluginsManager, err = plugins.NewManager(a.pluginsDir); err != nil {
+	if pluginsManager, err = plugins.NewManager(a, a.pluginsDir, nil); err != nil {
 		return err
 	}
 
@@ -46,11 +46,11 @@ func (a *App) init() (err error) {
 			err = fmt.Errorf("panic: %v\n%s", r, string(debug.Stack()))
 		}
 		if err == nil {
-			err = pluginsManager.Init(a)
+			err = pluginsManager.Init()
 		}
 	}()
 
-	if err = pluginsManager.Config(a); err != nil {
+	if err = pluginsManager.Config(); err != nil {
 		return err
 	}
 
@@ -416,12 +416,19 @@ func (a *App) createDBClient() (err error) {
 			LogQueries:         utils.Env("DB_LOGGING", "false") == "true",
 			DisableForeignKeys: utils.Env("DB_DISABLE_FOREIGN_KEYS", "false") == "true",
 			UseSoftDeletes:     utils.Env("DB_USE_SOFT_DELETES", "false") == "true",
-			Logger:             a.Logger(),
-			MigrationDir:       a.migrationDir,
-			Hooks: func() *db.Hooks {
-				return a.config.Hooks.DBHooks
-			},
 		}
+	}
+
+	a.config.DBConfig.Hooks = func() *db.Hooks {
+		return a.config.Hooks.DBHooks
+	}
+
+	if a.config.DBConfig.Logger == nil {
+		a.config.DBConfig.Logger = a.Logger()
+	}
+
+	if a.config.DBConfig.MigrationDir == "" {
+		a.config.DBConfig.MigrationDir = a.migrationDir
 	}
 
 	if !utils.Contains(db.SupportDrivers, a.config.DBConfig.Driver) {
@@ -507,7 +514,7 @@ func (a *App) getAppDir() {
 	}()
 
 	if a.config.Dir == "" {
-		a.dir = a.cwd
+		a.dir = a.wd
 		return
 	}
 
@@ -516,7 +523,7 @@ func (a *App) getAppDir() {
 		return
 	}
 
-	a.dir = path.Join(a.cwd, a.config.Dir)
+	a.dir = path.Join(a.wd, a.config.Dir)
 }
 
 func (a *App) GetSetupToken(ctx context.Context) (string, error) {
