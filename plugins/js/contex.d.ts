@@ -18,7 +18,7 @@ export interface FsContext {
   Args: () => Record<string, FsArg>;
   Arg: (name: string, defaultValue?: string) => string;
   ArgInt: (name: string, defaultValue?: int) => int;
-  Payload: () => Object;
+  Payload: () => FsEntity;
   Resource: () => FsResource;
   AuthToken: () => string;
   Next: () => error;

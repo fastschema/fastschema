@@ -52,6 +52,7 @@ export interface FsDbExecResult {
 }
 
 export interface FsDb {
+  Create(ctx: FsContext, schema: string, dataCreate: any): FsEntity;
   Exec: (c: FsContext, sql: string, ...args: any) => FsDbExecResult;
   Query: (c: FsContext, sql: string, ...args: any) => FsEntity[];
   Builder: (schema: string) => FsDbQueryBuilder;

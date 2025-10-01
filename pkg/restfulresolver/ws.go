@@ -95,7 +95,7 @@ type WSContext struct {
 func CreateWSContext(r *fs.Resource, c *fiber.Ctx, logger logger.Logger, wsClient *WSClient) *WSContext {
 	ctx := &WSContext{
 		BaseContext: &Context{
-			Ctx:      c,
+			ctx:      c,
 			args:     make(map[string]string),
 			resource: r,
 			logger:   logger,

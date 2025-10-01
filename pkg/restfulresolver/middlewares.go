@@ -48,7 +48,7 @@ func CreateMiddlewareRequestLog(statics []*fs.StaticFs) func(c *Context) error {
 			"method":  c.Method(),
 			"path":    c.Path(),
 			"ip":      c.IP(),
-			"queries": c.Queries(),
+			"queries": c.ctx.Queries(),
 		}
 
 		if err != nil {

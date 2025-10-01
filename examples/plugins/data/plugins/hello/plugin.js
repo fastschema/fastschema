@@ -1,61 +1,81 @@
-'use strict';
+import productSchema from './schemas/product.json';
+import {
+  preDBQuery,
+  postDBQuery,
+  //
+  preDBExec,
+  postDBExec,
+  //
+  preDBCreate,
+  postDBCreate,
+  //
+  preDBUpdate,
+  postDBUpdate,
+  //
+  preDBDelete,
+  postDBDelete,
+  //
+  preResolve,
+  postResolve,
+} from './hooks';
 
-const product = require('./schemas/product.json');
-const {
-  hookPreResolve,
-  hookPostResolve,
+import { hello, ping, submit, world } from './resources';
 
-  hookPreDBQuery,
-  hookPostDBQuery,
+/** @param {FsAppConfig} config */
+const Config = (config) => {
+  config.Set({ port: '9000' });
 
-  hookPreDBExec,
-  hookPostDBExec,
+  config.AddSchemas(productSchema);
 
-  hookPreDBCreate,
-  hookPostDBCreate,
+  config.OnPreDBQuery(preDBQuery);
+  config.OnPostDBQuery(postDBQuery);
 
-  hookPreDBUpdate,
-  hookPostDBUpdate,
+  config.OnPreDBExec(preDBExec);
+  config.OnPostDBExec(postDBExec);
 
-  hookPreDBDelete,
-  hookPostDBDelete,
-} = require('./hooks');
+  config.OnPreDBCreate(preDBCreate);
+  config.OnPostDBCreate(postDBCreate);
 
-const {
-  ping,
-  world,
-  message,
-} = require('./resources');
+  config.OnPreDBUpdate(preDBUpdate);
+  config.OnPostDBUpdate(postDBUpdate);
 
-/** @param {FsAppConfigActions} config */
-const Config = config => {
-  config.AddSchemas(product);
-  config.port = '8000';
+  config.OnPreDBDelete(preDBDelete);
+  config.OnPostDBDelete(postDBDelete);
 
-  // config.OnPreResolve(hookPreResolve);
-  // config.OnPostResolve(hookPostResolve);
-
-  // config.OnPreDBQuery(hookPreDBQuery);
-  // config.OnPostDBQuery(hookPostDBQuery);
-
-  // config.OnPreDBExec(hookPreDBExec);
-  // config.OnPostDBExec(hookPostDBExec);
-
-  // config.OnPreDBCreate(hookPreDBCreate);
-  // config.OnPostDBCreate(hookPostDBCreate);
-
-  // config.OnPreDBUpdate(hookPreDBUpdate);
-  // config.OnPostDBUpdate(hookPostDBUpdate);
-
-  // config.OnPreDBDelete(hookPreDBDelete);
-  // config.OnPostDBDelete(hookPostDBDelete);
-}
+  config.OnPreResolve(preResolve);
+  config.OnPostResolve(postResolve);
+};
 
 /** @param {FsPlugin} plugin */
-const Init = plugin => {
+const Init = (plugin) => {
   plugin.resources
-    .Group('hello')
+    .Group('plugin')
     .Add(ping, { public: true })
-    .Add(message, { public: true, post: '/message' })
+    .Add(submit, { public: true, post: '/submit' })
+    .Add(hello, { public: true })
     .Add(world, { public: true });
-}
+  $logger().Info('Hello plugin initialized');
+};
+
+export default {
+  Config,
+  Init,
+  //
+  preDBQuery,
+  postDBQuery,
+  preDBExec,
+  postDBExec,
+  preDBCreate,
+  postDBCreate,
+  preDBUpdate,
+  postDBUpdate,
+  preDBDelete,
+  postDBDelete,
+  preResolve,
+  postResolve,
+  //
+  ping,
+  submit,
+  hello,
+  world,
+};

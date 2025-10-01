@@ -208,17 +208,17 @@ func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodDa
 			if httpResponse.Header != nil {
 				for key, values := range httpResponse.Header {
 					for _, value := range values {
-						c.Set(key, value)
+						c.ctx.Set(key, value)
 					}
 				}
 			}
 
 			if httpResponse.File != "" {
-				return c.Ctx.SendFile(httpResponse.File)
+				return c.ctx.SendFile(httpResponse.File)
 			}
 
 			if httpResponse.Stream != nil {
-				return c.SendStream(httpResponse.Stream)
+				return c.ctx.SendStream(httpResponse.Stream)
 			}
 
 			return c.Status(status).Send(httpResponse.Body)
