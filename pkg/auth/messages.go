@@ -10,28 +10,30 @@ import (
 )
 
 var (
-	MSG_USER_SAVE_ERROR               = "error saving user"
-	MSG_USER_ACTIVATION_ERROR         = "error activating user"
-	MSG_INVALID_TOKEN                 = "invalid token"
-	MSG_TOKEN_EXPIRED                 = "token expired"
-	MSG_CREATE_ACTIVATION_MAIL_ERROR  = "error while creating activation email: %w"
-	MSG_USER_UPDATE_PROVIDER_ID_ERROR = "error while update provider id: %w"
-	MSG_CREATEP_RECOVERY_MAIL_ERROR   = "error while creating recovery email"
-	MSG_INVALID_EMAIL                 = "invalid email"
-	MSG_INVALID_PASSWORD              = "invalid password"
-	MSG_INVALID_LOGIN_OR_PASSWORD     = "invalid login or password"
-	MSG_USER_IS_INACTIVE              = "user is inactive"
-	MSG_INVALID_REGISTRATION          = "email, password and confirm_password are required"
-	MSG_SEND_ACTIVATION_EMAIL_ERROR   = "error while sending activation email"
-	MSG_MAILER_NOT_SET                = "mailer is not set"
-	MSG_CHECKING_USER_ERROR           = "error checking user"
-	MSG_USER_EXISTS                   = "user already exists"
+	MSG_USER_SAVE_ERROR               = "Error saving user"
+	MSG_USER_ACTIVATION_ERROR         = "Error activating user"
+	MSG_USER_ALREADY_ACTIVE           = "Your account is already activated"
+	MSG_INVALID_TOKEN                 = "Invalid token"
+	MSG_TOKEN_EXPIRED                 = "Token expired"
+	MSG_CREATE_ACTIVATION_MAIL_ERROR  = "Error while creating activation email: %w"
+	MSG_USER_UPDATE_PROVIDER_ID_ERROR = "Error while update provider id: %w"
+	MSG_CREATEP_RECOVERY_MAIL_ERROR   = "Error while creating recovery email"
+	MSG_INVALID_EMAIL                 = "Invalid email"
+	MSG_INVALID_PASSWORD              = "Invalid password"
+	MSG_INVALID_LOGIN_OR_PASSWORD     = "Invalid login or password"
+	MSG_USER_IS_INACTIVE              = "User is inactive"
+	MSG_INVALID_REGISTRATION          = "Email, password and confirm_password are required"
+	MSG_SEND_ACTIVATION_EMAIL_ERROR   = "Error while sending activation email"
+	MSG_MAILER_NOT_SET                = "Mailer is not set"
+	MSG_CHECKING_USER_ERROR           = "Error checking user"
+	MSG_USER_EXISTS                   = "User already exists"
 	MSG_EXISTING_USER_WITH_EMAIL      = "Looks like you already have an account with this email. Please log in using your existing sign-in method, or try signing up with a different email."
 
-	ERR_SAVE_USER     = errors.InternalServerError(MSG_USER_SAVE_ERROR)
-	ERR_INVALID_TOKEN = errors.BadRequest(MSG_INVALID_TOKEN)
-	ERR_TOKEN_EXPIRED = errors.BadRequest(MSG_TOKEN_EXPIRED)
-	ERR_INVALID_LOGIN = errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
+	ERR_SAVE_USER           = errors.InternalServerError(MSG_USER_SAVE_ERROR)
+	ERR_INVALID_TOKEN       = errors.BadRequest(MSG_INVALID_TOKEN)
+	ERR_TOKEN_EXPIRED       = errors.BadRequest(MSG_TOKEN_EXPIRED)
+	ERR_INVALID_LOGIN       = errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
+	ERR_USER_ALREADY_ACTIVE = errors.BadRequest(MSG_USER_ALREADY_ACTIVE)
 )
 
 func CreateActivationEmail(la *LocalProvider, user *fs.User) (*fs.Mail, error) {

@@ -132,6 +132,18 @@ func (la *LocalProvider) Activate(c fs.Context, data *Confirmation) (*Activation
 		return nil, err
 	}
 
+	var count int
+	if count, err = db.Builder[*fs.User](la.db()).
+		Where(db.EQ("id", userID)).
+		Where(db.EQ("active", true)).
+		Count(c); err != nil {
+		c.Logger().Errorf(MSG_CHECKING_USER_ERROR+": %w", err)
+		return nil, errors.InternalServerError(MSG_CHECKING_USER_ERROR)
+	}
+	if count > 0 {
+		return nil, ERR_USER_ALREADY_ACTIVE
+	}
+
 	if _, err = db.Builder[*fs.User](la.db()).
 		Where(db.EQ("id", userID)).
 		Where(db.EQ("active", false)).

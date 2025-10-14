@@ -263,7 +263,7 @@ func TestValidateRegisterData(t *testing.T) {
 					ConfirmPassword: "password",
 				},
 			},
-			wantErr: "error checking user",
+			wantErr: "Error checking user",
 		},
 		{
 			name: "user exists",
