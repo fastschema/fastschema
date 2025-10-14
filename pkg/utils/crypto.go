@@ -202,22 +202,22 @@ func CreateConfirmationToken(
 func ParseConfirmationToken(token, key string) (*ConfirmationData, error) {
 	decryptedData, err := Decrypt(token, key)
 	if err != nil {
-		return nil, errors.BadRequest("invalid token")
+		return nil, errors.BadRequest("Invalid token")
 	}
 
 	parts := strings.Split(decryptedData, "_")
 	if len(parts) != 2 {
-		return nil, errors.BadRequest("invalid token")
+		return nil, errors.BadRequest("Invalid token")
 	}
 
 	userID, err := strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
-		return nil, errors.BadRequest("invalid token")
+		return nil, errors.BadRequest("Invalid token")
 	}
 
 	expTime, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
-		return nil, errors.BadRequest("invalid token")
+		return nil, errors.BadRequest("Invalid token")
 	}
 
 	return &ConfirmationData{

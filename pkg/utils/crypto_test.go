@@ -160,27 +160,27 @@ func TestParseConfirmationToken(t *testing.T) {
 	invalidToken := "invalid_token"
 	_, err = ParseConfirmationToken(invalidToken, key)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid token")
+	assert.Contains(t, err.Error(), "Invalid token")
 
 	// Test case 3: Invalid token format (missing parts)
 	invalidTokenFormat := "invalid_format"
 	_, err = ParseConfirmationToken(invalidTokenFormat, key)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid token")
+	assert.Contains(t, err.Error(), "Invalid token")
 
 	// Test case 4: Invalid userID in token
 	invalidUserIDToken, err := Encrypt("invalid_userID_1234567890", key)
 	assert.NoError(t, err)
 	_, err = ParseConfirmationToken(invalidUserIDToken, key)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid token")
+	assert.Contains(t, err.Error(), "Invalid token")
 
 	// Test case 5: Invalid expiration time in token
 	invalidExpTimeToken, err := Encrypt(fmt.Sprintf("%d_invalid_exp", userID), key)
 	assert.NoError(t, err)
 	_, err = ParseConfirmationToken(invalidExpTimeToken, key)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid token")
+	assert.Contains(t, err.Error(), "Invalid token")
 
 	// Test case 6: Invalid userID format
 	token, err = Encrypt(
