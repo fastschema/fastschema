@@ -133,7 +133,7 @@ func NewPlugin(
 		runtimeSetupFunc: runtimeSetupFunc,
 	}
 
-	if p.runtime, err = qjs.New(&qjs.Option{
+	if p.runtime, err = qjs.New(qjs.Option{
 		CWD:              app.Dir(),
 		QuickJSWasmBytes: qjsWasmBytes,
 	}); err != nil {
@@ -146,7 +146,7 @@ func NewPlugin(
 	}
 
 	// Create pool
-	p.pool = qjs.NewPool(10, nil, func(rt *qjs.Runtime) error {
+	p.pool = qjs.NewPool(10, qjs.Option{}, func(rt *qjs.Runtime) error {
 		return p.EvalPluginFile(rt, true)
 	})
 
@@ -184,11 +184,11 @@ func (p *Plugin) EvalPluginFile(rt *qjs.Runtime, inPool bool) (err error) {
 	})
 
 	rt.Context().SetFunc("$db", func(this *qjs.This) (*qjs.Value, error) {
-		return qjs.ToJSValue(rt.Context(), NewDB(p.app.DB))
+		return qjs.ToJsValue(rt.Context(), NewDB(p.app.DB))
 	})
 
 	rt.Context().SetFunc("$logger", func(this *qjs.This) (*qjs.Value, error) {
-		return qjs.ToJSValue(this.Context(), p.app.Logger())
+		return qjs.ToJsValue(this.Context(), p.app.Logger())
 	})
 	rt.Context().Global().SetPropertyStr("defaultExports", result)
 	return nil

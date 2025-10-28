@@ -13,13 +13,13 @@ import (
 type User struct {
 	_         any    `json:"-" fs:"label_field=username"`
 	ID        uint64 `json:"id,omitempty"`
-	Username  string `json:"username,omitempty" fs:"optional"`
-	Email     string `json:"email,omitempty" fs:"optional"`
-	FirstName string `json:"first_name,omitempty" fs:"optional"`
-	LastName  string `json:"last_name,omitempty" fs:"optional"`
+	Username  string `json:"username,omitempty" fs:"optional;sortable"`
+	Email     string `json:"email,omitempty" fs:"optional;sortable"`
+	FirstName string `json:"first_name,omitempty" fs:"optional;sortable"`
+	LastName  string `json:"last_name,omitempty" fs:"optional;sortable"`
 	Password  string `json:"password,omitempty" fs:"optional" fs.setter:"$args.Exist && $args.Value != '' ? $hash($args.Value) : $undefined" fs.getter:"$context.Value('keeppassword') == 'true' ? $args.Value : $undefined"`
 
-	Active               bool   `json:"active,omitempty" fs:"optional"`
+	Active               bool   `json:"active,omitempty" fs:"optional;sortable"`
 	Provider             string `json:"provider,omitempty" fs:"optional"`
 	ProviderID           string `json:"provider_id,omitempty" fs:"optional"`
 	ProviderUsername     string `json:"provider_username,omitempty" fs:"optional"`

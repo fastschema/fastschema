@@ -167,7 +167,7 @@ func (r *Resource) Add(value *qjs.Value, metas ...*fs.Meta) (*Resource, error) {
 				}
 			}
 
-			return qjs.JsValueToGo[any](result)
+			return qjs.ToGoValue[any](result)
 		}, metas...))
 	})
 }

@@ -278,6 +278,9 @@ func (m *Mutation) ProcessUpdateBlockSet(entAdapter EntAdapter, fieldValue any) 
 }
 
 // ProcessUpdateFieldSet processes a field in the $set block
+//
+//	This function handles both scalar fields and relations.
+//	For relations, it clears existing edges and adds new ones.
 func (m *Mutation) ProcessUpdateFieldSet(entAdapter EntAdapter, k string, v any) error {
 	c, err := m.model.Column(k)
 	if err != nil {
