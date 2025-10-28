@@ -15,7 +15,7 @@ require (
 	github.com/emersion/go-smtp v0.23.0
 	github.com/expr-lang/expr v1.17.5
 	github.com/fasthttp/websocket v1.5.12
-	github.com/fastschema/qjs v0.0.2
+	github.com/fastschema/qjs v0.0.6
 	github.com/fatih/color v1.18.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gofiber/contrib/websocket v1.3.4
