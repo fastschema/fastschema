@@ -2,6 +2,7 @@ package schema
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -216,6 +217,25 @@ var (
 		reflect.TypeOf(uint64(0)):    TypeUint64,
 		reflect.TypeOf(float32(0)):   TypeFloat32,
 		reflect.TypeOf(float64(0)):   TypeFloat64,
+
+		reflect.TypeOf(sql.NullString{}):  TypeString,
+		reflect.TypeOf(sql.NullInt64{}):   TypeInt64,
+		reflect.TypeOf(sql.NullInt32{}):   TypeInt32,
+		reflect.TypeOf(sql.NullInt16{}):   TypeInt16,
+		reflect.TypeOf(sql.NullByte{}):    TypeInt8,
+		reflect.TypeOf(sql.NullFloat64{}): TypeFloat64,
+		reflect.TypeOf(sql.NullBool{}):    TypeBool,
+		reflect.TypeOf(sql.NullTime{}):    TypeTime,
+
+		reflect.TypeOf(&sql.NullString{}):  TypeString,
+		reflect.TypeOf(&sql.NullInt64{}):   TypeInt64,
+		reflect.TypeOf(&sql.NullInt32{}):   TypeInt32,
+		reflect.TypeOf(&sql.NullInt16{}):   TypeInt16,
+		reflect.TypeOf(&sql.NullByte{}):    TypeInt8,
+		reflect.TypeOf(&sql.NullFloat64{}): TypeFloat64,
+		reflect.TypeOf(&sql.NullBool{}):    TypeBool,
+		reflect.TypeOf(&sql.NullTime{}):    TypeTime,
+
 		// reflect.TypeOf(&Relation{}):  TypeRelation,
 		// reflect.TypeOf(&Relation{}):  TypeFile,
 	}

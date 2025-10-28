@@ -368,7 +368,10 @@ func isDateTimeColumn(scanType reflect.Type, databaseTypeName string) bool {
 	isStructTime := scanType != nil &&
 		scanType.Kind() == reflect.Struct &&
 		scanType.String() == "time.Time"
-	return isStructTime || isSQLTime
+	isNullTime := scanType != nil &&
+		scanType.Kind() == reflect.Struct &&
+		scanType.String() == "sql.NullTime"
+	return isStructTime || isSQLTime || isNullTime
 }
 
 func driverExec(
