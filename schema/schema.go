@@ -6,35 +6,37 @@ import (
 	"os"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
-type SchemaDBIndex struct {
-	Name    string   `json:"name,omitempty"`
-	Unique  bool     `json:"unique,omitempty"`
-	Columns []string `json:"columns,omitempty"`
+type DBIndex struct {
+	Name    string   `json:"name,omitempty" yaml:"name,omitempty"`
+	Unique  bool     `json:"unique,omitempty" yaml:"unique,omitempty"`
+	Columns []string `json:"columns,omitempty" yaml:"columns,omitempty"`
 }
 
-type SchemaDB struct {
-	Indexes []*SchemaDBIndex `json:"indexes,omitempty"`
+type DB struct {
+	Indexes []*DBIndex `json:"indexes,omitempty" yaml:"indexes,omitempty"`
 }
 
 // Schema holds the node data.
 type Schema struct {
-	*SystemSchema `json:"-"`
+	*SystemSchema `json:"-" yaml:"-"`
 
 	initialized bool
-	dbColumns   []string `json:"-"`
+	dbColumns   []string `json:"-" yaml:"-"`
 
-	Name             string    `json:"name"`
-	Namespace        string    `json:"namespace"`
-	LabelFieldName   string    `json:"label_field"`
-	DisableTimestamp bool      `json:"disable_timestamp"`
-	Fields           []*Field  `json:"fields"`
-	IsSystemSchema   bool      `json:"is_system_schema,omitempty"`
-	IsJunctionSchema bool      `json:"is_junction_schema,omitempty"`
-	DB               *SchemaDB `json:"db,omitempty"`
+	Name             string   `json:"name" yaml:"name"`
+	Namespace        string   `json:"namespace" yaml:"namespace"`
+	LabelFieldName   string   `json:"label_field" yaml:"label_field"`
+	DisableTimestamp bool     `json:"disable_timestamp" yaml:"disable_timestamp"`
+	Fields           []*Field `json:"fields" yaml:"fields"`
+	IsSystemSchema   bool     `json:"is_system_schema,omitempty" yaml:"is_system_schema,omitempty"`
+	IsJunctionSchema bool     `json:"is_junction_schema,omitempty" yaml:"is_junction_schema,omitempty"`
+	DB               *DB      `json:"db,omitempty" yaml:"db,omitempty"`
 }
 
 // NewSchemaFromJSON creates a new node from a json string.
@@ -63,7 +65,33 @@ func NewSchemaFromJSONFile(jsonFile string) (*Schema, error) {
 	return s, nil
 }
 
-func NewSchemaFromMap(data map[string]interface{}) (*Schema, error) {
+// NewSchemaFromYAML creates a new schema from a YAML string.
+func NewSchemaFromYAML(yamlData string) (*Schema, error) {
+	n := &Schema{}
+	if err := yaml.Unmarshal([]byte(yamlData), &n); err != nil {
+		return nil, err
+	}
+
+	return n, nil
+}
+
+// NewSchemaFromYAMLFile creates a new schema from a YAML file.
+func NewSchemaFromYAMLFile(yamlFile string) (*Schema, error) {
+	s := &Schema{}
+	yamlData, err := os.ReadFile(yamlFile)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err = yaml.Unmarshal(yamlData, &s); err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+func NewSchemaFromMap(data map[string]any) (*Schema, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -185,7 +213,7 @@ func (s *Schema) SaveToFile(filename string) error {
 		return !field.IsSystemField
 	})
 
-	fileData, err := json.MarshalIndent(filteredSchema, "", "  ")
+	fileData, err := yaml.Marshal(filteredSchema)
 	if err != nil {
 		return err
 	}

@@ -6,8 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/jinzhu/inflection"
+
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 // While converting struct to schema, we need to convert the struct fields to schema fields.
@@ -129,7 +130,7 @@ func (s *Schema) Customize() (_ *Schema, err error) {
 		// Customize db property
 		dbTag := sf.Tag.Get("fs.db")
 		if dbTag != "" {
-			if s.DB, err = utils.ParseHJSON[*SchemaDB]([]byte(dbTag)); err != nil {
+			if s.DB, err = utils.ParseHJSON[*DB]([]byte(dbTag)); err != nil {
 				return nil, fmt.Errorf("%s._=%s: invalid db format: %w", s.Name, dbTag, err)
 			}
 		}
@@ -188,9 +189,9 @@ func (s *Schema) Customize() (_ *Schema, err error) {
 }
 
 func (s *Schema) CreateFields() error {
-	stringFields := []string{}
+	var stringFields []string
 
-	for i := 0; i < s.RType.NumField(); i++ {
+	for i := range s.RType.NumField() {
 		sf := s.RType.Field(i)
 		field, err := s.CreateField(sf)
 		if err != nil {

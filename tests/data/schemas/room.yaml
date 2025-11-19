@@ -1,0 +1,17 @@
+name: room
+namespace: rooms
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+  unique: true
+- name: owner
+  label: Owner
+  type: relation
+  optional: true
+  relation:
+    type: o2o
+    schema: user
+    field: room
+    owner: true

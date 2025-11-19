@@ -2,13 +2,15 @@ package openapi
 
 import (
 	"encoding/json"
+	"maps"
 	"regexp"
 	"strings"
+
+	"github.com/ogen-go/ogen"
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/ogen-go/ogen"
 )
 
 // CreateParameters creates openapi parameters from app args.
@@ -81,9 +83,7 @@ func MergeArgs(first fs.Args, second fs.Args) (fs.Args, error) {
 //	The resulting map contains all the path items from both input maps, with any overlapping keys merged.
 func MergePathItems(first map[string]*ogen.PathItem, second map[string]*ogen.PathItem) map[string]*ogen.PathItem {
 	result := make(map[string]*ogen.PathItem, len(first))
-	for key, value := range first {
-		result[key] = value
-	}
+	maps.Copy(result, first)
 
 	for key, value := range second {
 		if _, ok := result[key]; ok {

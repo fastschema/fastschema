@@ -61,16 +61,11 @@ func BindEntity[T any](e *Entity) (result T, err error) {
 }
 
 // UnmarshalJSONValue converts json bytes to a Go value.
-func UnmarshalJSONValue(
-	data []byte,
-	valueData []byte,
-	dataType jsonparser.ValueType,
-	offset int,
-) (any, error) {
+func UnmarshalJSONValue(valueData []byte, dataType jsonparser.ValueType) (any, error) {
 	// jsonparser removes the enclosing quotes; we need to restore them to make a valid JSON
 	if dataType == jsonparser.String {
 		// valueData = data[offset-len(valueData)-2 : offset]
-		valueData = []byte(fmt.Sprintf("\"%s\"", string(valueData)))
+		valueData = fmt.Appendf(nil, "\"%s\"", string(valueData))
 	}
 
 	var value any

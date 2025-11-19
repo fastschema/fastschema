@@ -1,0 +1,41 @@
+name: node
+namespace: nodes
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+- name: next
+  label: Next
+  type: relation
+  optional: true
+  relation:
+    type: o2o
+    schema: node
+    owner: true
+    field: prev
+- name: prev
+  label: Previous
+  type: relation
+  optional: true
+  relation:
+    type: o2o
+    schema: node
+    field: next
+- name: children
+  label: Children
+  type: relation
+  optional: true
+  relation:
+    owner: true
+    type: o2m
+    schema: node
+    field: parent
+- name: parent
+  label: Parent
+  type: relation
+  optional: true
+  relation:
+    type: o2m
+    schema: node
+    field: children

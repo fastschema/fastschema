@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
@@ -16,7 +18,6 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	as "github.com/fastschema/fastschema/services/auth"
-	"github.com/stretchr/testify/assert"
 )
 
 type testApp struct {
@@ -114,19 +115,15 @@ func (t testAuthProvider) VerifyIDToken(c fs.Context, p fs.IDToken) (*fs.User, e
 
 func createTestApp(t *testing.T) *testApp {
 	schemaDir := utils.Must(os.MkdirTemp("", "schemas"))
-	utils.WriteFile(schemaDir+"/blog.json", `{
-		"name": "blog",
-		"namespace": "blogs",
-		"label_field": "name",
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"sortable": true
-			}
-		]
-	}`)
+	utils.WriteFile(schemaDir+"/blog.yaml", `name: blog
+namespace: blogs
+label_field: name
+fields:
+  - name: name
+    label: Name
+    type: string
+    sortable: true
+`)
 	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	dbc := utils.Must(entdbadapter.NewTestClient(migrationDir, sb))

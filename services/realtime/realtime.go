@@ -87,7 +87,7 @@ func (rs *RealtimeService) Broadcast(topicNames []string, data any) {
 			go func(client fs.WSClient, serializer WSSerializer) {
 				msg, err := serializer.Serialize(data)
 				if err != nil {
-					writeErr := client.Write([]byte(fmt.Sprintf("failed to serialize message: %v", err)), fs.WSMessageText)
+					writeErr := client.Write(fmt.Appendf(nil, "failed to serialize message: %v", err), fs.WSMessageText)
 					rs.Logger().Errorf("failed to serialize message: %v, write error: %v", err, writeErr)
 					return
 				}

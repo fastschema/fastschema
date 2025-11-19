@@ -5,20 +5,22 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
 	"time"
 )
 
 // FieldEnum define the data struct for an enum field
 type FieldEnum struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
+	Value string `json:"value" yaml:"value"`
+	Label string `json:"label" yaml:"label"`
 }
 
 // FieldRenderer define the renderer of a field
 type FieldRenderer struct {
-	Class    string         `json:"class,omitempty"`    // renderer class name
-	Settings map[string]any `json:"settings,omitempty"` // renderer settings.
+	Class    string         `json:"class,omitempty" yaml:"class,omitempty"`       // renderer class name
+	Settings map[string]any `json:"settings,omitempty" yaml:"settings,omitempty"` // renderer settings.
 }
 
 func (fr *FieldRenderer) Clone() *FieldRenderer {
@@ -27,9 +29,7 @@ func (fr *FieldRenderer) Clone() *FieldRenderer {
 	}
 
 	settings := make(map[string]any)
-	for k, v := range fr.Settings {
-		settings[k] = v
-	}
+	maps.Copy(settings, fr.Settings)
 
 	return &FieldRenderer{
 		Class:    fr.Class,
@@ -39,10 +39,10 @@ func (fr *FieldRenderer) Clone() *FieldRenderer {
 
 // FieldDB define the db config for a field
 type FieldDB struct {
-	Attr      string `json:"attr,omitempty"`      // extra attributes.
-	Collation string `json:"collation,omitempty"` // collation type (utf8mb4_unicode_ci, utf8mb4_general_ci)
-	Increment bool   `json:"increment,omitempty"` // auto increment
-	Key       string `json:"key,omitempty"`       // key definition (PRI, UNI or MUL).
+	Attr      string `json:"attr,omitempty" yaml:"attr,omitempty"`           // extra attributes.
+	Collation string `json:"collation,omitempty" yaml:"collation,omitempty"` // collation type (utf8mb4_unicode_ci, utf8mb4_general_ci)
+	Increment bool   `json:"increment,omitempty" yaml:"increment,omitempty"` // auto increment
+	Key       string `json:"key,omitempty" yaml:"key,omitempty"`             // key definition (PRI, UNI or MUL).
 }
 
 func (f *FieldEnum) Clone() *FieldEnum {
@@ -171,70 +171,70 @@ var (
 
 	fieldTypeToStringsToStructTypes = [...]reflect.Type{
 		TypeInvalid: nil,
-		TypeBool:    reflect.TypeOf(bool(false)),
-		TypeTime:    reflect.TypeOf(time.Time{}),
-		TypeJSON:    reflect.TypeOf([]byte{}),
-		TypeUUID:    reflect.TypeOf([16]byte{}),
-		TypeBytes:   reflect.TypeOf([]byte{}),
-		TypeEnum:    reflect.TypeOf(FieldEnum{}),
-		TypeString:  reflect.TypeOf(string("")),
-		TypeText:    reflect.TypeOf(string("")),
-		TypeInt:     reflect.TypeOf(int(0)),
-		TypeInt8:    reflect.TypeOf(int8(0)),
-		TypeInt16:   reflect.TypeOf(int16(0)),
-		TypeInt32:   reflect.TypeOf(int32(0)),
-		TypeInt64:   reflect.TypeOf(int64(0)),
-		TypeUint:    reflect.TypeOf(uint(0)),
-		// TypeUintptr:  reflect.TypeOf(uintptr(0)),
-		TypeUint8:    reflect.TypeOf(uint8(0)),
-		TypeUint16:   reflect.TypeOf(uint16(0)),
-		TypeUint32:   reflect.TypeOf(uint32(0)),
-		TypeUint64:   reflect.TypeOf(uint64(0)),
-		TypeFloat32:  reflect.TypeOf(float32(0)),
-		TypeFloat64:  reflect.TypeOf(float64(0)),
-		TypeRelation: reflect.TypeOf(&Relation{}),
-		TypeFile:     reflect.TypeOf(&Relation{}),
+		TypeBool:    reflect.TypeFor[bool](),
+		TypeTime:    reflect.TypeFor[time.Time](),
+		TypeJSON:    reflect.TypeFor[[]byte](),
+		TypeUUID:    reflect.TypeFor[[16]byte](),
+		TypeBytes:   reflect.TypeFor[[]byte](),
+		TypeEnum:    reflect.TypeFor[FieldEnum](),
+		TypeString:  reflect.TypeFor[string](),
+		TypeText:    reflect.TypeFor[string](),
+		TypeInt:     reflect.TypeFor[int](),
+		TypeInt8:    reflect.TypeFor[int8](),
+		TypeInt16:   reflect.TypeFor[int16](),
+		TypeInt32:   reflect.TypeFor[int32](),
+		TypeInt64:   reflect.TypeFor[int64](),
+		TypeUint:    reflect.TypeFor[uint](),
+		// TypeUintptr:  reflect.TypeFor[uintptr](),
+		TypeUint8:    reflect.TypeFor[uint8](),
+		TypeUint16:   reflect.TypeFor[uint16](),
+		TypeUint32:   reflect.TypeFor[uint32](),
+		TypeUint64:   reflect.TypeFor[uint64](),
+		TypeFloat32:  reflect.TypeFor[float32](),
+		TypeFloat64:  reflect.TypeFor[float64](),
+		TypeRelation: reflect.TypeFor[*Relation](),
+		TypeFile:     reflect.TypeFor[*Relation](),
 	}
 
 	reflectTypesToFieldType = map[reflect.Type]FieldType{
-		reflect.TypeOf(bool(false)):  TypeBool,
-		reflect.TypeOf(time.Time{}):  TypeTime,
-		reflect.TypeOf(&time.Time{}): TypeTime,
-		reflect.TypeOf([]byte{}):     TypeJSON,
-		reflect.TypeOf([16]byte{}):   TypeUUID,
-		reflect.TypeOf([]byte{}):     TypeBytes,
-		reflect.TypeOf(FieldEnum{}):  TypeEnum,
-		reflect.TypeOf(string("")):   TypeString,
-		reflect.TypeOf(int(0)):       TypeInt,
-		reflect.TypeOf(int8(0)):      TypeInt8,
-		reflect.TypeOf(int16(0)):     TypeInt16,
-		reflect.TypeOf(int32(0)):     TypeInt32,
-		reflect.TypeOf(int64(0)):     TypeInt64,
-		reflect.TypeOf(uint(0)):      TypeUint,
-		reflect.TypeOf(uint8(0)):     TypeUint8,
-		reflect.TypeOf(uint16(0)):    TypeUint16,
-		reflect.TypeOf(uint32(0)):    TypeUint32,
-		reflect.TypeOf(uint64(0)):    TypeUint64,
-		reflect.TypeOf(float32(0)):   TypeFloat32,
-		reflect.TypeOf(float64(0)):   TypeFloat64,
+		reflect.TypeFor[bool]():       TypeBool,
+		reflect.TypeFor[time.Time]():  TypeTime,
+		reflect.TypeFor[*time.Time](): TypeTime,
+		reflect.TypeFor[[]byte]():     TypeJSON,
+		reflect.TypeFor[[16]byte]():   TypeUUID,
+		reflect.TypeFor[[]byte]():     TypeBytes,
+		reflect.TypeFor[FieldEnum]():  TypeEnum,
+		reflect.TypeFor[string]():     TypeString,
+		reflect.TypeFor[int]():        TypeInt,
+		reflect.TypeFor[int8]():       TypeInt8,
+		reflect.TypeFor[int16]():      TypeInt16,
+		reflect.TypeFor[int32]():      TypeInt32,
+		reflect.TypeFor[int64]():      TypeInt64,
+		reflect.TypeFor[uint]():       TypeUint,
+		reflect.TypeFor[uint8]():      TypeUint8,
+		reflect.TypeFor[uint16]():     TypeUint16,
+		reflect.TypeFor[uint32]():     TypeUint32,
+		reflect.TypeFor[uint64]():     TypeUint64,
+		reflect.TypeFor[float32]():    TypeFloat32,
+		reflect.TypeFor[float64]():    TypeFloat64,
 
-		reflect.TypeOf(sql.NullString{}):  TypeString,
-		reflect.TypeOf(sql.NullInt64{}):   TypeInt64,
-		reflect.TypeOf(sql.NullInt32{}):   TypeInt32,
-		reflect.TypeOf(sql.NullInt16{}):   TypeInt16,
-		reflect.TypeOf(sql.NullByte{}):    TypeInt8,
-		reflect.TypeOf(sql.NullFloat64{}): TypeFloat64,
-		reflect.TypeOf(sql.NullBool{}):    TypeBool,
-		reflect.TypeOf(sql.NullTime{}):    TypeTime,
+		reflect.TypeFor[sql.NullString]():  TypeString,
+		reflect.TypeFor[sql.NullInt64]():   TypeInt64,
+		reflect.TypeFor[sql.NullInt32]():   TypeInt32,
+		reflect.TypeFor[sql.NullInt16]():   TypeInt16,
+		reflect.TypeFor[sql.NullByte]():    TypeInt8,
+		reflect.TypeFor[sql.NullFloat64](): TypeFloat64,
+		reflect.TypeFor[sql.NullBool]():    TypeBool,
+		reflect.TypeFor[sql.NullTime]():    TypeTime,
 
-		reflect.TypeOf(&sql.NullString{}):  TypeString,
-		reflect.TypeOf(&sql.NullInt64{}):   TypeInt64,
-		reflect.TypeOf(&sql.NullInt32{}):   TypeInt32,
-		reflect.TypeOf(&sql.NullInt16{}):   TypeInt16,
-		reflect.TypeOf(&sql.NullByte{}):    TypeInt8,
-		reflect.TypeOf(&sql.NullFloat64{}): TypeFloat64,
-		reflect.TypeOf(&sql.NullBool{}):    TypeBool,
-		reflect.TypeOf(&sql.NullTime{}):    TypeTime,
+		reflect.TypeFor[*sql.NullString]():  TypeString,
+		reflect.TypeFor[*sql.NullInt64]():   TypeInt64,
+		reflect.TypeFor[*sql.NullInt32]():   TypeInt32,
+		reflect.TypeFor[*sql.NullInt16]():   TypeInt16,
+		reflect.TypeFor[*sql.NullByte]():    TypeInt8,
+		reflect.TypeFor[*sql.NullFloat64](): TypeFloat64,
+		reflect.TypeFor[*sql.NullBool]():    TypeBool,
+		reflect.TypeFor[*sql.NullTime]():    TypeTime,
 
 		// reflect.TypeOf(&Relation{}):  TypeRelation,
 		// reflect.TypeOf(&Relation{}):  TypeFile,
@@ -279,12 +279,7 @@ func (t FieldType) StructType() reflect.Type {
 
 // IsAtomic reports if the given type is an atomic type.
 func (t FieldType) IsAtomic() bool {
-	for _, pt := range atomicTypes {
-		if t == pt {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(atomicTypes, t)
 }
 
 // Valid reports if the given type if known type.
@@ -313,6 +308,26 @@ func (t *FieldType) UnmarshalJSON(b []byte) error {
 	}
 
 	return nil
+}
+
+// UnmarshalYAML unmashals a YAML string to the enum value
+func (t *FieldType) UnmarshalYAML(unmarshal func(any) error) error {
+	var fieldType string
+	if err := unmarshal(&fieldType); err != nil {
+		return err
+	}
+	*t = stringToFieldTypes[fieldType] // If the string can't be found, it will be set to the zero value: 'invalid'
+
+	if *t == TypeInvalid {
+		return fmt.Errorf("invalid field type %q", fieldType)
+	}
+
+	return nil
+}
+
+// MarshalYAML marshals the enum value to a YAML string
+func (t FieldType) MarshalYAML() (any, error) {
+	return fieldTypeToStrings[t], nil
 }
 
 // RelationType define the relation type of a field
@@ -391,4 +406,19 @@ func (t *RelationType) UnmarshalJSON(b []byte) error {
 	}
 	*t = stringToRelationTypes[j] // If the string can't be found, it will be set to the zero value: 'invalid'
 	return nil
+}
+
+// UnmarshalYAML unmashals a YAML string to the enum value
+func (t *RelationType) UnmarshalYAML(unmarshal func(any) error) error {
+	var relationType string
+	if err := unmarshal(&relationType); err != nil {
+		return err
+	}
+	*t = stringToRelationTypes[relationType] // If the string can't be found, it will be set to the zero value: 'invalid'
+	return nil
+}
+
+// MarshalYAML marshals the enum value to a YAML string
+func (t RelationType) MarshalYAML() (any, error) {
+	return relationTypeToStrings[t], nil
 }

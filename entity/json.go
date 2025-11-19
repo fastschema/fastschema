@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/buger/jsonparser"
+
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
@@ -39,7 +40,7 @@ func (e *Entity) UnmarshalJSON(data []byte) (err error) {
 						return
 					}
 
-					iArrayItemValue := utils.Must(UnmarshalJSONValue(data, itemValue, itemDataType, itemOffset))
+					iArrayItemValue := utils.Must(UnmarshalJSONValue(itemValue, itemDataType))
 					nonEntityValues = append(nonEntityValues, iArrayItemValue)
 				}); err != nil {
 					return err
@@ -72,7 +73,7 @@ func (e *Entity) UnmarshalJSON(data []byte) (err error) {
 				return nil
 			}
 
-			e.Set(string(keyData), utils.Must(UnmarshalJSONValue(data, valueData, dataType, offset)))
+			e.Set(string(keyData), utils.Must(UnmarshalJSONValue(valueData, dataType)))
 
 			return nil
 		},

@@ -5,8 +5,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/ogen-go/ogen"
+
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 type TypeToOgenConfig struct {
@@ -179,7 +180,7 @@ func (oas *OpenAPISpec) ResolveSchemaReferences() {
 
 		structSchema := ogen.NewSchema()
 
-		for i := 0; i < sType.NumField(); i++ {
+		for i := range sType.NumField() {
 			field := sType.Field(i)
 			fieldName := strings.Split(field.Tag.Get("json"), ",")[0]
 			fieldName = utils.If(fieldName == "", field.Name, fieldName)
