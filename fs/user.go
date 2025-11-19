@@ -3,10 +3,11 @@ package fs
 import (
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
+
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
-	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 // User is a struct that contains user data
@@ -37,8 +38,8 @@ type User struct {
 func (u User) Schema() *schema.Schema {
 	return &schema.Schema{
 		Fields: []*schema.Field{},
-		DB: &schema.SchemaDB{
-			Indexes: []*schema.SchemaDBIndex{
+		DB: &schema.DB{
+			Indexes: []*schema.DBIndex{
 				// unique index on provider + provider_id
 				{
 					Name:    "idx_user_provider_provider_id",

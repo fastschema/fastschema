@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
@@ -14,7 +16,6 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	schemaservice "github.com/fastschema/fastschema/services/schema"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -203,7 +204,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	}
 
 	for name, content := range schemas {
-		utils.WriteFile(schemaDir+"/"+name+".json", content)
+		utils.WriteFile(schemaDir+"/"+name+".yaml", content)
 	}
 
 	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))

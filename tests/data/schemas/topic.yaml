@@ -1,0 +1,31 @@
+name: topic
+namespace: topics
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+- name: children
+  label: Children
+  type: relation
+  optional: true
+  relation:
+    type: o2m
+    schema: topic
+    owner: true
+    field: parent
+- name: parent
+  label: Parent
+  type: relation
+  optional: true
+  relation:
+    type: o2m
+    schema: topic
+    field: children
+- name: groups
+  label: Groups
+  type: relation
+  relation:
+    type: m2m
+    schema: group
+    field: topics

@@ -47,7 +47,7 @@ func (ss *SchemaService) Import(c fs.Context, _ any) (fs.Map, error) {
 
 	// validate one by one schema with the following rules
 	for _, sc := range schemas {
-		currentSchemaFile := fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), sc.Name)
+		currentSchemaFile := fmt.Sprintf("%s/%s.yaml", ss.app.SchemaBuilder().Dir(), sc.Name)
 		if utils.IsFileExists(currentSchemaFile) {
 			return nil, errors.BadRequest("schema already exists in current system")
 		}
@@ -59,7 +59,7 @@ func (ss *SchemaService) Import(c fs.Context, _ any) (fs.Map, error) {
 	}
 
 	for _, sc := range schemas {
-		schemaFile := fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), sc.Name)
+		schemaFile := fmt.Sprintf("%s/%s.yaml", ss.app.SchemaBuilder().Dir(), sc.Name)
 		if err := sc.SaveToFile(schemaFile); err != nil {
 			return nil, errors.InternalServerError("could not save schema")
 		}
