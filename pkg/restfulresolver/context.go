@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
@@ -14,8 +15,8 @@ import (
 )
 
 type Context struct {
-	*fiber.Ctx           `json:"-"`
-	*fasthttp.RequestCtx `json:"-"`
+	ctx         *fiber.Ctx           `json:"-"`
+	fasthttpCtx *fasthttp.RequestCtx `json:"-"`
 
 	args     map[string]string
 	resource *fs.Resource
@@ -59,12 +60,32 @@ func (c *Context) ArgInt(name string, defaults ...int) int {
 	return v
 }
 
+func (c *Context) Context() *fasthttp.RequestCtx {
+	return c.ctx.Context()
+}
+
+func (c *Context) Deadline() (deadline time.Time, ok bool) {
+	return c.fasthttpCtx.Deadline()
+}
+
+func (c *Context) Done() <-chan struct{} {
+	return c.fasthttpCtx.Done()
+}
+
+func (c *Context) Err() error {
+	return c.fasthttpCtx.Err()
+}
+
+func (c *Context) Value(key any) any {
+	return c.fasthttpCtx.Value(key)
+}
+
 func (c *Context) IP() string {
-	return c.Ctx.IP()
+	return c.ctx.IP()
 }
 
 func (c *Context) Body() ([]byte, error) {
-	return c.Ctx.Body(), nil
+	return c.ctx.Body(), nil
 }
 
 func (c *Context) Payload() (*entity.Entity, error) {
@@ -72,7 +93,7 @@ func (c *Context) Payload() (*entity.Entity, error) {
 		return c.entity, nil
 	}
 
-	body := c.Ctx.Body()
+	body := c.ctx.Body()
 	if len(body) == 0 {
 		return nil, nil
 	}
@@ -86,11 +107,11 @@ func (c *Context) Payload() (*entity.Entity, error) {
 }
 
 func (c *Context) BodyParser(out any) error {
-	return c.Ctx.BodyParser(out)
+	return c.ctx.BodyParser(out)
 }
 
 func (c *Context) FormValue(key string, defaultValue ...string) string {
-	return c.Ctx.FormValue(key, defaultValue...)
+	return c.ctx.FormValue(key, defaultValue...)
 }
 
 func (c *Context) Resource() *fs.Resource {
@@ -127,49 +148,49 @@ func (c *Context) AuthToken() string {
 }
 
 func (c *Context) TraceID() string {
-	traceID := c.Locals(fs.TraceID)
+	traceID := c.ctx.Locals(fs.TraceID)
 	if traceID == nil {
 		return ""
 	}
 
-	return fmt.Sprintf("%v", c.Locals(fs.TraceID))
+	return fmt.Sprintf("%v", c.ctx.Locals(fs.TraceID))
 }
 
 func (c *Context) Hostname() string {
-	return c.Ctx.Hostname()
+	return c.ctx.Hostname()
 }
 
 func (c *Context) Base() string {
-	return c.Protocol() + "://" + c.Ctx.Hostname()
+	return c.ctx.Protocol() + "://" + c.ctx.Hostname()
 }
 
 func (c *Context) Method() string {
-	return c.Ctx.Method()
+	return c.ctx.Method()
 }
 
 func (c *Context) RouteName() string {
-	return c.Ctx.Route().Name
+	return c.ctx.Route().Name
 }
 
 func (c *Context) OriginalURL() string {
-	return c.Ctx.OriginalURL()
+	return c.ctx.OriginalURL()
 }
 
 func (c *Context) Path() string {
-	return c.Ctx.Path()
+	return c.ctx.Path()
 }
 
 func (c *Context) Response() *Response {
-	return &Response{c.Ctx.Response()}
+	return &Response{c.ctx.Response()}
 }
 
 func (c *Context) Status(v int) *Context {
-	c.Ctx.Status(v)
+	c.ctx.Status(v)
 	return c
 }
 
 func (c *Context) Local(key string, value ...any) (val any) {
-	return c.Locals(key, value...)
+	return c.ctx.Locals(key, value...)
 }
 
 func (c *Context) Logger() logger.Logger {
@@ -181,7 +202,7 @@ func (c *Context) WSClient() fs.WSClient {
 }
 
 func (c *Context) User() *fs.User {
-	if user, ok := c.Locals("user").(*fs.User); ok {
+	if user, ok := c.ctx.Locals("user").(*fs.User); ok {
 		return user
 	}
 
@@ -189,20 +210,20 @@ func (c *Context) User() *fs.User {
 }
 
 func (c *Context) JSON(v any) error {
-	return c.Ctx.JSON(v)
+	return c.ctx.JSON(v)
 }
 
 func (c *Context) Header(key string, vals ...string) string {
 	if len(vals) > 0 {
-		c.Set(key, vals[0])
+		c.ctx.Set(key, vals[0])
 		return vals[0]
 	}
 
-	return c.Get(key)
+	return c.ctx.Get(key)
 }
 
 func (c *Context) Cookie(name string, values ...*Cookie) string {
-	cookieValue := c.Cookies(name)
+	cookieValue := c.ctx.Cookies(name)
 	if len(values) > 0 {
 		v := values[0]
 		cookie := fiber.Cookie{
@@ -215,7 +236,7 @@ func (c *Context) Cookie(name string, values ...*Cookie) string {
 			HTTPOnly: v.HTTPOnly,
 			SameSite: v.SameSite,
 		}
-		c.Ctx.Cookie(&cookie)
+		c.ctx.Cookie(&cookie)
 		cookieValue = v.Value
 	}
 
@@ -223,29 +244,29 @@ func (c *Context) Cookie(name string, values ...*Cookie) string {
 }
 
 func (c *Context) Next() error {
-	return c.Ctx.Next()
+	return c.ctx.Next()
 }
 
 func (c *Context) Send(data []byte) error {
-	return c.Ctx.Send(data)
+	return c.ctx.Send(data)
 }
 
 func (c *Context) Redirect(path string) error {
-	return c.Ctx.Redirect(path)
+	return c.ctx.Redirect(path)
 }
 
 func (c *Context) Bind(v any) error {
 	// if there is no content type header, we assume it's JSON
-	if c.Get("Content-Type") == "" {
-		c.Set("Content-Type", "application/json")
-		c.Ctx.Request().Header.Set("Content-Type", "application/json")
+	if c.ctx.Get("Content-Type") == "" {
+		c.ctx.Set("Content-Type", "application/json")
+		c.ctx.Request().Header.Set("Content-Type", "application/json")
 	}
 
-	return c.BodyParser(v)
+	return c.ctx.BodyParser(v)
 }
 
 func (c *Context) Files() ([]*fs.File, error) {
-	form, err := c.Ctx.MultipartForm()
+	form, err := c.ctx.MultipartForm()
 	if err != nil {
 		return nil, err
 	}

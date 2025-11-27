@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/fastschema/fastschema/entity"
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 func Exec(ctx context.Context, client Client, query string, args ...any) (sql.Result, error) {
@@ -21,6 +22,13 @@ func Query[T any](ctx context.Context, client Client, query string, args ...any)
 	var t T
 	if _, ok := any(t).(*entity.Entity); ok {
 		return any(rows).([]T), nil
+	}
+
+	// if T is entity.Entity, deference the rows
+	if _, ok := any(t).(entity.Entity); ok {
+		return utils.Map(rows, func(row *entity.Entity) T {
+			return any(*row).(T)
+		}), nil
 	}
 
 	// if T is not *entity.Entity, bind the rows to the struct T

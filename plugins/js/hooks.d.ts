@@ -1,48 +1,46 @@
-export type _FsResolveHook = (ctx: FsContext) => Promise<void> | void;
-
-export type _FsPreDBQueryHook = (
+export type _FsPreDBQuery = (
   ctx: FsContext,
   option: FsQueryOption,
 ) => Promise<void> | void;
 
-export type _FsPostDBQueryHook = (
+export type _FsPostDBQuery = (
   ctx: FsContext,
   option: FsQueryOption,
   entities: FsEntity[],
 ) => Promise<void> | void;
 
-export type _FsPreDBExecHook = (
+export type _FsPreDBExec = (
   ctx: FsContext,
   option: FsQueryOption,
 ) => Promise<void> | void;
 
-export type _FsPostDBExecHook = (
+export type _FsPostDBExec = (
   ctx: FsContext,
   option: FsQueryOption,
   result: FsDbExecResult,
 ) => Promise<void> | void;
 
-export type _FsPreDBCreateHook = (
+export type _FsPreDBCreate = (
   ctx: FsContext,
   schema: SchemaRawData,
   entity: FsEntity,
 ) => Promise<void> | void;
 
-export type _FsPostDBCreateHook = (
+export type _FsPostDBCreate = (
   ctx: FsContext,
   schema: SchemaRawData,
   entity: FsEntity,
   createdId: number,
 ) => Promise<void> | void;
 
-export type _FsPreDBUpdateHook = (
+export type _FsPreDBUpdate = (
   ctx: FsContext,
   schema: SchemaRawData,
   predicates: FsDbPredicate[],
   createData: FsEntity,
 ) => Promise<void> | void;
 
-export type _FsPostDBUpdateHook = (
+export type _FsPostDBUpdate = (
   ctx: FsContext,
   schema: SchemaRawData,
   predicates: FsDbPredicate[],
@@ -51,13 +49,13 @@ export type _FsPostDBUpdateHook = (
   affected: number,
 ) => Promise<void> | void;
 
-export type _FsPreDBDeleteHook = (
+export type _FsPreDBDelete = (
   ctx: FsContext,
   schema: SchemaRawData,
   predicates: FsDbPredicate[],
 ) => Promise<void> | void;
 
-export type _FsPostDBDeleteHook = (
+export type _FsPostDBDelete = (
   ctx: FsContext,
   schema: SchemaRawData,
   predicates: FsDbPredicate[],

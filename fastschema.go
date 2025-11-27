@@ -26,7 +26,7 @@ var (
 type App struct {
 	mu            sync.Mutex
 	config        *fs.Config
-	cwd           string
+	wd            string
 	dir           string
 	envFile       string
 	dataDir       string
@@ -48,11 +48,12 @@ type App struct {
 	mailClients       []fs.Mailer
 	defaultMailClient fs.Mailer
 
-	setupToken      string
-	startupMessages []string
-	statics         []*fs.StaticFs
-	openAPISpec     []byte
-	authProviders   map[string]fs.AuthProvider
+	setupToken          string
+	startupMessages     []string
+	statics             []*fs.StaticFs
+	openAPISpec         []byte
+	authProviders       map[string]fs.AuthProvider
+	jwtCustomClaimsFunc fs.JwtCustomClaimsFunc
 }
 
 func New(config *fs.Config) (_ *App, err error) {
@@ -63,7 +64,7 @@ func New(config *fs.Config) (_ *App, err error) {
 		authProviders: map[string]fs.AuthProvider{},
 	}
 
-	if a.cwd, err = os.Getwd(); err != nil {
+	if a.wd, err = os.Getwd(); err != nil {
 		return nil, err
 	}
 
@@ -177,12 +178,16 @@ func (a *App) OnPostDBDelete(hooks ...db.PostDBDelete) {
 	)
 }
 
-func (a *App) Name() string {
-	return a.config.AppName
+func (a *App) SetJwtCustomClaimsFunc(jwtCustomClaimsFunc fs.JwtCustomClaimsFunc) {
+	a.jwtCustomClaimsFunc = jwtCustomClaimsFunc
 }
 
-func (a *App) CWD() string {
-	return a.cwd
+func (a *App) JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc {
+	return a.jwtCustomClaimsFunc
+}
+
+func (a *App) Name() string {
+	return a.config.AppName
 }
 
 func (a *App) Config() *fs.Config {
@@ -359,9 +364,10 @@ func (a *App) Start() error {
 	}
 
 	a.restResolver = rs.NewRestfulResolver(&rs.ResolverConfig{
-		ResourceManager: a.resources,
-		Logger:          a.Logger(),
-		StaticFSs:       a.statics,
+		ResourceManager:    a.resources,
+		Logger:             a.Logger(),
+		StaticFSs:          a.statics,
+		MaxRequestBodySize: a.config.MaxRequestBodySize,
 	})
 
 	fmt.Printf("\n")
@@ -383,9 +389,10 @@ func (a *App) HTTPAdaptor() (http.HandlerFunc, error) {
 	}
 
 	a.restResolver = rs.NewRestfulResolver(&rs.ResolverConfig{
-		ResourceManager: a.resources,
-		Logger:          a.Logger(),
-		StaticFSs:       a.statics,
+		ResourceManager:    a.resources,
+		Logger:             a.Logger(),
+		StaticFSs:          a.statics,
+		MaxRequestBodySize: a.config.MaxRequestBodySize,
 	})
 
 	fmt.Printf("\n")

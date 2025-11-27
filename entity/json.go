@@ -65,7 +65,7 @@ func (e *Entity) UnmarshalJSON(data []byte) (err error) {
 				}
 
 				// Fallback for empty array
-				e.Set(string(keyData), []any{})
+				e.Set(string(keyData), nil)
 
 				/** End process array data **/
 

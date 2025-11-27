@@ -316,7 +316,7 @@ func (d *Adapter) NewEdgeSpec(
 	}, nil
 }
 
-// NewEdgeStep create a new edge step
+// NewEdgeStepOption creates a new edge step option
 func (d *Adapter) NewEdgeStepOption(r *schema.Relation) (sqlgraph.StepOption, error) {
 	edgeSpec, ok := d.edgeSpec[r.Name]
 	if !ok {

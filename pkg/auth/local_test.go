@@ -58,28 +58,28 @@ func TestLocalAuthLogin(t *testing.T) {
 	resp, _ = server.Test(req)
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 422, resp.StatusCode)
-	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `invalid login or password`)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Invalid login or password`)
 
 	// Case 1: Login User not found
 	req = httptest.NewRequest("POST", "/user/login", bytes.NewReader([]byte(`{"login": "user", "password": "user"}`)))
 	resp, _ = server.Test(req)
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 422, resp.StatusCode)
-	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `invalid login or password`)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Invalid login or password`)
 
 	// Case 2: Login User is not active
 	req = httptest.NewRequest("POST", "/user/login", bytes.NewReader([]byte(`{"login": "user01", "password": "user01"}`)))
 	resp, _ = server.Test(req)
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 401, resp.StatusCode)
-	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `user is inactive`)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `User is inactive`)
 
 	// Case 3: Login Invalid password
 	req = httptest.NewRequest("POST", "/user/login", bytes.NewReader([]byte(`{"login": "user02", "password": "123"}`)))
 	resp, _ = server.Test(req)
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 422, resp.StatusCode)
-	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `invalid login or password`)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `Invalid login or password`)
 
 	// Case 4: Login Success
 	req = httptest.NewRequest("POST", "/user/login", bytes.NewReader([]byte(`{"login": "user02", "password": "user02"}`)))
@@ -188,7 +188,8 @@ func TestLocalAuthActivation(t *testing.T) {
 		req := httptest.NewRequest("POST", "/user/activate", bytes.NewReader([]byte(`{"token": "`+token+`"}`)))
 		resp, _ := server.Test(req)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
-		assert.Equal(t, 200, resp.StatusCode)
+		assert.Equal(t, 400, resp.StatusCode)
+		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), auth.MSG_USER_ALREADY_ACTIVE)
 	}
 
 	// Case 4: Update status failed
@@ -197,8 +198,8 @@ func TestLocalAuthActivation(t *testing.T) {
 		req := httptest.NewRequest("POST", "/user/activate", bytes.NewReader([]byte(`{"token": "`+token+`"}`)))
 		resp, _ := server.Test(req)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
-		assert.Equal(t, 400, resp.StatusCode)
-		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), auth.MSG_USER_ACTIVATION_ERROR)
+		assert.Equal(t, 500, resp.StatusCode)
+		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), auth.MSG_CHECKING_USER_ERROR)
 	}
 }
 

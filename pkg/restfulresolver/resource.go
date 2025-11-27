@@ -16,12 +16,17 @@ type RestfulResolver struct {
 }
 
 type ResolverConfig struct {
-	ResourceManager *fs.ResourcesManager
-	Logger          logger.Logger
-	StaticFSs       []*fs.StaticFs
+	ResourceManager    *fs.ResourcesManager
+	Logger             logger.Logger
+	StaticFSs          []*fs.StaticFs
+	AppName            string
+	MaxRequestBodySize int
 }
 
 func NewRestfulResolver(config *ResolverConfig) *RestfulResolver {
+	if config.AppName == "" {
+		config.AppName = "fastschema"
+	}
 	rs := &RestfulResolver{
 		config: config,
 	}
@@ -31,8 +36,9 @@ func NewRestfulResolver(config *ResolverConfig) *RestfulResolver {
 
 func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 	r.server = New(Config{
-		AppName: "fastschema",
-		Logger:  logger,
+		Logger:             logger,
+		AppName:            r.config.AppName,
+		MaxRequestBodySize: r.config.MaxRequestBodySize,
 	})
 	r.server.Use(append([]Handler{
 		MiddlewareCors,
@@ -44,14 +50,31 @@ func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 
 	// Static files
 	for _, staticResource := range r.config.StaticFSs {
-		r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
-			Root:       staticResource.Root,
-			PathPrefix: staticResource.PathPrefix,
-			Next: func(c *fiber.Ctx) bool {
-				// skip serving static files for root path
-				return c.Path() == "/"
-			},
-		}))
+		if staticResource.RootFS != nil {
+			r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
+				Root:       staticResource.RootFS,
+				PathPrefix: staticResource.FSPrefix,
+				Next: func(c *fiber.Ctx) bool {
+					// skip serving static files for root path
+					return c.Path() == "/" || c.Path() == ""
+				},
+			}))
+		} else {
+			config := staticResource.Config
+			if config == nil {
+				config = &fs.StaticConfig{}
+			}
+
+			r.server.App.Static(staticResource.BasePath, staticResource.RootDir, fiber.Static{
+				Index:         config.Index,
+				Browse:        config.Browse,
+				MaxAge:        config.MaxAge,
+				Compress:      config.Compress,
+				ByteRange:     config.ByteRange,
+				Download:      config.Download,
+				CacheDuration: config.CacheDuration,
+			})
+		}
 	}
 
 	// The public directory is served at root path
@@ -185,17 +208,17 @@ func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodDa
 			if httpResponse.Header != nil {
 				for key, values := range httpResponse.Header {
 					for _, value := range values {
-						c.Set(key, value)
+						c.ctx.Set(key, value)
 					}
 				}
 			}
 
 			if httpResponse.File != "" {
-				return c.Ctx.SendFile(httpResponse.File)
+				return c.ctx.SendFile(httpResponse.File)
 			}
 
 			if httpResponse.Stream != nil {
-				return c.SendStream(httpResponse.Stream)
+				return c.ctx.SendStream(httpResponse.Stream)
 			}
 
 			return c.Status(status).Send(httpResponse.Body)

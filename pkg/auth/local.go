@@ -14,21 +14,25 @@ import (
 
 const ProviderLocal = "local"
 
+// LocalProvider represents the local authentication provider.
+//
+// config:
 // activationMethod: auto, manual, email
 //
 //	auto: user is activated automatically
 //	manual: user is activated manually by admin
 //	email: user is activated by email
 type LocalProvider struct {
-	db               func() db.Client
-	appKey           func() string
-	appName          func() string
-	appBaseURL       func() string
-	mailer           func(names ...string) fs.Mailer
-	config           fs.Map
-	activationMethod string
-	activationURL    string
-	recoveryURL      string
+	db                  func() db.Client
+	appKey              func() string
+	appName             func() string
+	appBaseURL          func() string
+	mailer              func(names ...string) fs.Mailer
+	config              fs.Map
+	activationMethod    string
+	activationURL       string
+	recoveryURL         string
+	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
 }
 
 func NewLocalAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
@@ -48,12 +52,14 @@ func (la *LocalProvider) Init(
 	appName func() string,
 	appBaseURL func() string,
 	mailer func(names ...string) fs.Mailer,
+	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc,
 ) {
 	la.db = db
 	la.appKey = appKey
 	la.appName = appName
 	la.mailer = mailer
 	la.appBaseURL = appBaseURL
+	la.jwtCustomClaimsFunc = jwtCustomClaimsFunc
 
 	if la.activationURL == "" {
 		la.activationURL = appBaseURL() + "/auth/local/activate"
@@ -124,6 +130,18 @@ func (la *LocalProvider) Activate(c fs.Context, data *Confirmation) (*Activation
 		err = fmt.Errorf(MSG_INVALID_TOKEN+": %w", err)
 		c.Logger().Error(err)
 		return nil, err
+	}
+
+	var count int
+	if count, err = db.Builder[*fs.User](la.db()).
+		Where(db.EQ("id", userID)).
+		Where(db.EQ("active", true)).
+		Count(c); err != nil {
+		c.Logger().Errorf(MSG_CHECKING_USER_ERROR+": %w", err)
+		return nil, errors.InternalServerError(MSG_CHECKING_USER_ERROR)
+	}
+	if count > 0 {
+		return nil, ERR_USER_ALREADY_ACTIVE
 	}
 
 	if _, err = db.Builder[*fs.User](la.db()).
@@ -213,7 +231,10 @@ func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (_ *LoginR
 		return nil, errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
 	}
 
-	jwtToken, exp, err := user.JwtClaim(la.appKey())
+	jwtToken, exp, err := user.JwtClaim(c, &fs.UserJwtConfig{
+		Key:              la.appKey(),
+		CustomClaimsFunc: nil,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +242,6 @@ func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (_ *LoginR
 	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
 }
 
-// Masking error reason for security reasons.
 func (la *LocalProvider) Recover(c fs.Context, data *Recovery) (_ bool, err error) {
 	if !utils.IsValidEmail(data.Email) {
 		return false, errors.UnprocessableEntity(MSG_INVALID_EMAIL)

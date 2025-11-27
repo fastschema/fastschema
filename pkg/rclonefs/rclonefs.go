@@ -25,6 +25,7 @@ func NewFromConfig(diskConfigs []*fs.DiskConfig, localRoot string) ([]fs.Disk, e
 				SecretAccessKey: diskConfig.SecretAccessKey,
 				BaseURL:         diskConfig.BaseURL,
 				ACL:             diskConfig.ACL,
+				BucketACL:       diskConfig.BucketACL,
 			})
 
 			if err != nil {

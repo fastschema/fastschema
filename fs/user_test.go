@@ -45,7 +45,7 @@ func TestUserJwtClaim(t *testing.T) {
 	// Test case 1: User has no roles
 	u := &fs.User{}
 	key := "secret"
-	token, _, err := u.JwtClaim(key)
+	token, _, err := u.JwtClaim(nil, &fs.UserJwtConfig{Key: key})
 	assert.NoError(t, err, "Expected no error")
 	assert.NotEmpty(t, token, "Expected token to be non-empty")
 
@@ -56,13 +56,14 @@ func TestUserJwtClaim(t *testing.T) {
 			{ID: 2},
 		},
 	}
-	token, _, err = u.JwtClaim(key)
+	token, _, err = u.JwtClaim(nil, &fs.UserJwtConfig{Key: key})
 	assert.NoError(t, err, "Expected no error")
 	assert.NotEmpty(t, token, "Expected token to be non-empty")
 
 	// Test case 3: With expiration
 	exp := time.Now().Add(1 * time.Hour)
-	token, expTime, err := u.JwtClaim(key, exp)
+	config := &fs.UserJwtConfig{Key: key, ExpiresAt: exp}
+	token, expTime, err := u.JwtClaim(nil, config)
 	assert.NoError(t, err, "Expected no error")
 	assert.NotEmpty(t, token, "Expected token to be non-empty")
 	assert.Equal(t, exp, expTime, "Expected expiration time to match input")

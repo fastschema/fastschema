@@ -26,6 +26,7 @@ type testApp struct {
 
 func (a *testApp) Key() string                                 { return "" }
 func (a *testApp) Name() string                                { return "" }
+func (a *testApp) Dir() string                                 { return "" }
 func (a *testApp) Config() *fs.Config                          { return nil }
 func (a *testApp) DB() db.Client                               { return nil }
 func (a *testApp) Disk(...string) fs.Disk                      { return nil }
@@ -56,6 +57,7 @@ func (a *testApp) OnPostDBUpdate(hooks ...db.PostDBUpdate)     {}
 func (a *testApp) OnPreDBDelete(hooks ...db.PreDBDelete)       {}
 func (a *testApp) OnPostDBDelete(hooks ...db.PostDBDelete)     {}
 func (a *testApp) Services() *services.Services                { return a.services }
+func (a testApp) JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc  { return nil }
 
 func TestNew(t *testing.T) {
 	app := &testApp{}

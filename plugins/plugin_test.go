@@ -1,248 +1,222 @@
 package plugins_test
 
 import (
-	"context"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/dop251/goja_nodejs/console"
+	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
-	"github.com/fastschema/fastschema/logger"
-	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/plugins"
+	"github.com/fastschema/qjs"
 	"github.com/stretchr/testify/assert"
 )
 
-const pluginValid = `
-const schemaProduct = {
-  "name": "product",
-  "namespace": "products",
-  "label_field": "name",
-  "disable_timestamp": false,
-  "fields": [
-    {
-      "type": "string",
-      "name": "name",
-      "label": "Name",
-      "optional": true,
-      "sortable": true
-    },
-    {
-      "type": "string",
-      "name": "description",
-      "label": "Description",
-      "optional": true,
-      "sortable": true,
-      "renderer": {
-        "class": "textarea"
-      }
-    }
-  ]
+func createApp() *fastschema.App {
+	return utils.Must(fastschema.New(&fs.Config{
+		Dir: utils.Must(os.MkdirTemp("", "fastschema")),
+		DBConfig: &db.Config{
+			Driver: "sqlite",
+			Name:   ":memory:",
+		},
+	}))
 }
 
-const onPreResolve = ctx => console.log('hook run: onPreResolve');
-const onPostResolve = ctx => console.log('hook run: onPostResolve');
-
-const onPreDBQuery = ctx => console.log('hook run: onPreDBQuery');
-const onPostDBQuery = ctx => console.log('hook run: onPostDBQuery');
-
-const onPreDBCreate = ctx => console.log('hook run: onPreDBCreate');
-const onPostDBCreate = ctx => console.log('hook run: onPostDBCreate');
-
-const onPreDBUpdate = ctx => console.log('hook run: onPreDBUpdate');
-const onPostDBUpdate = ctx => console.log('hook run: onPostDBUpdate');
-
-const onPreDBExec = ctx => console.log('hook run: onPreDBExec');
-const onPostDBExec = ctx => console.log('hook run: onPostDBExec');
-
-const onPreDBDelete = ctx => console.log('hook run: onPreDBDelete');
-const onPostDBDelete = ctx => console.log('hook run: onPostDBDelete');
-
-const Config = config => {
-	config.AddSchemas(schemaProduct);
-	config.port = 9000;
-
-	config.OnPreResolve(onPreResolve);
-  config.OnPostResolve(onPostResolve);
-
-  config.OnPreDBQuery(onPreDBQuery);
-  config.OnPostDBQuery(onPostDBQuery);
-
-  config.OnPreDBExec(onPreDBExec);
-  config.OnPostDBExec(onPostDBExec);
-
-  config.OnPreDBCreate(onPreDBCreate);
-  config.OnPostDBCreate(onPostDBCreate);
-
-  config.OnPreDBUpdate(onPreDBUpdate);
-  config.OnPostDBUpdate(onPostDBUpdate);
-
-  config.OnPreDBDelete(onPreDBDelete);
-  config.OnPostDBDelete(onPostDBDelete);
-}
-
-const hello = ctx => {
-  const result = $db().Query(ctx, "SELECT 'query db in plugin'");
-  console.log(result);
-  return 'world';
-}
-
-const Init = plugin => {
-  console.log('init plugin');
-  const result = $db().Query($context(), 'SELECT 1');
-  console.log(result);
-
-	$logger().Info('hello from plugin');
-
-  plugin.resources.Add(hello, { public: true });
-}
-
-
-`
-
-var pluginNoConfigFunction = `
-console.log('no config function');
-`
-
-func createPlugin(t *testing.T, dir, name, content string) string {
-	pluginDir := filepath.Join(dir, name)
+func createPlugin(
+	t *testing.T,
+	content string,
+	runtimeSetup func(rt *qjs.Runtime, inPool bool) error,
+) (*fastschema.App, *plugins.Plugin, error) {
+	app := createApp()
+	pluginDir := filepath.Join(app.Dir(), "data", "plugins", "test-plugin")
 	pluginFile := filepath.Join(pluginDir, "plugin.js")
-	assert.NoError(t, os.Mkdir(pluginDir, 0755))
-	assert.NoError(t, os.WriteFile(pluginFile, []byte(content), 0644))
-	return pluginFile
+	assert.NoError(t, os.MkdirAll(pluginDir, 0755))
+	utils.Must[any](nil, os.WriteFile(
+		pluginFile,
+		[]byte(content),
+		0644,
+	))
+
+	plugin, err := plugins.NewPlugin(app, "data/plugins/test-plugin", runtimeSetup, nil)
+	return app, plugin, err
+}
+
+func createManager(
+	t *testing.T,
+	content string,
+	runtimeSetup func(rt *qjs.Runtime, inPool bool) error,
+) (*fastschema.App, *plugins.Manager, error) {
+	app := createApp()
+	assert.NotNil(t, app)
+	pluginDir := filepath.Join(app.Dir(), "data", "plugins", "test-plugin")
+	pluginFile := filepath.Join(pluginDir, "plugin.js")
+	assert.NoError(t, os.MkdirAll(pluginDir, 0755))
+
+	utils.Must[any](nil, os.WriteFile(
+		pluginFile,
+		[]byte(content),
+		0644,
+	))
+
+	manager, err := plugins.NewManager(app, filepath.Dir(pluginDir), runtimeSetup)
+	return app, manager, err
+}
+
+func TestManager(t *testing.T) {
+	// Create manager error due to empty dir
+	_, err := plugins.NewManager(nil, "", nil)
+	assert.Error(t, err)
+
+	// Create manager error due to glob pattern error
+	_, err = plugins.NewManager(nil, "[", nil)
+	assert.Error(t, err)
+
+	// Create manager with invalid plugin
+	_, _, err = createManager(t, `invalid js`, nil)
+	assert.Error(t, err)
+
+	// Manager Config error due to invalid config
+	_, manager, err := createManager(t, `export const Config = config => {
+		config.Set({
+			port: false, // port must be a string
+		});
+	}
+	export default { Config };
+	`, nil)
+	assert.NoError(t, err)
+	assert.Error(t, manager.Config())
+
+	// Manager Init error due to invalid init
+	_, manager, err = createManager(t, `export const Init = () => {
+		throw new Error('Init error');
+	}
+	export default { Init };
+	`, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, manager.Config())
+	assert.Error(t, manager.Init())
+
+	// Create manager successfully
+	_, manager, err = createManager(t, `export const Init = () => {
+		console.log($context() !== null);
+		console.log($db() !== null);
+		$logger().Info('Plugin loaded');
+		console.log('Plugin initialized');
+	}
+	export default { Init };
+	`, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, manager.Config())
+	assert.NoError(t, manager.Init())
+	plugin, ok := manager.Get("test-plugin")
+	assert.True(t, ok)
+	assert.NotNil(t, plugin)
 }
 
 func TestPlugin(t *testing.T) {
-	// Override console writer
-	stdOutLines := []string{}
-	stdErrorLines := []string{}
-	plugins.Require.RegisterNativeModule(
-		console.ModuleName,
-		console.RequireWithPrinter(console.StdPrinter{
-			StdoutPrint: func(s string) {
-				stdOutLines = append(stdOutLines, s)
-			},
-			StderrPrint: func(s string) {
-				stdErrorLines = append(stdErrorLines, s)
-			},
-		}),
-	)
+	// Create plugin error: invalid js
+	_, _, err := createPlugin(t, `invalid js`, nil)
+	assert.Error(t, err)
 
-	app := &testApp{
-		config: &fs.Config{
-			Dir: utils.Must(os.MkdirTemp("", "fsapp")),
-			Hooks: &fs.Hooks{
-				DBHooks: &db.Hooks{},
-			},
-		},
+	// Create plugin error: eval error
+	_, _, err = createPlugin(t, `throw new Error('Eval error');`, nil)
+	assert.Error(t, err)
+
+	// Create plugin error: runtime setup error
+	_, _, err = createPlugin(t, `export default {};`, func(rt *qjs.Runtime, inPool bool) error {
+		return os.ErrInvalid
+	})
+	assert.Error(t, err)
+
+	// Plugin Config is not a function
+	_, plugin, _ := createPlugin(t, `
+	const Config = "not a function";
+	export default { Config };
+	`, nil)
+	assert.Error(t, plugin.Config())
+
+	// Plugin Init is not a function
+	_, plugin, _ = createPlugin(t, `
+	const Init = "not a function";
+	export default { Init };
+	`, nil)
+	assert.NoError(t, plugin.Config())
+	assert.Error(t, plugin.Init())
+
+	// Plugin does not export Config or Init
+	_, plugin, _ = createPlugin(t, `export default {};`, nil)
+	assert.NoError(t, plugin.Config())
+	assert.NoError(t, plugin.Init())
+
+	// Callback is not a function
+	_, plugin, _ = createPlugin(t, `
+	const Config = config => {
+		config.OnPreDBQuery("not a function");
 	}
-	pluginsDir := filepath.Join(app.config.Dir, "data", "plugins")
-	assert.NoError(t, os.MkdirAll(pluginsDir, 0755))
+	const Init = () => {
+		$db().Query('SELECT 1');
+	};
+	export default { Config, Init };
+	`, nil)
 
-	// Create a new plugin
-	// Plugin with no config/init function
-	plugin, err := plugins.NewPlugin(createPlugin(t, pluginsDir, "noconfig", pluginNoConfigFunction))
-	assert.NoError(t, err)
-	assert.NoError(t, plugin.Config(app))
-	app = newTestAppFromConfig(t, app.config)
-	assert.NoError(t, plugin.Init(app))
+	assert.Error(t, plugin.Config())
+	assert.Error(t, plugin.Init())
 
-	// Plugin with config function
-	plugin, err = plugins.NewPlugin(createPlugin(t, pluginsDir, "hello", pluginValid))
-	assert.NoError(t, err)
-	assert.NotNil(t, plugin)
-	assert.Equal(t, "hello", plugin.Name())
-
-	// Call the Config method of the plugin
-	err = plugin.Config(app)
-	assert.NoError(t, err)
-	assert.Len(t, app.config.SystemSchemas, 1)
-
-	app = newTestAppFromConfig(t, app.config)
-	err = plugin.Init(app)
-	assert.NoError(t, err)
-
-	app.resources.Add(fs.Get("ping", func(ctx fs.Context, _ any) (string, error) {
-		return "pong", nil
-	}, &fs.Meta{Public: true}))
-
-	app.resources.Hooks = func() *fs.Hooks {
-		return app.config.Hooks
+	// Callback function does not have a name
+	_, plugin, _ = createPlugin(t, `
+	const Config = config => {
+		config.OnPreDBQuery(function() {});
 	}
-	app.server = rr.NewRestfulResolver(&rr.ResolverConfig{
-		ResourceManager: app.resources,
-		Logger:          logger.CreateMockLogger(true),
-	}).Server()
+	const Init = () => {
+		$db().Query('SELECT 1');
+	};
+	export default { Config, Init };
+	`, nil)
 
-	// Test resolver hooks
-	req := httptest.NewRequest("GET", "/ping", nil)
-	resp := utils.Must(app.server.Test(req))
-	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 200, resp.StatusCode)
-	response := utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Equal(t, `{"data":"pong"}`, response)
+	assert.Error(t, plugin.Config())
+	assert.Error(t, plugin.Init())
 
-	// Test call resource registered by the plugin
-	req = httptest.NewRequest("GET", "/hello", nil)
-	resp = utils.Must(app.server.Test(req))
-	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 200, resp.StatusCode)
-	response = utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Equal(t, `{"data":"world"}`, response)
-	assert.True(t, utils.Contains(stdOutLines, `{"'query db in plugin'":"query db in plugin"}`))
+	// Callback function name not in default exports
+	_, plugin, _ = createPlugin(t, `
+	const Config = config => {
+		config.OnPreDBQuery(function unknownCallback() {});
+	}
+	const Init = () => {
+		$db().Query('SELECT 1');
+	};
+	export default { Config, Init };
+	`, nil)
 
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPreResolve"))
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPostResolve"))
+	assert.Error(t, plugin.Config())
+	assert.Error(t, plugin.Init())
 
-	ctx := context.Background()
-
-	// Test db create hooks
-	createdRole, err := db.Create[*fs.Role](ctx, app.db, map[string]any{
-		"name": "admin",
+	// Runtime setup function error
+	_, plugin, _ = createPlugin(t, `
+	const Config = config => {
+		config.OnPreDBQuery(PreDBQuery);
+	}
+	const Init = () => {
+		$db().Query($context(), 'SELECT 1');
+	};
+	const PreDBQuery = (context) => {
+		$logger().Info('PreDBQuery called');
+	};
+	export default { Config, Init, PreDBQuery };
+	`, func(rt *qjs.Runtime, inPool bool) error {
+		if inPool {
+			return os.ErrInvalid
+		}
+		return nil
 	})
+	assert.NoError(t, plugin.Config())
+	assert.Error(t, plugin.Init())
 
-	assert.NoError(t, err)
-	assert.NotNil(t, createdRole)
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPreDBCreate"))
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPostDBCreate"))
-
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPreDBQuery"))
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPostDBQuery"))
-
-	// Test db update hooks
-	updatedRole, err := db.Update[*fs.Role](ctx, app.db, map[string]any{
-		"name": "admin updated",
-	}, []*db.Predicate{
-		db.EQ("id", createdRole.ID),
-	})
-	assert.NoError(t, err)
-	assert.Equal(t, "admin updated", updatedRole[0].Name)
-
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPreDBUpdate"))
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPostDBUpdate"))
-
-	// Test db exec hooks
-	result, err := db.Exec(ctx, app.db, "UPDATE roles SET name = ? WHERE id = ?", "admin", createdRole.ID)
-	assert.NoError(t, err)
-	assert.Equal(t, int64(1), utils.Must(result.RowsAffected()))
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPreDBExec"))
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPostDBExec"))
-
-	// Test db delete hooks
-	deleted, err := db.Delete[*fs.Role](ctx, app.db, []*db.Predicate{
-		db.EQ("id", createdRole.ID),
-	})
-	assert.NoError(t, err)
-	assert.Equal(t, 1, deleted)
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPreDBDelete"))
-	assert.True(t, utils.Contains(stdOutLines, "hook run: onPostDBDelete"))
-
-	// Call the init method of the plugin
-	err = plugin.Init(app)
-	assert.NoError(t, err)
-	assert.True(t, utils.Contains(stdOutLines, "init plugin"))
+	// Create plugin error due to qjs initialization error
+	func() {
+		app := createApp()
+		_, err := plugins.NewPlugin(app, "data/plugins/test-plugin", nil, []byte("invalid wasm"))
+		assert.Error(t, err)
+	}()
 }

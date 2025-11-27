@@ -1,88 +1,79 @@
 'use strict';
 
-/** @param {FsContext} ctx */
-const hookPreResolve = ctx => {
-  console.log('[plugin] PreResolve this runs before the request is resolved');
-}
-
-/** @param {FsContext} ctx */
-const hookPostResolve = ctx => {
-  console.log('[plugin] PostResolve this runs after the request is resolved');
-}
-
 /**
- * @param {FsContext} ctx 
- * @param {FsQueryOption} option 
+ * @param {FsContext} ctx
+ * @param {FsQueryOption} option
  */
-const hookPreDBQuery = (ctx, option) => {
+export const preDBQuery = (ctx, option) => {
   console.log('[plugin] PreDBQuery this runs before the query is executed');
-}
+};
 
 /**
- * @param {FsContext} ctx 
- * @param {FsQueryOption} option 
- * @param {FsEntity[]} entities 
+ * @param {FsContext} ctx
+ * @param {FsQueryOption} option
+ * @param {FsEntity[]} entities
  */
-const hookPostDBQuery = (ctx, option, entities) => {
-  console.log('[plugin] PostDBQuery this runs before the query is executed');
-  console.log(JSON.stringify(entities, null, 2));
-}
+export const postDBQuery = (ctx, option, entities) => {
+  console.log(
+    '[plugin] PostDBQuery this runs after the query is executed, result: ',
+    JSON.stringify(entities.map(e => e.ToMap()), null, 2)
+  );
+};
 
 /**
  * @param {FsContext} ctx
  * @param {FsQueryOption} option
  */
-const hookPreDBExec = (ctx, option) => {
+export const preDBExec = (ctx, option) => {
   console.log('[plugin] PreDBExec this runs before the exec is executed');
-}
+};
 
 /**
  * @param {FsContext} ctx
  * @param {FsQueryOption} option
  * @param {FsDbExecResult} result
  */
-const hookPostDBExec = (ctx, option, result) => {
+export const postDBExec = (ctx, option, result) => {
   console.log('[plugin] PostDBExec this runs after the exec is executed');
   console.log('insertId:', result.LastInsertId());
   console.log('affectedRows:', result.RowsAffected());
-}
-
+};
 
 /**
- * @param {FsContext} ctx 
- * @param {SchemaRawData} schema 
+ * @param {FsContext} ctx
+ * @param {SchemaRawData} schema
  * @param {FsEntity} createData
  */
-const hookPreDBCreate = (ctx, schema, createData) => {
+export const preDBCreate = (ctx, schema, createData) => {
   console.log('[plugin] PreDBCreate this runs before the create is executed');
   console.log('schema:', schema);
-  console.log('createData:', createData);
-}
+  console.log('createData:', createData.ToMap());
+};
 
 /**
- * @param {FsContext} ctx 
- * @param {SchemaRawData} schema 
+ * @param {FsContext} ctx
+ * @param {SchemaRawData} schema
  * @param {FsEntity} createData
  * @param {number} id
  */
-const hookPostDBCreate = (ctx, schema, createData, id) => {
+export const postDBCreate = (ctx, schema, createData, id) => {
   console.log('[plugin] PostDBCreate this runs after the create is executed');
   console.log('id:', id);
-  console.log('createData:', createData);
-}
+  console.log('createData:', createData.ToMap());
+};
 
 /**
- * @param {FsContext} ctx 
- * @param {SchemaRawData} schema 
+ * @param {FsContext} ctx
+ * @param {SchemaRawData} schema
  * @param {FsDbPredicate[]} predicates
  * @param {FsEntity} updateData
  */
-const hookPreDBUpdate = (ctx, schema, predicates, updateData) => {
+export const preDBUpdate = (ctx, schema, predicates, updateData) => {
   console.log('[plugin] PreDBUpdate this runs before the update is executed');
   console.log('schema:', schema);
   console.log('id:', predicates);
-  console.log('createData:', updateData);
-}
+  console.log('createData:', updateData.ToMap());
+};
 
 /**
  * @param {FsContext} ctx
@@ -92,25 +83,32 @@ const hookPreDBUpdate = (ctx, schema, predicates, updateData) => {
  * @param {FsEntity[]} originalEntities
  * @param {number} affected
  */
-const hookPostDBUpdate = (ctx, schema, predicates, updateData, originalEntities, affected) => {
+export const postDBUpdate = (
+  ctx,
+  schema,
+  predicates,
+  updateData,
+  originalEntities,
+  affected
+) => {
   console.log('[plugin] PostDBUpdate this runs after the update is executed');
   console.log('schema:', schema);
   console.log('predicates:', predicates);
   console.log('updateData:', updateData);
-  console.log('originalEntities:', originalEntities);
+  console.log('originalEntities:', originalEntities.map(e => e.ToMap()));
   console.log('affected:', affected);
-}
+};
 
 /**
  * @param {FsContext} ctx
  * @param {SchemaRawData} schema
  * @param {FsDbPredicate[]} predicates
  */
-const hookPreDBDelete = (ctx, schema, predicates) => {
+export const preDBDelete = (ctx, schema, predicates) => {
   console.log('[plugin] PreDBDelete this runs before the delete is executed');
   console.log('schema:', schema);
   console.log('predicates:', predicates);
-}
+};
 
 /**
  * @param {FsContext} ctx
@@ -119,30 +117,46 @@ const hookPreDBDelete = (ctx, schema, predicates) => {
  * @param {FsEntity[]} originalEntities
  * @param {number} affected
  */
-const hookPostDBDelete = (ctx, schema, predicates, originalEntities, affected) => {
+export const postDBDelete = (
+  ctx,
+  schema,
+  predicates,
+  originalEntities,
+  affected
+) => {
   console.log('[plugin] PostDBDelete this runs after the delete is executed');
   console.log('schema:', schema);
   console.log('predicates:', predicates);
   console.log('originalEntities:', originalEntities);
   console.log('affected:', affected);
-}
+};
 
-module.exports = {
-  hookPreResolve,
-  hookPostResolve,
+/** @param {FsContext} ctx */
+export const preResolve = (ctx) => {
+  console.log('[plugin] PreResolve this runs before the request is resolved');
+};
 
-  hookPreDBQuery,
-  hookPostDBQuery,
+/** @param {FsContext} ctx */
+export const postResolve = (ctx) => {
+  console.log('[plugin] PostResolve this runs after the request is resolved');
+};
 
-  hookPreDBExec,
-  hookPostDBExec,
-  
-  hookPreDBCreate,
-  hookPostDBCreate,
+export default {
+  preResolve,
+  postResolve,
 
-  hookPreDBUpdate,
-  hookPostDBUpdate,
+  preDBQuery,
+  postDBQuery,
 
-  hookPreDBDelete,
-  hookPostDBDelete,
-}
+  preDBExec,
+  postDBExec,
+
+  preDBCreate,
+  postDBCreate,
+
+  preDBUpdate,
+  postDBUpdate,
+
+  preDBDelete,
+  postDBDelete,
+};

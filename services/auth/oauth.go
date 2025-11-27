@@ -95,7 +95,10 @@ func (as *AuthService) createLoginResponse(c fs.Context, providerUser *fs.User) 
 		}
 	}
 
-	jwtToken, exp, err := loginUser.JwtClaim(as.AppKey())
+	jwtToken, exp, err := loginUser.JwtClaim(c, &fs.UserJwtConfig{
+		Key:              as.AppKey(),
+		CustomClaimsFunc: as.JwtCustomClaimsFunc(),
+	})
 	if err != nil {
 		return nil, err
 	}

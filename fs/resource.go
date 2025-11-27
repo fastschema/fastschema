@@ -4,16 +4,40 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
+type StaticConfig struct {
+	Compress      bool          `json:"compress"`
+	ByteRange     bool          `json:"byte_range"`
+	Browse        bool          `json:"browse"`
+	Download      bool          `json:"download"`
+	Index         string        `json:"index"`
+	CacheDuration time.Duration `json:"cache_duration"` // Default value 10 * time.Second.
+	MaxAge        int           `json:"max_age"`        // Default value 0
+}
+
 type StaticFs struct {
-	Root       http.FileSystem
-	BasePath   string
-	PathPrefix string
+	// Config is the static file server configuration.
+	Config *StaticConfig
+
+	// BasePath is the base url path to serve the static files, e.g. "/static".
+	// Default is "/"
+	BasePath string
+
+	// RootDir is the root directory of the static files in the FileSystem.
+	RootDir string
+
+	// RootFS is the FileSystem that provides access to a file system.
+	RootFS http.FileSystem
+
+	// FSPrefix is a prefix to be added to the path when reading from the FileSystem.
+	// Use when using embed.FS, default ""
+	FSPrefix string
 }
 
 // HandlerFn is a function that generates a resolver function
