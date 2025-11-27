@@ -44,4 +44,4 @@ RUN mkdir -p /app/data /app/data/logs /app/public && \
 EXPOSE 8000
 
 # Start the application
-CMD ["start"]
+CMD ["./fastschema"]
