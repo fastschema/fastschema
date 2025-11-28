@@ -33,7 +33,8 @@ type AccessTokenClaims struct {
 type RefreshTokenClaims struct {
 	jwt.RegisteredClaims
 
-	UserID uint64 `json:"uid"`
+	UserID    uint64 `json:"uid"`
+	SessionID uint64 `json:"sid"` // Session ID from database
 }
 
 // CustomClaimsFunc is a function that allows customization of JWT claims
@@ -61,11 +62,6 @@ type JWTTokens struct {
 	AccessTokenExpiresAt  time.Time  `json:"expires"`
 	RefreshToken          string     `json:"refresh_token,omitempty"`
 	RefreshTokenExpiresAt *time.Time `json:"refresh_token_expires,omitempty"`
-}
-
-// GenerateJTI generates a unique JWT ID
-func GenerateJTI() string {
-	return utils.RandomString(32)
 }
 
 // GenerateAccessToken generates a JWT access token for a user
@@ -110,24 +106,21 @@ func GenerateAccessToken(
 	return signedString, exp, err
 }
 
-// GenerateRefreshToken generates a new refresh token JWT with the given JTI
+// GenerateRefreshToken generates a new refresh token JWT with the given session ID
 func GenerateRefreshToken(
 	userID uint64,
-	jti, key string,
+	sessionID uint64,
+	key string,
 	expiresAt time.Time,
 ) (string, error) {
 	if key == "" {
 		return "", errors.InternalServerError("jwt: missing secret key")
 	}
 
-	if jti == "" {
-		jti = GenerateJTI()
-	}
-
 	claims := &RefreshTokenClaims{
-		UserID: userID,
+		UserID:    userID,
+		SessionID: sessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        jti,
 			Issuer:    utils.Env("APP_NAME"),
 			ExpiresAt: &jwt.NumericDate{Time: expiresAt},
 			IssuedAt:  &jwt.NumericDate{Time: time.Now()},

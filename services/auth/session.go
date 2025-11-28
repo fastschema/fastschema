@@ -59,24 +59,35 @@ func (as *AuthService) GenerateJWTTokens(c fs.Context, user *fs.User) (*fs.JWTTo
 		}, nil
 	}
 
-	// Generate refresh token with JTI
+	// Create session in database first to get the session ID
 	refreshExpiration := as.GetRefreshTokenExpiration()
 	refreshExpiresAt := now.Add(refreshExpiration)
 
-	jti := jwt.GenerateJTI()
-	refreshToken, err := jwt.GenerateRefreshToken(user.ID, jti, as.AppKey(), refreshExpiresAt)
-	if err != nil {
-		return nil, err
+	// Get device info from User-Agent header, fallback to query param
+	deviceInfo := c.Header("User-Agent")
+	if deviceInfo == "" {
+		deviceInfo = c.Arg("device_info")
 	}
 
-	// Store JTI in database
-	if _, err = db.Builder[*fs.Token](as.DB()).Create(c, entity.New().
+	session, err := db.Builder[*fs.Session](as.DB()).Create(c, entity.New().
 		Set("user_id", user.ID).
-		Set("jti", jti).
+		Set("device_info", deviceInfo).
+		Set("ip_address", c.IP()).
+		Set("last_activity_at", now).
+		Set("status", string(fs.SessionStatusActive)).
 		Set("expires_at", refreshExpiresAt),
-	); err != nil {
-		c.Logger().Errorf("failed to store refresh token: %v", err)
+	)
+	if err != nil {
+		c.Logger().Errorf("failed to create session: %v", err)
 		return nil, errors.InternalServerError("failed to create session")
+	}
+
+	// Generate refresh token with session ID
+	refreshToken, err := jwt.GenerateRefreshToken(user.ID, session.ID, as.AppKey(), refreshExpiresAt)
+	if err != nil {
+		// Clean up the session if token generation fails
+		_, _ = db.Builder[*fs.Session](as.DB()).Where(db.EQ("id", session.ID)).Delete(c)
+		return nil, err
 	}
 
 	return &fs.JWTTokens{
@@ -104,29 +115,34 @@ func (as *AuthService) RefreshToken(c fs.Context, req *RefreshTokenRequest) (*fs
 		return nil, errors.Unauthorized("refresh token expired")
 	}
 
-	// Check if the JTI exists in database
-	storedToken, err := db.Builder[*fs.Token](as.DB()).
-		Where(db.EQ("jti", claims.ID)).
+	// Check if the session exists in database using session ID
+	storedSession, err := db.Builder[*fs.Session](as.DB()).
+		Where(db.EQ("id", claims.SessionID)).
 		First(c)
 	if err != nil {
 		if db.IsNotFound(err) {
 			return nil, errors.Unauthorized("invalid refresh token")
 		}
-		c.Logger().Errorf("failed to lookup refresh token: %v", err)
+		c.Logger().Errorf("failed to lookup session: %v", err)
 		return nil, errors.InternalServerError("failed to validate token")
 	}
 
-	// Check if the stored token is expired
-	if storedToken.ExpiresAt != nil && storedToken.ExpiresAt.Before(time.Now()) {
-		// Clean up expired token
-		_, _ = db.Builder[*fs.Token](as.DB()).
-			Where(db.EQ("id", storedToken.ID)).
-			Delete(c)
+	// Check if the session is active
+	if storedSession.Status != string(fs.SessionStatusActive) {
+		return nil, errors.Unauthorized("session is not active")
+	}
+
+	// Check if the stored session is expired
+	if storedSession.ExpiresAt != nil && storedSession.ExpiresAt.Before(time.Now()) {
+		// Mark session as inactive
+		_, _ = db.Builder[*fs.Session](as.DB()).
+			Where(db.EQ("id", storedSession.ID)).
+			Update(c, entity.New().Set("status", string(fs.SessionStatusInactive)))
 		return nil, errors.Unauthorized("refresh token expired")
 	}
 
 	// Verify user ID matches
-	if storedToken.UserID != claims.UserID {
+	if storedSession.UserID != claims.UserID {
 		return nil, errors.Unauthorized("invalid refresh token")
 	}
 
@@ -147,11 +163,11 @@ func (as *AuthService) RefreshToken(c fs.Context, req *RefreshTokenRequest) (*fs
 		return nil, errors.Unauthorized("user is inactive")
 	}
 
-	// Delete the old refresh token (token rotation for security)
-	if _, err = db.Builder[*fs.Token](as.DB()).
-		Where(db.EQ("id", storedToken.ID)).
+	// Delete the old session (token rotation for security)
+	if _, err = db.Builder[*fs.Session](as.DB()).
+		Where(db.EQ("id", storedSession.ID)).
 		Delete(c); err != nil {
-		c.Logger().Errorf("failed to delete old refresh token: %v", err)
+		c.Logger().Errorf("failed to delete old session: %v", err)
 	}
 
 	// Generate new token pair
@@ -166,44 +182,44 @@ func (as *AuthService) Logout(c fs.Context, req *RefreshTokenRequest) (bool, err
 		return true, nil
 	}
 
-	// Parse the refresh token to get the user ID
+	// Parse the refresh token to get the session ID
 	claims, err := jwt.ParseRefreshToken(req.RefreshToken, as.AppKey())
 	if err != nil {
 		return true, errors.Unauthorized("invalid refresh token")
 	}
 
-	// Delete the refresh token from database using JTI
-	if _, err = db.Builder[*fs.Token](as.DB()).
-		Where(db.EQ("jti", claims.ID)).
+	// Delete the session from database using session ID
+	if _, err = db.Builder[*fs.Session](as.DB()).
+		Where(db.EQ("id", claims.SessionID)).
 		Where(db.EQ("user_id", claims.UserID)).
 		Delete(c); err != nil {
-		c.Logger().Errorf("failed to delete refresh token: %v", err)
+		c.Logger().Errorf("failed to delete session: %v", err)
 	}
 
 	return true, nil
 }
 
-// LogoutAll invalidates all refresh tokens for the current user
+// LogoutAll invalidates all sessions for the current user
 func (as *AuthService) LogoutAll(c fs.Context, _ any) (bool, error) {
 	user := c.User()
 	if user == nil {
 		return false, errors.Unauthorized("user not authenticated")
 	}
 
-	// Delete all refresh tokens for this user
-	if _, err := db.Builder[*fs.Token](as.DB()).
+	// Delete all sessions for this user
+	if _, err := db.Builder[*fs.Session](as.DB()).
 		Where(db.EQ("user_id", user.ID)).
 		Delete(c); err != nil {
-		c.Logger().Errorf("failed to delete all refresh tokens: %v", err)
+		c.Logger().Errorf("failed to delete all sessions: %v", err)
 		return false, errors.InternalServerError("failed to logout from all sessions")
 	}
 
 	return true, nil
 }
 
-// CleanupExpiredTokens removes expired tokens from the database
-func (as *AuthService) CleanupExpiredTokens(c fs.Context) (int, error) {
-	result, err := db.Builder[*fs.Token](as.DB()).
+// CleanupExpiredSessions removes expired sessions from the database
+func (as *AuthService) CleanupExpiredSessions(c fs.Context) (int, error) {
+	result, err := db.Builder[*fs.Session](as.DB()).
 		Where(db.LT("expires_at", time.Now())).
 		Delete(c)
 	if err != nil {

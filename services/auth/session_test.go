@@ -53,6 +53,7 @@ func (s testTokenApp) GetAuthProvider(name string) fs.AuthProvider {
 }
 
 func createTestTokenApp(t *testing.T, enableRefreshToken bool) *testTokenApp {
+	t.Helper()
 	schemaDir := utils.Must(os.MkdirTemp("", "schemas"))
 	migrationDir := utils.Must(os.MkdirTemp("", "migrations"))
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
@@ -153,6 +154,7 @@ func (m *mockContext) FormValue(string, ...string) string { return "" }
 func (m *mockContext) Resource() *fs.Resource             { return nil }
 func (m *mockContext) Redirect(string) error              { return nil }
 func (m *mockContext) IP() string                         { return "127.0.0.1" }
+func (m *mockContext) Header(string, ...string) string    { return "" }
 func (m *mockContext) Local(key string, value ...any) any {
 	if m.locals == nil {
 		m.locals = make(map[string]any)
@@ -236,14 +238,14 @@ func TestAuthServiceGenerateTokenPair(t *testing.T) {
 	// Access token should expire before refresh token
 	assert.True(t, tokenPair.AccessTokenExpiresAt.Before(*tokenPair.RefreshTokenExpiresAt))
 
-	// Verify refresh token is stored in database using JTI from the token
+	// Verify refresh token is stored in database using session ID from the token
 	claims, err := jwt.ParseRefreshToken(tokenPair.RefreshToken, app.Key())
 	require.NoError(t, err)
-	storedToken, err := db.Builder[*fs.Token](app.db).
-		Where(db.EQ("jti", claims.ID)).
+	storedSession, err := db.Builder[*fs.Session](app.db).
+		Where(db.EQ("id", claims.SessionID)).
 		First(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, user.ID, storedToken.UserID)
+	assert.Equal(t, user.ID, storedSession.UserID)
 }
 
 func TestAuthServiceRefreshToken(t *testing.T) {
@@ -282,19 +284,19 @@ func TestAuthServiceRefreshToken(t *testing.T) {
 	// Old refresh token should be invalidated (deleted from DB)
 	oldClaims, err := jwt.ParseRefreshToken(tokenPair.RefreshToken, app.Key())
 	require.NoError(t, err)
-	_, err = db.Builder[*fs.Token](app.db).
-		Where(db.EQ("jti", oldClaims.ID)).
+	_, err = db.Builder[*fs.Session](app.db).
+		Where(db.EQ("id", oldClaims.SessionID)).
 		First(context.Background())
 	assert.True(t, db.IsNotFound(err))
 
 	// New refresh token should be in DB
 	newClaims, err := jwt.ParseRefreshToken(newTokenPair.RefreshToken, app.Key())
 	require.NoError(t, err)
-	storedToken, err := db.Builder[*fs.Token](app.db).
-		Where(db.EQ("jti", newClaims.ID)).
+	storedSession, err := db.Builder[*fs.Session](app.db).
+		Where(db.EQ("id", newClaims.SessionID)).
 		First(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, user.ID, storedToken.UserID)
+	assert.Equal(t, user.ID, storedSession.UserID)
 }
 
 func TestAuthServiceRefreshTokenInvalid(t *testing.T) {
@@ -321,8 +323,8 @@ func TestAuthServiceRefreshTokenInvalid(t *testing.T) {
 
 	t.Run("token not in database", func(t *testing.T) {
 		// Generate a valid token but don't store it in DB
-		jti := jwt.GenerateJTI()
-		token, err := jwt.GenerateRefreshToken(1, jti, app.Key(), time.Now().Add(time.Hour))
+		// Using a non-existent session ID
+		token, err := jwt.GenerateRefreshToken(1, 99999, app.Key(), time.Now().Add(time.Hour))
 		require.NoError(t, err)
 
 		_, err = authService.RefreshToken(ctx, &as.RefreshTokenRequest{
@@ -380,11 +382,11 @@ func TestAuthServiceLogout(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, result)
 
-	// Verify token is deleted from DB
+	// Verify session is deleted from DB
 	claims, err := jwt.ParseRefreshToken(tokenPair.RefreshToken, app.Key())
 	require.NoError(t, err)
-	_, err = db.Builder[*fs.Token](app.db).
-		Where(db.EQ("jti", claims.ID)).
+	_, err = db.Builder[*fs.Session](app.db).
+		Where(db.EQ("id", claims.SessionID)).
 		First(context.Background())
 	assert.True(t, db.IsNotFound(err))
 
@@ -439,12 +441,12 @@ func TestAuthServiceLogoutAll(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, result)
 
-	// Verify both tokens are deleted from DB
+	// Verify both sessions are deleted from DB
 	for _, refreshToken := range []string{tokenPair1.RefreshToken, tokenPair2.RefreshToken} {
 		claims, err := jwt.ParseRefreshToken(refreshToken, app.Key())
 		require.NoError(t, err)
-		_, err = db.Builder[*fs.Token](app.db).
-			Where(db.EQ("jti", claims.ID)).
+		_, err = db.Builder[*fs.Session](app.db).
+			Where(db.EQ("id", claims.SessionID)).
 			First(context.Background())
 		assert.True(t, db.IsNotFound(err))
 	}
@@ -460,44 +462,46 @@ func TestAuthServiceLogoutAllUnauthenticated(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAuthServiceCleanupExpiredTokens(t *testing.T) {
+func TestAuthServiceCleanupExpiredSessions(t *testing.T) {
 	app := createTestTokenApp(t, true)
 	authService := as.New(app)
 	ctx := app.createMockContext(nil)
 
-	// Create some tokens - some expired, some not
+	// Create some sessions - some expired, some not
 	now := time.Now()
 	expiredTime := now.Add(-1 * time.Hour)
 	validTime := now.Add(1 * time.Hour)
 
-	// Create expired token
-	_, err := db.Builder[*fs.Token](app.db).Create(ctx, entity.New().
+	// Create expired session
+	expiredSession, err := db.Builder[*fs.Session](app.db).Create(ctx, entity.New().
 		Set("user_id", uint64(1)).
-		Set("jti", "expired-token-jti").
+		Set("ip_address", "127.0.0.1").
+		Set("status", string(fs.SessionStatusActive)).
 		Set("expires_at", expiredTime))
 	require.NoError(t, err)
 
-	// Create valid token
-	_, err = db.Builder[*fs.Token](app.db).Create(ctx, entity.New().
+	// Create valid session
+	validSession, err := db.Builder[*fs.Session](app.db).Create(ctx, entity.New().
 		Set("user_id", uint64(1)).
-		Set("jti", "valid-token-jti").
+		Set("ip_address", "127.0.0.1").
+		Set("status", string(fs.SessionStatusActive)).
 		Set("expires_at", validTime))
 	require.NoError(t, err)
 
-	// Cleanup expired tokens
-	deleted, err := authService.CleanupExpiredTokens(ctx)
+	// Cleanup expired sessions
+	deleted, err := authService.CleanupExpiredSessions(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, deleted)
 
-	// Verify expired token is deleted
-	_, err = db.Builder[*fs.Token](app.db).
-		Where(db.EQ("jti", "expired-token-jti")).
+	// Verify expired session is deleted
+	_, err = db.Builder[*fs.Session](app.db).
+		Where(db.EQ("id", expiredSession.ID)).
 		First(context.Background())
 	assert.True(t, db.IsNotFound(err))
 
-	// Verify valid token still exists
-	_, err = db.Builder[*fs.Token](app.db).
-		Where(db.EQ("jti", "valid-token-jti")).
+	// Verify valid session still exists
+	_, err = db.Builder[*fs.Session](app.db).
+		Where(db.EQ("id", validSession.ID)).
 		First(context.Background())
 	require.NoError(t, err)
 }

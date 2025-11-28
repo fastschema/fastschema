@@ -79,33 +79,22 @@ func TestGenerateAccessTokenWithCustomClaims(t *testing.T) {
 
 func TestGenerateRefreshToken(t *testing.T) {
 	userID := uint64(1)
-	jti := jwt.GenerateJTI()
+	sessionID := uint64(123)
 	key := "test-secret-key-32-characters!!"
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	token, err := jwt.GenerateRefreshToken(userID, jti, key, expiresAt)
+	token, err := jwt.GenerateRefreshToken(userID, sessionID, key, expiresAt)
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
 }
 
 func TestGenerateRefreshTokenMissingKey(t *testing.T) {
 	userID := uint64(1)
-	jti := jwt.GenerateJTI()
+	sessionID := uint64(123)
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	_, err := jwt.GenerateRefreshToken(userID, jti, "", expiresAt)
+	_, err := jwt.GenerateRefreshToken(userID, sessionID, "", expiresAt)
 	assert.Error(t, err)
-}
-
-func TestGenerateRefreshTokenAutoJTI(t *testing.T) {
-	userID := uint64(1)
-	key := "test-secret-key-32-characters!!"
-	expiresAt := time.Now().Add(7 * 24 * time.Hour)
-
-	// Empty JTI should auto-generate
-	token, err := jwt.GenerateRefreshToken(userID, "", key, expiresAt)
-	require.NoError(t, err)
-	assert.NotEmpty(t, token)
 }
 
 func TestParseAccessToken(t *testing.T) {
@@ -141,17 +130,17 @@ func TestParseAccessTokenInvalid(t *testing.T) {
 
 func TestParseRefreshToken(t *testing.T) {
 	userID := uint64(1)
-	jti := jwt.GenerateJTI()
+	sessionID := uint64(456)
 	key := "test-secret-key-32-characters!!"
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	token, err := jwt.GenerateRefreshToken(userID, jti, key, expiresAt)
+	token, err := jwt.GenerateRefreshToken(userID, sessionID, key, expiresAt)
 	require.NoError(t, err)
 
 	claims, err := jwt.ParseRefreshToken(token, key)
 	require.NoError(t, err)
 	assert.Equal(t, userID, claims.UserID)
-	assert.Equal(t, jti, claims.ID)
+	assert.Equal(t, sessionID, claims.SessionID)
 }
 
 func TestParseRefreshTokenInvalid(t *testing.T) {
@@ -162,15 +151,6 @@ func TestParseRefreshTokenInvalid(t *testing.T) {
 
 	_, err = jwt.ParseRefreshToken("", key)
 	assert.Error(t, err)
-}
-
-func TestGenerateJTI(t *testing.T) {
-	jti1 := jwt.GenerateJTI()
-	jti2 := jwt.GenerateJTI()
-
-	assert.Len(t, jti1, 32)
-	assert.Len(t, jti2, 32)
-	assert.NotEqual(t, jti1, jti2) // Should be unique
 }
 
 func TestDefaultConfig(t *testing.T) {
@@ -190,7 +170,9 @@ func TestTokenPair(t *testing.T) {
 	}
 
 	assert.Equal(t, "access-token", pair.AccessToken)
+	assert.WithinDuration(t, time.Now().Add(15*time.Minute), pair.AccessTokenExpiresAt, time.Second)
 	assert.Equal(t, "refresh-token", pair.RefreshToken)
+	assert.WithinDuration(t, refreshTokenExpires, *pair.RefreshTokenExpiresAt, time.Second)
 }
 
 func TestUserToJwtClaims(t *testing.T) {

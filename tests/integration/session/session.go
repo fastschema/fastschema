@@ -1,4 +1,4 @@
-package refreshtoken_test
+package session_test
 
 import (
 	"context"
@@ -76,6 +76,7 @@ func (m *mockContext) FormValue(string, ...string) string { return "" }
 func (m *mockContext) Resource() *fs.Resource             { return nil }
 func (m *mockContext) Redirect(string) error              { return nil }
 func (m *mockContext) IP() string                         { return "127.0.0.1" }
+func (m *mockContext) Header(string, ...string) string    { return "" }
 func (m *mockContext) Local(key string, value ...any) any {
 	if m.locals == nil {
 		m.locals = make(map[string]any)
@@ -97,7 +98,7 @@ var systemSchemas = []any{
 	fs.Permission{},
 	fs.User{},
 	fs.File{},
-	fs.Token{},
+	fs.Session{},
 }
 
 func createTestApp(t *testing.T, dbc db.Client) *testApp {
