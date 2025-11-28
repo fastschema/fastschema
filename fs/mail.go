@@ -1,6 +1,9 @@
 package fs
 
-import "net/mail"
+import (
+	"maps"
+	"net/mail"
+)
 
 type MailConfig struct {
 	SenderName        string `json:"sender_name"`
@@ -19,9 +22,7 @@ func (m *MailConfig) Clone() *MailConfig {
 
 	for i, client := range m.Clients {
 		newClient := Map{}
-		for k, v := range client {
-			newClient[k] = v
-		}
+		maps.Copy(newClient, client)
 		c.Clients[i] = newClient
 	}
 

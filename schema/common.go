@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
 	"time"
 )
 
@@ -27,9 +29,7 @@ func (fr *FieldRenderer) Clone() *FieldRenderer {
 	}
 
 	settings := make(map[string]any)
-	for k, v := range fr.Settings {
-		settings[k] = v
-	}
+	maps.Copy(settings, fr.Settings)
 
 	return &FieldRenderer{
 		Class:    fr.Class,
@@ -171,73 +171,72 @@ var (
 
 	fieldTypeToStringsToStructTypes = [...]reflect.Type{
 		TypeInvalid: nil,
-		TypeBool:    reflect.TypeOf(bool(false)),
-		TypeTime:    reflect.TypeOf(time.Time{}),
-		TypeJSON:    reflect.TypeOf([]byte{}),
-		TypeUUID:    reflect.TypeOf([16]byte{}),
-		TypeBytes:   reflect.TypeOf([]byte{}),
-		TypeEnum:    reflect.TypeOf(FieldEnum{}),
-		TypeString:  reflect.TypeOf(string("")),
-		TypeText:    reflect.TypeOf(string("")),
-		TypeInt:     reflect.TypeOf(int(0)),
-		TypeInt8:    reflect.TypeOf(int8(0)),
-		TypeInt16:   reflect.TypeOf(int16(0)),
-		TypeInt32:   reflect.TypeOf(int32(0)),
-		TypeInt64:   reflect.TypeOf(int64(0)),
-		TypeUint:    reflect.TypeOf(uint(0)),
-		// TypeUintptr:  reflect.TypeOf(uintptr(0)),
-		TypeUint8:    reflect.TypeOf(uint8(0)),
-		TypeUint16:   reflect.TypeOf(uint16(0)),
-		TypeUint32:   reflect.TypeOf(uint32(0)),
-		TypeUint64:   reflect.TypeOf(uint64(0)),
-		TypeFloat32:  reflect.TypeOf(float32(0)),
-		TypeFloat64:  reflect.TypeOf(float64(0)),
-		TypeRelation: reflect.TypeOf(&Relation{}),
-		TypeFile:     reflect.TypeOf(&Relation{}),
+		TypeBool:    reflect.TypeFor[bool](),
+		TypeTime:    reflect.TypeFor[time.Time](),
+		TypeJSON:    reflect.TypeFor[[]byte](),
+		TypeUUID:    reflect.TypeFor[[16]byte](),
+		TypeBytes:   reflect.TypeFor[[]byte](),
+		TypeEnum:    reflect.TypeFor[FieldEnum](),
+		TypeString:  reflect.TypeFor[string](),
+		TypeText:    reflect.TypeFor[string](),
+		TypeInt:     reflect.TypeFor[int](),
+		TypeInt8:    reflect.TypeFor[int8](),
+		TypeInt16:   reflect.TypeFor[int16](),
+		TypeInt32:   reflect.TypeFor[int32](),
+		TypeInt64:   reflect.TypeFor[int64](),
+		TypeUint:    reflect.TypeFor[uint](),
+		// TypeUintptr:  reflect.TypeFor[uintptr](),
+		TypeUint8:    reflect.TypeFor[uint8](),
+		TypeUint16:   reflect.TypeFor[uint16](),
+		TypeUint32:   reflect.TypeFor[uint32](),
+		TypeUint64:   reflect.TypeFor[uint64](),
+		TypeFloat32:  reflect.TypeFor[float32](),
+		TypeFloat64:  reflect.TypeFor[float64](),
+		TypeRelation: reflect.TypeFor[*Relation](),
+		TypeFile:     reflect.TypeFor[*Relation](),
 	}
 
 	reflectTypesToFieldType = map[reflect.Type]FieldType{
-		reflect.TypeOf(bool(false)):  TypeBool,
-		reflect.TypeOf(time.Time{}):  TypeTime,
-		reflect.TypeOf(&time.Time{}): TypeTime,
-		reflect.TypeOf([]byte{}):     TypeJSON,
-		reflect.TypeOf([16]byte{}):   TypeUUID,
-		reflect.TypeOf([]byte{}):     TypeBytes,
-		reflect.TypeOf(FieldEnum{}):  TypeEnum,
-		reflect.TypeOf(string("")):   TypeString,
-		reflect.TypeOf(int(0)):       TypeInt,
-		reflect.TypeOf(int8(0)):      TypeInt8,
-		reflect.TypeOf(int16(0)):     TypeInt16,
-		reflect.TypeOf(int32(0)):     TypeInt32,
-		reflect.TypeOf(int64(0)):     TypeInt64,
-		reflect.TypeOf(uint(0)):      TypeUint,
-		reflect.TypeOf(uint8(0)):     TypeUint8,
-		reflect.TypeOf(uint16(0)):    TypeUint16,
-		reflect.TypeOf(uint32(0)):    TypeUint32,
-		reflect.TypeOf(uint64(0)):    TypeUint64,
-		reflect.TypeOf(float32(0)):   TypeFloat32,
-		reflect.TypeOf(float64(0)):   TypeFloat64,
+		reflect.TypeFor[bool]():       TypeBool,
+		reflect.TypeFor[time.Time]():  TypeTime,
+		reflect.TypeFor[*time.Time](): TypeTime,
+		reflect.TypeFor[[]byte]():     TypeJSON,
+		reflect.TypeFor[[16]byte]():   TypeUUID,
+		reflect.TypeFor[FieldEnum]():  TypeEnum,
+		reflect.TypeFor[string]():     TypeString,
+		reflect.TypeFor[int]():        TypeInt,
+		reflect.TypeFor[int8]():       TypeInt8,
+		reflect.TypeFor[int16]():      TypeInt16,
+		reflect.TypeFor[int32]():      TypeInt32,
+		reflect.TypeFor[int64]():      TypeInt64,
+		reflect.TypeFor[uint]():       TypeUint,
+		reflect.TypeFor[uint8]():      TypeUint8,
+		reflect.TypeFor[uint16]():     TypeUint16,
+		reflect.TypeFor[uint32]():     TypeUint32,
+		reflect.TypeFor[uint64]():     TypeUint64,
+		reflect.TypeFor[float32]():    TypeFloat32,
+		reflect.TypeFor[float64]():    TypeFloat64,
 
-		reflect.TypeOf(sql.NullString{}):  TypeString,
-		reflect.TypeOf(sql.NullInt64{}):   TypeInt64,
-		reflect.TypeOf(sql.NullInt32{}):   TypeInt32,
-		reflect.TypeOf(sql.NullInt16{}):   TypeInt16,
-		reflect.TypeOf(sql.NullByte{}):    TypeInt8,
-		reflect.TypeOf(sql.NullFloat64{}): TypeFloat64,
-		reflect.TypeOf(sql.NullBool{}):    TypeBool,
-		reflect.TypeOf(sql.NullTime{}):    TypeTime,
+		reflect.TypeFor[sql.NullString]():  TypeString,
+		reflect.TypeFor[sql.NullInt64]():   TypeInt64,
+		reflect.TypeFor[sql.NullInt32]():   TypeInt32,
+		reflect.TypeFor[sql.NullInt16]():   TypeInt16,
+		reflect.TypeFor[sql.NullByte]():    TypeInt8,
+		reflect.TypeFor[sql.NullFloat64](): TypeFloat64,
+		reflect.TypeFor[sql.NullBool]():    TypeBool,
+		reflect.TypeFor[sql.NullTime]():    TypeTime,
 
-		reflect.TypeOf(&sql.NullString{}):  TypeString,
-		reflect.TypeOf(&sql.NullInt64{}):   TypeInt64,
-		reflect.TypeOf(&sql.NullInt32{}):   TypeInt32,
-		reflect.TypeOf(&sql.NullInt16{}):   TypeInt16,
-		reflect.TypeOf(&sql.NullByte{}):    TypeInt8,
-		reflect.TypeOf(&sql.NullFloat64{}): TypeFloat64,
-		reflect.TypeOf(&sql.NullBool{}):    TypeBool,
-		reflect.TypeOf(&sql.NullTime{}):    TypeTime,
+		reflect.TypeFor[*sql.NullString]():  TypeString,
+		reflect.TypeFor[*sql.NullInt64]():   TypeInt64,
+		reflect.TypeFor[*sql.NullInt32]():   TypeInt32,
+		reflect.TypeFor[*sql.NullInt16]():   TypeInt16,
+		reflect.TypeFor[*sql.NullByte]():    TypeInt8,
+		reflect.TypeFor[*sql.NullFloat64](): TypeFloat64,
+		reflect.TypeFor[*sql.NullBool]():    TypeBool,
+		reflect.TypeFor[*sql.NullTime]():    TypeTime,
 
-		// reflect.TypeOf(&Relation{}):  TypeRelation,
-		// reflect.TypeOf(&Relation{}):  TypeFile,
+		// reflect.TypeFor[*Relation]():  TypeRelation,
+		// reflect.TypeFor[*Relation]():  TypeFile,
 	}
 )
 
@@ -279,12 +278,7 @@ func (t FieldType) StructType() reflect.Type {
 
 // IsAtomic reports if the given type is an atomic type.
 func (t FieldType) IsAtomic() bool {
-	for _, pt := range atomicTypes {
-		if t == pt {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(atomicTypes, t)
 }
 
 // Valid reports if the given type if known type.

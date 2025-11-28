@@ -287,8 +287,8 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 			orderFn := sql.Asc
 			columnName := order
 
-			if strings.HasPrefix(order, "-") {
-				columnName = strings.TrimPrefix(order, "-")
+			if after, ok := strings.CutPrefix(order, "-"); ok {
+				columnName = after
 				orderFn = sql.Desc
 			}
 

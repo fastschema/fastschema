@@ -3,10 +3,7 @@ package fs
 import (
 	"time"
 
-	"github.com/fastschema/fastschema/pkg/errors"
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
-	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 // User is a struct that contains user data
@@ -62,21 +59,6 @@ func (u User) Schema() *schema.Schema {
 	}
 }
 
-// UserJwtClaims is a struct that contains the user jwt claims
-type UserJwtClaims struct {
-	jwt.RegisteredClaims
-
-	User *User `json:"user"`
-}
-
-type JwtCustomClaimsFunc func(Context, *UserJwtClaims) (jwt.Claims, error)
-
-type UserJwtConfig struct {
-	Key              string
-	ExpiresAt        time.Time
-	CustomClaimsFunc JwtCustomClaimsFunc
-}
-
 func (u *User) IsRoot() bool {
 	if u == nil {
 		return false
@@ -93,59 +75,4 @@ func (u *User) IsRoot() bool {
 	}
 
 	return false
-}
-
-// JwtClaim generates a jwt claim
-func (u *User) JwtClaim(c Context, config *UserJwtConfig) (string, time.Time, error) {
-	if config == nil || config.Key == "" {
-		return "", time.Time{}, errors.InternalServerError("jwt: missing secret key")
-	}
-
-	u.RoleIDs = make([]uint64, 0)
-
-	for _, role := range u.Roles {
-		if role.ID > 0 {
-			u.RoleIDs = append(u.RoleIDs, role.ID)
-		}
-	}
-
-	exp := config.ExpiresAt
-	if config.ExpiresAt.IsZero() {
-		exp = time.Now().Add(time.Hour * 24 * 30)
-	}
-
-	jwtClaims := &UserJwtClaims{
-		User: &User{
-			ID:                   u.ID,
-			Provider:             u.Provider,
-			ProviderProfileImage: u.ProviderProfileImage,
-			Username:             u.Username,
-			FirstName:            u.FirstName,
-			LastName:             u.LastName,
-			Email:                u.Email,
-			Active:               u.Active,
-			RoleIDs:              u.RoleIDs,
-		},
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    utils.Env("APP_NAME"),
-			ExpiresAt: &jwt.NumericDate{Time: exp},
-		},
-	}
-
-	var claims jwt.Claims = jwtClaims
-	if config.CustomClaimsFunc != nil {
-		customClaims, err := config.CustomClaimsFunc(c, jwtClaims)
-		if err != nil {
-			return "", time.Time{}, err
-		}
-
-		if customClaims != nil {
-			claims = customClaims
-		}
-	}
-
-	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedString, err := jwtToken.SignedString([]byte(config.Key))
-
-	return signedString, exp, err
 }

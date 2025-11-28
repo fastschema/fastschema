@@ -105,6 +105,7 @@ func (c *testContext) Done() <-chan struct{}                               { ret
 func (c *testContext) Err() error                                          { return nil }
 func (c *testContext) Value(key any) any                                   { return nil }
 func (c *testContext) IP() string                                          { return "" }
+func (c *testContext) Header(string, ...string) string                     { return "" }
 
 func TestNewResource(t *testing.T) {
 	r := fs.NewResource(

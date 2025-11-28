@@ -9,6 +9,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -43,12 +44,7 @@ func Filter[T any](slice []T, predicate func(T) bool) []T {
 }
 
 func Contains[T comparable](slice []T, element T) bool {
-	for _, e := range slice {
-		if e == element {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, element)
 }
 
 func Unique[T comparable](slice []T) []T {
@@ -129,9 +125,9 @@ func MapValues[K comparable, V any](m map[K]V) []V {
 func Pick(obj any, path string, defaultValues ...any) any {
 	var value = obj
 	defaultValues = append(defaultValues, nil)
-	parts := strings.Split(path, ".")
+	parts := strings.SplitSeq(path, ".")
 
-	for _, part := range parts {
+	for part := range parts {
 		switch v := value.(type) {
 		case []any:
 			index, err := strconv.Atoi(part)

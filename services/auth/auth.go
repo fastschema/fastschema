@@ -2,6 +2,7 @@ package authservice
 
 import (
 	"strings"
+	"time"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/expr"
@@ -22,6 +23,7 @@ var providerArgs = fs.Args{
 type AppLike interface {
 	DB() db.Client
 	Key() string
+	Config() *fs.Config
 	GetAuthProvider(string) fs.AuthProvider
 	Roles() []*fs.Role
 	JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc
@@ -30,6 +32,7 @@ type AppLike interface {
 type AuthService struct {
 	DB                  func() db.Client
 	AppKey              func() string
+	AppConfig           func() *fs.Config
 	GetAuthProvider     func(string) fs.AuthProvider
 	Roles               func() []*fs.Role
 	JwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
@@ -39,10 +42,43 @@ func New(app AppLike) *AuthService {
 	return &AuthService{
 		DB:                  app.DB,
 		AppKey:              app.Key,
+		AppConfig:           app.Config,
 		GetAuthProvider:     app.GetAuthProvider,
 		Roles:               app.Roles,
 		JwtCustomClaimsFunc: app.JwtCustomClaimsFunc,
 	}
+}
+
+// GetAccessTokenExpiration returns the access token expiration duration
+func (as *AuthService) GetAccessTokenExpiration() time.Duration {
+	config := as.AppConfig()
+	if config != nil && config.AuthConfig != nil && config.AuthConfig.AccessTokenLifetime > 0 {
+		return time.Duration(config.AuthConfig.AccessTokenLifetime) * time.Second
+	}
+	// Default to 7 days if refresh token is disabled
+	// When refresh token is enabled, use 15 minutes
+	if as.IsRefreshTokenEnabled() {
+		return 15 * time.Minute
+	}
+	return 7 * 24 * time.Hour
+}
+
+// GetRefreshTokenExpiration returns the refresh token expiration duration
+func (as *AuthService) GetRefreshTokenExpiration() time.Duration {
+	config := as.AppConfig()
+	if config != nil && config.AuthConfig != nil && config.AuthConfig.RefreshTokenLifetime > 0 {
+		return time.Duration(config.AuthConfig.RefreshTokenLifetime) * time.Second
+	}
+	return 7 * 24 * time.Hour // Default 7 days
+}
+
+// IsRefreshTokenEnabled returns whether refresh token feature is enabled
+func (as *AuthService) IsRefreshTokenEnabled() bool {
+	config := as.AppConfig()
+	if config != nil && config.AuthConfig != nil {
+		return config.AuthConfig.EnableRefreshToken
+	}
+	return false
 }
 
 func (as *AuthService) CreateResource(api *fs.Resource, authProviders map[string]fs.AuthProvider) {
@@ -50,11 +86,14 @@ func (as *AuthService) CreateResource(api *fs.Resource, authProviders map[string
 		GetAuthProvider(auth.ProviderLocal).(*auth.LocalProvider)
 
 	authGroup := api.Group("auth").
-		Add(fs.Get("me", as.Me, &fs.Meta{Public: true}))
+		Add(fs.Get("me", as.Me, &fs.Meta{Public: true})).
+		Add(fs.Post("logout", as.Logout, &fs.Meta{Public: true})).
+		Add(fs.Post("token/refresh", as.RefreshToken, &fs.Meta{Public: true}))
+
 	authGroup.
 		Group(auth.ProviderLocal).
 		Add(
-			fs.Post("login", localAuthProvider.LocalLogin, &fs.Meta{Public: true}),
+			fs.Post("login", as.LocalLoginWrapper(localAuthProvider), &fs.Meta{Public: true}),
 			fs.Post("register", localAuthProvider.Register, &fs.Meta{Public: true}),
 			fs.Post("activate", localAuthProvider.Activate, &fs.Meta{Public: true}),
 			fs.Post("activate/send", localAuthProvider.SendActivationLink, &fs.Meta{Public: true}),

@@ -190,7 +190,7 @@ func (s *Schema) Customize() (_ *Schema, err error) {
 func (s *Schema) CreateFields() error {
 	stringFields := []string{}
 
-	for i := 0; i < s.RType.NumField(); i++ {
+	for i := range s.RType.NumField() {
 		sf := s.RType.Field(i)
 		field, err := s.CreateField(sf)
 		if err != nil {
