@@ -2,7 +2,6 @@ package authservice
 
 import (
 	"strings"
-	"time"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
@@ -10,11 +9,6 @@ import (
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/errors"
 )
-
-type LoginResponse struct {
-	Token   string    `json:"token"`
-	Expires time.Time `json:"expires"`
-}
 
 func (as *AuthService) Me(c fs.Context, _ any) (*fs.User, error) {
 	if c.User() == nil {
@@ -41,7 +35,7 @@ func (as *AuthService) Login(c fs.Context, _ any) (_ any, err error) {
 	return provider.Login(c)
 }
 
-func (as *AuthService) Callback(c fs.Context, _ any) (u *LoginResponse, err error) {
+func (as *AuthService) Callback(c fs.Context, _ any) (u *fs.JWTTokens, err error) {
 	provider := as.GetAuthProvider(c.Arg("provider"))
 	if provider == nil {
 		return nil, errors.NotFound("invalid auth provider")
@@ -59,7 +53,7 @@ func (as *AuthService) Callback(c fs.Context, _ any) (u *LoginResponse, err erro
 	return as.createLoginResponse(c, user)
 }
 
-func (as *AuthService) VerifyIDToken(c fs.Context, payload fs.IDToken) (u *LoginResponse, err error) {
+func (as *AuthService) VerifyIDToken(c fs.Context, payload fs.IDToken) (u *fs.JWTTokens, err error) {
 	provider := as.GetAuthProvider(c.Arg("provider"))
 	if provider == nil {
 		return nil, errors.NotFound("invalid auth provider")
@@ -77,13 +71,13 @@ func (as *AuthService) VerifyIDToken(c fs.Context, payload fs.IDToken) (u *Login
 	return as.createLoginResponse(c, user)
 }
 
-func (as *AuthService) createLoginResponse(c fs.Context, providerUser *fs.User) (*LoginResponse, error) {
+func (as *AuthService) createLoginResponse(c fs.Context, providerUser *fs.User) (*fs.JWTTokens, error) {
 	loginUser, err := db.Builder[*fs.User](as.DB()).
 		Where(db.And(
 			db.EQ("provider", providerUser.Provider),
 			db.EQ("provider_id", providerUser.ProviderID),
 		)).
-		Select("roles").
+		Select("id", "username", "email", "provider", "provider_id", "provider_username", "active", "roles").
 		First(c)
 	if err != nil && !db.IsNotFound(err) {
 		return nil, err
@@ -95,15 +89,7 @@ func (as *AuthService) createLoginResponse(c fs.Context, providerUser *fs.User) 
 		}
 	}
 
-	jwtToken, exp, err := loginUser.JwtClaim(c, &fs.UserJwtConfig{
-		Key:              as.AppKey(),
-		CustomClaimsFunc: as.JwtCustomClaimsFunc(),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
+	return as.GenerateJWTTokens(c, loginUser)
 }
 
 func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*fs.User, error) {

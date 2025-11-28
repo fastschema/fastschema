@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"time"
-
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 )
@@ -10,11 +8,6 @@ import (
 type LoginData struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
-}
-
-type LoginResponse struct {
-	Token   string    `json:"token"`
-	Expires time.Time `json:"expires"`
 }
 
 type Register struct {

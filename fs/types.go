@@ -30,6 +30,7 @@ var SystemSchemaTypes = []any{
 	Permission{},
 	User{},
 	File{},
+	Token{},
 }
 
 type Arg struct {

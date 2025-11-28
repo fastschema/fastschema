@@ -20,7 +20,7 @@ func TransformHandlers(
 ) []fiber.Handler {
 	var fiberHandlers []fiber.Handler
 
-	for i := 0; i < len(handlers); i++ {
+	for i := range handlers {
 		func(r *fs.Resource, i int) {
 			fiberHandlers = append(fiberHandlers, func(c *fiber.Ctx) error {
 				return handlers[i](CreateContext(r, c, l))
