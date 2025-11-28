@@ -83,7 +83,7 @@ func (as *AuthService) GenerateJWTTokens(c fs.Context, user *fs.User) (*fs.JWTTo
 		AccessToken:           accessToken,
 		AccessTokenExpiresAt:  accessExpiresAt,
 		RefreshToken:          refreshToken,
-		RefreshTokenExpiresAt: refreshExpiresAt,
+		RefreshTokenExpiresAt: &refreshExpiresAt,
 	}, nil
 }
 

@@ -18,8 +18,8 @@ type JwtCustomClaimsFunc func(Context, *UserJwtClaims) (jwt.Claims, error)
 
 // JWTTokens represents both access and refresh tokens
 type JWTTokens struct {
-	AccessToken           string    `json:"token"`
-	AccessTokenExpiresAt  time.Time `json:"expires"`
-	RefreshToken          string    `json:"refresh_token,omitempty"`
-	RefreshTokenExpiresAt time.Time `json:"refresh_token_expires,omitempty"`
+	AccessToken           string     `json:"token"`
+	AccessTokenExpiresAt  time.Time  `json:"expires"`
+	RefreshToken          string     `json:"refresh_token,omitempty"`
+	RefreshTokenExpiresAt *time.Time `json:"refresh_token_expires,omitempty"`
 }

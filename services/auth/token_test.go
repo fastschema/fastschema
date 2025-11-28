@@ -234,7 +234,7 @@ func TestAuthServiceGenerateTokenPair(t *testing.T) {
 	assert.False(t, tokenPair.RefreshTokenExpiresAt.IsZero())
 
 	// Access token should expire before refresh token
-	assert.True(t, tokenPair.AccessTokenExpiresAt.Before(tokenPair.RefreshTokenExpiresAt))
+	assert.True(t, tokenPair.AccessTokenExpiresAt.Before(*tokenPair.RefreshTokenExpiresAt))
 
 	// Verify refresh token is stored in database using JTI from the token
 	claims, err := jwt.ParseRefreshToken(tokenPair.RefreshToken, app.Key())

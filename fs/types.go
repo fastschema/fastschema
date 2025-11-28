@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 )
 
 // Map is a shortcut for map[string]any
@@ -89,9 +90,7 @@ type Signatures = []any
 
 func (a Args) Clone() Args {
 	args := make(Args, len(a))
-	for k, v := range a {
-		args[k] = v
-	}
+	maps.Copy(args, a)
 	return args
 }
 

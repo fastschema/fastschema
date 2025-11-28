@@ -63,7 +63,7 @@ func NewSchemaFromJSONFile(jsonFile string) (*Schema, error) {
 	return s, nil
 }
 
-func NewSchemaFromMap(data map[string]interface{}) (*Schema, error) {
+func NewSchemaFromMap(data map[string]any) (*Schema, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, err

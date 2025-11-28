@@ -1,6 +1,8 @@
 package restfulresolver
 
 import (
+	"maps"
+
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
@@ -62,9 +64,7 @@ func CreateContext(r *fs.Resource, c *fiber.Ctx, logger logger.Logger, wsClients
 	allParams := c.AllParams()
 	queries := c.Queries()
 
-	for k, v := range allParams {
-		args[k] = v
-	}
+	maps.Copy(args, allParams)
 
 	for k, v := range queries {
 		if _, exists := args[k]; !exists {

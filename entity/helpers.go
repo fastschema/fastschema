@@ -70,7 +70,7 @@ func UnmarshalJSONValue(
 	// jsonparser removes the enclosing quotes; we need to restore them to make a valid JSON
 	if dataType == jsonparser.String {
 		// valueData = data[offset-len(valueData)-2 : offset]
-		valueData = []byte(fmt.Sprintf("\"%s\"", string(valueData)))
+		valueData = fmt.Appendf(nil, "\"%s\"", string(valueData))
 	}
 
 	var value any

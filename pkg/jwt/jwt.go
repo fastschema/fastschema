@@ -55,12 +55,12 @@ func DefaultConfig() *Config {
 	}
 }
 
-// TokenPair represents both access and refresh tokens
-type TokenPair struct {
-	AccessToken           string    `json:"token"`
-	AccessTokenExpiresAt  time.Time `json:"expires"`
-	RefreshToken          string    `json:"refresh_token,omitempty"`
-	RefreshTokenExpiresAt time.Time `json:"refresh_token_expires,omitempty"`
+// JWTTokens represents both access and refresh tokens
+type JWTTokens struct {
+	AccessToken           string     `json:"token"`
+	AccessTokenExpiresAt  time.Time  `json:"expires"`
+	RefreshToken          string     `json:"refresh_token,omitempty"`
+	RefreshTokenExpiresAt *time.Time `json:"refresh_token_expires,omitempty"`
 }
 
 // GenerateJTI generates a unique JWT ID

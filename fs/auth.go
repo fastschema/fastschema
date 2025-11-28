@@ -2,6 +2,7 @@ package fs
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"sync"
 )
@@ -86,9 +87,7 @@ func (ac *AuthConfig) Clone() *AuthConfig {
 
 	copy(clone.EnabledProviders, ac.EnabledProviders)
 
-	for k, v := range ac.Providers {
-		clone.Providers[k] = v
-	}
+	maps.Copy(clone.Providers, ac.Providers)
 
 	return clone
 }

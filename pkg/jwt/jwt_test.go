@@ -181,11 +181,12 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestTokenPair(t *testing.T) {
-	pair := &jwt.TokenPair{
+	refreshTokenExpires := time.Now().Add(7 * 24 * time.Hour)
+	pair := &jwt.JWTTokens{
 		AccessToken:           "access-token",
 		AccessTokenExpiresAt:  time.Now().Add(15 * time.Minute),
 		RefreshToken:          "refresh-token",
-		RefreshTokenExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		RefreshTokenExpiresAt: &refreshTokenExpires,
 	}
 
 	assert.Equal(t, "access-token", pair.AccessToken)
