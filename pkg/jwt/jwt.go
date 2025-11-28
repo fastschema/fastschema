@@ -51,8 +51,8 @@ type Config struct {
 // DefaultConfig returns default token configuration
 func DefaultConfig() *Config {
 	return &Config{
-		AccessTokenExpiration:  15 * time.Minute,   // Short-lived access token
-		RefreshTokenExpiration: 7 * 24 * time.Hour, // 7 days refresh token
+		AccessTokenExpiration:  15 * time.Minute,    // Short-lived access token
+		RefreshTokenExpiration: 30 * 24 * time.Hour, // 30 days refresh token
 	}
 }
 

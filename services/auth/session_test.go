@@ -91,8 +91,8 @@ func createTestTokenApp(t *testing.T, enableRefreshToken bool) *testTokenApp {
 
 	authConfig := &fs.AuthConfig{
 		EnableRefreshToken:   enableRefreshToken,
-		AccessTokenLifetime:  900,    // 15 minutes
-		RefreshTokenLifetime: 604800, // 7 days
+		AccessTokenLifetime:  900,     // 15 minutes
+		RefreshTokenLifetime: 2592000, // 30 days
 	}
 
 	app := &testTokenApp{
@@ -197,7 +197,7 @@ func TestAuthServiceGetRefreshTokenExpiration(t *testing.T) {
 	authService := as.New(app)
 
 	expiration := authService.GetRefreshTokenExpiration()
-	assert.Equal(t, 604800*time.Second, expiration) // 7 days
+	assert.Equal(t, 2592000*time.Second, expiration) // 30 days
 }
 
 func TestAuthServiceIsRefreshTokenEnabled(t *testing.T) {

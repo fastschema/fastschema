@@ -157,7 +157,7 @@ func TestDefaultConfig(t *testing.T) {
 	config := jwt.DefaultConfig()
 
 	assert.Equal(t, 15*time.Minute, config.AccessTokenExpiration)
-	assert.Equal(t, 7*24*time.Hour, config.RefreshTokenExpiration)
+	assert.Equal(t, 30*24*time.Hour, config.RefreshTokenExpiration)
 }
 
 func TestTokenPair(t *testing.T) {
