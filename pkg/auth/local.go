@@ -187,7 +187,8 @@ func (la *LocalProvider) SendActivationLink(c fs.Context, data *Confirmation) (*
 	return &Activation{Activation: la.activationMethod}, nil
 }
 
-func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (_ *LoginResponse, err error) {
+// LocalLogin performs local login with username/email and password
+func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (*fs.User, error) {
 	if payload == nil || strings.TrimSpace(payload.Login) == "" || payload.Password == "" {
 		return nil, errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
 	}
@@ -209,9 +210,6 @@ func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (_ *LoginR
 			"provider_username",
 			"active",
 			"roles",
-			entity.FieldCreatedAt,
-			entity.FieldUpdatedAt,
-			entity.FieldDeletedAt,
 		).
 		First(c)
 	if err != nil && !db.IsNotFound(err) {
@@ -231,15 +229,7 @@ func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (_ *LoginR
 		return nil, errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
 	}
 
-	jwtToken, exp, err := user.JwtClaim(c, &fs.UserJwtConfig{
-		Key:              la.appKey(),
-		CustomClaimsFunc: nil,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &LoginResponse{Token: jwtToken, Expires: exp}, nil
+	return user, nil
 }
 
 func (la *LocalProvider) Recover(c fs.Context, data *Recovery) (_ bool, err error) {

@@ -68,6 +68,7 @@ type DiskConfig struct {
 	AccessKeyID     string        `json:"access_key_id"`
 	SecretAccessKey string        `json:"secret_access_key"`
 	ACL             string        `json:"acl"`
+	BucketACL       string        `json:"bucket_acl"`
 }
 
 // Clone returns a clone of the disk configuration

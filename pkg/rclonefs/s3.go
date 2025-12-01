@@ -26,6 +26,7 @@ type RcloneS3Config struct {
 	SecretAccessKey string              `json:"secret_access_key"`
 	BaseURL         string              `json:"base_url"`
 	ACL             string              `json:"acl"`
+	BucketACL       string              `json:"bucket_acl"`
 }
 
 type RcloneS3 struct {
@@ -70,13 +71,17 @@ func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 	cfgMap.Set("access_key_id", config.AccessKeyID)
 	cfgMap.Set("secret_access_key", config.SecretAccessKey)
 	cfgMap.Set("acl", config.ACL)
-	cfgMap.Set("bucket_acl", config.ACL)
+	cfgMap.Set("bucket_acl", config.BucketACL)
+
+	if strings.ToLower(config.Provider) == "linode" {
+		cfgMap.Set("use_already_exists", "false")
+	}
 
 	if config.Provider == "Minio" {
 		cfgMap.Set("force_path_style", "true")
 	}
 
-	fsDriver, err := s3.NewFs(context.Background(), config.Name, config.Bucket, cfgMap)
+	fsDriver, err := s3.NewFs(context.Background(), config.Name, config.Bucket+"/"+config.Root, cfgMap)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +110,7 @@ func (r *RcloneS3) URL(filepath string) string {
 	host = strings.TrimSuffix(host, "/")
 
 	// Ensure the file path does not start with a slash
-	cleanPath := path.Join(r.config.Bucket, filepath)
+	cleanPath := path.Join(r.config.Root, filepath)
 	cleanPath = strings.TrimPrefix(cleanPath, "/")
 	cleanedURL := fmt.Sprintf("%s://%s/%s", endpointURL.Scheme, host, cleanPath)
 

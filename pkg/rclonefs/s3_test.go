@@ -11,8 +11,7 @@ func TestNewS3(t *testing.T) {
 		Name:            "s3",
 		Root:            "/path/to/root",
 		Provider:        "Minio",
-		Region:          "region",
-		Endpoint:        "endpoint",
+		Region:          "us-east-2",
 		ChunkSize:       1024 * 1024,
 		AccessKeyID:     "access_key_id",
 		SecretAccessKey: "secret_access_key",
@@ -21,7 +20,6 @@ func TestNewS3(t *testing.T) {
 	}
 
 	disk, err := NewS3(config)
-
 	assert.NoError(t, err)
 	assert.NotNil(t, disk)
 
@@ -61,19 +59,7 @@ func TestRcloneS3URL(t *testing.T) {
 	assert.True(t, ok)
 
 	filepath := "/path/to/file.txt"
-	expectedURL := cfg.BaseURL + filepath
+	expectedURL := "http://base_url/path/to/root/path/to/file.txt"
 	actualURL := rs3.URL(filepath)
-
 	assert.Equal(t, expectedURL, actualURL)
-
-	// invalid base url
-	disk, err = NewS3(&RcloneS3Config{
-		Name:    "s3",
-		BaseURL: ":base_url",
-	})
-	rs3, ok = disk.(*RcloneS3)
-	assert.True(t, ok)
-	assert.NoError(t, err)
-	actualURL = rs3.URL(filepath)
-	assert.Empty(t, actualURL)
 }

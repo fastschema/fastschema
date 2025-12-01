@@ -45,7 +45,7 @@ func CreateZeroValue(t reflect.Type) any {
 // 'v' 'times' number of times. It returns the final value in the pointer chain.
 func GeneratePointerChain(v any, times int) any {
 	var stack = []any{v}
-	for i := 0; i < times; i++ {
+	for range times {
 		stack = append(stack, &stack[len(stack)-1])
 	}
 

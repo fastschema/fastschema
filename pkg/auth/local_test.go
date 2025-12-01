@@ -44,7 +44,11 @@ func createServer(t *testing.T, resource *fs.Resource) *restfulresolver.Server {
 func TestLocalAuthLogin(t *testing.T) {
 	config := &testAppConfig{activation: "manual", createData: true}
 	provider := createLocalAuthProvider(config)
-	server := createServer(t, fs.Post("/user/login", provider.LocalLogin, &fs.Meta{Public: true}))
+
+	loginHandler := func(c fs.Context, payload *auth.LoginData) (*fs.User, error) {
+		return provider.LocalLogin(c, payload)
+	}
+	server := createServer(t, fs.Post("/user/login", loginHandler, &fs.Meta{Public: true}))
 
 	// Case 1: No login data
 	req := httptest.NewRequest("POST", "/user/login", nil)
@@ -86,13 +90,13 @@ func TestLocalAuthLogin(t *testing.T) {
 	resp, _ = server.Test(req)
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
-	type LoginResponse struct {
-		Data *auth.LoginResponse `json:"data"`
+	type UserResponse struct {
+		Data *fs.User `json:"data"`
 	}
-	loginResponse := LoginResponse{}
-	assert.NoError(t, json.Unmarshal([]byte(utils.Must(utils.ReadCloserToString(resp.Body))), &loginResponse))
-	assert.NotEmpty(t, loginResponse.Data.Token)
-	assert.NotEmpty(t, loginResponse.Data.Expires)
+	userResponse := UserResponse{}
+	assert.NoError(t, json.Unmarshal([]byte(utils.Must(utils.ReadCloserToString(resp.Body))), &userResponse))
+	assert.NotEmpty(t, userResponse.Data.ID)
+	assert.Equal(t, "user02", userResponse.Data.Username)
 
 	// Case 5: Error checking user
 	{

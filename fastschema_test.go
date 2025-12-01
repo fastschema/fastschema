@@ -39,6 +39,10 @@ func clearEnvs(t *testing.T) {
 		"DB_PASS",
 		"STORAGE",
 		"MAIL",
+		"AUTH",
+		"AUTH_ENABLE_REFRESH_TOKEN",
+		"AUTH_ACCESS_TOKEN_LIFETIME",
+		"AUTH_REFRESH_TOKEN_LIFETIME",
 	}
 
 	for _, key := range envKeys {
@@ -842,6 +846,82 @@ func TestFastSchemaGetAuthProvider(t *testing.T) {
 	provider := app.GetAuthProvider("github")
 	assert.NotNil(t, provider)
 	assert.Equal(t, "github", provider.Name())
+}
+
+func TestFastSchemaAuthEnvVariables(t *testing.T) {
+	clearEnvs(t)
+
+	// Test AUTH_ENABLE_REFRESH_TOKEN
+	t.Run("EnableRefreshToken", func(t *testing.T) {
+		t.Setenv("AUTH_ENABLE_REFRESH_TOKEN", "true")
+		config := &fs.Config{
+			HideResourcesInfo: true,
+			Dir:               t.TempDir(),
+		}
+		app, err := fastschema.New(config)
+		assert.NoError(t, err)
+		assert.NotNil(t, app)
+		assert.True(t, app.Config().AuthConfig.EnableRefreshToken)
+	})
+
+	// Test AUTH_ACCESS_TOKEN_LIFETIME
+	t.Run("AccessTokenLifetime", func(t *testing.T) {
+		t.Setenv("AUTH_ACCESS_TOKEN_LIFETIME", "3600")
+		config := &fs.Config{
+			HideResourcesInfo: true,
+			Dir:               t.TempDir(),
+		}
+		app, err := fastschema.New(config)
+		assert.NoError(t, err)
+		assert.NotNil(t, app)
+		assert.Equal(t, 3600, app.Config().AuthConfig.AccessTokenLifetime)
+	})
+
+	// Test AUTH_REFRESH_TOKEN_LIFETIME
+	t.Run("RefreshTokenLifetime", func(t *testing.T) {
+		t.Setenv("AUTH_REFRESH_TOKEN_LIFETIME", "86400")
+		config := &fs.Config{
+			HideResourcesInfo: true,
+			Dir:               t.TempDir(),
+		}
+		app, err := fastschema.New(config)
+		assert.NoError(t, err)
+		assert.NotNil(t, app)
+		assert.Equal(t, 86400, app.Config().AuthConfig.RefreshTokenLifetime)
+	})
+
+	// Test all together
+	t.Run("AllEnvVars", func(t *testing.T) {
+		t.Setenv("AUTH_ENABLE_REFRESH_TOKEN", "true")
+		t.Setenv("AUTH_ACCESS_TOKEN_LIFETIME", "1800")
+		t.Setenv("AUTH_REFRESH_TOKEN_LIFETIME", "172800")
+		config := &fs.Config{
+			HideResourcesInfo: true,
+			Dir:               t.TempDir(),
+		}
+		app, err := fastschema.New(config)
+		assert.NoError(t, err)
+		assert.NotNil(t, app)
+		assert.True(t, app.Config().AuthConfig.EnableRefreshToken)
+		assert.Equal(t, 1800, app.Config().AuthConfig.AccessTokenLifetime)
+		assert.Equal(t, 172800, app.Config().AuthConfig.RefreshTokenLifetime)
+	})
+
+	// Test env overrides config
+	t.Run("EnvOverridesConfig", func(t *testing.T) {
+		t.Setenv("AUTH_ACCESS_TOKEN_LIFETIME", "7200")
+		config := &fs.Config{
+			HideResourcesInfo: true,
+			Dir:               t.TempDir(),
+			AuthConfig: &fs.AuthConfig{
+				AccessTokenLifetime: 900, // This should be overridden by env
+			},
+		}
+		app, err := fastschema.New(config)
+		assert.NoError(t, err)
+		assert.NotNil(t, app)
+		assert.Equal(t, 7200, app.Config().AuthConfig.AccessTokenLifetime)
+	})
 }
 
 func TestFastSchemaHTTPAdaptor(t *testing.T) {

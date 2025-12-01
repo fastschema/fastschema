@@ -1,6 +1,8 @@
 package restfulresolver
 
 import (
+	"maps"
+
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
@@ -20,7 +22,7 @@ func TransformHandlers(
 ) []fiber.Handler {
 	var fiberHandlers []fiber.Handler
 
-	for i := 0; i < len(handlers); i++ {
+	for i := range handlers {
 		func(r *fs.Resource, i int) {
 			fiberHandlers = append(fiberHandlers, func(c *fiber.Ctx) error {
 				return handlers[i](CreateContext(r, c, l))
@@ -62,9 +64,7 @@ func CreateContext(r *fs.Resource, c *fiber.Ctx, logger logger.Logger, wsClients
 	allParams := c.AllParams()
 	queries := c.Queries()
 
-	for k, v := range allParams {
-		args[k] = v
-	}
+	maps.Copy(args, allParams)
 
 	for k, v := range queries {
 		if _, exists := args[k]; !exists {
