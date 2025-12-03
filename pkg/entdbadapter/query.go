@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/expr"
@@ -281,7 +282,7 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 	}
 
 	if len(q.order) > 0 {
-		orderSelectors := []func(*sql.Selector){}
+		var orderSelectors []func(*sql.Selector)
 
 		for _, order := range q.order {
 			orderFn := sql.Asc

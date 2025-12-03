@@ -10,12 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 func createTestSchemaFile(t *testing.T, schemaName string, schemaContent string) string {
-	tmpFilePath := t.TempDir() + fmt.Sprintf("/%s.json", schemaName)
+	tmpFilePath := t.TempDir() + fmt.Sprintf("/%s.yaml", schemaName)
 
 	f, err := os.Create(tmpFilePath)
 	assert.NoError(t, err)

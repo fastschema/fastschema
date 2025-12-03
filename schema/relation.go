@@ -7,28 +7,28 @@ import (
 )
 
 type RelationFKColumns struct {
-	CurrentColumn string `json:"current_column"`
-	TargetColumn  string `json:"target_column"`
+	CurrentColumn string `json:"current_column" yaml:"current_column"`
+	TargetColumn  string `json:"target_column" yaml:"target_column"`
 }
 
 // Relation define the relation structure
 type Relation struct {
-	BackRef    *Relation `json:"-"` // back reference relation
-	Name       string    `json:"-"` // relation name: auto generated
-	SchemaName string    `json:"-"` // schema name: get from the current schema
-	FieldName  string    `json:"-"` // field name: get from the current field
+	BackRef    *Relation `json:"-" yaml:"-"` // back reference relation
+	Name       string    `json:"-" yaml:"-"` // relation name: auto generated
+	SchemaName string    `json:"-" yaml:"-"` // schema name: get from the current schema
+	FieldName  string    `json:"-" yaml:"-"` // field name: get from the current field
 
-	TargetSchemaName string `json:"schema"`          // target schema name
-	TargetFieldName  string `json:"field,omitempty"` // target field name, aka the back reference field name
+	TargetSchemaName string `json:"schema" yaml:"schema"`                   // target schema name
+	TargetFieldName  string `json:"field,omitempty" yaml:"field,omitempty"` // target field name, aka the back reference field name
 
-	Type            RelationType       `json:"type"`            // the relation type: o2o, o2m, m2m
-	Owner           bool               `json:"owner,omitempty"` // the relation owner: true, false
-	FKColumns       *RelationFKColumns `json:"fk_columns"`
-	JunctionTable   string             `json:"junction_table,omitempty"` // junction table name for m2m relation
-	Optional        bool               `json:"optional"`
-	FKFields        []*Field           `json:"-"`
-	RelationSchemas []*Schema          `json:"-"` // for m2m relation
-	JunctionSchema  *Schema            `json:"-"` // for m2m relation
+	Type            RelationType       `json:"type" yaml:"type"`                       // the relation type: o2o, o2m, m2m
+	Owner           bool               `json:"owner,omitempty" yaml:"owner,omitempty"` // the relation owner: true, false
+	FKColumns       *RelationFKColumns `json:"fk_columns" yaml:"fk_columns"`
+	JunctionTable   string             `json:"junction_table,omitempty" yaml:"junction_table,omitempty"` // junction table name for m2m relation
+	Optional        bool               `json:"optional" yaml:"optional"`
+	FKFields        []*Field           `json:"-" yaml:"-"`
+	RelationSchemas []*Schema          `json:"-" yaml:"-"` // for m2m relation
+	JunctionSchema  *Schema            `json:"-" yaml:"-"` // for m2m relation
 }
 
 // Init initialize the relation
