@@ -65,8 +65,11 @@ func AuthProviders() []string {
 }
 
 type AuthConfig struct {
-	EnabledProviders []string       `json:"enabled_providers"`
-	Providers        map[string]Map `json:"providers"`
+	EnabledProviders     []string       `json:"enabled_providers"`
+	Providers            map[string]Map `json:"providers"`
+	AccessTokenLifetime  int            `json:"access_token_lifetime"`  // default: 15 minutes if refresh token is enabled, 7 days if refresh token is disabled
+	RefreshTokenLifetime int            `json:"refresh_token_lifetime"` // default: 604800 = 7 days)
+	EnableRefreshToken   bool           `json:"enable_refresh_token"`   // default: false
 }
 
 func (ac *AuthConfig) Clone() *AuthConfig {
@@ -75,15 +78,16 @@ func (ac *AuthConfig) Clone() *AuthConfig {
 	}
 
 	clone := &AuthConfig{
-		EnabledProviders: make([]string, len(ac.EnabledProviders)),
-		Providers:        make(map[string]Map),
+		EnabledProviders:     make([]string, len(ac.EnabledProviders)),
+		Providers:            make(map[string]Map),
+		AccessTokenLifetime:  ac.AccessTokenLifetime,
+		RefreshTokenLifetime: ac.RefreshTokenLifetime,
+		EnableRefreshToken:   ac.EnableRefreshToken,
 	}
 
 	copy(clone.EnabledProviders, ac.EnabledProviders)
 
-	for k, v := range ac.Providers {
-		clone.Providers[k] = maps.Clone(v)
-	}
+	maps.Copy(clone.Providers, ac.Providers)
 
 	return clone
 }

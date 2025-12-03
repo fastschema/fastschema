@@ -18,7 +18,6 @@ func TestNewFromConfig(t *testing.T) {
 			Provider:        "DigitalOcean",
 			Bucket:          "my-bucket",
 			Region:          "us-west-2",
-			Endpoint:        "https://s3.us-west-2.amazonaws.com",
 			AccessKeyID:     "access-key",
 			SecretAccessKey: "secret-key",
 			BaseURL:         "https://example.com/s3",
@@ -49,7 +48,6 @@ func TestNewFromConfig(t *testing.T) {
 	assert.Equal(t, "/root", s3Disk.Root())
 	assert.Equal(t, "DigitalOcean", s3Disk.config.Provider)
 	assert.Equal(t, "us-west-2", s3Disk.config.Region)
-	assert.Equal(t, "https://s3.us-west-2.amazonaws.com", s3Disk.config.Endpoint)
 	assert.Equal(t, "access-key", s3Disk.config.AccessKeyID)
 	assert.Equal(t, "secret-key", s3Disk.config.SecretAccessKey)
 	assert.Equal(t, "https://example.com/s3", s3Disk.config.BaseURL)

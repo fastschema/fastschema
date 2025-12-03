@@ -342,6 +342,19 @@ func (a *App) createAuthProviders() (err error) {
 		}
 	}
 
+	// Override with individual environment variables if set
+	if envValue := utils.EnvInt("AUTH_ACCESS_TOKEN_LIFETIME"); envValue > 0 {
+		a.config.AuthConfig.AccessTokenLifetime = envValue
+	}
+
+	if envValue := utils.EnvInt("AUTH_REFRESH_TOKEN_LIFETIME"); envValue > 0 {
+		a.config.AuthConfig.RefreshTokenLifetime = envValue
+	}
+
+	if strings.ToLower(utils.Env("AUTH_ENABLE_REFRESH_TOKEN")) == "true" {
+		a.config.AuthConfig.EnableRefreshToken = true
+	}
+
 	if a.config.AuthConfig.EnabledProviders == nil {
 		a.config.AuthConfig.EnabledProviders = []string{}
 	}

@@ -25,6 +25,7 @@ type Context interface {
 	Args() map[string]string
 	Arg(name string, defaults ...string) string
 	ArgInt(name string, defaults ...int) int
+	Header(key string, vals ...string) string
 	Body() ([]byte, error)
 	Payload() (*entity.Entity, error)
 	BodyParser(out any) error

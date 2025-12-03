@@ -125,8 +125,9 @@ func MapValues[K comparable, V any](m map[K]V) []V {
 func Pick(obj any, path string, defaultValues ...any) any {
 	var value = obj
 	defaultValues = append(defaultValues, nil)
+	parts := strings.SplitSeq(path, ".")
 
-	for part := range strings.SplitSeq(path, ".") {
+	for part := range parts {
 		switch v := value.(type) {
 		case []any:
 			index, err := strconv.Atoi(part)

@@ -2,7 +2,6 @@ package fs_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/stretchr/testify/assert"
@@ -39,32 +38,4 @@ func TestUserIsRoot(t *testing.T) {
 	}
 	isRoot = u.IsRoot()
 	assert.True(t, isRoot, "Expected IsRoot to return true for user with a root role")
-}
-
-func TestUserJwtClaim(t *testing.T) {
-	// Test case 1: User has no roles
-	u := &fs.User{}
-	key := "secret"
-	token, _, err := u.JwtClaim(nil, &fs.UserJwtConfig{Key: key})
-	assert.NoError(t, err, "Expected no error")
-	assert.NotEmpty(t, token, "Expected token to be non-empty")
-
-	// Test case 2: User has roles
-	u = &fs.User{
-		Roles: []*fs.Role{
-			{ID: 1},
-			{ID: 2},
-		},
-	}
-	token, _, err = u.JwtClaim(nil, &fs.UserJwtConfig{Key: key})
-	assert.NoError(t, err, "Expected no error")
-	assert.NotEmpty(t, token, "Expected token to be non-empty")
-
-	// Test case 3: With expiration
-	exp := time.Now().Add(1 * time.Hour)
-	config := &fs.UserJwtConfig{Key: key, ExpiresAt: exp}
-	token, expTime, err := u.JwtClaim(nil, config)
-	assert.NoError(t, err, "Expected no error")
-	assert.NotEmpty(t, token, "Expected token to be non-empty")
-	assert.Equal(t, exp, expTime, "Expected expiration time to match input")
 }

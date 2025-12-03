@@ -202,7 +202,6 @@ var (
 		reflect.TypeFor[*time.Time](): TypeTime,
 		reflect.TypeFor[[]byte]():     TypeJSON,
 		reflect.TypeFor[[16]byte]():   TypeUUID,
-		reflect.TypeFor[[]byte]():     TypeBytes,
 		reflect.TypeFor[FieldEnum]():  TypeEnum,
 		reflect.TypeFor[string]():     TypeString,
 		reflect.TypeFor[int]():        TypeInt,
@@ -236,8 +235,8 @@ var (
 		reflect.TypeFor[*sql.NullBool]():    TypeBool,
 		reflect.TypeFor[*sql.NullTime]():    TypeTime,
 
-		// reflect.TypeOf(&Relation{}):  TypeRelation,
-		// reflect.TypeOf(&Relation{}):  TypeFile,
+		// reflect.TypeFor[*Relation]():  TypeRelation,
+		// reflect.TypeFor[*Relation]():  TypeFile,
 	}
 )
 
@@ -408,7 +407,7 @@ func (t *RelationType) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// UnmarshalYAML unmashals a YAML string to the enum value
+// UnmarshalYAML unmarshal a YAML string to the enum value
 func (t *RelationType) UnmarshalYAML(unmarshal func(any) error) error {
 	var relationType string
 	if err := unmarshal(&relationType); err != nil {

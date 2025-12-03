@@ -286,8 +286,10 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 
 		for _, order := range q.order {
 			orderFn := sql.Asc
-			columnName, ok := strings.CutPrefix(order, "-")
-			if ok {
+			columnName := order
+
+			if after, ok := strings.CutPrefix(order, "-"); ok {
+				columnName = after
 				orderFn = sql.Desc
 			}
 

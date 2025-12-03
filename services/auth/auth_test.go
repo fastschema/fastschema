@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/fastschema/fastschema/pkg/jwt"
 	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -50,6 +52,15 @@ func (s testApp) DB() db.Client {
 
 func (s testApp) Key() string {
 	return "test"
+}
+
+func (s testApp) Config() *fs.Config {
+	return &fs.Config{
+		AppKey: "test",
+		AuthConfig: &fs.AuthConfig{
+			EnableRefreshToken: false,
+		},
+	}
 }
 
 func (s testApp) Roles() []*fs.Role {
@@ -273,12 +284,27 @@ fields:
 		},
 	}
 
-	jwtConfig := &fs.UserJwtConfig{Key: testApp.Key()}
-	testApp.adminToken, _, _ = testApp.adminUser.JwtClaim(nil, jwtConfig)
-	testApp.normalUserToken, _, _ = testApp.normalUser.JwtClaim(nil, jwtConfig)
-	testApp.inactiveUserToken, _, _ = testApp.inactiveUser.JwtClaim(nil, jwtConfig)
-	testApp.seniorityUserToken, _, _ = testApp.seniorityUser.JwtClaim(nil, jwtConfig)
-	testApp.notFoundUserToken, _, _ = testApp.notFoundUser.JwtClaim(nil, jwtConfig)
+	key := testApp.Key()
+	testApp.adminToken, _, _ = jwt.GenerateAccessToken(
+		jwt.UserToJwtClaims(testApp.adminUser),
+		key, time.Time{}, nil,
+	)
+	testApp.normalUserToken, _, _ = jwt.GenerateAccessToken(
+		jwt.UserToJwtClaims(testApp.normalUser),
+		key, time.Time{}, nil,
+	)
+	testApp.inactiveUserToken, _, _ = jwt.GenerateAccessToken(
+		jwt.UserToJwtClaims(testApp.inactiveUser),
+		key, time.Time{}, nil,
+	)
+	testApp.seniorityUserToken, _, _ = jwt.GenerateAccessToken(
+		jwt.UserToJwtClaims(testApp.seniorityUser),
+		key, time.Time{}, nil,
+	)
+	testApp.notFoundUserToken, _, _ = jwt.GenerateAccessToken(
+		jwt.UserToJwtClaims(testApp.notFoundUser),
+		key, time.Time{}, nil,
+	)
 
 	testApp.authService = as.New(testApp)
 	testApp.resources = fs.NewResourcesManager()

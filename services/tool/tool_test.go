@@ -74,7 +74,7 @@ func TestToolService(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Contains(t, response, `"totalSchemas":5`)
+	assert.Contains(t, response, `"totalSchemas":6`)
 	assert.Contains(t, response, `"totalUsers":0`)
 	assert.Contains(t, response, `"totalFiles":0`)
 
