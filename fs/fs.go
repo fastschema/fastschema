@@ -65,6 +65,9 @@ type DiskConfig struct {
 	Endpoint        string        `json:"endpoint"`
 	Region          string        `json:"region"`
 	Bucket          string        `json:"bucket"`
+	CopyCutoff      int64         `json:"copy_cutoff"`
+	ChunkSize       int64         `json:"chunk_size"`
+	ForcePathStyle  bool          `json:"force_path_style"`
 	AccessKeyID     string        `json:"access_key_id"`
 	SecretAccessKey string        `json:"secret_access_key"`
 	ACL             string        `json:"acl"`
