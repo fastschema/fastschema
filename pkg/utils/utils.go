@@ -275,6 +275,22 @@ func IsValidEmail(v any) bool {
 	return regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`).MatchString(email)
 }
 
+var dnsLabelRegexp = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
+
+// IsValidDNSLabel reports whether a name is a single DNS label suitable for
+// virtual-hosted-style bucket names (lowercase alphanumerics plus hyphen, no dots/underscores).
+func IsValidDNSLabel(name string) bool {
+	if len(name) < 1 || len(name) > 63 {
+		return false
+	}
+
+	if strings.ContainsAny(name, "._") {
+		return false
+	}
+
+	return dnsLabelRegexp.MatchString(name)
+}
+
 // WriteFile writes the given content to the given file path.
 func WriteFile(filePath string, content string) error {
 	f, err := os.Create(filePath)

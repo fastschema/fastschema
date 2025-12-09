@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/rclone/rclone/backend/s3"
 	rclonefs "github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/config/configmap"
@@ -22,6 +23,7 @@ type RcloneS3Config struct {
 	Endpoint        string              `json:"endpoint"`
 	ChunkSize       rclonefs.SizeSuffix `json:"chunk_size"`
 	CopyCutoff      rclonefs.SizeSuffix `json:"copy_cutoff"`
+	ForcePathStyle  bool                `json:"force_path_style"`
 	AccessKeyID     string              `json:"access_key_id"`
 	SecretAccessKey string              `json:"secret_access_key"`
 	BaseURL         string              `json:"base_url"`
@@ -73,11 +75,11 @@ func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 	cfgMap.Set("acl", config.ACL)
 	cfgMap.Set("bucket_acl", config.BucketACL)
 
-	if strings.ToLower(config.Provider) == "linode" {
-		cfgMap.Set("use_already_exists", "false")
-	}
+	forcePathStyle := !utils.IsValidDNSLabel(config.Bucket) ||
+		config.ForcePathStyle ||
+		config.Provider == "Minio"
 
-	if config.Provider == "Minio" {
+	if forcePathStyle {
 		cfgMap.Set("force_path_style", "true")
 	}
 

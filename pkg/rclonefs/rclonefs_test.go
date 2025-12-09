@@ -45,7 +45,7 @@ func TestNewFromConfig(t *testing.T) {
 	s3Disk, ok := disks[0].(*RcloneS3)
 	assert.True(t, ok)
 	assert.Equal(t, "s3-disk", s3Disk.Name())
-	assert.Equal(t, "/root", s3Disk.Root())
+	assert.Equal(t, "root", s3Disk.Root())
 	assert.Equal(t, "DigitalOcean", s3Disk.config.Provider)
 	assert.Equal(t, "us-west-2", s3Disk.config.Region)
 	assert.Equal(t, "access-key", s3Disk.config.AccessKeyID)
