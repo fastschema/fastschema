@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
@@ -14,7 +16,6 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	rs "github.com/fastschema/fastschema/services/realtime"
-	"github.com/stretchr/testify/assert"
 )
 
 type testApp struct {
@@ -34,19 +35,15 @@ func (s testApp) Logger() logger.Logger {
 
 func createTestApp(t *testing.T) (*testApp, *rs.RealtimeService) {
 	schemaDir := utils.Must(os.MkdirTemp("", "schema"))
-	assert.NoError(t, utils.WriteFile(schemaDir+"/blog.json", `{
-		"name": "blog",
-		"namespace": "blogs",
-		"label_field": "name",
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"sortable": true
-			}
-		]
-	}`))
+	assert.NoError(t, utils.WriteFile(schemaDir+"/blog.yaml", `name: blog
+namespace: blogs
+label_field: name
+fields:
+  - name: name
+    label: Name
+    type: string
+    sortable: true
+`))
 
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	app := &testApp{

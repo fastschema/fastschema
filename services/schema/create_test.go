@@ -3,7 +3,6 @@ package schemaservice_test
 import (
 	"bytes"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -33,22 +32,21 @@ func TestSchemaServiceCreate(t *testing.T) {
 	assert.Contains(t, response, `namespace is required`)
 
 	// Case 3: invalid relation schema
-	newBlogJSON := strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		`"fields": [{
-			"type": "relation",
-			"name": "categories",
-			"label": "Categories",
-			"relation": {
-				"schema": "cat",
-				"field": "blogs",
-				"type": "m2m",
-				"owner": true,
-				"optional": false
-			}
-		},`,
-	)
+	blogSchema := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "cat", // Invalid schema
+			TargetFieldName:  "blogs",
+			Owner:            true,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, categoriesField)
+	newBlogJSON := schemaToJSON(blogSchema)
 	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(newBlogJSON)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
@@ -57,22 +55,21 @@ func TestSchemaServiceCreate(t *testing.T) {
 	assert.Contains(t, response, `Invalid field 'blog.categories'. Target schema 'cat' not found`)
 
 	// Case 4: target relation field existed
-	newBlogJSON = strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		`"fields": [{
-			"type": "relation",
-			"name": "categories",
-			"label": "Categories",
-			"relation": {
-				"schema": "category",
-				"field": "name",
-				"type": "m2m",
-				"owner": true,
-				"optional": false
-			}
-		},`,
-	)
+	blogSchema2 := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField2 := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "category",
+			TargetFieldName:  "name", // Invalid: this field already exists
+			Owner:            true,
+			Optional:         false,
+		},
+	}
+	blogSchema2.Fields = append(blogSchema2.Fields, categoriesField2)
+	newBlogJSON = schemaToJSON(blogSchema2)
 	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(newBlogJSON)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
@@ -80,23 +77,22 @@ func TestSchemaServiceCreate(t *testing.T) {
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.Contains(t, response, `Invalid field 'blog.categories'. Target schema 'category' already has field 'name'`)
 
-	// Case 4: create schema successfully
-	newBlogJSON = strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		`"fields": [{
-			"type": "relation",
-			"name": "categories",
-			"label": "Categories",
-			"relation": {
-				"schema": "category",
-				"field": "blogs",
-				"type": "m2m",
-				"owner": true,
-				"optional": false
-			}
-		},`,
-	)
+	// Case 5: create schema successfully
+	blogSchema3 := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField3 := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "category",
+			TargetFieldName:  "blogs",
+			Owner:            true,
+			Optional:         false,
+		},
+	}
+	blogSchema3.Fields = append(blogSchema3.Fields, categoriesField3)
+	newBlogJSON = schemaToJSON(blogSchema3)
 	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(newBlogJSON)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
@@ -104,8 +100,8 @@ func TestSchemaServiceCreate(t *testing.T) {
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
 
-	blogSchema := utils.Must(testApp.SchemaBuilder().Schema("blog"))
-	blogCategoriesField := blogSchema.Field("categories")
+	blogSchemaFromDB := utils.Must(testApp.SchemaBuilder().Schema("blog"))
+	blogCategoriesField := blogSchemaFromDB.Field("categories")
 	assert.NotNil(t, blogCategoriesField)
 	assert.Equal(t, "relation", blogCategoriesField.Type.String())
 	assert.Equal(t, schema.M2M, blogCategoriesField.Relation.Type)

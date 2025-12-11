@@ -7,14 +7,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/otiai10/copy"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
-	"github.com/otiai10/copy"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type SchemaUpdateData struct {
@@ -106,7 +107,7 @@ func (su *SchemaUpdate) update() (err error) {
 
 	// Write the updated schema files to the new schema directory
 	for _, s := range su.updateSchemas {
-		schemaFile := path.Join(su.newSchemaBuilderDir, s.Name+".json")
+		schemaFile := path.Join(su.newSchemaBuilderDir, s.Name+".yaml")
 		if err = s.SaveToFile(schemaFile); err != nil {
 			return err
 		}
@@ -376,11 +377,11 @@ func (su *SchemaUpdate) applyRenameSchema() (err error) {
 	newSchemaName := ""
 	if su.currentSchema.Name != su.updateData.Data.Name {
 		newSchemaName = su.updateData.Data.Name
-		currentSchemaFile := path.Join(su.newSchemaBuilderDir, su.currentSchema.Name+".json")
+		currentSchemaFile := path.Join(su.newSchemaBuilderDir, su.currentSchema.Name+".yaml")
 
 		// if the name is changed:
 		// 	- remove the current schema from the update schemas
-		//	- delete the current schema json file
+		//	- delete the current schema yaml file
 		delete(su.updateSchemas, su.currentSchema.Name)
 		if err = os.Remove(currentSchemaFile); err != nil {
 			return err

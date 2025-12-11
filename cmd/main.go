@@ -4,11 +4,12 @@ import (
 	"os"
 	"sort"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/fastschema/fastschema"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	toolservice "github.com/fastschema/fastschema/services/tool"
-	"github.com/urfave/cli/v2"
 )
 
 func main() {
@@ -95,6 +96,7 @@ func main() {
 					return nil
 				},
 			},
+			NewMigrateJSONToYAMLCommand(),
 		},
 	}
 

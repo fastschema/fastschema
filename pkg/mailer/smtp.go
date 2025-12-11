@@ -72,14 +72,13 @@ func (s *SMTPMailer) Send(content *fs.Mail, froms ...mail.Address) error {
 	header["Date"] = time.Now().Format(time.RFC1123Z)
 
 	// Build the message
-	var messageBuilder strings.Builder
+	var message strings.Builder
 	for k, v := range header {
-		fmt.Fprintf(&messageBuilder, "%s: %s\r\n", k, v)
+		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
 	}
-	messageBuilder.WriteString("\r\n<html><body>")
-	messageBuilder.WriteString(content.Body)
-	messageBuilder.WriteString("</body></html>")
-	message := messageBuilder.String()
+	message.WriteString("\r\n<html><body>")
+	message.WriteString(content.Body)
+	message.WriteString("</body></html>")
 
 	// Combine all recipients (To, Cc, Bcc)
 	recipients := content.To
@@ -94,5 +93,5 @@ func (s *SMTPMailer) Send(content *fs.Mail, froms ...mail.Address) error {
 
 	// Send the email
 	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
-	return smtp.SendMail(addr, auth, from.Address, recipients, []byte(message))
+	return smtp.SendMail(addr, auth, from.Address, recipients, []byte(message.String()))
 }

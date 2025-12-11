@@ -34,8 +34,8 @@ type User struct {
 func (u User) Schema() *schema.Schema {
 	return &schema.Schema{
 		Fields: []*schema.Field{},
-		DB: &schema.SchemaDB{
-			Indexes: []*schema.SchemaDBIndex{
+		DB: &schema.DB{
+			Indexes: []*schema.DBIndex{
 				// unique index on provider + provider_id
 				{
 					Name:    "idx_user_provider_provider_id",

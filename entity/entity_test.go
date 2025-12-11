@@ -4,8 +4,9 @@ import (
 	"testing"
 
 	"github.com/buger/jsonparser"
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 func TestEntity(t *testing.T) {
@@ -105,19 +106,19 @@ func TestEntity(t *testing.T) {
 	assert.Equal(t, uint64(4), entity3.ID())
 	assert.Equal(t, "John", entity3.Get("name"))
 
-	value, err := UnmarshalJSONValue(nil, []byte("name"), jsonparser.String, 0)
+	value, err := UnmarshalJSONValue([]byte("name"), jsonparser.String)
 	assert.NoError(t, err)
 	assert.Equal(t, "name", value)
 
-	value, err = UnmarshalJSONValue(nil, []byte("1"), jsonparser.Number, 0)
+	value, err = UnmarshalJSONValue([]byte("1"), jsonparser.Number)
 	assert.NoError(t, err)
 	assert.Equal(t, float64(1), value)
 
-	value, err = UnmarshalJSONValue(nil, []byte("false"), jsonparser.Boolean, 0)
+	value, err = UnmarshalJSONValue([]byte("false"), jsonparser.Boolean)
 	assert.NoError(t, err)
 	assert.Equal(t, false, value)
 
-	_, err = UnmarshalJSONValue(nil, []byte("name"), jsonparser.Boolean, 0)
+	_, err = UnmarshalJSONValue([]byte("name"), jsonparser.Boolean)
 	assert.Error(t, err)
 
 	jsonString, err := entity3.ToJSON()

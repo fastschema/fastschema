@@ -14,31 +14,31 @@ import (
 
 // Field define the data struct for a field
 type Field struct {
-	Type          FieldType      `json:"type"`
-	Name          string         `json:"name"`
-	Label         string         `json:"label"`
-	IsMultiple    bool           `json:"multiple,omitempty"`  // Is a multiple field.
-	Size          int64          `json:"size,omitempty"`      // max size parameter for string, blob, etc.
-	Unique        bool           `json:"unique,omitempty"`    // column with unique constraint.
-	Optional      bool           `json:"optional,omitempty"`  // null or not null attribute.
-	Default       any            `json:"default,omitempty"`   // default value.
-	Immutable     bool           `json:"immutable,omitempty"` // immutable field.
-	Setter        string         `json:"setter,omitempty"`    // setter expression.
-	Getter        string         `json:"getter,omitempty"`    // getter expression.
-	setterProgram *SetterProgram `json:"-"`                   // Compiled setter program
-	getterProgram *GetterProgram `json:"-"`                   // Compiled getter program
+	Type          FieldType      `json:"type" yaml:"type"`
+	Name          string         `json:"name" yaml:"name"`
+	Label         string         `json:"label" yaml:"label"`
+	IsMultiple    bool           `json:"multiple,omitempty" yaml:"multiple,omitempty"`   // Is a multiple field.
+	Size          int64          `json:"size,omitempty" yaml:"size,omitempty"`           // max size parameter for string, blob, etc.
+	Unique        bool           `json:"unique,omitempty" yaml:"unique,omitempty"`       // column with unique constraint.
+	Optional      bool           `json:"optional,omitempty" yaml:"optional,omitempty"`   // null or not null attribute.
+	Default       any            `json:"default,omitempty" yaml:"default,omitempty"`     // default value.
+	Immutable     bool           `json:"immutable,omitempty" yaml:"immutable,omitempty"` // immutable field.
+	Setter        string         `json:"setter,omitempty" yaml:"setter,omitempty"`       // setter expression.
+	Getter        string         `json:"getter,omitempty" yaml:"getter,omitempty"`       // getter expression.
+	setterProgram *SetterProgram `json:"-" yaml:"-"`                                     // Compiled setter program
+	getterProgram *GetterProgram `json:"-" yaml:"-"`                                     // Compiled getter program
 	// Querier
-	Sortable   bool           `json:"sortable,omitempty"`   // Has a "sort" option in the tag.
-	Filterable bool           `json:"filterable,omitempty"` // Has a "filter" option in the tag.
-	Renderer   *FieldRenderer `json:"renderer,omitempty"`   // renderer of the field.
-	Enums      []*FieldEnum   `json:"enums,omitempty"`      // enum values.
-	Relation   *Relation      `json:"relation,omitempty"`   // relation of the field.
-	DB         *FieldDB       `json:"db,omitempty"`         // db config for the field.
+	Sortable   bool           `json:"sortable,omitempty" yaml:"sortable,omitempty"`     // Has a "sort" option in the tag.
+	Filterable bool           `json:"filterable,omitempty" yaml:"filterable,omitempty"` // Has a "filter" option in the tag.
+	Renderer   *FieldRenderer `json:"renderer,omitempty" yaml:"renderer,omitempty"`     // renderer of the field.
+	Enums      []*FieldEnum   `json:"enums,omitempty" yaml:"enums,omitempty"`           // enum values.
+	Relation   *Relation      `json:"relation,omitempty" yaml:"relation,omitempty"`     // relation of the field.
+	DB         *FieldDB       `json:"db,omitempty" yaml:"db,omitempty"`                 // db config for the field.
 
 	// SystemField is field created from Go code, not from user schema.
-	IsSystemField bool `json:"is_system_field,omitempty"` // Is a system field.
+	IsSystemField bool `json:"is_system_field,omitempty" yaml:"is_system_field,omitempty"` // Is a system field.
 	// Lock flag to prevent the field from being modified from API.
-	IsLocked bool `json:"is_locked,omitempty"` // Is a locked field.
+	IsLocked bool `json:"is_locked,omitempty" yaml:"is_locked,omitempty"` // Is a locked field.
 }
 
 // Init initializes the field.
