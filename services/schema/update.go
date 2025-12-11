@@ -105,10 +105,10 @@ func (su *SchemaUpdate) update() (err error) {
 		return err
 	}
 
-	// Update the current schema to the new schema builder directory
-	if su.currentSchema.Name == su.updateData.Data.Name {
-		currentSchemaFile := path.Join(su.newSchemaBuilderDir, su.currentSchema.Name+".yaml")
-		if err := su.currentSchema.SaveToFile(currentSchemaFile); err != nil {
+	// Write the updated schema files to the new schema directory
+	for _, s := range su.updateSchemas {
+		schemaFile := path.Join(su.newSchemaBuilderDir, s.Name+".yaml")
+		if err = s.SaveToFile(schemaFile); err != nil {
 			return err
 		}
 	}

@@ -3,10 +3,10 @@ package schemaservice_test
 import (
 	"bytes"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +22,9 @@ func TestSchemaServiceDelete(t *testing.T) {
 	assert.Contains(t, response, `schema product not found`)
 
 	// Case 2: schema has no relation
-	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(testBlogJSON)))
+	blogSchema := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	blogJSON := schemaToJSON(blogSchema)
+	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(blogJSON)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
@@ -37,22 +39,21 @@ func TestSchemaServiceDelete(t *testing.T) {
 	assert.Contains(t, response, `Schema deleted`)
 
 	// Case 3: schema has relation
-	newBlogJSON := strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		`"fields": [{
-			"type": "relation",
-			"name": "categories",
-			"label": "Categories",
-			"relation": {
-				"schema": "category",
-				"field": "blogs",
-				"type": "m2m",
-				"owner": true,
-				"optional": false
-			}
-		},`,
-	)
+	blogSchema = utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "category",
+			TargetFieldName:  "blogs",
+			Owner:            true,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, categoriesField)
+	newBlogJSON := schemaToJSON(blogSchema)
 	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(newBlogJSON)))
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
@@ -72,8 +73,8 @@ func TestSchemaServiceDelete(t *testing.T) {
 func TestSchemaServiceDeleteWithRelationsField(t *testing.T) {
 	testApp, _, server := createSchemaService(t, &testSchemaSeviceConfig{
 		extraSchemas: map[string]string{
-			"blog": testBlogJSON,
-			"tag":  testTagJSON,
+			"blog": testBlogYAML,
+			"tag":  testTagYAML,
 		},
 	})
 	// add relation field

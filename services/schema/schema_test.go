@@ -2,6 +2,7 @@ package schemaservice_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -19,117 +20,119 @@ import (
 )
 
 var (
-	testCategoryJSON = `{
-		"name": "category",
-		"namespace": "categories",
-		"label_field": "name",
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"unique": true,
-				"sortable": true
-			}
-		]
-	}`
+	testCategoryYAML = `name: category
+namespace: categories
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+  unique: true
+  sortable: true`
 
-	testCategoryJSONToImport = `{
-		"name": "category_import",
-		"namespace": "categories_import",
-		"label_field": "name",
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"unique": true,
-				"sortable": true
-			}
-		]
-	}`
-	testBlogJSON = `{
-		"name": "blog",
-		"namespace": "blogs",
-		"label_field": "name",
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"sortable": true
-			},
-			{
-				"type": "relation",
-				"name": "pair",
-				"label": "Pair",
-				"optional": true,
-				"relation": {
-					"schema": "blog",
-					"field": "pair",
-					"type": "o2o",
-					"owner": true,
-					"optional": true
-				}
-			}
-		]
-	}`
-	testTagJSON = `{
-		"name": "tag",
-		"namespace": "tags",
-		"label_field": "name",
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"unique": true,
-				"sortable": true
-			}
-		]
-	}`
+	testCategoryYAMLToImport = `name: category_import
+namespace: categories_import
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+  unique: true
+  sortable: true`
+	testBlogYAML = `name: blog
+namespace: blogs
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+  sortable: true
+- name: pair
+  label: Pair
+  type: relation
+  optional: true
+  relation:
+    type: o2o
+    schema: blog
+    field: pair
+    owner: true
+    optional: true`
+	testTagYAML = `name: tag
+namespace: tags
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+  unique: true
+  sortable: true`
 
-	testBlogJSONFields = map[string]string{
-		"description": `{"type": "string","name": "description","label": "Description","sortable": true}`,
-		"categories": `{
-			"type": "relation",
-			"name": "categories",
-			"label": "Categories",
-			"relation": {
-				"schema": "category",
-				"field": "blogs",
-				"type": "m2m",
-				"owner": false,
-				"optional": false
-			}
-		}`,
-		"category": `{
-			"type": "relation",
-			"name": "category",
-			"label": "Category",
-			"relation": {
-				"schema": "category",
-				"field": "blogs",
-				"type": "o2m",
-				"owner": false,
-				"optional": false
-			}
-		}`,
-		"note": `{"type": "string","name": "note","label": "Note","sortable": true}`,
-		"tags": `{
-			"type": "relation",
-			"name": "tags",
-			"label": "Tags",
-			"relation": {
-				"schema": "tag",
-				"field": "blogs",
-				"type": "m2m",
-				"owner": false,
-				"optional": false
-			}
-		}`,
+	testBlogYAMLFields = map[string]string{
+		"description": `- name: description
+  label: Description
+  type: string
+  sortable: true`,
+		"categories": `- name: categories
+  label: Categories
+  type: relation
+  relation:
+    type: m2m
+    schema: category
+    field: blogs
+    owner: false
+    optional: false`,
+		"category": `- name: category
+  label: Category
+  type: relation
+  relation:
+    type: o2m
+    schema: category
+    field: blogs
+    owner: false
+    optional: false`,
+		"note": `- name: note
+  label: Note
+  type: string
+  sortable: true`,
+		"tags": `- name: tags
+  label: Tags
+  type: relation
+  relation:
+    type: m2m
+    schema: tag
+    field: blogs
+    owner: false
+    optional: false`,
 	}
 )
+
+// schemaToJSON converts a schema object to a JSON string for API requests
+func schemaToJSON(s *schema.Schema) string {
+	jsonBytes, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	return string(jsonBytes)
+}
+
+// yamlSchemaToJSON converts a YAML schema string to a JSON schema string for API requests
+func yamlSchemaToJSON(yamlData string) string {
+	s, err := schema.NewSchemaFromYAML(yamlData)
+	if err != nil {
+		panic(err)
+	}
+	return schemaToJSON(s)
+}
+
+// modifySchema parses JSON schema, applies a modification function, and returns JSON
+func modifySchema(schemaJSON string, modifier func(*schema.Schema)) string {
+	var s schema.Schema
+	if err := json.Unmarshal([]byte(schemaJSON), &s); err != nil {
+		panic(err)
+	}
+	modifier(&s)
+	return schemaToJSON(&s)
+}
 
 type testApp struct {
 	sb        *schema.Builder
@@ -184,7 +187,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	var reloadFn func(*db.Migration) error
 	schemaDir := t.TempDir()
 	schemas := map[string]string{
-		"category": testCategoryJSON,
+		"category": testCategoryYAML,
 	}
 
 	if config != nil {
