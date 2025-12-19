@@ -83,6 +83,10 @@ func NewS3(config *RcloneS3Config) (fs.Disk, error) {
 		cfgMap.Set("force_path_style", "true")
 	}
 
+	if strings.ToLower(config.Provider) == "linode" {
+		cfgMap.Set("use_already_exists", "false")
+	}
+
 	fsDriver, err := s3.NewFs(context.Background(), config.Name, config.Bucket+"/"+config.Root, cfgMap)
 	if err != nil {
 		return nil, err
