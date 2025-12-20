@@ -1,0 +1,18 @@
+name: car
+namespace: cars
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+  unique: true
+  sortable: true
+- name: owner
+  label: Owner
+  type: relation
+  optional: true
+  relation:
+    type: o2o
+    schema: user
+    field: car
+    optional: true

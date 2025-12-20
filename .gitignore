@@ -9,3 +9,5 @@ dist/
 
 .idea/
 **/.DS_Store
+
+.serena

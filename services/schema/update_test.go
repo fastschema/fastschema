@@ -4,31 +4,26 @@ import (
 	"bytes"
 	"fmt"
 	"net/http/httptest"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	schemaservice "github.com/fastschema/fastschema/services/schema"
-	"github.com/stretchr/testify/assert"
 )
 
-var categorySchemaJSON = `{
-	"name": "category",
-	"namespace": "categories",
-	"label_field": "name",
-	"fields": [
-		{
-			"type": "string",
-			"name": "name",
-			"label": "Name",
-			"unique": true,
-			"sortable": true
-		}
-	]
-}`
+var categorySchemaJSON = `name: category
+namespace: categories
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+  unique: true
+  sortable: true`
 
 func TestSchemaServiceUpdateError(t *testing.T) {
 	_, _, server := createSchemaService(t, &testSchemaSeviceConfig{
@@ -65,18 +60,25 @@ func TestSchemaServiceUpdateError(t *testing.T) {
 func createUpdateTest(t *testing.T) (*testApp, *schemaservice.SchemaService, *restfulresolver.Server) {
 	return createSchemaService(t, &testSchemaSeviceConfig{
 		extraSchemas: map[string]string{
-			"blog": testBlogJSON,
-			"tag":  testTagJSON,
+			"blog": testBlogYAML,
+			"tag":  testTagYAML,
 		},
 	})
 }
 
 func addFieldDescriptionToBlog(t *testing.T, testApp *testApp, server *restfulresolver.Server) string {
-	newBlogJSON := strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		fmt.Sprintf(`"fields": [%s,`, testBlogJSONFields["description"]),
-	)
+	// Parse the YAML schema and add the description field
+	blogSchema := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	descField := &schema.Field{
+		Type:     schema.TypeString,
+		Name:     "description",
+		Label:    "Description",
+		Sortable: true,
+	}
+	blogSchema.Fields = append(blogSchema.Fields, descField)
+
+	// Convert to JSON for API request
+	newBlogJSON := schemaToJSON(blogSchema)
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, newBlogJSON))),
@@ -92,11 +94,24 @@ func addFieldDescriptionToBlog(t *testing.T, testApp *testApp, server *restfulre
 }
 
 func addFieldCategoriesToBlog(t *testing.T, testApp *testApp, server *restfulresolver.Server) string {
-	newJSON := strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		fmt.Sprintf(`"fields": [%s,`, testBlogJSONFields["categories"]),
-	)
+	// Parse the YAML schema and add the categories field
+	blogSchema := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "category",
+			TargetFieldName:  "blogs",
+			Owner:            false,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, categoriesField)
+
+	// Convert to JSON for API request
+	newJSON := schemaToJSON(blogSchema)
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, newJSON))),
@@ -127,11 +142,24 @@ func addFieldCategoriesToBlog(t *testing.T, testApp *testApp, server *restfulres
 }
 
 func addFieldCategoryToBlog(t *testing.T, testApp *testApp, server *restfulresolver.Server) string {
-	newJSON := strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		fmt.Sprintf(`"fields": [%s,`, testBlogJSONFields["category"]),
-	)
+	// Parse the YAML schema and add the category field
+	blogSchema := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoryField := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "category",
+		Label: "Category",
+		Relation: &schema.Relation{
+			Type:             schema.O2M,
+			TargetSchemaName: "category",
+			TargetFieldName:  "blogs",
+			Owner:            false,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, categoryField)
+
+	// Convert to JSON for API request
+	newJSON := schemaToJSON(blogSchema)
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, newJSON))),
@@ -165,17 +193,24 @@ func addFieldCategoryToBlog(t *testing.T, testApp *testApp, server *restfulresol
 func TestSchemaServiceUpdateBackRefFieldExisted(t *testing.T) {
 	_, _, server := createUpdateTest(t)
 
-	blogFieldCategoriesJSON := testBlogJSONFields["categories"]
-	blogFieldCategoriesJSON = strings.ReplaceAll(
-		blogFieldCategoriesJSON,
-		`"field": "blogs"`,
-		`"field": "name"`,
-	)
-	invalidBlogJSON := strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		fmt.Sprintf(`"fields": [%s,`, blogFieldCategoriesJSON),
-	)
+	// Parse the YAML schema and add the categories field with invalid target field
+	blogSchema := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "category",
+			TargetFieldName:  "name", // Invalid: this field already exists in category
+			Owner:            false,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, categoriesField)
+
+	// Convert to JSON for API request
+	invalidBlogJSON := schemaToJSON(blogSchema)
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, invalidBlogJSON))),
@@ -191,17 +226,24 @@ func TestSchemaServiceUpdateBackRefFieldExisted(t *testing.T) {
 func TestSchemaServiceUpdateInvalidBackRefSchema(t *testing.T) {
 	_, _, server := createUpdateTest(t)
 
-	blogFieldCategoriesJSON := testBlogJSONFields["categories"]
-	blogFieldCategoriesJSON = strings.ReplaceAll(
-		blogFieldCategoriesJSON,
-		`"schema": "category"`,
-		`"schema": "invalid"`,
-	)
-	invalidBlogJSON := strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		fmt.Sprintf(`"fields": [%s,`, blogFieldCategoriesJSON),
-	)
+	// Parse the YAML schema and add the categories field with invalid schema
+	blogSchema := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "invalid", // Invalid: this schema doesn't exist
+			TargetFieldName:  "blogs",
+			Owner:            false,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, categoriesField)
+
+	// Convert to JSON for API request
+	invalidBlogJSON := schemaToJSON(blogSchema)
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, invalidBlogJSON))),
@@ -217,9 +259,11 @@ func TestSchemaServiceUpdateInvalidBackRefSchema(t *testing.T) {
 func TestSchemaServiceUpdateRemoveRelationFieldSuccess(t *testing.T) {
 	testApp, _, server := createUpdateTest(t)
 	addFieldCategoriesToBlog(t, testApp, server)
+	// Convert YAML to JSON for API request
+	blogJSON := yamlSchemaToJSON(testBlogYAML)
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
-		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, testBlogJSON))),
+		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, blogJSON))),
 	)
 	resp := utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
@@ -237,10 +281,13 @@ func TestSchemaServiceUpdateAddNormalField(t *testing.T) {
 }
 
 // Case 5: update schema name that have external and internal relations
+
 func TestSchemaServiceUpdateRenameSchema(t *testing.T) {
 	testApp, _, server := createUpdateTest(t)
 	newBlogJSON := addFieldCategoriesToBlog(t, testApp, server)
-	newBlogJSON = strings.ReplaceAll(newBlogJSON, `"name": "blog"`, `"name": "post"`)
+	newBlogJSON = modifySchema(newBlogJSON, func(s *schema.Schema) {
+		s.Name = "post"
+	})
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, newBlogJSON))),
@@ -259,7 +306,9 @@ func TestSchemaServiceUpdateRenameNamespace(t *testing.T) {
 
 	// rename blog to post
 	newBlogJSON := addFieldCategoriesToBlog(t, testApp, server)
-	newBlogJSON = strings.ReplaceAll(newBlogJSON, `"name": "blog"`, `"name": "post"`)
+	newBlogJSON = modifySchema(newBlogJSON, func(s *schema.Schema) {
+		s.Name = "post"
+	})
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, newBlogJSON))),
@@ -268,8 +317,15 @@ func TestSchemaServiceUpdateRenameNamespace(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 
-	postJSON := strings.ReplaceAll(newBlogJSON, `"namespace": "blogs"`, `"namespace": "posts"`)
-	postJSON = strings.ReplaceAll(postJSON, `"schema": "blog"`, `"schema": "post"`)
+	postJSON := modifySchema(newBlogJSON, func(s *schema.Schema) {
+		s.Namespace = "posts"
+		// Update the relation field to point to the new schema name
+		for _, f := range s.Fields {
+			if f.Type.IsRelationType() && f.Relation.TargetSchemaName == "blog" {
+				f.Relation.TargetSchemaName = "post"
+			}
+		}
+	})
 	req = httptest.NewRequest(
 		"PUT", "/schema/post",
 		bytes.NewReader([]byte(fmt.Sprintf(`{"schema":%s}`, postJSON))),
@@ -291,11 +347,27 @@ func TestSchemaServiceUpdate(t *testing.T) {
 	addFieldCategoriesToBlog(t, testApp, server)
 
 	// Case 8: Remove field description, categories. Add fields note, tags
-	blogJSON := strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		fmt.Sprintf(`"fields": [%s, %s,`, testBlogJSONFields["note"], testBlogJSONFields["tags"]),
-	)
+	blogSchema := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	noteField := &schema.Field{
+		Type:     schema.TypeString,
+		Name:     "note",
+		Label:    "Note",
+		Sortable: true,
+	}
+	tagsField := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "tags",
+		Label: "Tags",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "tag",
+			TargetFieldName:  "blogs",
+			Owner:            false,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, noteField, tagsField)
+	blogJSON := schemaToJSON(blogSchema)
 
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
@@ -339,8 +411,8 @@ func TestSchemaServiceUpdateRenameNormalField(t *testing.T) {
 	checkMigration := false
 	testApp, _, server := createSchemaService(t, &testSchemaSeviceConfig{
 		extraSchemas: map[string]string{
-			"blog": testBlogJSON,
-			"tag":  testTagJSON,
+			"blog": testBlogYAML,
+			"tag":  testTagYAML,
 		},
 		reloadFn: func(migrations *db.Migration) error {
 			if !checkMigration {
@@ -359,11 +431,14 @@ func TestSchemaServiceUpdateRenameNormalField(t *testing.T) {
 	newBlogJSON := addFieldDescriptionToBlog(t, testApp, server)
 
 	checkMigration = true
-	newBlogJSON = strings.ReplaceAll(
-		newBlogJSON,
-		`"name": "description"`,
-		`"name": "desc"`,
-	)
+	newBlogJSON = modifySchema(newBlogJSON, func(s *schema.Schema) {
+		for i, f := range s.Fields {
+			if f.Name == "description" {
+				s.Fields[i].Name = "desc"
+				break
+			}
+		}
+	})
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{
@@ -387,8 +462,8 @@ func TestSchemaServiceUpdateRenameO2MRelationField(t *testing.T) {
 	checkMigration := false
 	testApp, _, server := createSchemaService(t, &testSchemaSeviceConfig{
 		extraSchemas: map[string]string{
-			"blog": testBlogJSON,
-			"tag":  testTagJSON,
+			"blog": testBlogYAML,
+			"tag":  testTagYAML,
 		},
 		reloadFn: func(migrations *db.Migration) error {
 			if !checkMigration {
@@ -408,11 +483,14 @@ func TestSchemaServiceUpdateRenameO2MRelationField(t *testing.T) {
 	newBlogJSON := addFieldCategoryToBlog(t, testApp, server)
 
 	checkMigration = true
-	newBlogJSON = strings.ReplaceAll(
-		newBlogJSON,
-		`"name": "category"`,
-		`"name": "main_category"`,
-	)
+	newBlogJSON = modifySchema(newBlogJSON, func(s *schema.Schema) {
+		for i, f := range s.Fields {
+			if f.Name == "category" {
+				s.Fields[i].Name = "main_category"
+				break
+			}
+		}
+	})
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{
@@ -436,8 +514,8 @@ func TestSchemaServiceUpdateRenameM2MRelationField(t *testing.T) {
 	checkMigration := false
 	testApp, _, server := createSchemaService(t, &testSchemaSeviceConfig{
 		extraSchemas: map[string]string{
-			"blog": testBlogJSON,
-			"tag":  testTagJSON,
+			"blog": testBlogYAML,
+			"tag":  testTagYAML,
 		},
 		reloadFn: func(migrations *db.Migration) error {
 			if !checkMigration {
@@ -465,11 +543,14 @@ func TestSchemaServiceUpdateRenameM2MRelationField(t *testing.T) {
 	newBlogJSON := addFieldCategoriesToBlog(t, testApp, server)
 
 	checkMigration = true
-	newBlogJSON = strings.ReplaceAll(
-		newBlogJSON,
-		`"name": "categories"`,
-		`"name": "cats"`,
-	)
+	newBlogJSON = modifySchema(newBlogJSON, func(s *schema.Schema) {
+		for i, f := range s.Fields {
+			if f.Name == "categories" {
+				s.Fields[i].Name = "cats"
+				break
+			}
+		}
+	})
 	req := httptest.NewRequest(
 		"PUT", "/schema/blog",
 		bytes.NewReader([]byte(fmt.Sprintf(`{

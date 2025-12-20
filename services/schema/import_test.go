@@ -2,20 +2,23 @@ package schemaservice_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
+
+	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 )
 
 func createTestSchemaFile(t *testing.T, schemaName string, schemaContent string) string {
-	tmpFilePath := t.TempDir() + fmt.Sprintf("/%s.json", schemaName)
+	tmpFilePath := t.TempDir() + fmt.Sprintf("/%s.yaml", schemaName)
 
 	f, err := os.Create(tmpFilePath)
 	assert.NoError(t, err)
@@ -38,6 +41,27 @@ func createFileBody(t *testing.T, schemaName string, schemaContent string) (*mul
 	_, err = io.Copy(w, file)
 	assert.NoError(t, err)
 	return mw, body
+}
+
+// schemaToYAML converts a schema object to YAML string using gopkg.in/yaml.v3
+func schemaToYAML(s *schema.Schema) string {
+	// We need to use yaml directly
+	type aliasSchema schema.Schema
+	yamlBytes, err := yaml.Marshal((*aliasSchema)(s))
+	if err != nil {
+		panic(err)
+	}
+	return string(yamlBytes)
+}
+
+// modifyAndConvertToYAML parses JSON schema, applies a modification function, and returns YAML
+func modifyAndConvertToYAML(schemaJSON string, modifier func(*schema.Schema)) string {
+	var s schema.Schema
+	if err := json.Unmarshal([]byte(schemaJSON), &s); err != nil {
+		panic(err)
+	}
+	modifier(&s)
+	return schemaToYAML(&s)
 }
 
 func TestSchemaServiceImport(t *testing.T) {
@@ -68,24 +92,23 @@ func TestSchemaServiceImport(t *testing.T) {
 	assert.Contains(t, response, `namespace is required`)
 
 	// Case 3: invalid relation schema
-	newBlogJSON := strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		`"fields": [{
-			"type": "relation",
-			"name": "categories",
-			"label": "Categories",
-			"relation": {
-				"schema": "cat",
-				"field": "blogs",
-				"type": "m2m",
-				"owner": true,
-				"optional": false
-			}
-		},`,
-	)
+	blogSchema := utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "cat", // Invalid schema
+			TargetFieldName:  "blogs",
+			Owner:            true,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, categoriesField)
+	newBlogYAML := schemaToYAML(blogSchema)
 
-	mw, body = createFileBody(t, "blog", newBlogJSON)
+	mw, body = createFileBody(t, "blog", newBlogYAML)
 	mw.Close()
 	req = httptest.NewRequest("POST", "/schema/import", body)
 	req.Header.Add("Content-Type", mw.FormDataContentType())
@@ -96,26 +119,25 @@ func TestSchemaServiceImport(t *testing.T) {
 	assert.Contains(t, response, `relation node blog.categories: 'cat' is not found`)
 
 	// Case 4: invalid back ref relation
-	newBlogJSON = strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		`"fields": [{
-			"type": "relation",
-			"name": "categories",
-			"label": "Categories",
-			"relation": {
-				"schema": "category_import",
-				"field": "blogs",
-				"type": "m2m",
-				"owner": true,
-				"optional": false
-			}
-		},`,
-	)
+	blogSchema = utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField = &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "category_import",
+			TargetFieldName:  "blogs",
+			Owner:            true,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, categoriesField)
+	newBlogYAML = schemaToYAML(blogSchema)
 
 	// import 2 schemas blog and category
-	categoryPath := createTestSchemaFile(t, "category_import", testCategoryJSONToImport)
-	blogPath := createTestSchemaFile(t, "blog", newBlogJSON)
+	categoryPath := createTestSchemaFile(t, "category_import", testCategoryYAMLToImport)
+	blogPath := createTestSchemaFile(t, "blog", newBlogYAML)
 	body = new(bytes.Buffer)
 	mw = multipart.NewWriter(body)
 	categoryFile, err := os.Open(categoryPath)
@@ -145,42 +167,41 @@ func TestSchemaServiceImport(t *testing.T) {
 	assert.Contains(t, response, `relation for blog.categories is not valid`)
 
 	// Case 5: create schema successfully
-	newBlogJSON = strings.ReplaceAll(
-		testBlogJSON,
-		`"fields": [`,
-		`"fields": [{
-			"type": "relation",
-			"name": "categories",
-			"label": "Categories",
-			"relation": {
-				"schema": "category_import",
-				"field": "blogs",
-				"type": "m2m",
-				"owner": true,
-				"optional": false
-			}
-		},`,
-	)
-	newCategoryJSON := strings.ReplaceAll(
-		testCategoryJSONToImport,
-		`"fields": [`,
-		`"fields": [{
-			"type": "relation",
-			"name": "blogs",
-			"label": "Blogs",
-			"relation": {
-				"schema": "blog",
-				"field": "categories",
-				"type": "m2m",
-				"owner": false,
-				"optional": false
-			}
-		},`,
-	)
+	blogSchema = utils.Must(schema.NewSchemaFromYAML(testBlogYAML))
+	categoriesField = &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "categories",
+		Label: "Categories",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "category_import",
+			TargetFieldName:  "blogs",
+			Owner:            true,
+			Optional:         false,
+		},
+	}
+	blogSchema.Fields = append(blogSchema.Fields, categoriesField)
+	newBlogYAML = schemaToYAML(blogSchema)
+
+	categorySchema := utils.Must(schema.NewSchemaFromYAML(testCategoryYAMLToImport))
+	blogsField := &schema.Field{
+		Type:  schema.TypeRelation,
+		Name:  "blogs",
+		Label: "Blogs",
+		Relation: &schema.Relation{
+			Type:             schema.M2M,
+			TargetSchemaName: "blog",
+			TargetFieldName:  "categories",
+			Owner:            false,
+			Optional:         false,
+		},
+	}
+	categorySchema.Fields = append(categorySchema.Fields, blogsField)
+	newCategoryYAML := schemaToYAML(categorySchema)
 
 	// import 2 schemas blog and category
-	categoryPath = createTestSchemaFile(t, "category_import", newCategoryJSON)
-	blogPath = createTestSchemaFile(t, "blog", newBlogJSON)
+	categoryPath = createTestSchemaFile(t, "category_import", newCategoryYAML)
+	blogPath = createTestSchemaFile(t, "blog", newBlogYAML)
 	body = new(bytes.Buffer)
 	mw = multipart.NewWriter(body)
 	categoryFile, err = os.Open(categoryPath)

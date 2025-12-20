@@ -32,8 +32,8 @@ type Session struct {
 func (s Session) Schema() *schema.Schema {
 	return &schema.Schema{
 		Fields: []*schema.Field{},
-		DB: &schema.SchemaDB{
-			Indexes: []*schema.SchemaDBIndex{
+		DB: &schema.DB{
+			Indexes: []*schema.DBIndex{
 				// Index on user_id for finding all sessions for a user
 				{
 					Name:    "idx_session_user_id",

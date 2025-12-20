@@ -1,0 +1,17 @@
+name: blog
+namespace: blogs
+label_field: name
+fields:
+  - name: name
+    label: Name
+    type: string
+    sortable: true
+  - name: tags
+    label: Tags
+    type: relation
+    optional: true
+    sortable: true
+    relation:
+      schema: tag
+      field: blogs
+      type: o2m

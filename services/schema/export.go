@@ -24,7 +24,7 @@ func (ss *SchemaService) Export(c fs.Context, schemasExport *SchemasExport) (any
 
 	schemasIsNotExist := make([]string, 0)
 	for _, sc := range *schemasExport.Schemas {
-		currentSchemaFile := fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), sc)
+		currentSchemaFile := fmt.Sprintf("%s/%s.yaml", ss.app.SchemaBuilder().Dir(), sc)
 		if !utils.IsFileExists(currentSchemaFile) {
 			schemasIsNotExist = append(schemasIsNotExist, sc)
 		}
@@ -38,7 +38,7 @@ func (ss *SchemaService) Export(c fs.Context, schemasExport *SchemasExport) (any
 	// Create a new zip archive
 	zipWriter := zip.NewWriter(buffer)
 	for _, schema := range *schemasExport.Schemas {
-		schemaFile := fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), schema)
+		schemaFile := fmt.Sprintf("%s/%s.yaml", ss.app.SchemaBuilder().Dir(), schema)
 		// Read the file content
 		data, err := os.ReadFile(schemaFile)
 		if err != nil {
@@ -46,7 +46,7 @@ func (ss *SchemaService) Export(c fs.Context, schemasExport *SchemasExport) (any
 		}
 
 		// Create a zip entry for the file
-		zipFile, err := zipWriter.Create(schema + ".json")
+		zipFile, err := zipWriter.Create(schema + ".yaml")
 		if err != nil {
 			return nil, err
 		}

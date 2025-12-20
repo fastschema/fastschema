@@ -13,14 +13,14 @@ import (
 
 // FieldEnum define the data struct for an enum field
 type FieldEnum struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
+	Value string `json:"value" yaml:"value"`
+	Label string `json:"label" yaml:"label"`
 }
 
 // FieldRenderer define the renderer of a field
 type FieldRenderer struct {
-	Class    string         `json:"class,omitempty"`    // renderer class name
-	Settings map[string]any `json:"settings,omitempty"` // renderer settings.
+	Class    string         `json:"class,omitempty" yaml:"class,omitempty"`       // renderer class name
+	Settings map[string]any `json:"settings,omitempty" yaml:"settings,omitempty"` // renderer settings.
 }
 
 func (fr *FieldRenderer) Clone() *FieldRenderer {
@@ -39,10 +39,10 @@ func (fr *FieldRenderer) Clone() *FieldRenderer {
 
 // FieldDB define the db config for a field
 type FieldDB struct {
-	Attr      string `json:"attr,omitempty"`      // extra attributes.
-	Collation string `json:"collation,omitempty"` // collation type (utf8mb4_unicode_ci, utf8mb4_general_ci)
-	Increment bool   `json:"increment,omitempty"` // auto increment
-	Key       string `json:"key,omitempty"`       // key definition (PRI, UNI or MUL).
+	Attr      string `json:"attr,omitempty" yaml:"attr,omitempty"`           // extra attributes.
+	Collation string `json:"collation,omitempty" yaml:"collation,omitempty"` // collation type (utf8mb4_unicode_ci, utf8mb4_general_ci)
+	Increment bool   `json:"increment,omitempty" yaml:"increment,omitempty"` // auto increment
+	Key       string `json:"key,omitempty" yaml:"key,omitempty"`             // key definition (PRI, UNI or MUL).
 }
 
 func (f *FieldEnum) Clone() *FieldEnum {
@@ -309,6 +309,26 @@ func (t *FieldType) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// UnmarshalYAML unmashals a YAML string to the enum value
+func (t *FieldType) UnmarshalYAML(unmarshal func(any) error) error {
+	var fieldType string
+	if err := unmarshal(&fieldType); err != nil {
+		return err
+	}
+	*t = stringToFieldTypes[fieldType] // If the string can't be found, it will be set to the zero value: 'invalid'
+
+	if *t == TypeInvalid {
+		return fmt.Errorf("invalid field type %q", fieldType)
+	}
+
+	return nil
+}
+
+// MarshalYAML marshals the enum value to a YAML string
+func (t FieldType) MarshalYAML() (any, error) {
+	return fieldTypeToStrings[t], nil
+}
+
 // RelationType define the relation type of a field
 type RelationType int
 
@@ -385,4 +405,19 @@ func (t *RelationType) UnmarshalJSON(b []byte) error {
 	}
 	*t = stringToRelationTypes[j] // If the string can't be found, it will be set to the zero value: 'invalid'
 	return nil
+}
+
+// UnmarshalYAML unmarshal a YAML string to the enum value
+func (t *RelationType) UnmarshalYAML(unmarshal func(any) error) error {
+	var relationType string
+	if err := unmarshal(&relationType); err != nil {
+		return err
+	}
+	*t = stringToRelationTypes[relationType] // If the string can't be found, it will be set to the zero value: 'invalid'
+	return nil
+}
+
+// MarshalYAML marshals the enum value to a YAML string
+func (t RelationType) MarshalYAML() (any, error) {
+	return relationTypeToStrings[t], nil
 }

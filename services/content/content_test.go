@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
@@ -12,7 +14,6 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	cs "github.com/fastschema/fastschema/services/content"
-	"github.com/stretchr/testify/assert"
 )
 
 type testApp struct {
@@ -27,55 +28,41 @@ func (s testApp) DB() db.Client {
 
 func createContentService(t *testing.T) (*cs.ContentService, *rr.Server) {
 	schemaDir := t.TempDir()
-	utils.WriteFile(schemaDir+"/blog.json", `{
-		"name": "blog",
-		"namespace": "blogs",
-		"label_field": "name",
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"sortable": true
-			},
-			{
-				"type": "relation",
-				"name": "tags",
-				"label": "Tags",
-				"optional": true,
-				"sortable": true,
-				"relation": {
-					"schema": "tag",
-					"field": "blogs",
-					"type": "o2m"
-				}
-			}
-		]
-	}`)
-	utils.WriteFile(schemaDir+"/tag.json", `{
-		"name": "tag",
-		"namespace": "tags",
-		"label_field": "name",
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"sortable": true
-			},
-			{
-				"type": "relation",
-				"name": "blogs",
-				"label": "Blogs",
-				"relation": {
-					"schema": "blog",
-					"field": "tags",
-					"type": "o2m",
-					"owner": true
-				}
-			}
-		]
-	}`)
+	utils.WriteFile(schemaDir+"/blog.yaml", `name: blog
+namespace: blogs
+label_field: name
+fields:
+  - name: name
+    label: Name
+    type: string
+    sortable: true
+  - name: tags
+    label: Tags
+    type: relation
+    optional: true
+    sortable: true
+    relation:
+      schema: tag
+      field: blogs
+      type: o2m
+`)
+	utils.WriteFile(schemaDir+"/tag.yaml", `name: tag
+namespace: tags
+label_field: name
+fields:
+  - name: name
+    label: Name
+    type: string
+    sortable: true
+  - name: blogs
+    label: Blogs
+    type: relation
+    relation:
+      schema: blog
+      field: tags
+      type: o2m
+      owner: true
+`)
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	testApp := &testApp{sb: sb, db: db}

@@ -1,19 +1,20 @@
 package schema
 
 import (
-	"encoding/json"
 	"os"
 	"testing"
 
-	"github.com/fastschema/fastschema/entity"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
+
+	"github.com/fastschema/fastschema/entity"
 )
 
 func TestSchema(t *testing.T) {
-	_, err := NewSchemaFromJSONFile("invalid_file.json")
+	_, err := NewSchemaFromYAMLFile("invalid_file.yaml")
 	assert.Error(t, err)
 
-	s, err := NewSchemaFromJSONFile("../tests/data/schemas/user.json")
+	s, err := NewSchemaFromYAMLFile("../tests/data/schemas/user.yaml")
 	assert.NoError(t, err)
 	assert.Equal(t, "user", s.Name)
 
@@ -41,7 +42,7 @@ func TestSchema(t *testing.T) {
 	assert.NotNil(t, s.Field(entity.FieldUpdatedAt))
 	assert.NotNil(t, s.Field(entity.FieldDeletedAt))
 
-	s2, err := NewSchemaFromJSONFile("../tests/data/schemas/user.json")
+	s2, err := NewSchemaFromYAMLFile("../tests/data/schemas/user.yaml")
 	assert.NoError(t, err)
 	assert.Equal(t, "user", s2.Name)
 
@@ -206,7 +207,7 @@ func TestSaveToFile(t *testing.T) {
 
 	// Unmarshal the file data into a new Schema object
 	var savedSchema Schema
-	err = json.Unmarshal(fileData, &savedSchema)
+	err = yaml.Unmarshal(fileData, &savedSchema)
 	assert.NoError(t, err)
 
 	// Check if the saved schema has the same properties as the original schema

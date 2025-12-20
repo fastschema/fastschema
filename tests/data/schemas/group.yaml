@@ -1,0 +1,32 @@
+name: group
+namespace: groups
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+- name: users
+  label: Users
+  type: relation
+  relation:
+    type: m2m
+    schema: user
+    owner: true
+    field: groups
+- name: sub_users
+  label: Sub Users
+  type: relation
+  optional: true
+  relation:
+    type: m2m
+    schema: user
+    owner: true
+    field: sub_groups
+- name: topics
+  label: Topics
+  type: relation
+  relation:
+    type: m2m
+    schema: topic
+    owner: true
+    field: groups

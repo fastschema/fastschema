@@ -6,10 +6,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ogen-go/ogen"
+
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/ogen-go/ogen"
 )
 
 // CreateParameters creates openapi parameters from app args.
