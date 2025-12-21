@@ -475,9 +475,10 @@ func (a *App) createDBClient() (err error) {
 
 func (a *App) createMailClients() (err error) {
 	if a.config.MailConfig == nil {
-		if utils.Env("MAIL") != "" {
-			if err := json.Unmarshal([]byte(utils.Env("MAIL")), &a.config.MailConfig); err != nil {
-				return err
+		mail := utils.Env("FASTSCHEMA_MAIL")
+		if mail != "" {
+			if err := json.Unmarshal([]byte(mail), &a.config.MailConfig); err != nil {
+				return fmt.Errorf("error parsing the (Json) FASTSCHEMA_MAIL environment variable: %v", err)
 			}
 		} else {
 			a.config.MailConfig = &fs.MailConfig{}
