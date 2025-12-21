@@ -478,7 +478,7 @@ func (a *App) createMailClients() (err error) {
 		mail := utils.Env("FASTSCHEMA_MAIL")
 		if mail != "" {
 			if err := json.Unmarshal([]byte(mail), &a.config.MailConfig); err != nil {
-				return fmt.Errorf("error parsing the (Json) FASTSCHEMA_MAIL environment variable: %v", err)
+				return fmt.Errorf("error parsing the (Json) FASTSCHEMA_MAIL environment variable: %W", err)
 			}
 		} else {
 			a.config.MailConfig = &fs.MailConfig{}
