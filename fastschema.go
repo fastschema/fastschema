@@ -274,6 +274,13 @@ func (a *App) Mailers() []fs.Mailer {
 	return a.mailClients
 }
 
+func (a *App) EmailTemplates() *fs.EmailTemplates {
+	if a.config.MailConfig == nil {
+		return nil
+	}
+	return a.config.MailConfig.Templates
+}
+
 func (a *App) Reload(ctx context.Context, migration *db.Migration) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()

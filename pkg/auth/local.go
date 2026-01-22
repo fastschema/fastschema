@@ -33,6 +33,7 @@ type LocalProvider struct {
 	activationURL       string
 	recoveryURL         string
 	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
+	emailTemplates      func() *fs.EmailTemplates
 }
 
 func NewLocalAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
@@ -53,6 +54,7 @@ func (la *LocalProvider) Init(
 	appBaseURL func() string,
 	mailer func(names ...string) fs.Mailer,
 	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc,
+	emailTemplates func() *fs.EmailTemplates,
 ) {
 	la.db = db
 	la.appKey = appKey
@@ -60,6 +62,7 @@ func (la *LocalProvider) Init(
 	la.mailer = mailer
 	la.appBaseURL = appBaseURL
 	la.jwtCustomClaimsFunc = jwtCustomClaimsFunc
+	la.emailTemplates = emailTemplates
 
 	if la.activationURL == "" {
 		la.activationURL = appBaseURL() + "/auth/local/activate"
