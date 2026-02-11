@@ -263,8 +263,19 @@ func createObjectPredicates(
 				return nil, filterError(schema.ErrFieldNotFound(s.Name, pair.Key))
 			}
 			fieldPath = pair.Key
-			if fieldPredicates, err = createFieldPredicate(f, pair.Value); err != nil {
-				return nil, err
+
+			// For relation fields without dot notation (implicit PK filter),
+			// create predicates directly without type validation.
+			// The transformation to target schema's PK happens in createEntPredicates.
+			// E.g. {"country": 1} or {"country": {"$in": [1, 2, 3]}}
+			if f.Type.IsRelationType() {
+				if fieldPredicates, err = createRelationFieldPredicates(f.Name, pair.Value); err != nil {
+					return nil, err
+				}
+			} else {
+				if fieldPredicates, err = createFieldPredicate(f, pair.Value); err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -298,6 +309,14 @@ func createObjectPredicates(
 	return predicates, nil
 }
 
+// createRelationFieldPredicates creates predicates for a relation field without dot notation.
+// This handles implicit PK filtering like {"country": 1} or {"country": {"$in": [1, 2, 3]}}.
+// Unlike createFieldPredicate, this doesn't validate the value type since the actual
+// field type (the target schema's PK) is resolved later in createEntPredicates.
+func createRelationFieldPredicates(fieldName string, value any) ([]*Predicate, error) {
+	return createPredicatesFromValue(fieldName, value, nil)
+}
+
 // createFieldPredicate creates predicates for a single field
 // A field can have multiple operators, e.g.
 // { "age": { "$gt": 1, "$lt": 10 } } --> age > 1 AND age < 10
@@ -311,6 +330,13 @@ func createFieldPredicate(
 	field *schema.Field,
 	value any,
 ) ([]*Predicate, error) {
+	return createPredicatesFromValue(field.Name, value, field)
+}
+
+// createPredicatesFromValue creates predicates from a value for a given field name.
+// If field is provided, it validates the value type against the field type.
+// If field is nil, no type validation is performed (used for relation fields).
+func createPredicatesFromValue(fieldName string, value any, field *schema.Field) ([]*Predicate, error) {
 	switch fieldValue := value.(type) {
 	// If the value is an entity, it means there are some operators. E.g.
 	// { "age": { "$gt": 1, "$lt": 10 } }
@@ -319,10 +345,15 @@ func createFieldPredicate(
 		predicates := []*Predicate{}
 		for p := fieldValue.First(); p != nil; p = p.Next() {
 			op := stringToOperatorTypes[p.Key]
-			if op != OpNULL && !field.IsValidValue(p.Value) {
+			if op == OpInvalid {
+				return nil, filterError(fmt.Errorf("invalid operator %s for field %s", p.Key, fieldName))
+			}
+
+			// Validate value type if field is provided (skip for relation fields)
+			if field != nil && op != OpNULL && !field.IsValidValue(p.Value) {
 				return nil, filterError(fmt.Errorf(
 					"invalid value for field %s.%s (%s) = %v (%T)",
-					field.Name,
+					fieldName,
 					p.Key,
 					field.Type,
 					p.Value,
@@ -330,89 +361,100 @@ func createFieldPredicate(
 				))
 			}
 
-			switch stringToOperatorTypes[p.Key] {
-			case OpEQ:
-				predicates = append(predicates, EQ(field.Name, p.Value))
-			case OpNEQ:
-				predicates = append(predicates, NEQ(field.Name, p.Value))
-			case OpGT:
-				predicates = append(predicates, GT(field.Name, p.Value))
-			case OpGTE:
-				predicates = append(predicates, GTE(field.Name, p.Value))
-			case OpLT:
-				predicates = append(predicates, LT(field.Name, p.Value))
-			case OpLTE:
-				predicates = append(predicates, LTE(field.Name, p.Value))
-			case OpLike:
-				stringVal, ok := p.Value.(string)
-				if !ok {
-					return nil, filterError(errors.New("$like operator must be a string"))
-				}
-				predicates = append(predicates, Like(field.Name, stringVal))
-			case OpNotLike:
-				stringVal, ok := p.Value.(string)
-				if !ok {
-					return nil, filterError(errors.New("$notlike operator must be a string"))
-				}
-				predicates = append(predicates, NotLike(field.Name, stringVal))
-			case OpContains:
-				stringVal, ok := p.Value.(string)
-				if !ok {
-					return nil, filterError(errors.New("$contains operator must be a string"))
-				}
-				predicates = append(predicates, Contains(field.Name, stringVal))
-			case OpNotContains:
-				stringVal, ok := p.Value.(string)
-				if !ok {
-					return nil, filterError(errors.New("$notcontains operator must be a string"))
-				}
-				predicates = append(predicates, NotContains(field.Name, stringVal))
-			case OpContainsFold:
-				stringVal, ok := p.Value.(string)
-				if !ok {
-					return nil, filterError(errors.New("$containsfold operator must be a string"))
-				}
-				predicates = append(predicates, ContainsFold(field.Name, stringVal))
-			case OpNotContainsFold:
-				stringVal, ok := p.Value.(string)
-				if !ok {
-					return nil, filterError(errors.New("$notcontainsfold operator must be a string"))
-				}
-				predicates = append(predicates, NotContainsFold(field.Name, stringVal))
-			case OpIN:
-				arrayVal, ok := p.Value.([]any)
-				if !ok {
-					return nil, filterError(errors.New("$in operator must be an array"))
-				}
-				predicates = append(predicates, In(field.Name, arrayVal))
-			case OpNIN:
-				arrayVal, ok := p.Value.([]any)
-				if !ok {
-					return nil, filterError(errors.New("$nin operator must be an array"))
-				}
-				predicates = append(predicates, NotIn(field.Name, arrayVal))
-			case OpNULL:
-				boolVal, ok := p.Value.(bool)
-				if !ok {
-					return nil, filterError(errors.New("$null operator must be a boolean"))
-				}
-				predicates = append(predicates, Null(field.Name, boolVal))
+			predicate, err := createOperatorPredicate(fieldName, op, p.Value)
+			if err != nil {
+				return nil, err
 			}
+			predicates = append(predicates, predicate)
 		}
-
 		return predicates, nil
 	// If the value is primitive
 	// --> create a simple EQ predicate (string, int, uint, bool, etc.)
 	default:
-		if !field.IsValidValue(fieldValue) {
+		// Validate value type if field is provided (skip for relation fields)
+		if field != nil && !field.IsValidValue(fieldValue) {
 			return nil, filterError(fmt.Errorf(
 				"invalid value for field %s (%s) = %v (%T)",
-				field.Name,
+				fieldName,
 				field.Type,
 				fieldValue,
 				fieldValue,
 			))
 		}
-		return []*Predicate{EQ(field.Name, fieldValue)}, nil
+		return []*Predicate{EQ(fieldName, fieldValue)}, nil
+	}
+}
+
+// createOperatorPredicate creates a single predicate for a given operator and value.
+func createOperatorPredicate(fieldName string, op OperatorType, value any) (*Predicate, error) {
+	switch op {
+	case OpEQ:
+		return EQ(fieldName, value), nil
+	case OpNEQ:
+		return NEQ(fieldName, value), nil
+	case OpGT:
+		return GT(fieldName, value), nil
+	case OpGTE:
+		return GTE(fieldName, value), nil
+	case OpLT:
+		return LT(fieldName, value), nil
+	case OpLTE:
+		return LTE(fieldName, value), nil
+	case OpLike:
+		stringVal, ok := value.(string)
+		if !ok {
+			return nil, filterError(errors.New("$like operator must be a string"))
+		}
+		return Like(fieldName, stringVal), nil
+	case OpNotLike:
+		stringVal, ok := value.(string)
+		if !ok {
+			return nil, filterError(errors.New("$notlike operator must be a string"))
+		}
+		return NotLike(fieldName, stringVal), nil
+	case OpContains:
+		stringVal, ok := value.(string)
+		if !ok {
+			return nil, filterError(errors.New("$contains operator must be a string"))
+		}
+		return Contains(fieldName, stringVal), nil
+	case OpNotContains:
+		stringVal, ok := value.(string)
+		if !ok {
+			return nil, filterError(errors.New("$notcontains operator must be a string"))
+		}
+		return NotContains(fieldName, stringVal), nil
+	case OpContainsFold:
+		stringVal, ok := value.(string)
+		if !ok {
+			return nil, filterError(errors.New("$containsfold operator must be a string"))
+		}
+		return ContainsFold(fieldName, stringVal), nil
+	case OpNotContainsFold:
+		stringVal, ok := value.(string)
+		if !ok {
+			return nil, filterError(errors.New("$notcontainsfold operator must be a string"))
+		}
+		return NotContainsFold(fieldName, stringVal), nil
+	case OpIN:
+		arrayVal, ok := value.([]any)
+		if !ok {
+			return nil, filterError(errors.New("$in operator must be an array"))
+		}
+		return In(fieldName, arrayVal), nil
+	case OpNIN:
+		arrayVal, ok := value.([]any)
+		if !ok {
+			return nil, filterError(errors.New("$nin operator must be an array"))
+		}
+		return NotIn(fieldName, arrayVal), nil
+	case OpNULL:
+		boolVal, ok := value.(bool)
+		if !ok {
+			return nil, filterError(errors.New("$null operator must be a boolean"))
+		}
+		return Null(fieldName, boolVal), nil
+	default:
+		return nil, filterError(fmt.Errorf("unsupported operator %s", op))
 	}
 }

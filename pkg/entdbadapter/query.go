@@ -1084,28 +1084,3 @@ func (q *Query) loadOwnerEdges(
 
 	return nil
 }
-
-func fieldTypeError(fieldType string, fieldValue any) error {
-	return fmt.Errorf("expected value of type '%s', got '%T'", fieldType, fieldValue)
-}
-
-func invalidFKError(edgeSchemaName, fkColumn string, id any, err error) error {
-	return fmt.Errorf(
-		`invalid FK value %s.%s for node id=%v: %w`,
-		edgeSchemaName, fkColumn, id, err,
-	)
-}
-
-func noFKNodeError(schemaName, edgeSchemaName, fkColumn string, id, fk any) error {
-	return fmt.Errorf(
-		`no FK node (%s) found for (%s=%v).%s=%v`,
-		schemaName, edgeSchemaName, id, fkColumn, fk,
-	)
-}
-
-func invalidEntityArrayError(schemaName, fieldName string, edgeValues any) error {
-	return fmt.Errorf(
-		`edge values %s.%s=%v (%T) is not []*entity.Entity`,
-		schemaName, fieldName, edgeValues, edgeValues,
-	)
-}

@@ -3,6 +3,7 @@ package contentservice
 import (
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
@@ -28,6 +29,8 @@ func (cs *ContentService) Detail(c fs.Context, _ any) (*entity.Entity, error) {
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
+
+	spew.Dump(relationOptions)
 
 	query := model.Query(db.EQ("id", id)).Select(columns...)
 

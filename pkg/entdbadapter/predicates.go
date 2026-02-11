@@ -61,6 +61,28 @@ func createEntPredicates(
 		// Parse dot notation in field name to extract relation field names
 		// This allows using db.EQ("teams.slug", value) for relation filtering
 		relationFields, fieldName := parseFieldPath(p.Field)
+
+		// Check if this is a relation field without dot notation (implicit PK filter)
+		// E.g. db.EQ("tags", 1) should be transformed to db.EQ("tags.id", 1)
+		if len(relationFields) == 0 && p.Field != "" {
+			field := model.schema.Field(p.Field)
+			if field != nil && field.Type.IsRelationType() {
+				targetSchema, err := entAdapter.SchemaBuilder().Schema(field.Relation.TargetSchemaName)
+				if err != nil {
+					return nil, fmt.Errorf("invalid relation schema %s: %w", field.Relation.TargetSchemaName, err)
+				}
+
+				pkFieldName := targetSchema.PrimaryKeyName()
+				if pkFieldName == "" {
+					return nil, fmt.Errorf("target schema %s has no primary key field", field.Relation.TargetSchemaName)
+				}
+
+				// Transform: "tags" -> relation filter on "tags" with PK field
+				relationFields = []string{p.Field}
+				fieldName = pkFieldName
+			}
+		}
+
 		if len(relationFields) > 0 {
 			relationPredicateFn, err := createRelationsPredicate(
 				entAdapter,

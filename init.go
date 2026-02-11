@@ -402,7 +402,7 @@ func (a *App) createAuthProviders() (err error) {
 		}
 
 		if !utils.Contains(availableProviders, name) {
-			return fmt.Errorf("auth provider %s is not founud", name)
+			return fmt.Errorf("auth provider %s is not found", name)
 		}
 
 		config := a.config.AuthConfig.Providers[name]

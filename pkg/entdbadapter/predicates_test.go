@@ -414,6 +414,61 @@ func TestCreateEntPredicates(t *testing.T) {
 			expectQuery: "NOT (`posts`.`id` IN (SELECT `post_legacy_tags`.`legacy_post_ref` FROM `post_legacy_tags` JOIN `tags` AS `t1` ON `post_legacy_tags`.`legacy_tag_ref` = `t1`.`id` WHERE `t1`.`id` = ?))",
 			expectArgs:  []any{uint64(42)},
 		},
+		// Implicit PK filter tests
+		{
+			name:  "ImplicitPKFilterEQ",
+			model: postModel,
+			predicates: []*db.Predicate{
+				db.EQ("tags", uint64(1)),
+			},
+			expectQuery: "`posts`.`id` IN (SELECT `posts_tags`.`posts` FROM `posts_tags` JOIN `tags` AS `t1` ON `posts_tags`.`tags` = `t1`.`id` WHERE `t1`.`id` = ?)",
+			expectArgs:  []any{uint64(1)},
+		},
+		{
+			name:  "ImplicitPKFilterIn",
+			model: postModel,
+			predicates: []*db.Predicate{
+				db.In("tags", []any{uint64(1), uint64(2)}),
+			},
+			expectQuery: "`posts`.`id` IN (SELECT `posts_tags`.`posts` FROM `posts_tags` JOIN `tags` AS `t1` ON `posts_tags`.`tags` = `t1`.`id` WHERE `t1`.`id` IN (?, ?))",
+			expectArgs:  []any{uint64(1), uint64(2)},
+		},
+		{
+			name:  "ImplicitPKFilterNEQ",
+			model: postModel,
+			predicates: []*db.Predicate{
+				db.NEQ("tags", uint64(10)),
+			},
+			expectQuery: "NOT (`posts`.`id` IN (SELECT `posts_tags`.`posts` FROM `posts_tags` JOIN `tags` AS `t1` ON `posts_tags`.`tags` = `t1`.`id` WHERE `t1`.`id` = ?))",
+			expectArgs:  []any{uint64(10)},
+		},
+		{
+			name:  "ImplicitPKFilterNIN",
+			model: postModel,
+			predicates: []*db.Predicate{
+				db.NotIn("tags", []any{uint64(1), uint64(2)}),
+			},
+			expectQuery: "NOT (`posts`.`id` IN (SELECT `posts_tags`.`posts` FROM `posts_tags` JOIN `tags` AS `t1` ON `posts_tags`.`tags` = `t1`.`id` WHERE `t1`.`id` IN (?, ?)))",
+			expectArgs:  []any{uint64(1), uint64(2)},
+		},
+		{
+			name:  "ImplicitPKFilterGT",
+			model: postModel,
+			predicates: []*db.Predicate{
+				db.GT("tags", uint64(5)),
+			},
+			expectQuery: "`posts`.`id` IN (SELECT `posts_tags`.`posts` FROM `posts_tags` JOIN `tags` AS `t1` ON `posts_tags`.`tags` = `t1`.`id` WHERE `t1`.`id` > ?)",
+			expectArgs:  []any{uint64(5)},
+		},
+		{
+			name:  "ImplicitPKFilterCustomColumns",
+			model: postModel,
+			predicates: []*db.Predicate{
+				db.EQ("legacy_tags", uint64(100)),
+			},
+			expectQuery: "`posts`.`id` IN (SELECT `post_legacy_tags`.`legacy_post_ref` FROM `post_legacy_tags` JOIN `tags` AS `t1` ON `post_legacy_tags`.`legacy_tag_ref` = `t1`.`id` WHERE `t1`.`id` = ?)",
+			expectArgs:  []any{uint64(100)},
+		},
 	}
 
 	for _, tt := range tests {
