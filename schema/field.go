@@ -22,7 +22,7 @@ type Field struct {
 	Unique        bool           `json:"unique,omitempty"`    // column with unique constraint.
 	Optional      bool           `json:"optional,omitempty"`  // null or not null attribute.
 	Default       any            `json:"default,omitempty"`   // default value.
-	Immutable     bool           `json:"immutable,omitempty"` // immutable field.
+	Immutable     bool           `json:"immutable,omitempty"` // cannot be changed after creation.
 	Setter        string         `json:"setter,omitempty"`    // setter expression.
 	Getter        string         `json:"getter,omitempty"`    // getter expression.
 	setterProgram *SetterProgram `json:"-"`                   // Compiled setter program
@@ -37,12 +37,10 @@ type Field struct {
 
 	// SystemField is field created from Go code, not from user schema.
 	IsSystemField bool `json:"is_system_field,omitempty"` // Is a system field.
-	// Lock flag to prevent the field from being modified from API.
-	IsLocked bool `json:"is_locked,omitempty"` // Is a locked field.
 }
 
 // Init initializes the field.
-// schemaNames is the current schema that the field belongs to.
+// schemaNames is the source schema that the field belongs to.
 // schemaNames is required for file field.
 func (f *Field) Init(schemaNames ...string) (err error) {
 	if f.DB == nil {
@@ -85,13 +83,12 @@ func (f *Field) Clone() *Field {
 		Unique:        f.Unique,
 		Optional:      f.Optional,
 		Default:       f.Default,
-		Immutable:     f.Immutable,
 		Setter:        f.Setter,
 		Getter:        f.Getter,
 		Sortable:      f.Sortable,
 		Filterable:    f.Filterable,
 		IsSystemField: f.IsSystemField,
-		IsLocked:      f.IsLocked,
+		Immutable:     f.Immutable,
 		Relation:      f.Relation.Clone(),
 		DB:            f.DB.Clone(),
 	}
@@ -249,7 +246,7 @@ func MergeFields(f1, f2 *Field) {
 	f1.Sortable = f2.Sortable
 	f1.Filterable = f2.Filterable
 	f1.IsSystemField = f2.IsSystemField
-	f1.IsLocked = f2.IsLocked
+	f1.Immutable = f2.Immutable
 }
 
 func ErrInvalidFieldValue(fieldName string, value any, errs ...error) error {

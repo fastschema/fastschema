@@ -12,8 +12,8 @@ func TestRelation(t *testing.T) {
 		TargetSchemaName: "user",
 		TargetFieldName:  "id",
 		Owner:            false,
-		SchemaName:       "post",
-		FieldName:        "owner_id",
+		SourceSchemaName: "post",
+		SourceFieldName:  "owner_id",
 		Optional:         false,
 	}
 
@@ -39,13 +39,13 @@ func TestRelation(t *testing.T) {
 
 	relation.Init(schema, schema, field)
 	assert.Equal(t, field.Optional, relation.Optional)
-	assert.Equal(t, field.Name, relation.FieldName)
+	assert.Equal(t, field.Name, relation.SourceFieldName)
 	assert.Equal(t, "post.owner-user.id", relation.Name)
-	assert.Equal(t, "owner_id", relation.GetTargetFKColumn())
+	assert.Equal(t, "owner_id", relation.SourceColumn)
 	assert.Equal(t, "user.id-post.owner", relation.GetBackRefName())
 	assert.Equal(t, false, relation.IsSameType())
 	assert.Equal(t, true, relation.HasFKs())
-	_, err := relation.CreateFKFields()
+	_, err := relation.CreateFKField()
 	assert.NoError(t, err)
 
 	assert.Equal(t, "relation node post.owner: 'user' is not found", NewRelationNodeError(schema, field).Error())
@@ -61,8 +61,8 @@ func TestRelationClone(t *testing.T) {
 		TargetSchemaName: "user",
 		TargetFieldName:  "id",
 		Owner:            false,
-		SchemaName:       "post",
-		FieldName:        "owner_id",
+		SourceSchemaName: "post",
+		SourceFieldName:  "owner_id",
 		Optional:         false,
 	}
 
@@ -73,39 +73,4 @@ func TestRelationClone(t *testing.T) {
 	assert.Equal(t, relation.Type, clone.Type)
 	assert.Equal(t, relation.Owner, clone.Owner)
 	assert.Equal(t, relation.Optional, clone.Optional)
-}
-
-func TestRelationGetFKColumns(t *testing.T) {
-	relation := &Relation{
-		Type:             O2M,
-		TargetSchemaName: "user",
-		TargetFieldName:  "id",
-		Owner:            false,
-		SchemaName:       "post",
-		FieldName:        "owner_id",
-		Optional:         false,
-	}
-
-	// Test when relation has FK columns
-	relation.FKColumns = &RelationFKColumns{
-		CurrentColumn: "owner_id",
-		TargetColumn:  "id",
-	}
-
-	fkColumns := relation.GetFKColumns()
-	assert.NotNil(t, fkColumns)
-	assert.Equal(t, "owner_id", fkColumns.CurrentColumn)
-	assert.Equal(t, "id", fkColumns.TargetColumn)
-
-	// Test when relation does not have FK columns
-	relation.FKColumns = nil
-
-	fkColumns = relation.GetFKColumns()
-	assert.Nil(t, fkColumns)
-}
-
-func TestRelationGetFKColumnsNil(t *testing.T) {
-	relation := &Relation{Type: M2M}
-	fkColumns := relation.GetFKColumns()
-	assert.Nil(t, fkColumns)
 }

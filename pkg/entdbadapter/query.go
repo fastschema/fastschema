@@ -241,7 +241,7 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 				relation := column.field.Relation
 				q.withEdgesFields = append(q.withEdgesFields, column.field)
 				if relation.Type != schema.M2M && !relation.Owner {
-					fkColumns = append(fkColumns, relation.GetTargetFKColumn())
+					fkColumns = append(fkColumns, relation.SourceColumn)
 				}
 			} else if fieldName != q.model.entIDColumn.Name {
 				directColumnNames = append(directColumnNames, fieldName)
@@ -454,8 +454,8 @@ func (q *Query) loadEdgesM2M(
 	}
 
 	relation := field.Relation
-	conditionColumn := utils.If(relation.IsBidi(), relation.SchemaName, relation.BackRef.FieldName)
-	joinColumn := utils.If(relation.IsBidi(), relation.SchemaName, relation.FieldName)
+	conditionColumn := utils.If(relation.IsBidi(), relation.SourceSchemaName, relation.BackRef.SourceFieldName)
+	joinColumn := utils.If(relation.IsBidi(), relation.SourceSchemaName, relation.SourceFieldName)
 
 	// Separate direct columns from nested field paths and relation fields
 	directColumns := []string{}
@@ -484,7 +484,7 @@ func (q *Query) loadEdgesM2M(
 		joinJuntion := sql.Table(relation.JunctionTable)
 		s.Join(joinJuntion).On(joinJuntion.C(joinColumn), s.C(edgeModel.entIDColumn.Name))
 		s.Where(sql.InValues(joinJuntion.C(conditionColumn), edgeIDs...))
-		s.Select(joinJuntion.C(relation.BackRef.FieldName) + " AS " + relation.BackRef.FieldName + "_id")
+		s.Select(joinJuntion.C(relation.BackRef.SourceFieldName) + " AS " + relation.BackRef.SourceFieldName + "_id")
 
 		// Need complete entity data for recursive loading
 		if len(directColumns) == 0 || len(relationFields) > 0 || len(nestedFields) > 0 {
@@ -551,7 +551,7 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 	edgeSchemaName := relation.TargetSchemaName
 	ids := make([]any, 0, len(q.entities))
 	nodeids := make(map[uint64][]*entity.Entity)
-	fkColumn := relation.GetTargetFKColumn()
+	fkColumn := relation.SourceColumn
 
 	for _, entity := range q.entities {
 		fkUint64, err := entity.GetUint64(fkColumn, true)
@@ -642,7 +642,7 @@ func (q *Query) loadOwnerEdges(
 	edgeSchemaName := relation.TargetSchemaName
 	fks := make([]any, 0, len(q.entities))
 	nodeids := make(map[uint64]*entity.Entity)
-	fkColumn := relation.BackRef.GetTargetFKColumn()
+	fkColumn := relation.BackRef.SourceColumn
 
 	for _, entity := range q.entities {
 		entityID := entity.ID()

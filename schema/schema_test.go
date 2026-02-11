@@ -33,7 +33,7 @@ func TestSchema(t *testing.T) {
 		Filterable:    true,
 		Sortable:      true,
 		IsSystemField: true,
-		IsLocked:      true,
+		Immutable:     true,
 	}, s.Field(entity.FieldID))
 	assert.True(t, len(s.dbColumns) > 0)
 

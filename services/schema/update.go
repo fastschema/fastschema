@@ -279,16 +279,16 @@ func (su *SchemaUpdate) applyRenameRelationField(newField *schema.Field) (err er
 
 		su.updateData.RenameFields = append(su.updateData.RenameFields, &db.RenameItem{
 			Type:            "column",
-			From:            originalFieldRelation.FKColumns.CurrentColumn,
-			To:              newFieldRelation.FKColumns.CurrentColumn,
+			From:            originalFieldRelation.TargetColumn,
+			To:              newFieldRelation.TargetColumn,
 			SchemaName:      originalJunctionSchema.Name,      // newJunctionSchema.Name
 			SchemaNamespace: originalJunctionSchema.Namespace, // newJunctionSchema.Namespace
 		})
 
 		su.updateData.RenameFields = append(su.updateData.RenameFields, &db.RenameItem{
 			Type:            "column",
-			From:            originalFieldRelation.FKColumns.TargetColumn,
-			To:              newFieldRelation.FKColumns.TargetColumn,
+			From:            originalFieldRelation.SourceColumn,
+			To:              newFieldRelation.SourceColumn,
 			SchemaName:      originalJunctionSchema.Name,      // newJunctionSchema.Name
 			SchemaNamespace: originalJunctionSchema.Namespace, // newJunctionSchema.Namespace
 		})
@@ -304,8 +304,8 @@ func (su *SchemaUpdate) applyRenameRelationField(newField *schema.Field) (err er
 
 	su.updateData.RenameFields = append(su.updateData.RenameFields, &db.RenameItem{
 		Type:            "column",
-		From:            originalFieldRelation.GetTargetFKColumn(),
-		To:              newFieldRelation.GetTargetFKColumn(),
+		From:            originalFieldRelation.SourceColumn,
+		To:              newFieldRelation.SourceColumn,
 		SchemaName:      su.currentSchema.Name,
 		SchemaNamespace: su.currentSchema.Namespace,
 	})

@@ -74,10 +74,14 @@ func SliceEqual[T comparable](slice1 []T, slice2 []T) bool {
 	return true
 }
 
-func SliceInsertBeforeElement[T comparable](slice []T, newElement T, checkIndexFn func(element T) bool) []T {
+func SliceInsertBeforeElement[T comparable](
+	slice []T,
+	newElement T,
+	getElementIndexFn func(element T) bool,
+) []T {
 	var index = -1
 	for i, e := range slice {
-		if checkIndexFn(e) {
+		if getElementIndexFn(e) {
 			index = i
 		}
 	}

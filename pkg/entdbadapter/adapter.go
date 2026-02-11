@@ -185,12 +185,12 @@ func (d *Adapter) init() error {
 
 	for _, r := range d.schemaBuilder.Relations() {
 		onDelete := utils.If(r.Optional, entSchema.SetNull, entSchema.NoAction)
-		targetSchema, err := d.schemaBuilder.Schema(r.SchemaName)
+		currentSchema, err := d.schemaBuilder.Schema(r.SourceSchemaName)
 		if err != nil {
 			return err
 		}
 
-		currentModel, err := d.model(r.SchemaName)
+		currentModel, err := d.model(r.SourceSchemaName)
 		if err != nil {
 			return err
 		}
@@ -207,7 +207,7 @@ func (d *Adapter) init() error {
 			currentModel.entTable.ForeignKeys = append(
 				currentModel.entTable.ForeignKeys,
 				&entSchema.ForeignKey{
-					Symbol:     fmt.Sprintf("%s_%s", targetSchema.Name, r.GetTargetFKColumn()),
+					Symbol:     fmt.Sprintf("%s_%s", currentSchema.Name, r.SourceColumn),
 					Columns:    []*entSchema.Column{createEntColumn(r.FKFields[0])},
 					RefColumns: []*entSchema.Column{targetModel.entIDColumn},
 					OnDelete:   onDelete,
@@ -239,26 +239,32 @@ func (d *Adapter) init() error {
 		}
 
 		inverse := !r.IsBidi() && !r.Owner
-		fkColumns := utils.If(
+		sourceColumn := utils.If(
 			!r.Owner || r.Type.IsM2M(),
-			r.FKColumns,
-			r.BackRef.FKColumns,
+			r.SourceColumn,
+			utils.If(r.BackRef != nil, r.BackRef.SourceColumn, ""),
+		)
+		targetColumn := utils.If(
+			!r.Owner || r.Type.IsM2M(),
+			r.TargetColumn,
+			utils.If(r.BackRef != nil, r.BackRef.TargetColumn, ""),
 		)
 
-		// If the relation is not M2M, there should be only one foreign key column.
-		// the column is the foreign key column of the target schema
-		// If the relation is M2M, there should be two foreign key columns.
-		// the first column is the foreign key column of the current schema
-		// the second column is the foreign key column of the target schema
+		// If the relation is not M2M, there should be only one foreign key column:
+		//   - SourceColumn: the source schema FK column that references the target schema's PK
+		// If the relation is M2M, there should be two foreign key columns in the junction table:
+		//   - TargetColumn: the FK column that references the target schema's PK
+		//   - SourceColumn: the FK column that references the current schema's PK
+		// The order of columns depends on whether the relation is inverse.
 		columns := utils.If(
 			!r.Type.IsM2M(),
-			[]string{fkColumns.TargetColumn},
+			[]string{sourceColumn},
 			utils.If(inverse, []string{
-				fkColumns.TargetColumn,
-				fkColumns.CurrentColumn,
+				sourceColumn,
+				targetColumn,
 			}, []string{
-				fkColumns.CurrentColumn,
-				fkColumns.TargetColumn,
+				targetColumn,
+				sourceColumn,
 			}),
 		)
 
@@ -266,7 +272,7 @@ func (d *Adapter) init() error {
 		// Check the implementation at: schema/builder.go:CreateM2mJunctionSchema
 		// firstFKName := utils.If(r.IsBidi(), r.SchemaName, r.FieldName)
 		if r.IsBidi() && r.Type.IsM2M() {
-			columns[1] = r.SchemaName
+			columns[1] = r.SourceSchemaName
 		}
 
 		relEdgeSpec := sqlgraph.EdgeSpec{

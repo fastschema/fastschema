@@ -18,7 +18,7 @@ type testcategory struct {
 type testpost struct {
 	Name       string        `json:"name"`
 	CategoryID uint64        `json:"cat_id"`
-	Category   *testcategory `json:"category" fs.relation:"{'type':'o2m','schema':'testcategory','field':'posts','fk_columns':{'target_column':'cat_id'}}"`
+	Category   *testcategory `json:"category" fs.relation:"{'type':'o2m','schema':'testcategory','field':'posts','source_column':'cat_id'}"`
 }
 
 func TestNewBuilderFromSchemasErrorInvalidSchema(t *testing.T) {
@@ -270,8 +270,8 @@ func TestBuilderInitCreateFkError(t *testing.T) {
 		dir: "../tests/data/schemas",
 		relations: []*Relation{
 			{
-				SchemaName: "invalid",
-				BackRef:    &Relation{},
+				SourceSchemaName: "invalid",
+				BackRef:          &Relation{},
 			},
 		},
 	}
@@ -363,8 +363,8 @@ func TestBuilderCreateRelationsM2MInvalidSchema(t *testing.T) {
 		dir: "../tests/data/schemas",
 		relations: []*Relation{
 			{
-				Type:       M2M,
-				SchemaName: "invalid",
+				Type:             M2M,
+				SourceSchemaName: "invalid",
 			},
 		},
 	}
@@ -378,8 +378,8 @@ func TestBuilderCreateRelationsBackRefError(t *testing.T) {
 		dir: "../tests/data/schemas",
 		relations: []*Relation{
 			{
-				Type:       O2M,
-				SchemaName: "user",
+				Type:             O2M,
+				SourceSchemaName: "user",
 			},
 		},
 	}
@@ -398,8 +398,8 @@ func TestBuilderCreateRelationsJunctionSchemaError(t *testing.T) {
 		},
 		relations: []*Relation{
 			{
-				Type:       M2M,
-				SchemaName: "user",
+				Type:             M2M,
+				SourceSchemaName: "user",
 			},
 		},
 	}
@@ -415,15 +415,9 @@ func TestCreateM2mJunctionSchemaError(t *testing.T) {
 		relations: []*Relation{},
 	}
 
-	currentSchema := &Schema{
-		Name: "user",
-	}
-
-	relation := &Relation{
-		Type: O2M,
-	}
-
-	_, _, err := builder.CreateM2mJunctionSchema(currentSchema, relation)
+	sourceSchema := &Schema{Name: "user"}
+	relation := &Relation{Type: O2M}
+	_, _, err := builder.CreateM2mJunctionSchema(sourceSchema, relation)
 	assert.Error(t, err)
 }
 
@@ -502,5 +496,5 @@ func TestFKUseExistedField(t *testing.T) {
 	assert.NotNil(t, postSchema)
 	relation := sb.Relation("testpost.category-testcategory.posts")
 	assert.NotNil(t, relation)
-	assert.Equal(t, "cat_id", relation.FKColumns.TargetColumn)
+	assert.Equal(t, "cat_id", relation.SourceColumn)
 }

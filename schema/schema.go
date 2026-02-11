@@ -91,7 +91,7 @@ func (s *Schema) Init(disableIDColumn bool) error {
 		newIDField.Name = entity.FieldID
 		newIDField.Type = TypeUint64
 		newIDField.IsSystemField = true
-		newIDField.IsLocked = true
+		newIDField.Immutable = true
 		newIDField.Label = "ID"
 		newIDField.DB = &FieldDB{
 			Attr:      "UNSIGNED",
@@ -130,7 +130,7 @@ func (s *Schema) Init(disableIDColumn bool) error {
 		for _, timeField := range timeFields {
 			tsField := &Field{
 				IsSystemField: true,
-				IsLocked:      true,
+				Immutable:     true,
 				Type:          TypeTime,
 				Name:          timeField[0],
 				Label:         timeField[1],

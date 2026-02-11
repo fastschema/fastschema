@@ -6,36 +6,46 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
-type RelationFKColumns struct {
-	CurrentColumn string `json:"current_column"`
-	TargetColumn  string `json:"target_column"`
-}
-
 // Relation define the relation structure
 type Relation struct {
-	BackRef    *Relation `json:"-"` // back reference relation
-	Name       string    `json:"-"` // relation name: auto generated
-	SchemaName string    `json:"-"` // schema name: get from the current schema
-	FieldName  string    `json:"-"` // field name: get from the current field
+	BackRef          *Relation `json:"-"` // back reference relation
+	Name             string    `json:"-"` // relation name: auto generated
+	SourceSchemaName string    `json:"-"` // the source schema name
+	SourceFieldName  string    `json:"-"` // the source schema field name
 
-	TargetSchemaName string `json:"schema"`          // target schema name
-	TargetFieldName  string `json:"field,omitempty"` // target field name, aka the back reference field name
+	TargetSchemaName string `json:"schema"`          // the target schema name
+	TargetFieldName  string `json:"field,omitempty"` // the target schema field name
 
-	Type            RelationType       `json:"type"`            // the relation type: o2o, o2m, m2m
-	Owner           bool               `json:"owner,omitempty"` // the relation owner: true, false
-	FKColumns       *RelationFKColumns `json:"fk_columns"`
-	JunctionTable   string             `json:"junction_table,omitempty"` // junction table name for m2m relation
-	Optional        bool               `json:"optional"`
-	FKFields        []*Field           `json:"-"`
-	RelationSchemas []*Schema          `json:"-"` // for m2m relation
-	JunctionSchema  *Schema            `json:"-"` // for m2m relation
+	Type  RelationType `json:"type"`            // the relation type: o2o, o2m, m2m
+	Owner bool         `json:"owner,omitempty"` // the relation owner: true, false
+	// OnDelete specifies the action to take on delete
+	// e.g., "NO ACTION", "RESTRICT", "CASCADE", "SET NULL", "SET DEFAULT".
+	// Only used for O2O/O2M non-owner side
+	OnDelete ReferenceOptionType `json:"on_delete,omitempty"`
+
+	// SourceColumn is the FK column name in the source schema table
+	// (for O2O/O2M non-owner side)
+	// or the column referencing the target schema's PK
+	// in the M2M junction table.
+	SourceColumn string `json:"source_column"`
+	// TargetColumn is only used for M2M relations and
+	// represents the column referencing
+	// the source schema's primary key in the junction table.
+	TargetColumn string `json:"target_column"`
+
+	// JunctionTable is the junction table name for m2m relation
+	JunctionTable   string    `json:"junction_table,omitempty"`
+	Optional        bool      `json:"optional"`
+	FKFields        []*Field  `json:"-"`
+	RelationSchemas []*Schema `json:"-"` // for m2m relation
+	JunctionSchema  *Schema   `json:"-"` // for m2m relation
 }
 
 // Init initialize the relation
 func (r *Relation) Init(schema *Schema, relationSchema *Schema, f *Field) *Relation {
 	r.Optional = f.Optional
-	r.FieldName = f.Name
-	r.SchemaName = schema.Name
+	r.SourceFieldName = f.Name
+	r.SourceSchemaName = schema.Name
 	r.Name = fmt.Sprintf(
 		"%s.%s-%s.%s",
 		schema.Name,
@@ -45,10 +55,10 @@ func (r *Relation) Init(schema *Schema, relationSchema *Schema, f *Field) *Relat
 	)
 
 	if r.HasFKs() {
-		r.FKColumns = utils.If(
-			r.FKColumns == nil,
-			&RelationFKColumns{TargetColumn: f.Name + "_id"},
-			r.FKColumns,
+		r.SourceColumn = utils.If(
+			r.SourceColumn == "",
+			r.SourceFieldName+"_id",
+			r.SourceColumn,
 		)
 	}
 
@@ -63,15 +73,18 @@ func (r *Relation) Clone() *Relation {
 
 	// Skip clone auto generated fields
 	newRelation := &Relation{
-		Name:       r.Name,
-		SchemaName: r.SchemaName,
-		FieldName:  r.FieldName,
+		Name:             r.Name,
+		SourceSchemaName: r.SourceSchemaName,
+		SourceFieldName:  r.SourceFieldName,
 
 		TargetSchemaName: r.TargetSchemaName,
 		TargetFieldName:  r.TargetFieldName,
-		Type:             r.Type,
-		Owner:            r.Owner,
-		Optional:         r.Optional,
+
+		Type:         r.Type,
+		Owner:        r.Owner,
+		Optional:     r.Optional,
+		SourceColumn: r.SourceColumn,
+		TargetColumn: r.TargetColumn,
 	}
 
 	return newRelation
@@ -83,41 +96,19 @@ func (r *Relation) GetBackRefName() string {
 		"%s.%s-%s.%s",
 		r.TargetSchemaName,
 		r.TargetFieldName,
-		r.SchemaName,
-		r.FieldName,
+		r.SourceSchemaName,
+		r.SourceFieldName,
 	)
 }
 
 // IsSameType check if the relation is same type
 func (r *Relation) IsSameType() bool {
-	return r.SchemaName == r.TargetSchemaName
+	return r.SourceSchemaName == r.TargetSchemaName
 }
 
 // IsBidi check if the relation is bidirectional
 func (r *Relation) IsBidi() bool {
-	return r.IsSameType() && r.FieldName == r.TargetFieldName
-}
-
-// GetFKColumns return the foreign key columns
-func (r *Relation) GetFKColumns() *RelationFKColumns {
-	if r.HasFKs() {
-		return r.FKColumns
-	}
-
-	return nil
-}
-
-// GetTargetFKColumn return the FK column name for o2m and o2o relation
-func (r *Relation) GetTargetFKColumn() string {
-	// fkKeys := utils.GetMapKeys(r.FKColumns)
-
-	// if len(fkKeys) > 0 {
-	// 	return r.FKColumns[fkKeys[0]]
-	// }
-
-	// return ""
-
-	return r.FKColumns.TargetColumn
+	return r.IsSameType() && r.SourceFieldName == r.TargetFieldName
 }
 
 // HasFKs check if the relation has foreign keys
@@ -129,19 +120,19 @@ func (r *Relation) HasFKs() bool {
 	return isO2OTwoTypeNotOwner || isO2OSameTypeRecursiveNotOwner || isO2mNotOwner || isO2OBidi
 }
 
-// CreateFKFields create the foreign key fields
-func (r *Relation) CreateFKFields() (*Field, error) {
+// CreateFKField create the foreign key fields
+func (r *Relation) CreateFKField() (*Field, error) {
 	if !r.HasFKs() {
 		return nil, nil
 	}
 
-	fk := r.GetTargetFKColumn()
+	fkColumn := r.SourceColumn
 	fkField := &Field{
 		IsSystemField: true,
-		IsLocked:      true,
+		Immutable:     true,
 		Type:          TypeUint64,
-		Name:          fk,
-		Label:         fk,
+		Name:          fkColumn,
+		Label:         fkColumn,
 		Unique:        r.Type.IsO2O(),
 		Optional:      r.Optional,
 		DB: &FieldDB{
@@ -153,6 +144,7 @@ func (r *Relation) CreateFKFields() (*Field, error) {
 	if err := fkField.Init(); err != nil {
 		return nil, err
 	}
+
 	return fkField, nil
 }
 
@@ -168,8 +160,8 @@ func NewRelationNodeError(schema *Schema, field *Field) error {
 func NewRelationBackRefError(relation *Relation) error {
 	return fmt.Errorf(
 		"backref relation for %s.%s is not valid: '%s.%s', please check the 'field' property in the '%s.%s' relation definition",
-		relation.SchemaName,
-		relation.FieldName,
+		relation.SourceSchemaName,
+		relation.SourceFieldName,
 		relation.TargetSchemaName,
 		relation.TargetFieldName,
 		relation.TargetSchemaName,

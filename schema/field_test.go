@@ -215,13 +215,12 @@ func TestFieldClone(t *testing.T) {
 		Unique:        true,
 		Optional:      false,
 		Default:       0,
-		Immutable:     true,
 		Setter:        "5",
 		Sortable:      true,
 		Filterable:    true,
 		IsSystemField: false,
 		Relation: &Relation{
-			SchemaName:       "user",
+			SourceSchemaName: "user",
 			TargetSchemaName: "address",
 			TargetFieldName:  "address_id",
 		},
@@ -255,7 +254,6 @@ func TestFieldClone(t *testing.T) {
 	assert.Equal(t, field.Unique, clonedField.Unique)
 	assert.Equal(t, field.Optional, clonedField.Optional)
 	assert.Equal(t, field.Default, clonedField.Default)
-	assert.Equal(t, field.Immutable, clonedField.Immutable)
 	assert.Equal(t, field.Setter, clonedField.Setter)
 	assert.Equal(t, field.Sortable, clonedField.Sortable)
 	assert.Equal(t, field.Filterable, clonedField.Filterable)
@@ -386,7 +384,7 @@ func TestMergeFields(t *testing.T) {
 		Filterable:    true,
 		IsSystemField: false,
 		Relation: &Relation{
-			SchemaName:       "user",
+			SourceSchemaName: "user",
 			TargetSchemaName: "address",
 			TargetFieldName:  "address_id",
 		},
@@ -421,7 +419,7 @@ func TestMergeFields(t *testing.T) {
 		Filterable:    false,
 		IsSystemField: true,
 		Relation: &Relation{
-			SchemaName:       "user",
+			SourceSchemaName: "user",
 			TargetSchemaName: "address",
 			TargetFieldName:  "address_id",
 		},
@@ -462,7 +460,7 @@ func TestMergeFields(t *testing.T) {
 		Filterable:    false,
 		IsSystemField: true,
 		Relation: &Relation{
-			SchemaName:       "user",
+			SourceSchemaName: "user",
 			TargetSchemaName: "address",
 			TargetFieldName:  "address_id",
 		},

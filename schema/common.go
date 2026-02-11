@@ -386,3 +386,74 @@ func (t *RelationType) UnmarshalJSON(b []byte) error {
 	*t = stringToRelationTypes[j] // If the string can't be found, it will be set to the zero value: 'invalid'
 	return nil
 }
+
+type ReferenceOptionType int
+
+const (
+	ReferenceOptionTypeInvalid ReferenceOptionType = iota
+	NoAction
+	Restrict
+	Cascade
+	SetNull
+	SetDefault
+	endReferenceOptionTypes
+)
+
+var (
+	referenceOptionTypeToStrings = [...]string{
+		ReferenceOptionTypeInvalid: "INVALID",
+		NoAction:                   "NO ACTION",
+		Restrict:                   "RESTRICT",
+		Cascade:                    "CASCADE",
+		SetNull:                    "SET NULL",
+		SetDefault:                 "SET DEFAULT",
+	}
+
+	stringToReferenceOptionTypes = map[string]ReferenceOptionType{
+		"INVALID":     ReferenceOptionTypeInvalid,
+		"NO ACTION":   NoAction,
+		"RESTRICT":    Restrict,
+		"CASCADE":     Cascade,
+		"SET NULL":    SetNull,
+		"SET DEFAULT": SetDefault,
+	}
+)
+
+func ReferenceOptionTypeFromString(s string) ReferenceOptionType {
+	if r, ok := stringToReferenceOptionTypes[s]; ok {
+		return r
+	}
+
+	return ReferenceOptionTypeInvalid
+}
+
+// String returns the string representation of a type.
+func (t ReferenceOptionType) String() string {
+	if t < endReferenceOptionTypes {
+		return referenceOptionTypeToStrings[t]
+	}
+	return referenceOptionTypeToStrings[ReferenceOptionTypeInvalid]
+}
+
+// Valid reports if the given type if known type.
+func (t ReferenceOptionType) Valid() bool {
+	return t > ReferenceOptionTypeInvalid && t < endReferenceOptionTypes
+}
+
+// MarshalJSON marshal an enum value to the quoted json string value
+func (t ReferenceOptionType) MarshalJSON() ([]byte, error) {
+	buffer := bytes.NewBufferString(`"`)
+	buffer.WriteString(referenceOptionTypeToStrings[t])
+	buffer.WriteString(`"`)
+	return buffer.Bytes(), nil
+}
+
+// UnmarshalJSON unmashals a quoted json string to the enum value
+func (t *ReferenceOptionType) UnmarshalJSON(b []byte) error {
+	var j string
+	if err := json.Unmarshal(b, &j); err != nil {
+		return err
+	}
+	*t = stringToReferenceOptionTypes[j] // If the string can't be found, it will be set to the zero value: 'invalid'
+	return nil
+}

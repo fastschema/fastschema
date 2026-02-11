@@ -234,12 +234,12 @@ func (b *Builder) CreateRelations() (err error) {
 
 	for _, r := range b.relations {
 		if r.Type == M2M {
-			currentSchema, err := b.Schema(r.SchemaName)
+			sourceSchema, err := b.Schema(r.SourceSchemaName)
 			if err != nil {
 				return err
 			}
 
-			junctionSchema, exists, err := b.CreateM2mJunctionSchema(currentSchema, r)
+			junctionSchema, exists, err := b.CreateM2mJunctionSchema(sourceSchema, r)
 			if err != nil {
 				return err
 			}
@@ -265,14 +265,14 @@ func (b *Builder) CreateRelations() (err error) {
 // CreateFKs creates all foreign keys for relations
 func (b *Builder) CreateFKs() error {
 	for _, relation := range b.relations {
-		schema, err := b.Schema(relation.SchemaName)
+		schema, err := b.Schema(relation.SourceSchemaName)
 		if err != nil {
 			return err
 		}
 
 		// O2O and O2M relations
 		if relation.Type.IsO2O() || relation.Type.IsO2M() {
-			fkField, err := relation.CreateFKFields()
+			fkField, err := relation.CreateFKField()
 			if err != nil {
 				return err
 			}
@@ -293,7 +293,7 @@ func (b *Builder) CreateFKs() error {
 					)
 					schema.dbColumns = utils.SliceInsertBeforeElement(
 						schema.dbColumns,
-						relation.GetTargetFKColumn(),
+						relation.SourceColumn,
 						func(c string) bool {
 							return c == entity.FieldCreatedAt
 						},
@@ -330,7 +330,7 @@ func (b *Builder) Relation(name string) *Relation {
 	return nil
 }
 
-func (b *Builder) CreateM2mJunctionSchema(currentSchema *Schema, r *Relation) (*Schema, bool, error) {
+func (b *Builder) CreateM2mJunctionSchema(sourceSchema *Schema, r *Relation) (*Schema, bool, error) {
 	if r == nil || !r.Type.IsM2M() {
 		return nil, false, fmt.Errorf("field %s is not a m2m relation", r.Name)
 	}
@@ -340,24 +340,24 @@ func (b *Builder) CreateM2mJunctionSchema(currentSchema *Schema, r *Relation) (*
 		return nil, false, err
 	}
 
-	// firstFKName hold the relation information for the current schema
-	// secondFKName hold the relation information for the target schema
+	// firstFKName: the field name from the source schema (used as FK column name)
+	// secondFKName: the field name from the target schema (used as FK column name)
 	// If the relation is bidi, use the schema name as the first fk name to avoid conflicts
-	firstFKName := utils.If(r.IsBidi(), r.SchemaName, r.FieldName)
+	firstFKName := utils.If(r.IsBidi(), r.SourceSchemaName, r.SourceFieldName)
 	secondFKName := r.TargetFieldName
 
-	// The firstFKName is connected to the target schema
-	// The secondFKName is connected to the current schema
+	// The junction table's "firstFKName" column references the target schema's PK
+	// The junction table's "secondFKName" column references the source schema's PK
 	fKColumnNames := []string{firstFKName, secondFKName}
-	r.RelationSchemas = []*Schema{targetSchema, currentSchema}
-	r.FKColumns = &RelationFKColumns{
-		CurrentColumn: secondFKName,
-		TargetColumn:  firstFKName,
-	}
+	r.RelationSchemas = []*Schema{targetSchema, sourceSchema}
+	r.SourceColumn = firstFKName
+	r.TargetColumn = secondFKName
 
 	tableNameParts := []string{firstFKName, secondFKName}
 	sort.Strings(tableNameParts)
-	r.JunctionTable = strings.Join(tableNameParts, "_")
+	if r.JunctionTable == "" {
+		r.JunctionTable = strings.Join(tableNameParts, "_")
+	}
 
 	// If the junction schema already exists, skip creating it
 	junctionSchema, _ := b.Schema(r.JunctionTable)
