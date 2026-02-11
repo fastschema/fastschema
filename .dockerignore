@@ -1,0 +1,17 @@
+.git/
+.gitignore
+Dockerfile*
+.dockerignore
+node_modules/
+vendor/
+bin/
+build/
+dist/
+coverage/
+tests/coverage/
+*.log*
+.env*
+*.tmp
+.vscode/
+.idea/
+data/
