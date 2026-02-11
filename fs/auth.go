@@ -64,12 +64,58 @@ func AuthProviders() []string {
 	return list
 }
 
+// OTPConfig holds configuration for OTP-based passwordless authentication
+type OTPConfig struct {
+	Enabled     bool `json:"enabled"`      // default: false
+	Length      int  `json:"length"`       // default: 6
+	Expiration  int  `json:"expiration"`   // default: 300 = 5 minutes
+	MaxAttempts int  `json:"max_attempts"` // default: 3
+}
+
+// Clone creates a deep copy of OTPConfig
+func (oc *OTPConfig) Clone() *OTPConfig {
+	if oc == nil {
+		return nil
+	}
+	return &OTPConfig{
+		Enabled:     oc.Enabled,
+		Length:      oc.Length,
+		Expiration:  oc.Expiration,
+		MaxAttempts: oc.MaxAttempts,
+	}
+}
+
+// GetLength returns the OTP length with default value
+func (oc *OTPConfig) GetLength() int {
+	if oc == nil || oc.Length <= 0 {
+		return 6
+	}
+	return oc.Length
+}
+
+// GetExpiration returns the OTP expiration in seconds with default value
+func (oc *OTPConfig) GetExpiration() int {
+	if oc == nil || oc.Expiration <= 0 {
+		return 300 // 5 minutes
+	}
+	return oc.Expiration
+}
+
+// GetMaxAttempts returns the maximum attempts with default value
+func (oc *OTPConfig) GetMaxAttempts() int {
+	if oc == nil || oc.MaxAttempts <= 0 {
+		return 3
+	}
+	return oc.MaxAttempts
+}
+
 type AuthConfig struct {
 	EnabledProviders     []string       `json:"enabled_providers"`
 	Providers            map[string]Map `json:"providers"`
 	AccessTokenLifetime  int            `json:"access_token_lifetime"`  // default: 15 minutes if refresh token is enabled, 7 days if refresh token is disabled
 	RefreshTokenLifetime int            `json:"refresh_token_lifetime"` // default: 604800 = 7 days)
 	EnableRefreshToken   bool           `json:"enable_refresh_token"`   // default: false
+	OTP                  *OTPConfig     `json:"otp"`                    // OTP configuration
 }
 
 func (ac *AuthConfig) Clone() *AuthConfig {
@@ -83,6 +129,7 @@ func (ac *AuthConfig) Clone() *AuthConfig {
 		AccessTokenLifetime:  ac.AccessTokenLifetime,
 		RefreshTokenLifetime: ac.RefreshTokenLifetime,
 		EnableRefreshToken:   ac.EnableRefreshToken,
+		OTP:                  ac.OTP.Clone(),
 	}
 
 	copy(clone.EnabledProviders, ac.EnabledProviders)

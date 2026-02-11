@@ -35,6 +35,7 @@ var (
 	NotFound            = CreateErrorFn(http.StatusNotFound)
 	BadGateway          = CreateErrorFn(http.StatusBadGateway)
 	UnprocessableEntity = CreateErrorFn(http.StatusUnprocessableEntity)
+	TooManyRequests     = CreateErrorFn(http.StatusTooManyRequests)
 )
 
 var errStatusMap = map[int]func(msgs ...any) *Error{
@@ -45,6 +46,7 @@ var errStatusMap = map[int]func(msgs ...any) *Error{
 	http.StatusNotFound:            NotFound,
 	http.StatusBadGateway:          BadGateway,
 	http.StatusUnprocessableEntity: UnprocessableEntity,
+	http.StatusTooManyRequests:     TooManyRequests,
 }
 
 func GetErrorByStatus(status int, err error) *Error {

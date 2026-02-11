@@ -90,6 +90,10 @@ func (s testApp) GetAuthProvider(name string) fs.AuthProvider {
 	return s.authProviders[name]
 }
 
+func (s testApp) Mailer(names ...string) fs.Mailer {
+	return nil
+}
+
 type testAuthProvider struct{}
 
 func (t testAuthProvider) Name() string {

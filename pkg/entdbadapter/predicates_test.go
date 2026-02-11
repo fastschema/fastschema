@@ -327,7 +327,7 @@ func TestCreateEntPredicates(t *testing.T) {
 		client:  entAdapter,
 		columns: []*Column{},
 		schema:  carSchema,
-		entIDColumn: &entSchema.Column{
+		entPrimaryColumn: &entSchema.Column{
 			Name:      "id",
 			Type:      field.TypeUint64,
 			Increment: true,

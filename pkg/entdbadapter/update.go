@@ -52,8 +52,8 @@ func (m *Mutation) Update(ctx context.Context, e *entity.Entity) (affected int, 
 			Table: m.model.schema.Namespace,
 			// Columns: []string{},
 			ID: &sqlgraph.FieldSpec{
-				Column: m.model.entIDColumn.Name,
-				Type:   m.model.entIDColumn.Type,
+				Column: m.model.entPrimaryColumn.Name,
+				Type:   m.model.entPrimaryColumn.Type,
 			},
 		},
 		Fields: sqlgraph.FieldMut{

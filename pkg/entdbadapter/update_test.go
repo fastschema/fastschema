@@ -30,9 +30,9 @@ func TestUpdateError(t *testing.T) {
 func TestUpdateClientIsNotEntClient(t *testing.T) {
 	mut := &Mutation{
 		model: &Model{
-			name:        "user",
-			schema:      &schema.Schema{},
-			entIDColumn: &entSchema.Column{},
+			name:             "user",
+			schema:           &schema.Schema{},
+			entPrimaryColumn: &entSchema.Column{},
 		},
 		client: nil,
 	}

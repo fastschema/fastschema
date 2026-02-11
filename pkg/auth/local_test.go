@@ -329,7 +329,7 @@ func TestLocalAuthRecover(t *testing.T) {
 		resp, _ := server.Test(req)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 200, resp.StatusCode)
-		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `{"data":true}`)
+		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"activation":"sent"`)
 	}
 
 	// Case 4: Check user failed

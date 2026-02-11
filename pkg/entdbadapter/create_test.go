@@ -29,9 +29,9 @@ func TestCreateError(t *testing.T) {
 func TestCreateClientIsNotEntClient(t *testing.T) {
 	mut := &Mutation{
 		model: &Model{
-			name:        "user",
-			schema:      &schema.Schema{},
-			entIDColumn: &entSchema.Column{},
+			name:             "user",
+			schema:           &schema.Schema{},
+			entPrimaryColumn: &entSchema.Column{},
 		},
 		client: nil,
 	}

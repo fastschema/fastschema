@@ -56,8 +56,8 @@ func (m *Mutation) Delete(ctx context.Context) (affected int, err error) {
 		Node: &sqlgraph.NodeSpec{
 			Table: m.model.schema.Namespace,
 			ID: &sqlgraph.FieldSpec{
-				Column: m.model.entIDColumn.Name,
-				Type:   m.model.entIDColumn.Type,
+				Column: m.model.entPrimaryColumn.Name,
+				Type:   m.model.entPrimaryColumn.Type,
 			},
 		},
 	}

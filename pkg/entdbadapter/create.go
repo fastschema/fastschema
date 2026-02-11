@@ -31,8 +31,8 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ any, err err
 	createSpec := &sqlgraph.CreateSpec{
 		Table: m.model.schema.Namespace,
 		ID: &sqlgraph.FieldSpec{
-			Column: m.model.entIDColumn.Name,
-			Type:   m.model.entIDColumn.Type,
+			Column: m.model.entPrimaryColumn.Name,
+			Type:   m.model.entPrimaryColumn.Type,
 		},
 		Fields: []*sqlgraph.FieldSpec{},
 		Edges:  []*sqlgraph.EdgeSpec{},

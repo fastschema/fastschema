@@ -355,6 +355,35 @@ func (a *App) createAuthProviders() (err error) {
 		a.config.AuthConfig.EnableRefreshToken = true
 	}
 
+	// OTP configuration
+	if strings.ToLower(utils.Env("AUTH_OTP_ENABLED")) == "true" {
+		if a.config.AuthConfig.OTP == nil {
+			a.config.AuthConfig.OTP = &fs.OTPConfig{}
+		}
+		a.config.AuthConfig.OTP.Enabled = true
+	}
+
+	if envValue := utils.EnvInt("AUTH_OTP_LENGTH"); envValue > 0 {
+		if a.config.AuthConfig.OTP == nil {
+			a.config.AuthConfig.OTP = &fs.OTPConfig{}
+		}
+		a.config.AuthConfig.OTP.Length = envValue
+	}
+
+	if envValue := utils.EnvInt("AUTH_OTP_EXPIRATION"); envValue > 0 {
+		if a.config.AuthConfig.OTP == nil {
+			a.config.AuthConfig.OTP = &fs.OTPConfig{}
+		}
+		a.config.AuthConfig.OTP.Expiration = envValue
+	}
+
+	if envValue := utils.EnvInt("AUTH_OTP_MAX_ATTEMPTS"); envValue > 0 {
+		if a.config.AuthConfig.OTP == nil {
+			a.config.AuthConfig.OTP = &fs.OTPConfig{}
+		}
+		a.config.AuthConfig.OTP.MaxAttempts = envValue
+	}
+
 	if a.config.AuthConfig.EnabledProviders == nil {
 		a.config.AuthConfig.EnabledProviders = []string{}
 	}
@@ -393,10 +422,34 @@ func (a *App) createAuthProviders() (err error) {
 				},
 				a.Mailer,
 				a.JwtCustomClaimsFunc,
+				func() *fs.OTPConfig {
+					return a.config.AuthConfig.OTP
+				},
 			)
 		}
 
 		a.authProviders[name] = provider
+	}
+
+	// Initialize OTP provider if enabled
+	if a.config.AuthConfig.OTP != nil && a.config.AuthConfig.OTP.Enabled {
+		otpProvider, err := fs.CreateAuthProvider(auth.ProviderOTP, nil, "")
+		if err != nil {
+			return err
+		}
+
+		if op, ok := otpProvider.(*auth.OTPProvider); ok {
+			op.Init(
+				a.DB,
+				a.Name,
+				a.Mailer,
+				func() *fs.OTPConfig {
+					return a.config.AuthConfig.OTP
+				},
+			)
+		}
+
+		a.authProviders[auth.ProviderOTP] = otpProvider
 	}
 
 	return nil

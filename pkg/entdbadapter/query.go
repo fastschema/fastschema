@@ -253,7 +253,7 @@ func (q *Query) parseNestedFields(fields []string) ([]string, map[string][]strin
 // Get returns the list of entities that match the query.
 func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 	var selectFieldNames []string
-	directColumnNames := []string{q.model.entIDColumn.Name}
+	directColumnNames := []string{q.model.entPrimaryColumn.Name}
 	fkColumns := []string{}
 	edgeColumns := map[string][]string{}
 	allSelectsAreEdges := true
@@ -285,11 +285,11 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 
 				if relation.Type != schema.M2M && relation.Owner && relation.BackRef != nil {
 					targetColumn := relation.BackRef.TargetColumn
-					if targetColumn != "" && targetColumn != q.model.entIDColumn.Name {
+					if targetColumn != "" && targetColumn != q.model.entPrimaryColumn.Name {
 						fkColumns = append(fkColumns, targetColumn)
 					}
 				}
-			} else if fieldName != q.model.entIDColumn.Name {
+			} else if fieldName != q.model.entPrimaryColumn.Name {
 				directColumnNames = append(directColumnNames, fieldName)
 				allSelectsAreEdges = false
 			}
@@ -552,7 +552,7 @@ func (q *Query) loadEdgesM2M(
 
 	entEdgeQuery.querySpec.Predicate = func(s *sql.Selector) {
 		joinJuntion := sql.Table(relation.JunctionTable)
-		s.Join(joinJuntion).On(joinJuntion.C(joinColumn), s.C(edgeModel.entIDColumn.Name))
+		s.Join(joinJuntion).On(joinJuntion.C(joinColumn), s.C(edgeModel.entPrimaryColumn.Name))
 		s.Where(sql.InValues(joinJuntion.C(conditionColumn), edgeIDs...))
 		selectColumn := relation.BackRef.SourceFieldName
 		if !relation.IsBidi() && relation.TargetColumn != "" {
@@ -565,8 +565,8 @@ func (q *Query) loadEdgesM2M(
 			directColumns = edgeModel.DBColumns()
 		}
 
-		if !utils.Contains(directColumns, edgeModel.entIDColumn.Name) {
-			directColumns = append([]string{edgeModel.entIDColumn.Name}, directColumns...)
+		if !utils.Contains(directColumns, edgeModel.entPrimaryColumn.Name) {
+			directColumns = append([]string{edgeModel.entPrimaryColumn.Name}, directColumns...)
 		}
 
 		s.AppendSelect(utils.Map(directColumns, func(c string) string {
@@ -627,7 +627,7 @@ func (q *Query) loadEdgesM2M(
 		return nil
 	}
 
-	entEdgeQuery.order = []string{edgeModel.entIDColumn.Name}
+	entEdgeQuery.order = []string{edgeModel.entPrimaryColumn.Name}
 
 	// Apply relation options if provided
 	if relOpt != nil {
@@ -719,7 +719,7 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 	fkColumn := relation.SourceColumn
 	targetColumn := relation.TargetColumn
 	if targetColumn == "" {
-		targetColumn = edgeModel.entIDColumn.Name
+		targetColumn = edgeModel.entPrimaryColumn.Name
 	}
 
 	builder := q.client.SchemaBuilder()
@@ -780,10 +780,10 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 	if selectFullEdge {
 		directColumns = nil
 	} else {
-		if !utils.Contains(directColumns, edgeModel.entIDColumn.Name) {
-			directColumns = append(directColumns, edgeModel.entIDColumn.Name)
+		if !utils.Contains(directColumns, edgeModel.entPrimaryColumn.Name) {
+			directColumns = append(directColumns, edgeModel.entPrimaryColumn.Name)
 		}
-		if targetColumn != edgeModel.entIDColumn.Name && !utils.Contains(directColumns, targetColumn) {
+		if targetColumn != edgeModel.entPrimaryColumn.Name && !utils.Contains(directColumns, targetColumn) {
 			directColumns = append(directColumns, targetColumn)
 		}
 		directColumns = utils.Unique(directColumns)
@@ -838,7 +838,7 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 
 	for _, n := range neighbors {
 		var refValue any
-		if targetColumn == edgeModel.entIDColumn.Name {
+		if targetColumn == edgeModel.entPrimaryColumn.Name {
 			refValue = n.ID()
 		} else {
 			refValue = n.Get(targetColumn)
@@ -882,7 +882,7 @@ func (q *Query) loadOwnerEdges(
 	nodeids := make(map[string][]*entity.Entity)
 	fkColumn := relation.BackRef.SourceColumn
 	refColumn := relation.BackRef.TargetColumn
-	useTargetColumn := refColumn != "" && refColumn != q.model.entIDColumn.Name
+	useTargetColumn := refColumn != "" && refColumn != q.model.entPrimaryColumn.Name
 	parentField := q.model.schema.IDField()
 	if useTargetColumn {
 		parentField = q.model.schema.Field(refColumn)
@@ -943,8 +943,8 @@ func (q *Query) loadOwnerEdges(
 	if selectFullEdge {
 		directColumns = nil
 	} else {
-		if !utils.Contains(directColumns, edgeModel.entIDColumn.Name) {
-			directColumns = append(directColumns, edgeModel.entIDColumn.Name)
+		if !utils.Contains(directColumns, edgeModel.entPrimaryColumn.Name) {
+			directColumns = append(directColumns, edgeModel.entPrimaryColumn.Name)
 		}
 		if fkColumn != "" && !utils.Contains(directColumns, fkColumn) {
 			directColumns = append(directColumns, fkColumn)

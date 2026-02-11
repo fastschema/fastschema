@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 )
 
 const ProviderLocal = "local"
@@ -22,6 +24,11 @@ const ProviderLocal = "local"
 //	auto: user is activated automatically
 //	manual: user is activated manually by admin
 //	email: user is activated by email
+//
+// verificationMethod: link, otp
+//
+//	link: verification via email link with token (default)
+//	otp: verification via one-time password sent to email
 type LocalProvider struct {
 	db                  func() db.Client
 	appKey              func() string
@@ -32,15 +39,18 @@ type LocalProvider struct {
 	activationMethod    string
 	activationURL       string
 	recoveryURL         string
+	verificationMethod  string // "link" or "otp"
+	otpConfig           func() *fs.OTPConfig
 	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
 }
 
 func NewLocalAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
 	la := &LocalProvider{
-		config:           config,
-		activationMethod: fs.MapValue(config, "activation_method", "manual"),
-		activationURL:    fs.MapValue(config, "activation_url", ""),
-		recoveryURL:      fs.MapValue(config, "recovery_url", ""),
+		config:             config,
+		activationMethod:   fs.MapValue(config, "activation_method", "manual"),
+		activationURL:      fs.MapValue(config, "activation_url", ""),
+		recoveryURL:        fs.MapValue(config, "recovery_url", ""),
+		verificationMethod: fs.MapValue(config, "verification_method", "link"),
 	}
 
 	return la, nil
@@ -53,6 +63,7 @@ func (la *LocalProvider) Init(
 	appBaseURL func() string,
 	mailer func(names ...string) fs.Mailer,
 	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc,
+	otpConfig func() *fs.OTPConfig,
 ) {
 	la.db = db
 	la.appKey = appKey
@@ -60,6 +71,7 @@ func (la *LocalProvider) Init(
 	la.mailer = mailer
 	la.appBaseURL = appBaseURL
 	la.jwtCustomClaimsFunc = jwtCustomClaimsFunc
+	la.otpConfig = otpConfig
 
 	if la.activationURL == "" {
 		la.activationURL = appBaseURL() + "/auth/local/activate"
@@ -68,6 +80,33 @@ func (la *LocalProvider) Init(
 	if la.recoveryURL == "" {
 		la.recoveryURL = appBaseURL() + "/auth/local/recover"
 	}
+}
+
+// IsOTPVerification returns true if OTP verification method is enabled
+func (la *LocalProvider) IsOTPVerification() bool {
+	return la.verificationMethod == "otp"
+}
+
+// getOTPConfig returns the OTP config with defaults
+func (la *LocalProvider) getOTPConfig() *fs.OTPConfig {
+	if la.otpConfig == nil {
+		return &fs.OTPConfig{
+			Enabled:     true,
+			Length:      6,
+			Expiration:  300,
+			MaxAttempts: 3,
+		}
+	}
+	config := la.otpConfig()
+	if config == nil {
+		return &fs.OTPConfig{
+			Enabled:     true,
+			Length:      6,
+			Expiration:  300,
+			MaxAttempts: 3,
+		}
+	}
+	return config
 }
 
 func (la *LocalProvider) Name() string {
@@ -125,11 +164,23 @@ func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation,
 }
 
 func (la *LocalProvider) Activate(c fs.Context, data *Confirmation) (*Activation, error) {
-	userID, err := ValidateConfirmationToken(data.Token, la.appKey())
-	if err != nil {
-		err = fmt.Errorf(MSG_INVALID_TOKEN+": %w", err)
-		c.Logger().Error(err)
-		return nil, err
+	var userID uint64
+	var err error
+
+	if data.IsTokenBased() {
+		userID, err = ValidateConfirmationToken(data.Token, la.appKey())
+		if err != nil {
+			err = fmt.Errorf(MSG_INVALID_TOKEN+": %w", err)
+			c.Logger().Error(err)
+			return nil, err
+		}
+	} else if data.IsOTPBased() {
+		userID, err = la.verifyOTPSession(c, data.SessionID, data.OTP, fs.SessionTypeActivation, true)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, ERR_INVALID_TOKEN
 	}
 
 	var count int
@@ -155,10 +206,17 @@ func (la *LocalProvider) Activate(c fs.Context, data *Confirmation) (*Activation
 	return &Activation{Activation: "activated"}, nil
 }
 
-func (la *LocalProvider) SendActivationLink(c fs.Context, data *Confirmation) (*Activation, error) {
+func (la *LocalProvider) SendActivationLink(c fs.Context, data *SendActivation) (*Activation, error) {
 	if la.activationMethod != "email" {
 		return nil, errors.BadRequest()
 	}
+
+	// OTP flow: request activation OTP via email
+	if la.IsOTPVerification() && data.Email != "" {
+		return la.sendActivationOTP(c, data.Email)
+	}
+
+	// Link flow: resend activation link
 	// Only send the new activation link if:
 	// - The confirmation token is valid
 	// - The confirmation token is expired
@@ -185,6 +243,61 @@ func (la *LocalProvider) SendActivationLink(c fs.Context, data *Confirmation) (*
 	go SendConfirmationEmail(la, c.Logger(), email)
 
 	return &Activation{Activation: la.activationMethod}, nil
+}
+
+// sendActivationOTP sends an OTP for account activation
+func (la *LocalProvider) sendActivationOTP(c fs.Context, email string) (*Activation, error) {
+	otpConfig := la.getOTPConfig()
+
+	// Validate email
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" || !utils.IsValidEmail(email) {
+		return nil, errors.UnprocessableEntity(MSG_INVALID_EMAIL)
+	}
+
+	// Find inactive user with this email
+	user, err := db.Builder[*fs.User](la.db()).
+		Where(db.EQ("email", email)).
+		Where(db.EQ("provider", la.Name())).
+		Where(db.EQ("active", false)).
+		Select("id", "email").
+		First(c)
+	if err != nil && !db.IsNotFound(err) {
+		c.Logger().Errorf("Error checking user: %v", err)
+		return nil, errors.InternalServerError(MSG_CHECKING_USER_ERROR)
+	}
+
+	// For security, always return success message even if user doesn't exist or is already active
+	dummySessionID, _ := uuid.NewV7()
+	if user == nil {
+		return &Activation{
+			Activation: la.activationMethod,
+			SessionID:  dummySessionID.String(),
+			ExpiresIn:  otpConfig.GetExpiration(),
+		}, nil
+	}
+
+	// Create OTP session
+	sessionID, otp, err := la.createOTPSession(c, user.ID, fs.SessionTypeActivation)
+	if err != nil {
+		c.Logger().Errorf("Error creating activation OTP session: %v", err)
+		return nil, err
+	}
+
+	// Send OTP email
+	appName := la.appName()
+	if appName == "" {
+		appName = "FastSchema"
+	}
+	expirationMinutes := max(otpConfig.GetExpiration()/60, 1)
+	mail := CreateActivationOTPEmail(appName, email, otp, expirationMinutes)
+	la.sendOTPEmail(c, mail)
+
+	return &Activation{
+		Activation: la.activationMethod,
+		SessionID:  sessionID,
+		ExpiresIn:  otpConfig.GetExpiration(),
+	}, nil
 }
 
 // LocalLogin performs local login with username/email and password
@@ -232,45 +345,120 @@ func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (*fs.User,
 	return user, nil
 }
 
-func (la *LocalProvider) Recover(c fs.Context, data *Recovery) (_ bool, err error) {
+func (la *LocalProvider) Recover(c fs.Context, data *Recovery) (*Activation, error) {
 	if !utils.IsValidEmail(data.Email) {
-		return false, errors.UnprocessableEntity(MSG_INVALID_EMAIL)
+		return nil, errors.UnprocessableEntity(MSG_INVALID_EMAIL)
 	}
 
 	user, err := db.Builder[*fs.User](la.db()).
 		Where(db.EQ("email", data.Email)).
 		Where(db.EQ("provider", la.Name())).
-		Select("id", "email").
+		Select("id", "email", "username").
 		First(c)
 	if err != nil && !db.IsNotFound(err) {
 		c.Logger().Error(err)
-		return false, errors.InternalServerError(MSG_CHECKING_USER_ERROR)
+		return nil, errors.InternalServerError(MSG_CHECKING_USER_ERROR)
 	}
 
+	otpConfig := la.getOTPConfig()
+
+	// For security, always return success even if user doesn't exist
 	if user == nil {
-		return true, nil
+		if la.IsOTPVerification() {
+			dummySessionID, _ := uuid.NewV7()
+			return &Activation{
+				Activation: "sent",
+				SessionID:  dummySessionID.String(),
+				ExpiresIn:  otpConfig.GetExpiration(),
+			}, nil
+		}
+		return &Activation{Activation: "sent"}, nil
 	}
 
+	// OTP flow
+	if la.IsOTPVerification() {
+		return la.sendRecoveryOTP(c, user)
+	}
+
+	// Link flow (existing behavior)
 	email, err := CreateRecoveryEmail(la, user)
 	if err != nil {
 		c.Logger().Errorf(MSG_CREATEP_RECOVERY_MAIL_ERROR+": %w", err)
-		return false, errors.BadRequest(MSG_CREATEP_RECOVERY_MAIL_ERROR)
+		return nil, errors.BadRequest(MSG_CREATEP_RECOVERY_MAIL_ERROR)
 	}
 
 	go SendConfirmationEmail(la, c.Logger(), email)
 
-	return true, nil
+	return &Activation{Activation: "sent"}, nil
 }
 
-func (la *LocalProvider) RecoverCheck(c fs.Context, data *Confirmation) (_ bool, err error) {
-	userID, err := ValidateConfirmationToken(data.Token, la.appKey())
-	return userID > 0, err
+// sendRecoveryOTP sends an OTP for password recovery
+func (la *LocalProvider) sendRecoveryOTP(c fs.Context, user *fs.User) (*Activation, error) {
+	otpConfig := la.getOTPConfig()
+
+	// Create OTP session
+	sessionID, otp, err := la.createOTPSession(c, user.ID, fs.SessionTypeRecovery)
+	if err != nil {
+		c.Logger().Errorf("Error creating recovery OTP session: %v", err)
+		return nil, err
+	}
+
+	// Send OTP email
+	appName := la.appName()
+	if appName == "" {
+		appName = "FastSchema"
+	}
+	expirationMinutes := max(otpConfig.GetExpiration()/60, 1)
+	mail := CreateRecoveryOTPEmail(appName, user.Email, otp, expirationMinutes)
+	la.sendOTPEmail(c, mail)
+
+	return &Activation{
+		Activation: "sent",
+		SessionID:  sessionID,
+		ExpiresIn:  otpConfig.GetExpiration(),
+	}, nil
+}
+
+func (la *LocalProvider) RecoverCheck(c fs.Context, data *Confirmation) (*Activation, error) {
+	if data.IsTokenBased() {
+		userID, err := ValidateConfirmationToken(data.Token, la.appKey())
+		if err != nil {
+			return nil, err
+		}
+		return &Activation{Activation: "valid", Verified: userID > 0}, nil
+	}
+
+	if data.IsOTPBased() {
+		_, err := la.verifyOTPSession(c, data.SessionID, data.OTP, fs.SessionTypeRecovery, false)
+		if err != nil {
+			return nil, err
+		}
+		// Return the same session ID - it's now in 'verified' status
+		return &Activation{
+			Activation: "verified",
+			SessionID:  data.SessionID,
+			Verified:   true,
+		}, nil
+	}
+
+	return nil, ERR_INVALID_TOKEN
 }
 
 func (la *LocalProvider) ResetPassword(c fs.Context, data *ResetPassword) (_ bool, err error) {
-	userID, err := ValidateConfirmationToken(data.Token, la.appKey())
-	if err != nil {
-		return false, err
+	var userID uint64
+
+	if data.Token != "" {
+		userID, err = ValidateConfirmationToken(data.Token, la.appKey())
+		if err != nil {
+			return false, err
+		}
+	} else if data.SessionID != "" {
+		userID, err = la.getUserFromVerifiedSession(c, data.SessionID, fs.SessionTypeRecovery)
+		if err != nil {
+			return false, err
+		}
+	} else {
+		return false, ERR_INVALID_TOKEN
 	}
 
 	if data.Password == "" || data.ConfirmPassword == "" || data.Password != data.ConfirmPassword {
@@ -284,5 +472,207 @@ func (la *LocalProvider) ResetPassword(c fs.Context, data *ResetPassword) (_ boo
 		return false, ERR_SAVE_USER
 	}
 
+	// If session-based, mark session as inactive
+	if data.SessionID != "" {
+		sessionUUID, _ := uuid.Parse(data.SessionID)
+		_, _ = db.Builder[*fs.Session](la.db()).
+			Where(db.EQ("id", sessionUUID)).
+			Update(c, entity.New().Set("status", string(fs.SessionStatusInactive)))
+	}
+
 	return true, nil
+}
+
+// invalidatePreviousSessions invalidates all pending OTP sessions for a user
+func (la *LocalProvider) invalidatePreviousSessions(
+	c fs.Context,
+	userID uint64,
+	sessionType fs.SessionType,
+) error {
+	_, err := db.Builder[*fs.Session](la.db()).
+		Where(db.EQ("user_id", userID)).
+		Where(db.EQ("type", string(sessionType))).
+		Where(db.Or(
+			db.EQ("status", string(fs.SessionStatusPendingOTP)),
+			db.EQ("status", string(fs.SessionStatusVerified)),
+		)).
+		Update(c, entity.New().Set("status", string(fs.SessionStatusInactive)))
+	return err
+}
+
+// createOTPSession creates a new OTP session after invalidating previous ones
+func (la *LocalProvider) createOTPSession(
+	c fs.Context,
+	userID uint64,
+	sessionType fs.SessionType,
+) (sessionID string, otp string, err error) {
+	otpConfig := la.getOTPConfig()
+
+	// 1. Invalidate previous sessions
+	_ = la.invalidatePreviousSessions(c, userID, sessionType)
+
+	// 2. Generate OTP
+	otp, err = GenerateOTP(otpConfig.GetLength())
+	if err != nil {
+		return "", "", errors.InternalServerError(MSG_OTP_GENERATION_ERROR)
+	}
+
+	// 3. Hash OTP
+	otpHash, err := HashOTP(otp)
+	if err != nil {
+		return "", "", errors.InternalServerError(MSG_OTP_GENERATION_ERROR)
+	}
+
+	// 4. Create session
+	sessionUUID, err := uuid.NewV7()
+	if err != nil {
+		return "", "", errors.InternalServerError(MSG_OTP_SESSION_CREATE_ERROR)
+	}
+
+	now := time.Now()
+	expiresAt := now.Add(time.Duration(otpConfig.GetExpiration()) * time.Second)
+
+	// Get device info
+	deviceInfo := c.Header("User-Agent")
+	if deviceInfo == "" {
+		deviceInfo = c.Arg("device_info")
+	}
+
+	_, err = db.Builder[*fs.Session](la.db()).Create(c, entity.New().
+		Set("id", sessionUUID).
+		Set("user_id", userID).
+		Set("type", string(sessionType)).
+		Set("status", string(fs.SessionStatusPendingOTP)).
+		Set("otp_hash", otpHash).
+		Set("otp_attempts", 0).
+		Set("device_info", deviceInfo).
+		Set("ip_address", c.IP()).
+		Set("expires_at", expiresAt).
+		Set("last_activity_at", now),
+	)
+	if err != nil {
+		return "", "", errors.InternalServerError(MSG_OTP_SESSION_CREATE_ERROR)
+	}
+
+	return sessionUUID.String(), otp, nil
+}
+
+// verifyOTPSession verifies an OTP and returns the user ID
+// For activation: deletes session on success
+// For recovery: updates status to 'verified' on success
+func (la *LocalProvider) verifyOTPSession(
+	c fs.Context,
+	sessionID string,
+	otp string,
+	sessionType fs.SessionType,
+	deleteOnSuccess bool,
+) (userID uint64, err error) {
+	otpConfig := la.getOTPConfig()
+
+	// 1. Parse session UUID
+	sessionUUID, err := uuid.Parse(sessionID)
+	if err != nil {
+		return 0, ERR_INVALID_TOKEN
+	}
+
+	// 2. Find session
+	session, err := db.Builder[*fs.Session](la.db()).
+		Where(db.EQ("id", sessionUUID)).
+		Where(db.EQ("type", string(sessionType))).
+		Where(db.EQ("status", string(fs.SessionStatusPendingOTP))).
+		First(c)
+	if err != nil {
+		if db.IsNotFound(err) {
+			return 0, ERR_INVALID_TOKEN
+		}
+		c.Logger().Errorf("Error finding OTP session: %v", err)
+		return 0, errors.InternalServerError("Error verifying OTP")
+	}
+
+	// 3. Check expiration
+	if session.ExpiresAt != nil && session.ExpiresAt.Before(time.Now()) {
+		la.markSessionInactive(c, session.ID)
+		return 0, ERR_OTP_EXPIRED
+	}
+
+	// 4. Check max attempts
+	if session.OTPAttempts >= otpConfig.GetMaxAttempts() {
+		la.markSessionInactive(c, session.ID)
+		return 0, ERR_OTP_MAX_ATTEMPTS
+	}
+
+	// 5. Verify OTP
+	if !VerifyOTP(otp, session.OTPHash) {
+		// Increment attempts
+		_, _ = db.Builder[*fs.Session](la.db()).
+			Where(db.EQ("id", session.ID)).
+			Update(c, entity.New().Set("otp_attempts", session.OTPAttempts+1))
+		return 0, ERR_OTP_INVALID
+	}
+
+	// 6. Success - update or delete session
+	if deleteOnSuccess {
+		_, _ = db.Builder[*fs.Session](la.db()).
+			Where(db.EQ("id", session.ID)).
+			Delete(c)
+	} else {
+		_, _ = db.Builder[*fs.Session](la.db()).
+			Where(db.EQ("id", session.ID)).
+			Update(c, entity.New().Set("status", string(fs.SessionStatusVerified)))
+	}
+
+	return session.UserID, nil
+}
+
+// getUserFromVerifiedSession retrieves the user ID from a verified OTP session
+func (la *LocalProvider) getUserFromVerifiedSession(
+	c fs.Context,
+	sessionID string,
+	sessionType fs.SessionType,
+) (uint64, error) {
+	sessionUUID, err := uuid.Parse(sessionID)
+	if err != nil {
+		return 0, ERR_INVALID_TOKEN
+	}
+
+	session, err := db.Builder[*fs.Session](la.db()).
+		Where(db.EQ("id", sessionUUID)).
+		Where(db.EQ("type", string(sessionType))).
+		Where(db.EQ("status", string(fs.SessionStatusVerified))).
+		First(c)
+	if err != nil {
+		if db.IsNotFound(err) {
+			return 0, errors.BadRequest(MSG_OTP_VERIFICATION_REQUIRED)
+		}
+		return 0, errors.InternalServerError("Error verifying session")
+	}
+
+	// Check expiration
+	if session.ExpiresAt != nil && session.ExpiresAt.Before(time.Now()) {
+		la.markSessionInactive(c, session.ID)
+		return 0, ERR_OTP_EXPIRED
+	}
+
+	return session.UserID, nil
+}
+
+// markSessionInactive marks a session as inactive
+func (la *LocalProvider) markSessionInactive(c fs.Context, sessionID uuid.UUID) {
+	_, _ = db.Builder[*fs.Session](la.db()).
+		Where(db.EQ("id", sessionID)).
+		Update(c, entity.New().Set("status", string(fs.SessionStatusInactive)))
+}
+
+// sendOTPEmail sends an OTP email asynchronously
+func (la *LocalProvider) sendOTPEmail(c fs.Context, email *fs.Mail) {
+	go func() {
+		mailer := la.mailer()
+		if mailer == nil {
+			c.Logger().Error(MSG_MAILER_NOT_SET)
+			return
+		}
+		if err := mailer.Send(email); err != nil {
+			c.Logger().Errorf("Error sending OTP email: %v", err)
+		}
+	}()
 }

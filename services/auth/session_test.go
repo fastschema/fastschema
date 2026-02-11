@@ -16,6 +16,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	as "github.com/fastschema/fastschema/services/auth"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,6 +50,10 @@ func (s testTokenApp) Roles() []*fs.Role {
 }
 
 func (s testTokenApp) GetAuthProvider(name string) fs.AuthProvider {
+	return nil
+}
+
+func (s testTokenApp) Mailer(names ...string) fs.Mailer {
 	return nil
 }
 
@@ -324,7 +329,8 @@ func TestAuthServiceRefreshTokenInvalid(t *testing.T) {
 	t.Run("token not in database", func(t *testing.T) {
 		// Generate a valid token but don't store it in DB
 		// Using a non-existent session ID
-		token, err := jwt.GenerateRefreshToken(1, 99999, app.Key(), time.Now().Add(time.Hour))
+		sessionID := utils.Must(uuid.NewV7())
+		token, err := jwt.GenerateRefreshToken(1, sessionID, app.Key(), time.Now().Add(time.Hour))
 		require.NoError(t, err)
 
 		_, err = authService.RefreshToken(ctx, &as.RefreshTokenRequest{
@@ -473,7 +479,9 @@ func TestAuthServiceCleanupExpiredSessions(t *testing.T) {
 	validTime := now.Add(1 * time.Hour)
 
 	// Create expired session
+	expiredSessionID := uuid.Must(uuid.NewV7())
 	expiredSession, err := db.Builder[*fs.Session](app.db).Create(ctx, entity.New().
+		Set("id", expiredSessionID).
 		Set("user_id", uint64(1)).
 		Set("ip_address", "127.0.0.1").
 		Set("status", string(fs.SessionStatusActive)).
@@ -481,7 +489,9 @@ func TestAuthServiceCleanupExpiredSessions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create valid session
+	validSessionID := uuid.Must(uuid.NewV7())
 	validSession, err := db.Builder[*fs.Session](app.db).Create(ctx, entity.New().
+		Set("id", validSessionID).
 		Set("user_id", uint64(1)).
 		Set("ip_address", "127.0.0.1").
 		Set("status", string(fs.SessionStatusActive)).

@@ -7,6 +7,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 // UserClaims represents the minimal user data needed for JWT generation
@@ -33,8 +34,8 @@ type AccessTokenClaims struct {
 type RefreshTokenClaims struct {
 	jwt.RegisteredClaims
 
-	UserID    uint64 `json:"uid"`
-	SessionID uint64 `json:"sid"` // Session ID from database
+	UserID    uint64    `json:"uid"`
+	SessionID uuid.UUID `json:"sid"` // Session ID from database
 }
 
 // CustomClaimsFunc is a function that allows customization of JWT claims
@@ -109,7 +110,7 @@ func GenerateAccessToken(
 // GenerateRefreshToken generates a new refresh token JWT with the given session ID
 func GenerateRefreshToken(
 	userID uint64,
-	sessionID uint64,
+	sessionID uuid.UUID,
 	key string,
 	expiresAt time.Time,
 ) (string, error) {

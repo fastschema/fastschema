@@ -27,6 +27,7 @@ type AppLike interface {
 	GetAuthProvider(string) fs.AuthProvider
 	Roles() []*fs.Role
 	JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc
+	Mailer(names ...string) fs.Mailer
 }
 
 type AuthService struct {
@@ -36,6 +37,7 @@ type AuthService struct {
 	GetAuthProvider     func(string) fs.AuthProvider
 	Roles               func() []*fs.Role
 	JwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
+	Mailer              func(names ...string) fs.Mailer
 }
 
 func New(app AppLike) *AuthService {
@@ -46,6 +48,7 @@ func New(app AppLike) *AuthService {
 		GetAuthProvider:     app.GetAuthProvider,
 		Roles:               app.Roles,
 		JwtCustomClaimsFunc: app.JwtCustomClaimsFunc,
+		Mailer:              app.Mailer,
 	}
 }
 
@@ -101,6 +104,15 @@ func (as *AuthService) CreateResource(api *fs.Resource, authProviders map[string
 			fs.Post("recover/check", localAuthProvider.RecoverCheck, &fs.Meta{Public: true}),
 			fs.Post("recover/reset", localAuthProvider.ResetPassword, &fs.Meta{Public: true}),
 		)
+
+	// OTP passwordless login endpoints
+	if otpProvider, ok := as.GetAuthProvider(auth.ProviderOTP).(*auth.OTPProvider); ok && otpProvider.IsEnabled() {
+		authGroup.Group("otp").
+			Add(
+				fs.Post("request", as.OTPRequestWrapper(otpProvider), &fs.Meta{Public: true}),
+				fs.Post("verify", as.OTPVerifyWrapper(otpProvider), &fs.Meta{Public: true}),
+			)
+	}
 
 	if len(authProviders) > 1 {
 		authGroup.Group("provider", &fs.Meta{

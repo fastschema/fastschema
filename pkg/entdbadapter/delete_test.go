@@ -132,9 +132,9 @@ func TestDeleteNodesHookError(t *testing.T) {
 func TestDeleteClientIsNotEntClient(t *testing.T) {
 	mut := &Mutation{
 		model: &Model{
-			name:        "user",
-			schema:      &schema.Schema{},
-			entIDColumn: &entSchema.Column{},
+			name:             "user",
+			schema:           &schema.Schema{},
+			entPrimaryColumn: &entSchema.Column{},
 		},
 		client: nil,
 	}
@@ -145,9 +145,9 @@ func TestDeleteClientIsNotEntClient(t *testing.T) {
 func TestDeleteInvalidOperator(t *testing.T) {
 	mut := &Mutation{
 		model: &Model{
-			name:        "user",
-			schema:      &schema.Schema{},
-			entIDColumn: &entSchema.Column{},
+			name:             "user",
+			schema:           &schema.Schema{},
+			entPrimaryColumn: &entSchema.Column{},
 		},
 		client: createMockAdapter(t),
 		predicates: &[]*db.Predicate{

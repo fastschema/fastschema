@@ -1,8 +1,11 @@
-package session_test
+package passwordless_otp_test
 
 import (
 	"context"
 	"encoding/json"
+	"net/mail"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
+	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/errors"
 	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -17,12 +21,61 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// MockMailer captures sent emails for testing (thread-safe)
+type MockMailer struct {
+	mu        sync.RWMutex
+	SentMails []*fs.Mail
+	SendErr   error
+}
+
+func NewMockMailer() *MockMailer {
+	return &MockMailer{
+		SentMails: make([]*fs.Mail, 0),
+	}
+}
+
+func (m *MockMailer) Send(mail *fs.Mail, froms ...mail.Address) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.SendErr != nil {
+		return m.SendErr
+	}
+	m.SentMails = append(m.SentMails, mail)
+	return nil
+}
+
+func (m *MockMailer) Name() string {
+	return "mock"
+}
+
+func (m *MockMailer) Driver() string {
+	return "mock"
+}
+
+func (m *MockMailer) LastMail() *fs.Mail {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if len(m.SentMails) == 0 {
+		return nil
+	}
+	return m.SentMails[len(m.SentMails)-1]
+}
+
+func (m *MockMailer) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.SentMails = make([]*fs.Mail, 0)
+}
+
+// testApp holds all test dependencies
 type testApp struct {
 	db          db.Client
 	config      *fs.Config
 	resources   *fs.ResourcesManager
 	server      *rr.Server
 	authService *as.AuthService
+	otpProvider *auth.OTPProvider
+	mailer      *MockMailer
 	testUser    *fs.User
 }
 
@@ -47,18 +100,23 @@ func (s testApp) Roles() []*fs.Role {
 }
 
 func (s testApp) GetAuthProvider(name string) fs.AuthProvider {
+	if name == auth.ProviderOTP {
+		return s.otpProvider
+	}
 	return nil
 }
 
 func (s testApp) Mailer(names ...string) fs.Mailer {
-	return nil
+	return s.mailer
 }
 
 // mockContext for integration tests
 type mockContext struct {
-	user   *fs.User
-	locals map[string]any
-	db     db.Client
+	user    *fs.User
+	locals  map[string]any
+	db      db.Client
+	headers map[string]string
+	ip      string
 }
 
 func (m *mockContext) TraceID() string                    { return "test-trace" }
@@ -79,8 +137,18 @@ func (m *mockContext) Bind(out any) error                 { return nil }
 func (m *mockContext) FormValue(string, ...string) string { return "" }
 func (m *mockContext) Resource() *fs.Resource             { return nil }
 func (m *mockContext) Redirect(string) error              { return nil }
-func (m *mockContext) IP() string                         { return "127.0.0.1" }
-func (m *mockContext) Header(string, ...string) string    { return "" }
+func (m *mockContext) IP() string {
+	if m.ip != "" {
+		return m.ip
+	}
+	return "127.0.0.1"
+}
+func (m *mockContext) Header(key string, val ...string) string {
+	if m.headers != nil {
+		return m.headers[key]
+	}
+	return ""
+}
 func (m *mockContext) Local(key string, value ...any) any {
 	if m.locals == nil {
 		m.locals = make(map[string]any)
@@ -105,11 +173,12 @@ var systemSchemas = []any{
 	fs.Session{},
 }
 
-func createTestApp(t *testing.T, dbc db.Client) *testApp {
+func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig) *testApp {
 	t.Helper()
 	roleModel := utils.Must(dbc.Model("role"))
 	userModel := utils.Must(dbc.Model("user"))
 
+	// Create default roles
 	for _, r := range []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest} {
 		_, _ = roleModel.Create(context.Background(), entity.New().
 			Set("name", r.Name).
@@ -117,8 +186,9 @@ func createTestApp(t *testing.T, dbc db.Client) *testApp {
 	}
 
 	// Create test user with unique credentials
-	username := "testuser" + utils.RandomString(8)
-	email := "test" + utils.RandomString(8) + "@example.com"
+	// Note: Email is stored in lowercase to match OTP provider's email normalization
+	username := "otpuser" + utils.RandomString(8)
+	email := strings.ToLower("otp" + utils.RandomString(8) + "@example.com")
 	userID, err := userModel.Create(context.Background(), entity.New().
 		Set("username", username).
 		Set("email", email).
@@ -131,15 +201,20 @@ func createTestApp(t *testing.T, dbc db.Client) *testApp {
 		t.Fatalf("failed to create test user: %v", err)
 	}
 
+	mailer := NewMockMailer()
+
 	authConfig := &fs.AuthConfig{
 		EnableRefreshToken:   true,
 		AccessTokenLifetime:  60,   // 1 minute for testing
 		RefreshTokenLifetime: 3600, // 1 hour for testing
+		OTP:                  otpConfig,
 	}
 
 	app := &testApp{
-		db: dbc,
+		db:     dbc,
+		mailer: mailer,
 		config: &fs.Config{
+			AppName:    "TestOTPApp",
 			AppKey:     "test-secret-key-32-characters!!",
 			AuthConfig: authConfig,
 		},
@@ -152,6 +227,19 @@ func createTestApp(t *testing.T, dbc db.Client) *testApp {
 		},
 	}
 
+	// Create and initialize OTP provider
+	if otpConfig != nil && otpConfig.Enabled {
+		otpProvider, _ := auth.NewOTPAuthProvider(nil, "")
+		op := otpProvider.(*auth.OTPProvider)
+		op.Init(
+			func() db.Client { return dbc },
+			func() string { return "TestOTPApp" },
+			func(names ...string) fs.Mailer { return mailer },
+			func() *fs.OTPConfig { return otpConfig },
+		)
+		app.otpProvider = op
+	}
+
 	app.authService = as.New(app)
 	app.resources = fs.NewResourcesManager()
 	app.resources.Hooks = func() *fs.Hooks {
@@ -162,13 +250,23 @@ func createTestApp(t *testing.T, dbc db.Client) *testApp {
 	app.resources.Middlewares = append(app.resources.Middlewares, app.authService.ParseUser)
 
 	api := app.resources.Group("api", &fs.Meta{Prefix: "/api"})
-	api.Group("auth").
-		Add(fs.Get("me", app.authService.Me, &fs.Meta{Public: true})).
-		Add(fs.Post("logout", app.authService.Logout, &fs.Meta{Public: true})).
-		Add(fs.Post("logout/all", app.authService.LogoutAll, &fs.Meta{Public: true})).
-		Add(fs.Post("token/refresh", app.authService.RefreshToken, &fs.Meta{Public: true}))
 
-	// Add a protected resource for testing (public but manually checks user)
+	// Auth endpoints
+	authGroup := api.Group("auth")
+	authGroup.Add(fs.Get("me", app.authService.Me, &fs.Meta{Public: true}))
+	authGroup.Add(fs.Post("logout", app.authService.Logout, &fs.Meta{Public: true}))
+	authGroup.Add(fs.Post("token/refresh", app.authService.RefreshToken, &fs.Meta{Public: true}))
+
+	// OTP endpoints (if OTP is enabled)
+	if app.otpProvider != nil && app.otpProvider.IsEnabled() {
+		authGroup.Group("otp").
+			Add(
+				fs.Post("request", app.authService.OTPRequestWrapper(app.otpProvider), &fs.Meta{Public: true}),
+				fs.Post("verify", app.authService.OTPVerifyWrapper(app.otpProvider), &fs.Meta{Public: true}),
+			)
+	}
+
+	// Protected resource for testing
 	api.Add(fs.Get("protected", func(c fs.Context, _ any) (any, error) {
 		user := c.User()
 		if user == nil {
@@ -198,4 +296,11 @@ func parseResponse(t *testing.T, body []byte) apiResponse {
 	var resp apiResponse
 	require.NoError(t, json.Unmarshal(body, &resp))
 	return resp
+}
+
+// clearOTPSessions removes all OTP sessions from the database
+func clearOTPSessions(dbc db.Client) {
+	_, _ = db.Builder[*fs.Session](dbc).
+		Where(db.EQ("type", string(fs.SessionTypeOTPLogin))).
+		Delete(context.Background())
 }

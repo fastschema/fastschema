@@ -6,7 +6,9 @@ import (
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/jwt"
+	"github.com/fastschema/fastschema/pkg/utils"
 	jwtlib "github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,7 +81,7 @@ func TestGenerateAccessTokenWithCustomClaims(t *testing.T) {
 
 func TestGenerateRefreshToken(t *testing.T) {
 	userID := uint64(1)
-	sessionID := uint64(123)
+	sessionID := utils.Must(uuid.NewV7())
 	key := "test-secret-key-32-characters!!"
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
@@ -90,7 +92,7 @@ func TestGenerateRefreshToken(t *testing.T) {
 
 func TestGenerateRefreshTokenMissingKey(t *testing.T) {
 	userID := uint64(1)
-	sessionID := uint64(123)
+	sessionID := utils.Must(uuid.NewV7())
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
 	_, err := jwt.GenerateRefreshToken(userID, sessionID, "", expiresAt)
@@ -130,7 +132,7 @@ func TestParseAccessTokenInvalid(t *testing.T) {
 
 func TestParseRefreshToken(t *testing.T) {
 	userID := uint64(1)
-	sessionID := uint64(456)
+	sessionID := utils.Must(uuid.NewV7())
 	key := "test-secret-key-32-characters!!"
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 

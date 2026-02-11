@@ -9,6 +9,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/jwt"
+	"github.com/google/uuid"
 )
 
 // RefreshTokenRequest represents the request to refresh a token
@@ -69,7 +70,13 @@ func (as *AuthService) GenerateJWTTokens(c fs.Context, user *fs.User) (*fs.JWTTo
 		deviceInfo = c.Arg("device_info")
 	}
 
+	sessionID, err := uuid.NewV7()
+	if err != nil {
+		c.Logger().Errorf("failed to generate session ID: %v", err)
+		return nil, errors.InternalServerError("failed to create session")
+	}
 	session, err := db.Builder[*fs.Session](as.DB()).Create(c, entity.New().
+		Set("id", sessionID).
 		Set("user_id", user.ID).
 		Set("device_info", deviceInfo).
 		Set("ip_address", c.IP()).

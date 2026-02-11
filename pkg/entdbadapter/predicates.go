@@ -155,8 +155,8 @@ func createRelationsPredicate(
 		return nil, fmt.Errorf("invalid edge step option '%s': %w", relationFieldName, err)
 	}
 
-	fromColumn := model.entIDColumn.Name
-	toColumn := entTargetModel.entIDColumn.Name
+	fromColumn := model.entPrimaryColumn.Name
+	toColumn := entTargetModel.entPrimaryColumn.Name
 
 	if column := relationStepFromColumn(model, relation); column != "" {
 		fromColumn = column
@@ -379,7 +379,7 @@ func relationStepFromColumn(model *Model, relation *schema.Relation) string {
 	}
 
 	targetColumn := relation.BackRef.TargetColumn
-	if targetColumn == "" || targetColumn == model.entIDColumn.Name {
+	if targetColumn == "" || targetColumn == model.entPrimaryColumn.Name {
 		return ""
 	}
 
@@ -392,7 +392,7 @@ func relationStepToColumn(targetModel *Model, relation *schema.Relation) string 
 	}
 
 	targetColumn := relation.TargetColumn
-	if targetColumn == "" || targetColumn == targetModel.entIDColumn.Name {
+	if targetColumn == "" || targetColumn == targetModel.entPrimaryColumn.Name {
 		return ""
 	}
 

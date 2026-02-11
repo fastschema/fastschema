@@ -29,11 +29,33 @@ var (
 	MSG_USER_EXISTS                   = "User already exists"
 	MSG_EXISTING_USER_WITH_EMAIL      = "Looks like you already have an account with this email. Please log in using your existing sign-in method, or try signing up with a different email."
 
+	// OTP-related messages
+	MSG_OTP_NOT_ENABLED           = "OTP passwordless login is not enabled"
+	MSG_OTP_SENT                  = "If an account exists with this email, a verification code has been sent"
+	MSG_OTP_INVALID               = "Invalid or expired verification code"
+	MSG_OTP_EXPIRED               = "Verification code has expired"
+	MSG_OTP_MAX_ATTEMPTS          = "Maximum verification attempts exceeded. Please request a new code"
+	MSG_OTP_GENERATION_ERROR      = "Error generating verification code"
+	MSG_OTP_SEND_ERROR            = "Error sending verification code"
+	MSG_OTP_SESSION_CREATE_ERROR  = "Error creating OTP session"
+	MSG_OTP_USER_NOT_FOUND        = "No account found with this email"
+	MSG_OTP_EMAIL_REQUIRED        = "Email is required"
+	MSG_OTP_CODE_REQUIRED         = "Verification code is required"
+	MSG_SESSION_ID_REQUIRED       = "Session ID is required"
+	MSG_OTP_SESSION_INVALID       = "Invalid or expired session"
+	MSG_OTP_VERIFICATION_REQUIRED = "OTP verification required before this action"
+
 	ERR_SAVE_USER           = errors.InternalServerError(MSG_USER_SAVE_ERROR)
 	ERR_INVALID_TOKEN       = errors.BadRequest(MSG_INVALID_TOKEN)
 	ERR_TOKEN_EXPIRED       = errors.BadRequest(MSG_TOKEN_EXPIRED)
 	ERR_INVALID_LOGIN       = errors.UnprocessableEntity(MSG_INVALID_LOGIN_OR_PASSWORD)
 	ERR_USER_ALREADY_ACTIVE = errors.BadRequest(MSG_USER_ALREADY_ACTIVE)
+
+	// OTP-related errors
+	ERR_OTP_NOT_ENABLED  = errors.BadRequest(MSG_OTP_NOT_ENABLED)
+	ERR_OTP_INVALID      = errors.UnprocessableEntity(MSG_OTP_INVALID)
+	ERR_OTP_EXPIRED      = errors.UnprocessableEntity(MSG_OTP_EXPIRED)
+	ERR_OTP_MAX_ATTEMPTS = errors.TooManyRequests(MSG_OTP_MAX_ATTEMPTS)
 )
 
 func CreateActivationEmail(la *LocalProvider, user *fs.User) (*fs.Mail, error) {
@@ -100,4 +122,60 @@ func CreateRecoveryEmail(la *LocalProvider, user *fs.User) (*fs.Mail, error) {
 			return fmt.Sprintf("<p>%s</p>", l)
 		}), "\r\n"),
 	}, nil
+}
+
+// CreateActivationOTPEmail creates an email with OTP for account activation
+func CreateActivationOTPEmail(appName, email, otp string, expirationMinutes int) *fs.Mail {
+	name := "there"
+	parts := strings.Split(email, "@")
+	if len(parts) > 0 && parts[0] != "" {
+		name = parts[0]
+	}
+
+	bodyLines := []string{
+		fmt.Sprintf(`Hey %s,`, name),
+		fmt.Sprintf(`Welcome to %s! To complete your account setup, please use the verification code below:`, appName),
+		fmt.Sprintf(`<div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; background-color: #f5f5f5; border-radius: 8px; margin: 20px 0;">%s</div>`, otp),
+		fmt.Sprintf(`This code will expire in %d minutes.`, expirationMinutes),
+		`If you didn't create an account, you can safely ignore this email.`,
+		`For security, never share this code with anyone.`,
+		"Welcome aboard!",
+		appName,
+	}
+
+	return &fs.Mail{
+		To:      []string{email},
+		Subject: fmt.Sprintf("Your %s activation code: %s", appName, otp),
+		Body: strings.Join(utils.Map(bodyLines, func(l string) string {
+			return fmt.Sprintf("<p>%s</p>", l)
+		}), "\r\n"),
+	}
+}
+
+// CreateRecoveryOTPEmail creates an email with OTP for password recovery
+func CreateRecoveryOTPEmail(appName, email, otp string, expirationMinutes int) *fs.Mail {
+	name := "there"
+	parts := strings.Split(email, "@")
+	if len(parts) > 0 && parts[0] != "" {
+		name = parts[0]
+	}
+
+	bodyLines := []string{
+		fmt.Sprintf(`Hey %s,`, name),
+		fmt.Sprintf(`You requested to reset your password for your %s account. Use the verification code below:`, appName),
+		fmt.Sprintf(`<div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; background-color: #f5f5f5; border-radius: 8px; margin: 20px 0;">%s</div>`, otp),
+		fmt.Sprintf(`This code will expire in %d minutes.`, expirationMinutes),
+		`If you didn't request a password reset, please ignore this email.`,
+		`For security, never share this code with anyone.`,
+		"Thanks,",
+		appName,
+	}
+
+	return &fs.Mail{
+		To:      []string{email},
+		Subject: fmt.Sprintf("Your %s password reset code: %s", appName, otp),
+		Body: strings.Join(utils.Map(bodyLines, func(l string) string {
+			return fmt.Sprintf("<p>%s</p>", l)
+		}), "\r\n"),
+	}
 }

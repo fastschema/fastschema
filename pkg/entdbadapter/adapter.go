@@ -290,10 +290,10 @@ func (d *Adapter) init() error {
 		var edgeTargetIDSpec *sqlgraph.FieldSpec
 		if r.Owner || r.IsSameType() {
 			edgeTargetIDSpec = &sqlgraph.FieldSpec{
-				Column: relationModel.entIDColumn.Name,
-				Type:   relationModel.entIDColumn.Type,
+				Column: relationModel.entPrimaryColumn.Name,
+				Type:   relationModel.entPrimaryColumn.Type,
 			}
-		} else if !r.Type.IsM2M() && targetEntColumn != nil && targetEntColumn.Name != relationModel.entIDColumn.Name {
+		} else if !r.Type.IsM2M() && targetEntColumn != nil && targetEntColumn.Name != relationModel.entPrimaryColumn.Name {
 			edgeTargetIDSpec = &sqlgraph.FieldSpec{
 				Column: targetEntColumn.Name,
 				Type:   targetEntColumn.Type,
@@ -379,7 +379,7 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 		},
 	}
 
-	var idEntColumn *entSchema.Column
+	var entPrimaryColumn *entSchema.Column
 	primaryFieldName := s.PrimaryKeyName()
 	if primaryFieldName == "" {
 		primaryFieldName = entity.FieldID
@@ -392,18 +392,18 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 			column.entColumn = entColumn
 
 			if f.Name == primaryFieldName {
-				idEntColumn = entColumn
+				entPrimaryColumn = entColumn
 			}
 		}
 
 		m.columns = append(m.columns, column)
 	}
 
-	if idEntColumn == nil {
+	if entPrimaryColumn == nil {
 		if len(m.entTable.Columns) > 0 {
-			idEntColumn = m.entTable.Columns[0]
+			entPrimaryColumn = m.entTable.Columns[0]
 		} else {
-			idEntColumn = &entSchema.Column{
+			entPrimaryColumn = &entSchema.Column{
 				Attr:      "UNSIGNED",
 				Key:       entSchema.UniqueKey,
 				Type:      field.TypeUint64,
@@ -414,10 +414,10 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 		}
 	}
 
-	m.entIDColumn = idEntColumn
+	m.entPrimaryColumn = entPrimaryColumn
 
 	if !s.IsJunctionSchema {
-		m.entTable.PrimaryKey = []*entSchema.Column{idEntColumn}
+		m.entTable.PrimaryKey = []*entSchema.Column{entPrimaryColumn}
 	}
 
 	// add indexes
@@ -473,7 +473,7 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 			{
 				Symbol:     fmt.Sprintf("%s_%s", s.Namespace, col1.Name),
 				Columns:    []*entSchema.Column{col1},
-				RefColumns: []*entSchema.Column{firstRelationModel.entIDColumn},
+				RefColumns: []*entSchema.Column{firstRelationModel.entPrimaryColumn},
 				RefTable:   firstRelationModel.entTable,
 				OnDelete:   entSchema.Cascade,
 				OnUpdate:   entSchema.Cascade,
@@ -481,7 +481,7 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 			{
 				Symbol:     fmt.Sprintf("%s_%s", s.Namespace, col2.Name),
 				Columns:    []*entSchema.Column{col2},
-				RefColumns: []*entSchema.Column{secondRelationModel.entIDColumn},
+				RefColumns: []*entSchema.Column{secondRelationModel.entPrimaryColumn},
 				RefTable:   secondRelationModel.entTable,
 				OnDelete:   entSchema.Cascade,
 				OnUpdate:   entSchema.Cascade,
@@ -501,10 +501,9 @@ func relationOnDeleteOption(r *schema.Relation) entSchema.ReferenceOption {
 	return referenceOptionTypeToEnt(option)
 }
 
-
 func (d *Adapter) resolveRelationTargetColumn(targetModel *Model, r *schema.Relation) (*entSchema.Column, error) {
-	if r.Type.IsM2M() || r.TargetColumn == "" || r.TargetColumn == targetModel.entIDColumn.Name {
-		return targetModel.entIDColumn, nil
+	if r.Type.IsM2M() || r.TargetColumn == "" || r.TargetColumn == targetModel.entPrimaryColumn.Name {
+		return targetModel.entPrimaryColumn, nil
 	}
 
 	entColumn, ok := targetModel.entTable.Column(r.TargetColumn)

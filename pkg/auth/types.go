@@ -48,17 +48,41 @@ type Recovery struct {
 	Email string `json:"email"`
 }
 
+// Confirmation supports both link-based (token) and OTP-based (session_id + otp) verification
 type Confirmation struct {
-	Token string `json:"token"`
+	Token     string `json:"token,omitempty"`      // For link-based verification
+	SessionID string `json:"session_id,omitempty"` // For OTP-based verification
+	OTP       string `json:"otp,omitempty"`        // For OTP-based verification
 }
 
-type ResetPassword struct {
-	*Confirmation
+// IsOTPBased returns true if this is an OTP-based confirmation
+func (c *Confirmation) IsOTPBased() bool {
+	return c.SessionID != "" && c.OTP != ""
+}
 
+// IsTokenBased returns true if this is a token-based confirmation
+func (c *Confirmation) IsTokenBased() bool {
+	return c.Token != ""
+}
+
+// SendActivation is used to request activation link or OTP
+type SendActivation struct {
+	Token string `json:"token,omitempty"` // For resend link (existing flow)
+	Email string `json:"email,omitempty"` // For OTP request (new flow)
+}
+
+// ResetPassword supports both link-based (token) and OTP-based (session_id) password reset
+type ResetPassword struct {
+	Token           string `json:"token,omitempty"`      // For link-based verification
+	SessionID       string `json:"session_id,omitempty"` // For OTP-based verification
 	Password        string `json:"password"`
 	ConfirmPassword string `json:"confirm_password"`
 }
 
+// Activation represents the activation status response
 type Activation struct {
-	Activation string `json:"activation"` // auto, manual, email, activated
+	Activation string `json:"activation"`            // auto, manual, email, activated
+	SessionID  string `json:"session_id,omitempty"`  // Only for OTP flow
+	ExpiresIn  int    `json:"expires_in,omitempty"`  // Only for OTP flow (seconds)
+	Verified   bool   `json:"verified,omitempty"`    // For recover/check OTP response
 }

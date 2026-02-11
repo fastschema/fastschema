@@ -16,6 +16,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/jwt"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -331,7 +332,7 @@ func testLogoutAllViaHTTP(dbc db.Client) func(t *testing.T) {
 		assert.Equal(t, 200, resp.StatusCode)
 
 		// Verify all sessions are deleted from DB
-		for _, sessionID := range []uint64{claims1.SessionID, claims2.SessionID} {
+		for _, sessionID := range []uuid.UUID{claims1.SessionID, claims2.SessionID} {
 			_, err = db.Builder[*fs.Session](dbc).
 				Where(db.EQ("id", sessionID)).
 				First(ctx)

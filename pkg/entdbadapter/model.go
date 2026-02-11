@@ -20,22 +20,22 @@ type Column struct {
 
 // Model holds the model data
 type Model struct {
-	name        string
-	client      db.Client
-	schema      *schema.Schema
-	entTable    *entSchema.Table  `json:"-"`
-	entIDColumn *entSchema.Column `json:"-"`
-	columns     []*Column         `json:"-"`
+	name             string
+	client           db.Client
+	schema           *schema.Schema
+	entTable         *entSchema.Table  `json:"-"`
+	entPrimaryColumn *entSchema.Column `json:"-"`
+	columns          []*Column         `json:"-"`
 }
 
 func (m *Model) Clone() db.Model {
 	return &Model{
-		name:        m.name,
-		client:      m.client,
-		schema:      m.schema,
-		entTable:    m.entTable,
-		entIDColumn: m.entIDColumn,
-		columns:     m.columns,
+		name:             m.name,
+		client:           m.client,
+		schema:           m.schema,
+		entTable:         m.entTable,
+		entPrimaryColumn: m.entPrimaryColumn,
+		columns:          m.columns,
 	}
 }
 
@@ -99,8 +99,8 @@ func (m *Model) Query(predicates ...*db.Predicate) db.Querier {
 		Node: &sqlgraph.NodeSpec{
 			Table: m.schema.Namespace,
 			ID: &sqlgraph.FieldSpec{
-				Type:   m.entIDColumn.Type,
-				Column: m.entIDColumn.Name,
+				Type:   m.entPrimaryColumn.Type,
+				Column: m.entPrimaryColumn.Name,
 			},
 		},
 		ScanValues: func(columns []string) ([]any, error) {
