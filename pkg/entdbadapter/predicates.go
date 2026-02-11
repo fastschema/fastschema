@@ -98,6 +98,7 @@ func createRelationsPredicate(
 ) (PredicateFN, error) {
 	relationFieldName := relationFieldNames[0]
 	relationFieldNames = relationFieldNames[1:]
+	hasNestedRelations := len(relationFieldNames) > 0
 	relationField := model.schema.Field(relationFieldName)
 
 	if relationField == nil {
@@ -139,7 +140,8 @@ func createRelationsPredicate(
 	)
 
 	var pred func(*sql.Selector)
-	if len(relationFieldNames) > 0 {
+	useNegatedExists := false
+	if hasNestedRelations {
 		p, err := createRelationsPredicate(
 			entAdapter,
 			entTargetModel,
@@ -155,7 +157,17 @@ func createRelationsPredicate(
 			s2.Where(p(s2))
 		}
 	} else {
-		predFn, err := createEntPredicates(entAdapter, model, []*db.Predicate{lastFieldPredicate})
+		useNegatedExists = relation.Type.IsM2M() && needsM2MNegation(lastFieldPredicate.Operator)
+		targetPredicate := lastFieldPredicate
+		if useNegatedExists {
+			if positiveOperator, ok := inverseRelationOperator(lastFieldPredicate.Operator); ok {
+				predicateCopy := *lastFieldPredicate
+				predicateCopy.Operator = positiveOperator
+				targetPredicate = &predicateCopy
+			}
+		}
+
+		predFn, err := createEntPredicates(entAdapter, model, []*db.Predicate{targetPredicate})
 		if err != nil {
 			return nil, err
 		}
@@ -163,12 +175,17 @@ func createRelationsPredicate(
 		pred = func(s2 *sql.Selector) {
 			s2.Where(sql.And(predFn(s2)...))
 		}
+
 	}
 
 	return func(selector *sql.Selector) *sql.Predicate {
 		s1 := selector.Clone().SetP(nil)
 		sqlgraph.HasNeighborsWith(s1, relationStep, pred)
-		return s1.P()
+		predicate := s1.P()
+		if !hasNestedRelations && relation.Type.IsM2M() && useNegatedExists {
+			return sql.Not(predicate)
+		}
+		return predicate
 	}, nil
 }
 
@@ -347,4 +364,20 @@ func relationStepToColumn(_ *Model, relation *schema.Relation) string {
 	}
 
 	return targetColumn
+}
+
+func needsM2MNegation(operator db.OperatorType) bool {
+	_, ok := inverseRelationOperator(operator)
+	return ok
+}
+
+func inverseRelationOperator(operator db.OperatorType) (db.OperatorType, bool) {
+	switch operator {
+	case db.OpNEQ:
+		return db.OpEQ, true
+	case db.OpNIN:
+		return db.OpIN, true
+	default:
+		return operator, false
+	}
 }

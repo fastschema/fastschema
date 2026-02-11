@@ -1,0 +1,38 @@
+{
+  "name": "tag",
+  "namespace": "tags",
+  "label_field": "label",
+  "fields": [
+    {
+      "name": "label",
+      "label": "Label",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "posts",
+      "label": "Posts",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "post",
+        "field": "tags",
+        "owner": false
+      }
+    },
+    {
+      "name": "legacy_posts",
+      "label": "Legacy Posts",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "post",
+        "field": "legacy_tags",
+        "owner": false,
+        "source_column": "legacy_post_ref",
+        "target_column": "legacy_tag_ref",
+        "junction_table": "post_legacy_tags"
+      }
+    }
+  ]
+}

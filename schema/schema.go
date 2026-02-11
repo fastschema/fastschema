@@ -102,10 +102,10 @@ func (s *Schema) Init(disableIDColumn bool) error {
 		newIDField.Filterable = true
 		newIDField.Sortable = true
 
-		existedIDField := s.Field(entity.FieldID)
+		existingIDField := s.Field(entity.FieldID)
 		// If ID field already exists, merge the new ID field with the existing one
-		if existedIDField != nil {
-			MergeFields(existedIDField, newIDField)
+		if existingIDField != nil {
+			MergeFields(existingIDField, newIDField)
 		} else {
 			s.Fields = append([]*Field{newIDField}, s.Fields...)
 		}
