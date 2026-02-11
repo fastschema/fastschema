@@ -2,6 +2,7 @@
   "name": "task",
   "namespace": "id_tasks",
   "label_field": "title",
+  "primary_field": "id",
   "fields": [
     {
       "name": "title",

@@ -131,7 +131,7 @@ func runO2MCustomFKTests(t *testing.T, client h.DBClient) {
 		f := prepareAuthorBook(t, client)
 
 		// Verify books by filtering on author_legacy_id
-		results := u.Must(f.book.Query(db.EQ("legacy_id", f.secondLegacyID, "author")).
+		results := u.Must(f.book.Query(db.EQ("author.legacy_id", f.secondLegacyID)).
 			Select("title", "author_legacy_id", "author").
 			Get(h.Ctx()))
 		require.Len(t, results, 1)
@@ -164,7 +164,7 @@ func runO2MCustomFKTests(t *testing.T, client h.DBClient) {
 		f := prepareAuthorBook(t, client)
 
 		// Verify books by filtering on author's legacy_id
-		books := u.Must(f.book.Query(db.EQ("legacy_id", f.firstLegacyID, "author")).
+		books := u.Must(f.book.Query(db.EQ("author.legacy_id", f.firstLegacyID)).
 			Select("title", "author_legacy_id").
 			Get(h.Ctx()))
 		require.Len(t, books, 1)
@@ -177,7 +177,7 @@ func runO2MCustomFKTests(t *testing.T, client h.DBClient) {
 	t.Run("RelationFilterOwner", func(t *testing.T) {
 		f := prepareAuthorBook(t, client)
 		// Verify authors by filtering on book title
-		authors := u.Must(f.author.Query(db.EQ("title", "Book Both", "books")).
+		authors := u.Must(f.author.Query(db.EQ("books.title", "Book Both")).
 			Select("name").
 			Get(h.Ctx()))
 		require.Len(t, authors, 1)
@@ -245,7 +245,7 @@ func runO2OCustomFKTests(t *testing.T, client h.DBClient) {
 		f := prepareCitizenPassport(t, client)
 
 		// Verify passports by filtering on holder_legacy_id
-		results := u.Must(f.passport.Query(db.EQ("legacy_id", f.secondLegacyID, "holder")).
+		results := u.Must(f.passport.Query(db.EQ("holder.legacy_id", f.secondLegacyID)).
 			Select("number", "holder_legacy_id", "holder").
 			Get(h.Ctx()))
 		require.Len(t, results, 1)
@@ -275,7 +275,7 @@ func runO2OCustomFKTests(t *testing.T, client h.DBClient) {
 		f := prepareCitizenPassport(t, client)
 
 		// Verify passports by filtering on citizen's legacy_id
-		passports := u.Must(f.passport.Query(db.EQ("full_name", "Citizen A", "holder")).
+		passports := u.Must(f.passport.Query(db.EQ("holder.full_name", "Citizen A")).
 			Select("number").
 			Get(h.Ctx()))
 		require.Len(t, passports, 1)
@@ -288,7 +288,7 @@ func runO2OCustomFKTests(t *testing.T, client h.DBClient) {
 		f := prepareCitizenPassport(t, client)
 
 		// Verify authors by filtering on book title
-		citizens := u.Must(f.citizen.Query(db.EQ("number", fmt.Sprintf("P-%d", f.firstLegacyID), "passport")).
+		citizens := u.Must(f.citizen.Query(db.EQ("passport.number", fmt.Sprintf("P-%d", f.firstLegacyID))).
 			Select("full_name").
 			Get(h.Ctx()))
 		require.Len(t, citizens, 1)
@@ -346,7 +346,7 @@ func runM2MCustomFKTests(t *testing.T, client h.DBClient) {
 		f := preparePlaylistTrack(t, client)
 
 		// Verify playlists by filtering on track code
-		playlists := u.Must(f.playlist.Query(db.EQ("code", f.trackOneCode, "tracks")).
+		playlists := u.Must(f.playlist.Query(db.EQ("tracks.code", f.trackOneCode)).
 			Select("code").
 			Get(h.Ctx()))
 		require.Len(t, playlists, 1)
@@ -378,7 +378,7 @@ func runM2MCustomFKTests(t *testing.T, client h.DBClient) {
 		f := preparePlaylistTrack(t, client)
 
 		// Verify tracks by filtering on playlist code
-		tracks := u.Must(f.track.Query(db.EQ("code", f.mixPlaylistCode, "playlists")).
+		tracks := u.Must(f.track.Query(db.EQ("playlists.code", f.mixPlaylistCode)).
 			Select("code").
 			Get(h.Ctx()))
 		require.Len(t, tracks, 2)

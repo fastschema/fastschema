@@ -107,70 +107,138 @@ func Or(predicates ...*Predicate) *Predicate {
 	return &Predicate{Or: predicates}
 }
 
-func EQ(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{field, OpEQ, value, relationFields, nil, nil}
+// EQ creates an equality predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func EQ(field string, value any) *Predicate {
+	return &Predicate{Field: field, Operator: OpEQ, Value: value}
 }
 
-func NEQ(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{field, OpNEQ, value, relationFields, nil, nil}
+// NEQ creates a not-equal predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func NEQ(field string, value any) *Predicate {
+	return &Predicate{Field: field, Operator: OpNEQ, Value: value}
 }
 
-func GT(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{field, OpGT, value, relationFields, nil, nil}
+// GT creates a greater-than predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func GT(field string, value any) *Predicate {
+	return &Predicate{Field: field, Operator: OpGT, Value: value}
 }
 
-func GTE(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{field, OpGTE, value, relationFields, nil, nil}
+// GTE creates a greater-than-or-equal predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func GTE(field string, value any) *Predicate {
+	return &Predicate{Field: field, Operator: OpGTE, Value: value}
 }
 
-func LT(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{field, OpLT, value, relationFields, nil, nil}
+// LT creates a less-than predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func LT(field string, value any) *Predicate {
+	return &Predicate{Field: field, Operator: OpLT, Value: value}
 }
 
-func LTE(field string, value any, relationFields ...string) *Predicate {
-	return &Predicate{field, OpLTE, value, relationFields, nil, nil}
+// LTE creates a less-than-or-equal predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func LTE(field string, value any) *Predicate {
+	return &Predicate{Field: field, Operator: OpLTE, Value: value}
 }
 
-func Like(field string, value string, relationFields ...string) *Predicate {
-	return &Predicate{field, OpLike, value, relationFields, nil, nil}
+// Like creates a LIKE predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func Like(field string, value string) *Predicate {
+	return &Predicate{Field: field, Operator: OpLike, Value: value}
 }
 
-func NotLike(field string, value string, relationFields ...string) *Predicate {
-	return &Predicate{field, OpNotLike, value, relationFields, nil, nil}
+// NotLike creates a NOT LIKE predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func NotLike(field string, value string) *Predicate {
+	return &Predicate{Field: field, Operator: OpNotLike, Value: value}
 }
 
-func Contains(field string, value string, relationFields ...string) *Predicate {
-	return &Predicate{field, OpContains, value, relationFields, nil, nil}
+// Contains creates a contains predicate (substring match).
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func Contains(field string, value string) *Predicate {
+	return &Predicate{Field: field, Operator: OpContains, Value: value}
 }
 
-func NotContains(field string, value string, relationFields ...string) *Predicate {
-	return &Predicate{field, OpNotContains, value, relationFields, nil, nil}
+// NotContains creates a not-contains predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func NotContains(field string, value string) *Predicate {
+	return &Predicate{Field: field, Operator: OpNotContains, Value: value}
 }
 
-func ContainsFold(field string, value string, relationFields ...string) *Predicate {
-	return &Predicate{field, OpContainsFold, value, relationFields, nil, nil}
+// ContainsFold creates a case-insensitive contains predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func ContainsFold(field string, value string) *Predicate {
+	return &Predicate{Field: field, Operator: OpContainsFold, Value: value}
 }
 
-func NotContainsFold(field string, value string, relationFields ...string) *Predicate {
-	return &Predicate{field, OpNotContainsFold, value, relationFields, nil, nil}
+// NotContainsFold creates a case-insensitive not-contains predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func NotContainsFold(field string, value string) *Predicate {
+	return &Predicate{Field: field, Operator: OpNotContainsFold, Value: value}
 }
 
-func In[T any](field string, values []T, relationFields ...string) *Predicate {
-	return &Predicate{field, OpIN, values, relationFields, nil, nil}
+// In creates an IN predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func In[T any](field string, values []T) *Predicate {
+	return &Predicate{Field: field, Operator: OpIN, Value: values}
 }
 
-func NotIn[T any](field string, values []T, relationFields ...string) *Predicate {
-	return &Predicate{field, OpNIN, values, relationFields, nil, nil}
+// NotIn creates a NOT IN predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func NotIn[T any](field string, values []T) *Predicate {
+	return &Predicate{Field: field, Operator: OpNIN, Value: values}
 }
 
-func Null(field string, value bool, relationFields ...string) *Predicate {
-	return &Predicate{field, OpNULL, value, relationFields, nil, nil}
+// Null creates a NULL check predicate.
+// The field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
+func Null(field string, value bool) *Predicate {
+	return &Predicate{Field: field, Operator: OpNULL, Value: value}
 }
 
-func IsFalse(field string, relationFields ...string) *Predicate {
-	return &Predicate{field, OpEQ, false, relationFields, nil, nil}
+// IsFalse creates a predicate that checks if a boolean field is false.
+// The field can be a simple field name (e.g., "active") or a dot notation path
+// for relation fields (e.g., "teams.active" where "teams" is the relation field
+// and "active" is the target field in the related schema).
+func IsFalse(field string) *Predicate {
+	return &Predicate{Field: field, Operator: OpEQ, Value: false}
 }
 
-func IsTrue(field string, relationFields ...string) *Predicate {
-	return &Predicate{field, OpEQ, true, relationFields, nil, nil}
+// IsTrue creates a predicate that checks if a boolean field is true.
+// The field can be a simple field name (e.g., "active") or a dot notation path
+// for relation fields (e.g., "teams.active" where "teams" is the relation field
+// and "active" is the target field in the related schema).
+func IsTrue(field string) *Predicate {
+	return &Predicate{Field: field, Operator: OpEQ, Value: true}
 }

@@ -259,7 +259,7 @@ func TestNEQ(t *testing.T) {
 }
 
 func TestGT(t *testing.T) {
-	ops := map[OperatorType]func(field string, value any, relationFields ...string) *Predicate{
+	ops := map[OperatorType]func(field string, value any) *Predicate{
 		OpGT:  GT,
 		OpGTE: GTE,
 		OpLT:  LT,
@@ -358,7 +358,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestIsFalse(t *testing.T) {
-	values := map[bool]func(field string, relationFields ...string) *Predicate{
+	values := map[bool]func(field string) *Predicate{
 		true:  IsTrue,
 		false: IsFalse,
 	}

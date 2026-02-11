@@ -10,21 +10,23 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
+// Predicate represents a filter condition for database queries.
+// The Field can be a simple field name (e.g., "name") or a dot notation path
+// for relation fields (e.g., "teams.slug" where "teams" is the relation field
+// and "slug" is the target field in the related schema).
 type Predicate struct {
-	Field              string       `json:"field"`
-	Operator           OperatorType `json:"operator"`
-	Value              any          `json:"value"`
-	RelationFieldNames []string     `json:"relationFieldNames"`
-	And                []*Predicate `json:"and"`
-	Or                 []*Predicate `json:"or"`
+	Field    string       `json:"field"`
+	Operator OperatorType `json:"operator"`
+	Value    any          `json:"value"`
+	And      []*Predicate `json:"and,omitempty"`
+	Or       []*Predicate `json:"or,omitempty"`
 }
 
 func (p *Predicate) Clone() *Predicate {
 	cloned := &Predicate{
-		Field:              p.Field,
-		Operator:           p.Operator,
-		Value:              p.Value,
-		RelationFieldNames: p.RelationFieldNames,
+		Field:    p.Field,
+		Operator: p.Operator,
+		Value:    p.Value,
 	}
 
 	if p.And != nil {
@@ -199,9 +201,9 @@ func createObjectPredicates(
 			continue
 		}
 
-		var fieldRelations []string
 		var fieldPredicates []*Predicate
 		var err error
+		var fieldPath string // The full field path (e.g., "teams.slug" or "name")
 
 		// If the field contains ".", it is a relation filter
 		// E.g. "owner.groups.name": { "$like": "group_or_the_pet_owner%" }
@@ -219,12 +221,12 @@ func createObjectPredicates(
 
 			// last field is the last relation filter column
 			lastRelationColumn := relationFields[len(relationFields)-1]
-			relationFields = relationFields[:len(relationFields)-1]
+			relationFieldsPath := relationFields[:len(relationFields)-1]
 
 			currentSchema := s
 			var targetSchema *schema.Schema = nil
 
-			for _, relationField := range relationFields {
+			for _, relationField := range relationFieldsPath {
 				currentField := currentSchema.Field(relationField)
 				if currentField == nil {
 					return nil, filterError(schema.ErrFieldNotFound(currentSchema.Name, relationField))
@@ -247,7 +249,8 @@ func createObjectPredicates(
 				return nil, filterError(schema.ErrFieldNotFound(targetSchema.Name, lastRelationColumn))
 			}
 
-			fieldRelations = relationFields
+			// Store the full dot notation path (e.g., "teams.slug")
+			fieldPath = pair.Key
 			if fieldPredicates, err = createFieldPredicate(
 				lastRelationField,
 				pair.Value,
@@ -259,21 +262,35 @@ func createObjectPredicates(
 			if f == nil {
 				return nil, filterError(schema.ErrFieldNotFound(s.Name, pair.Key))
 			}
+			fieldPath = pair.Key
 			if fieldPredicates, err = createFieldPredicate(f, pair.Value); err != nil {
 				return nil, err
 			}
 		}
 
+		// Update the field path in predicates to include relation path if any
 		if len(fieldPredicates) > 1 {
-			p := And(fieldPredicates...)
-			p.RelationFieldNames = fieldRelations
-			predicates = append(predicates, p)
+			// Update each predicate's field to use the full path
+			for _, fp := range fieldPredicates {
+				if strings.Contains(fieldPath, ".") {
+					// Replace the field name with the full path
+					parts := strings.Split(fieldPath, ".")
+					parts[len(parts)-1] = fp.Field
+					fp.Field = strings.Join(parts, ".")
+				}
+			}
+			predicates = append(predicates, And(fieldPredicates...))
 		} else {
 			if len(fieldPredicates) == 0 {
 				return nil, errors.New("invalid field predicates")
 			}
 			p := fieldPredicates[0]
-			p.RelationFieldNames = fieldRelations
+			if strings.Contains(fieldPath, ".") {
+				// Replace the field name with the full path
+				parts := strings.Split(fieldPath, ".")
+				parts[len(parts)-1] = p.Field
+				p.Field = strings.Join(parts, ".")
+			}
 			predicates = append(predicates, p)
 		}
 	}

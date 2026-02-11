@@ -478,26 +478,23 @@ func (t *ReferenceOptionType) UnmarshalJSON(b []byte) error {
 type DBKeyType int
 
 const (
-	EmptyKey DBKeyType = iota
-	PrimaryKey
-	UniqueKey
-	MultipleKey
+	DBEmptyKey DBKeyType = iota
+	DBPrimaryKey
+	DBUniqueKey
 	endDBKeyTypes
 )
 
 var (
 	dbKeyTypeToStrings = [...]string{
-		EmptyKey:    "",
-		PrimaryKey:  "PRI",
-		UniqueKey:   "UNI",
-		MultipleKey: "MUL",
+		DBEmptyKey:   "",
+		DBPrimaryKey: "PRI",
+		DBUniqueKey:  "UNI",
 	}
 
 	stringToDBKeyTypes = map[string]DBKeyType{
-		"":    EmptyKey,
-		"PRI": PrimaryKey,
-		"UNI": UniqueKey,
-		"MUL": MultipleKey,
+		"":    DBEmptyKey,
+		"PRI": DBPrimaryKey,
+		"UNI": DBUniqueKey,
 	}
 )
 
@@ -506,7 +503,7 @@ func DBKeyTypeFromString(s string) DBKeyType {
 		return r
 	}
 
-	return EmptyKey
+	return DBEmptyKey
 }
 
 // String returns the string representation of a type.
@@ -514,12 +511,12 @@ func (t DBKeyType) String() string {
 	if t < endDBKeyTypes {
 		return dbKeyTypeToStrings[t]
 	}
-	return dbKeyTypeToStrings[EmptyKey]
+	return dbKeyTypeToStrings[DBEmptyKey]
 }
 
 // Valid reports if the given type if known type.
 func (t DBKeyType) Valid() bool {
-	return t >= EmptyKey && t < endDBKeyTypes
+	return t >= DBEmptyKey && t < endDBKeyTypes
 }
 
 // MarshalJSON marshal an enum value to the quoted json string value

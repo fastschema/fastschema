@@ -2,6 +2,7 @@ package entdbadapter
 
 import (
 	"fmt"
+	"strings"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -11,6 +12,38 @@ import (
 )
 
 type PredicateFN func(*sql.Selector) *sql.Predicate
+
+// parseFieldPath parses a field path with dot notation (e.g., "teams.slug")
+// and returns the relation field names and the final field name.
+// If the field path does not contain a dot, it returns nil for relation field names.
+// Example:
+//   - "teams.slug" -> (["teams"], "slug")
+//   - "teams.project.name" -> (["teams", "project"], "name")
+//   - "name" -> (nil, "name")
+func parseFieldPath(field string) (relationFieldNames []string, fieldName string) {
+	if !strings.Contains(field, ".") {
+		return nil, field
+	}
+
+	parts := strings.Split(field, ".")
+	if len(parts) < 2 {
+		return nil, field
+	}
+
+	// Filter out empty parts (handles cases like ".field" or "field.")
+	filteredParts := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			filteredParts = append(filteredParts, trimmed)
+		}
+	}
+
+	if len(filteredParts) < 2 {
+		return nil, field
+	}
+
+	return filteredParts[:len(filteredParts)-1], filteredParts[len(filteredParts)-1]
+}
 
 // createEntPredicates creates ent sql predicates from the given predicates
 func createEntPredicates(
@@ -25,14 +58,15 @@ func createEntPredicates(
 			continue
 		}
 
-		if len(p.RelationFieldNames) > 0 {
-			lastFieldPredicate := p.Clone()
-			lastFieldPredicate.RelationFieldNames = []string{}
+		// Parse dot notation in field name to extract relation field names
+		// This allows using db.EQ("teams.slug", value) for relation filtering
+		relationFields, fieldName := parseFieldPath(p.Field)
+		if len(relationFields) > 0 {
 			relationPredicateFn, err := createRelationsPredicate(
 				entAdapter,
 				model,
-				lastFieldPredicate,
-				p.RelationFieldNames...,
+				&db.Predicate{Field: fieldName, Operator: p.Operator, Value: p.Value},
+				relationFields...,
 			)
 
 			if err != nil {
@@ -338,7 +372,6 @@ func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 		return nil, fmt.Errorf("operator %s not supported", predicate.Operator)
 	}
 }
-
 
 func relationStepFromColumn(model *Model, relation *schema.Relation) string {
 	if relation == nil || relation.Type.IsM2M() || !relation.Owner || relation.BackRef == nil || model == nil {

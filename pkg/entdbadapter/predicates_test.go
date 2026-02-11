@@ -391,12 +391,7 @@ func TestCreateEntPredicates(t *testing.T) {
 			model: carModel,
 			predicates: []*db.Predicate{
 				db.GT("year", 2000),
-				{
-					Field:              "name",
-					Operator:           db.OpLike,
-					Value:              "%group%",
-					RelationFieldNames: []string{"group", "parent"},
-				},
+				db.Like("group.parent.name", "%group%"),
 			},
 			expectQuery: "`cars`.`year` > ? AND EXISTS (SELECT `groups`.`id` FROM `groups` WHERE `cars`.`group_id` = `groups`.`id` AND EXISTS (SELECT `groups_edge`.`id` FROM `groups` AS `groups_edge` WHERE `groups`.`parent_id` = `groups_edge`.`id` AND `groups_edge`.`name` LIKE ?))",
 			expectArgs:  []any{2000, "%group%"},
@@ -405,11 +400,7 @@ func TestCreateEntPredicates(t *testing.T) {
 			name:  "RelationM2MNEQ",
 			model: postModel,
 			predicates: []*db.Predicate{
-				func() *db.Predicate {
-					p := db.NEQ("id", uint64(10001))
-					p.RelationFieldNames = []string{"tags"}
-					return p
-				}(),
+				db.NEQ("tags.id", uint64(10001)),
 			},
 			expectQuery: "NOT (`posts`.`id` IN (SELECT `posts_tags`.`posts` FROM `posts_tags` JOIN `tags` AS `t1` ON `posts_tags`.`tags` = `t1`.`id` WHERE `t1`.`id` = ?))",
 			expectArgs:  []any{uint64(10001)},
@@ -418,11 +409,7 @@ func TestCreateEntPredicates(t *testing.T) {
 			name:  "RelationM2MNEQCustomColumns",
 			model: postModel,
 			predicates: []*db.Predicate{
-				func() *db.Predicate {
-					p := db.NEQ("id", uint64(42))
-					p.RelationFieldNames = []string{"legacy_tags"}
-					return p
-				}(),
+				db.NEQ("legacy_tags.id", uint64(42)),
 			},
 			expectQuery: "NOT (`posts`.`id` IN (SELECT `post_legacy_tags`.`legacy_post_ref` FROM `post_legacy_tags` JOIN `tags` AS `t1` ON `post_legacy_tags`.`legacy_tag_ref` = `t1`.`id` WHERE `t1`.`id` = ?))",
 			expectArgs:  []any{uint64(42)},

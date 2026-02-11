@@ -10,30 +10,6 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
-type SchemaDBIndex struct {
-	Name    string   `json:"name,omitempty"`
-	Unique  bool     `json:"unique,omitempty"`
-	Columns []string `json:"columns,omitempty"`
-}
-
-type SchemaDB struct {
-	Indexes []*SchemaDBIndex `json:"indexes,omitempty"`
-}
-
-type SchemaFormZone = []string
-
-type SchemaFormView map[string]SchemaFormZone
-
-type SchemaForm struct {
-	ActiveView   string                    `json:"active_view,omitempty"`
-	HiddenFields []string                  `json:"hidden_fields,omitempty"`
-	Views        map[string]SchemaFormView `json:"views,omitempty"`
-}
-
-type SchemaSettings struct {
-	Form *SchemaForm `json:"form,omitempty"`
-}
-
 // Schema holds the node data.
 type Schema struct {
 	*SystemSchema `json:"-"`
@@ -177,6 +153,71 @@ func (s *Schema) Clone() *Schema {
 	return clone
 }
 
+// MergeSchemas merges the source schema into the target schema.
+// This is used to merge user customizations from JSON files into system schemas.
+// - Fields that exist in both schemas will be merged (source overrides target for non-system fields)
+// - Fields that only exist in source will be added to target (if not system fields)
+// - Schema-level properties from source will override target if they are set
+// - DB indexes from source will be merged with target
+func MergeSchemas(target, source *Schema) {
+	// Merge schema-level properties (only if explicitly set in source)
+	if source.Namespace != "" && source.Namespace != target.Namespace {
+		target.Namespace = source.Namespace
+	}
+	if source.LabelFieldName != "" {
+		target.LabelFieldName = source.LabelFieldName
+	}
+	if source.PrimaryFieldName != "" {
+		target.PrimaryFieldName = source.PrimaryFieldName
+	}
+	if source.DisableTimestamp {
+		target.DisableTimestamp = source.DisableTimestamp
+	}
+	if source.Settings != nil {
+		target.Settings = source.Settings
+	}
+
+	// Merge fields
+	for _, sourceField := range source.Fields {
+		existingField := target.Field(sourceField.Name)
+		if existingField != nil {
+			// Field exists in target - merge the properties
+			// Only merge if source field is not a system field (user customization)
+			if !sourceField.IsSystemField {
+				MergeFields(existingField, sourceField)
+			}
+		} else {
+			// Field doesn't exist in target - add it (only non-system fields from JSON)
+			if !sourceField.IsSystemField {
+				target.Fields = append(target.Fields, sourceField)
+			}
+		}
+	}
+
+	// Merge DB indexes
+	if source.DB != nil && source.DB.Indexes != nil {
+		if target.DB == nil {
+			target.DB = &SchemaDB{
+				Indexes: []*SchemaDBIndex{},
+			}
+		}
+
+		// Add indexes from source that don't exist in target
+		for _, sourceIndex := range source.DB.Indexes {
+			indexExists := false
+			for _, targetIndex := range target.DB.Indexes {
+				if targetIndex.Name == sourceIndex.Name {
+					indexExists = true
+					break
+				}
+			}
+			if !indexExists {
+				target.DB.Indexes = append(target.DB.Indexes, sourceIndex)
+			}
+		}
+	}
+}
+
 // SaveToFile saves the schema to a file.
 func (s *Schema) SaveToFile(filename string) error {
 	filteredSchema := s.Clone()
@@ -203,13 +244,9 @@ func (s *Schema) HasField(fieldName string) bool {
 
 // Field return field by it's name
 func (s *Schema) Field(name string) *Field {
-	for _, f := range s.Fields {
-		if f.Name == name {
-			return f
-		}
-	}
-
-	return nil
+	return utils.Find(s.Fields, func(f *Field) bool {
+		return f.Name == name
+	})
 }
 
 // IDField returns the primary key field definition.
@@ -324,7 +361,7 @@ func (s *Schema) ensurePrimaryField(disableIDColumn bool) error {
 	var autoCreated bool
 	userDefined := s.PrimaryFieldName != ""
 
-	if s.PrimaryFieldName != "" {
+	if s.PrimaryFieldName != "" && s.PrimaryFieldName != entity.FieldID {
 		candidate = s.Field(s.PrimaryFieldName)
 		if candidate == nil {
 			return fmt.Errorf("schema %s: primary field '%s' is not found", s.Name, s.PrimaryFieldName)
@@ -373,7 +410,7 @@ func defaultIDField() *Field {
 		Label: "ID",
 		DB: &FieldDB{
 			Attr:      "UNSIGNED",
-			Key:       PrimaryKey,
+			Key:       DBPrimaryKey,
 			Increment: true,
 		},
 		IsSystemField: true,
@@ -402,8 +439,8 @@ func applyPrimaryFieldDefaults(field *Field, autoCreated bool) {
 		field.Label = "ID"
 	}
 
-	if field.DB.Key == EmptyKey {
-		field.DB.Key = PrimaryKey
+	if field.DB.Key == DBEmptyKey {
+		field.DB.Key = DBPrimaryKey
 	}
 
 	if field.DB.Attr == "" && field.Type.IsUnsignedInteger() {
@@ -416,7 +453,7 @@ func applyPrimaryFieldDefaults(field *Field, autoCreated bool) {
 		field.DB.Increment = true
 	}
 
-	field.IsSystemField = autoCreated || field.Name == entity.FieldID
+	field.IsSystemField = field.IsSystemField || autoCreated
 
 	field.Immutable = true
 	field.Unique = true

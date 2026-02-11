@@ -38,7 +38,9 @@ func New(config Config) *Server {
 
 	app.Hooks().OnListen(func(listenData fiber.ListenData) error {
 		address := listenData.Host + ":" + listenData.Port
-		config.Logger.Info("Server listening on " + address)
+		if config.Logger != nil {
+			config.Logger.Info("Server listening on " + address)
+		}
 
 		return nil
 	})

@@ -367,7 +367,7 @@ func testSystemSchemasOnly(t *testing.T, client h.DBClient) {
 
 	// Query remaining episodes using relation uuid PK
 	remaining2 := u.Must(episodeModel.
-		Query(db.EQ("id", seriesID, "series")).
+		Query(db.EQ("series.id", seriesID)).
 		Get(h.Ctx()))
 	require.Len(t, remaining2, 1)
 
@@ -426,7 +426,7 @@ func testSystemM2MRelations(t *testing.T, client h.DBClient) {
 
 	// Select relation and filter by relation
 	serieses := u.Must(seriesModel.
-		Query(db.EQ("label", "Topic 1", "topics")).
+		Query(db.EQ("topics.label", "Topic 1")).
 		Select("topics").
 		Get(h.Ctx()))
 
@@ -584,7 +584,7 @@ func testMixedSystemM2MUuidUint(t *testing.T, client h.DBClient) {
 
 	// Query episodes by series uuid FK
 	episodes := u.Must(episodeModel.
-		Query(db.EQ("id", seriesID, "series")).
+		Query(db.EQ("series.id", seriesID)).
 		Get(h.Ctx()))
 	require.Len(t, episodes, 2)
 	ids := u.Map(episodes, func(e *entity.Entity) uint64 {
@@ -594,7 +594,7 @@ func testMixedSystemM2MUuidUint(t *testing.T, client h.DBClient) {
 
 	// Query series by episode uint64 FK
 	serieses := u.Must(seriesModel.
-		Query(db.EQ("id", firstEpisodeID, "episodes")).
+		Query(db.EQ("episodes.id", firstEpisodeID)).
 		Get(h.Ctx()))
 	require.Len(t, serieses, 1)
 	assert.Equal(t, seriesID, coerceString(t, serieses[0].Get("id")))
@@ -706,7 +706,7 @@ func testM2MStringUUID(t *testing.T, client h.DBClient) {
 
 	// Query using relation uuid PK
 	categories := u.Must(categoryModel.
-		Query(db.EQ("id", f.userID, "followers")).
+		Query(db.EQ("followers.id", f.userID)).
 		Select("followers").
 		Get(h.Ctx()))
 	require.Len(t, categories, 1)
@@ -720,7 +720,7 @@ func testM2MStringUUID(t *testing.T, client h.DBClient) {
 
 	// Query using filter on relation string PK
 	followers2 := u.Must(userModel.
-		Query(db.EQ("id", f.categorySlug, "followed_categories")).
+		Query(db.EQ("followed_categories.id", f.categorySlug)).
 		Select("followed_categories").
 		Get(h.Ctx()))
 	require.Len(t, followers2, 2)
@@ -802,7 +802,7 @@ func testM2MUuidUint(t *testing.T, client h.DBClient) {
 
 	// Query using relation uuid PK
 	posts := u.Must(postModel.
-		Query(db.EQ("id", f.userID, "likes")).
+		Query(db.EQ("likes.id", f.userID)).
 		Select("likes").
 		Get(h.Ctx()))
 	require.Len(t, posts, 1)
@@ -816,7 +816,7 @@ func testM2MUuidUint(t *testing.T, client h.DBClient) {
 
 	// Query using filter on relation uint64 PK
 	likers2 := u.Must(userModel.
-		Query(db.EQ("id", f.postID, "liked_posts")).
+		Query(db.EQ("liked_posts.id", f.postID)).
 		Select("liked_posts").
 		Get(h.Ctx()))
 	require.Len(t, likers2, 2)

@@ -43,6 +43,16 @@ func Filter[T any](slice []T, predicate func(T) bool) []T {
 	return result
 }
 
+func Find[T any](slice []T, predicate func(T) bool) T {
+	for _, e := range slice {
+		if predicate(e) {
+			return e
+		}
+	}
+	var zero T
+	return zero
+}
+
 func Contains[T comparable](slice []T, element T) bool {
 	return slices.Contains(slice, element)
 }

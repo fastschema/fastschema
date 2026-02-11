@@ -69,12 +69,12 @@ func testM2MNEQDefault(t *testing.T, client h.DBClient) {
 	u.Must(postModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"title": "Post 3", "tags": [{"id": %d}]}`, targetTagID)))
 	u.Must(postModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"title": "Post 4", "tags": [{"id": %d}, {"id": %d}]}`, targetTagID, otherTagID)))
 
-	results := u.Must(postModel.Query(db.NEQ("id", targetTagID, "tags")).Select("title").Get(h.Ctx()))
+	results := u.Must(postModel.Query(db.NEQ("tags.id", targetTagID)).Select("title").Get(h.Ctx()))
 	require.Len(t, results, 2)
 	titles := extractAndSortTitles(t, results)
 	assert.Equal(t, []string{"Post 1", "Post 2"}, titles)
 
-	resultsByTitle := u.Must(postModel.Query(db.NEQ("label", "Tag 1", "tags")).Select("title").Get(h.Ctx()))
+	resultsByTitle := u.Must(postModel.Query(db.NEQ("tags.label", "Tag 1")).Select("title").Get(h.Ctx()))
 	require.Len(t, resultsByTitle, 2)
 	titlesByLabel := extractAndSortTitles(t, resultsByTitle)
 	assert.Equal(t, []string{"Post 1", "Post 2"}, titlesByLabel)
@@ -94,12 +94,12 @@ func testM2MNEQCustom(t *testing.T, client h.DBClient) {
 	u.Must(postModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"title": "Post 7", "legacy_tags": [{"id": %d}]}`, targetTagID)))
 	u.Must(postModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"title": "Post 8", "legacy_tags": [{"id": %d}, {"id": %d}]}`, targetTagID, otherTagID)))
 
-	results := u.Must(postModel.Query(db.NEQ("id", targetTagID, "legacy_tags")).Select("title").Get(h.Ctx()))
+	results := u.Must(postModel.Query(db.NEQ("legacy_tags.id", targetTagID)).Select("title").Get(h.Ctx()))
 	require.Len(t, results, 2)
 	titles := extractAndSortTitles(t, results)
 	assert.Equal(t, []string{"Post 5", "Post 6"}, titles)
 
-	resultsByLabel := u.Must(postModel.Query(db.NEQ("label", "Tag 3", "legacy_tags")).Select("title").Get(h.Ctx()))
+	resultsByLabel := u.Must(postModel.Query(db.NEQ("legacy_tags.label", "Tag 3")).Select("title").Get(h.Ctx()))
 	require.Len(t, resultsByLabel, 2)
 	titlesByLabel := extractAndSortTitles(t, resultsByLabel)
 	assert.Equal(t, []string{"Post 5", "Post 6"}, titlesByLabel)

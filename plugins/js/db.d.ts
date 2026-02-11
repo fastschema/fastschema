@@ -6,7 +6,6 @@ export interface FsDbPredicate {
   Field: string;
   Operator: FsDBOperator;
   Value: any;
-  RelationFieldNames: string[];
   And?: FsDbPredicate[];
   Or?: FsDbPredicate[];
 }

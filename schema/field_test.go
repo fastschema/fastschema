@@ -223,7 +223,7 @@ func TestFieldClone(t *testing.T) {
 			Attr:      "UNSIGNED",
 			Collation: "utf8mb4_unicode_ci",
 			Increment: true,
-			Key:       PrimaryKey,
+			Key:       DBPrimaryKey,
 		},
 		Enums: []*FieldEnum{
 			{
@@ -387,7 +387,7 @@ func TestMergeFields(t *testing.T) {
 			Attr:      "UNSIGNED",
 			Collation: "utf8mb4_unicode_ci",
 			Increment: true,
-			Key:       PrimaryKey,
+			Key:       DBPrimaryKey,
 		},
 		Enums: []*FieldEnum{
 			{
@@ -422,7 +422,7 @@ func TestMergeFields(t *testing.T) {
 			Attr:      "UNSIGNED",
 			Collation: "utf8mb4_unicode_ci",
 			Increment: true,
-			Key:       PrimaryKey,
+			Key:       DBPrimaryKey,
 		},
 		Enums: []*FieldEnum{
 			{
@@ -463,7 +463,7 @@ func TestMergeFields(t *testing.T) {
 			Attr:      "UNSIGNED",
 			Collation: "utf8mb4_unicode_ci",
 			Increment: true,
-			Key:       PrimaryKey,
+			Key:       DBPrimaryKey,
 		},
 		Enums: []*FieldEnum{
 			{

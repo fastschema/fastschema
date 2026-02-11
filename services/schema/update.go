@@ -358,6 +358,14 @@ func (su *SchemaUpdate) updateRelatedSchemasBackRefs() (err error) {
 
 // updateBasicData update the data that only exist in the schema json files.
 func (su *SchemaUpdate) updateBasicData() (err error) {
+	// Preserve IsSystemField flag from current schema fields,
+	// IsSystemField flag should not be changed from the frontend.
+	for _, updateField := range su.updateData.Data.Fields {
+		if cf := su.currentSchema.Field(updateField.Name); cf != nil {
+			updateField.IsSystemField = cf.IsSystemField
+		}
+	}
+
 	// overwrite the current schema with the new schema
 	su.updateSchemas[su.updateData.Data.Name] = su.updateData.Data
 

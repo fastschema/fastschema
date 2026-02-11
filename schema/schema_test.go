@@ -26,7 +26,7 @@ func TestSchema(t *testing.T) {
 		Label: "ID",
 		DB: &FieldDB{
 			Attr:      "UNSIGNED",
-			Key:       PrimaryKey,
+			Key:       DBPrimaryKey,
 			Increment: true,
 		},
 		Unique:        true,
@@ -141,11 +141,12 @@ func TestNewSchemaFromJSON(t *testing.T) {
 	assert.Equal(t, "id", schema.Fields[0].Name)
 	assert.Equal(t, TypeUint64, schema.Fields[0].Type)
 	assert.Equal(t, "ID", schema.Fields[0].Label)
-	assert.True(t, schema.Fields[0].IsSystemField)
+	// Since the id field is defined in the JSON, it should not be treated as a system field
+	assert.False(t, schema.Fields[0].IsSystemField)
 	assert.True(t, schema.Fields[0].Unique)
 	assert.True(t, schema.Fields[0].Sortable)
 	assert.Equal(t, "UNSIGNED", schema.Fields[0].DB.Attr)
-	assert.Equal(t, PrimaryKey, schema.Fields[0].DB.Key)
+	assert.Equal(t, DBPrimaryKey, schema.Fields[0].DB.Key)
 	assert.True(t, schema.Fields[0].DB.Increment)
 
 	assert.Equal(t, "name", schema.Fields[1].Name)
@@ -185,7 +186,7 @@ func TestSchemaPrimaryFieldProperty(t *testing.T) {
 
 	refField := s.Field("ref")
 	if assert.NotNil(t, refField) {
-		assert.Equal(t, PrimaryKey, refField.DB.Key)
+		assert.Equal(t, DBPrimaryKey, refField.DB.Key)
 	}
 }
 
@@ -497,19 +498,19 @@ func TestErrFieldNotFound(t *testing.T) {
 }
 func TestNewSchemaFromMap(t *testing.T) {
 	// invalid schema map
-	data := map[string]interface{}{
+	data := map[string]any{
 		"name": make(chan int),
 	}
 	schema, err := NewSchemaFromMap(data)
 	assert.Error(t, err)
 	assert.Nil(t, schema)
 
-	data = map[string]interface{}{
+	data = map[string]any{
 		"name":              "test",
 		"namespace":         "test_namespace",
 		"label_field":       "name",
 		"disable_timestamp": false,
-		"fields": []map[string]interface{}{
+		"fields": []map[string]any{
 			{
 				"name":  "id",
 				"type":  "uint64",
@@ -543,11 +544,12 @@ func TestNewSchemaFromMap(t *testing.T) {
 	assert.Equal(t, "id", schema.Fields[0].Name)
 	assert.Equal(t, TypeUint64, schema.Fields[0].Type)
 	assert.Equal(t, "ID", schema.Fields[0].Label)
-	assert.True(t, schema.Fields[0].IsSystemField)
+	// Since the id field is defined in the JSON, it should not be treated as a system field
+	assert.False(t, schema.Fields[0].IsSystemField)
 	assert.True(t, schema.Fields[0].Unique)
 	assert.True(t, schema.Fields[0].Sortable)
 	assert.Equal(t, "UNSIGNED", schema.Fields[0].DB.Attr)
-	assert.Equal(t, PrimaryKey, schema.Fields[0].DB.Key)
+	assert.Equal(t, DBPrimaryKey, schema.Fields[0].DB.Key)
 	assert.True(t, schema.Fields[0].DB.Increment)
 
 	assert.Equal(t, "name", schema.Fields[1].Name)

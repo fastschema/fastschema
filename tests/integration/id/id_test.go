@@ -222,7 +222,7 @@ func testPrimaryKeyFilters(t *testing.T, client h.DBClient) {
 	assert.EqualValues(t, f.taskID, tasksByProject1[0].ID())
 
 	tasksByProject2 := u.Must(taskModel.
-		Query(db.EQ("code", f.projectCode, "project")).
+		Query(db.EQ("project.code", f.projectCode)).
 		Get(ctx))
 	require.Len(t, tasksByProject2, 1)
 	assert.EqualValues(t, f.taskID, tasksByProject2[0].ID())
@@ -235,7 +235,7 @@ func testPrimaryKeyFilters(t *testing.T, client h.DBClient) {
 	assert.EqualValues(t, f.taskID, tasksByEngineer1[0].ID())
 
 	tasksByEngineer2 := u.Must(taskModel.
-		Query(db.EQ("handle", f.engineerHandle, "assignee")).
+		Query(db.EQ("assignee.handle", f.engineerHandle)).
 		Get(ctx))
 	require.Len(t, tasksByEngineer2, 1)
 	assert.EqualValues(t, f.taskID, tasksByEngineer2[0].ID())
@@ -248,7 +248,7 @@ func testPrimaryKeyFilters(t *testing.T, client h.DBClient) {
 	assert.Equal(t, f.projectCode, deployments1[0].Get("project_code"))
 
 	deployments2 := u.Must(deploymentModel.
-		Query(db.EQ("code", f.projectCode, "project")).
+		Query(db.EQ("project.code", f.projectCode)).
 		Get(ctx))
 	require.Len(t, deployments2, 1)
 	assert.Equal(t, f.projectCode, deployments2[0].Get("project_code"))
@@ -261,7 +261,7 @@ func testPrimaryKeyFilters(t *testing.T, client h.DBClient) {
 	assert.Equal(t, f.projectCode, artifacts1[0].Get("project_code"))
 
 	artifacts2 := u.Must(artifactModel.
-		Query(db.EQ("code", f.projectCode, "project")).
+		Query(db.EQ("project.code", f.projectCode)).
 		Get(ctx))
 	require.Len(t, artifacts2, 1)
 	assert.Equal(t, f.projectCode, artifacts2[0].Get("project_code"))
@@ -323,7 +323,7 @@ func testRelationFiltersAndSelects(t *testing.T, client h.DBClient) {
 
 	// Query project using teams relation with custom PK names and type=string
 	projectsForTeam := u.Must(projectModel.
-		Query(db.EQ("slug", secondTeamSlug, "teams")).
+		Query(db.EQ("teams.slug", secondTeamSlug)).
 		Get(ctx))
 	require.Len(t, projectsForTeam, 1)
 	assert.Equal(t, f.projectCode, projectsForTeam[0].Get("code"))
@@ -331,7 +331,7 @@ func testRelationFiltersAndSelects(t *testing.T, client h.DBClient) {
 
 	// Query team using projects relation with custom PK names and type=uuid
 	teamsForProject := u.Must(teamModel.
-		Query(db.EQ("code", f.projectCode, "projects")).
+		Query(db.EQ("projects.code", f.projectCode)).
 		Get(ctx))
 	require.Len(t, teamsForProject, 2)
 	slugs := u.Map(teamsForProject, func(e *entity.Entity) string {
@@ -341,21 +341,21 @@ func testRelationFiltersAndSelects(t *testing.T, client h.DBClient) {
 
 	// Query tasks using assignee relation with custom PK names and type=string
 	tasksForEngineer := u.Must(taskModel.
-		Query(db.EQ("handle", secondEngineerHandle, "assignee")).
+		Query(db.EQ("assignee.handle", secondEngineerHandle)).
 		Get(ctx))
 	require.Len(t, tasksForEngineer, 1)
 	assert.EqualValues(t, extraTaskID, tasksForEngineer[0].ID())
 
 	// Query engineer using tasks relation with custom PK names and type=string
 	teamsByMember := u.Must(teamModel.
-		Query(db.EQ("handle", secondEngineerHandle, "members")).
+		Query(db.EQ("members.handle", secondEngineerHandle)).
 		Get(ctx))
 	require.Len(t, teamsByMember, 1)
 	assert.Equal(t, secondTeamSlug, teamsByMember[0].Get("slug"))
 
 	// Select relations from engineer with custom PK names and type=string
 	engineerTeams := u.Must(engineerModel.
-		Query(db.EQ("slug", f.teamSlug, "teams")).
+		Query(db.EQ("teams.slug", f.teamSlug)).
 		Select("teams").First(ctx))
 	joinedTeams, ok := engineerTeams.Get("teams").([]*entity.Entity)
 	require.True(t, ok)
@@ -519,14 +519,14 @@ func testSystemRelationQueries(t *testing.T, client h.DBClient) {
 
 	// Query labs by scientist using custom PK names and type=string
 	labsByScientist := u.Must(labModel.
-		Query(db.EQ("handle", secondHandle, "scientists")).
+		Query(db.EQ("scientists.handle", secondHandle)).
 		Get(ctx))
 	require.Len(t, labsByScientist, 1)
 	assert.Equal(t, f.labCode, labsByScientist[0].ID())
 
 	// Query scientists by lab using custom PK names and type=uuid
 	scientistsByLab := u.Must(scientistModel.
-		Query(db.EQ("code", f.labCode, "labs")).
+		Query(db.EQ("labs.code", f.labCode)).
 		Get(ctx))
 	require.Len(t, scientistsByLab, 2)
 	handles := u.Map(scientistsByLab, func(e *entity.Entity) string {
@@ -536,14 +536,14 @@ func testSystemRelationQueries(t *testing.T, client h.DBClient) {
 
 	// Query experiments by lab and scientist using custom PK names and type=string
 	experimentsByScientist := u.Must(experimentModel.
-		Query(db.EQ("handle", secondHandle, "scientist")).
+		Query(db.EQ("scientist.handle", secondHandle)).
 		Get(ctx))
 	require.Len(t, experimentsByScientist, 1)
 	assert.Equal(t, secondExperimentID, experimentsByScientist[0].ID())
 
 	// Query samples by experiment using custom PK names and type=uuid
 	samplesByExperiment := u.Must(sampleModel.
-		Query(db.EQ("experiment_id", secondExperimentID, "experiment")).
+		Query(db.EQ("experiment.experiment_id", secondExperimentID)).
 		Get(ctx))
 	require.Len(t, samplesByExperiment, 1)
 	assert.EqualValues(t, secondSampleNo, samplesByExperiment[0].ID())

@@ -224,7 +224,7 @@ func (r *Relation) CreateFKField(targetField *Field) (*Field, error) {
 	}
 
 	fkField.DB.Increment = false
-	fkField.DB.Key = utils.If(r.Type.IsO2O(), UniqueKey, EmptyKey)
+	fkField.DB.Key = utils.If(r.Type.IsO2O(), DBUniqueKey, DBEmptyKey)
 
 	if err := fkField.Init(); err != nil {
 		return nil, err

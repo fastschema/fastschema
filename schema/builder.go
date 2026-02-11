@@ -53,23 +53,10 @@ func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema
 			return nil, err
 		}
 
-		if _, ok := schemas[schema.Name]; ok {
-			schemas[schema.Name].Fields = append(
-				schemas[schema.Name].Fields,
-				schema.Fields...,
-			)
-			if schema.DB != nil && schema.DB.Indexes != nil {
-				if schemas[schema.Name].DB == nil {
-					schemas[schema.Name].DB = &SchemaDB{
-						Indexes: []*SchemaDBIndex{},
-					}
-				}
-
-				schemas[schema.Name].DB.Indexes = append(
-					schemas[schema.Name].DB.Indexes,
-					schema.DB.Indexes...,
-				)
-			}
+		if existingSchema, ok := schemas[schema.Name]; ok {
+			// Merge the schema from JSON file into the existing schema
+			// This allows user customizations to override system schema properties
+			MergeSchemas(existingSchema, schema)
 		} else {
 			schemas[schema.Name] = schema
 		}
@@ -423,7 +410,7 @@ func (b *Builder) CreateM2mJunctionSchema(sourceSchema *Schema, r *Relation) (*S
 		fkField.Optional = false
 		fkField.Unique = false
 		fkField.DB.Increment = false
-		fkField.DB.Key = EmptyKey
+		fkField.DB.Key = DBEmptyKey
 	}
 
 	junctionSchema.Fields = []*Field{firstFKField, secondFKField}

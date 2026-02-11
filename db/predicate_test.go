@@ -441,11 +441,11 @@ func TestCreateObjectPredicates(t *testing.T) {
 			name: "relation",
 			filter: `{
 				"cars.model.name": {
-					"$like": "carmodel",
+					"$like": "carmodel"
 				}
 			}`,
 			expectResult: []*Predicate{
-				Like("name", "carmodel", []string{"cars", "model"}...),
+				{Field: "cars.model.name", Operator: OpLike, Value: "carmodel"},
 			},
 		},
 	}
