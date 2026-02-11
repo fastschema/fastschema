@@ -140,7 +140,7 @@ func createTestApp(t *testing.T, dbc db.Client) *testApp {
 			AuthConfig: authConfig,
 		},
 		testUser: &fs.User{
-			ID:       userID,
+			ID:       userID.(uint64),
 			Username: username,
 			Email:    email,
 			Active:   true,

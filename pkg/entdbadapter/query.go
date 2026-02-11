@@ -25,6 +25,7 @@ type Query struct {
 	predicates       []*db.Predicate
 	withEdgesFields  []*schema.Field
 	edgeDirectSelect map[string]bool
+	relationOptions  db.RelationOptions
 	client           db.Client
 	model            *Model
 	querySpec        *sqlgraph.QuerySpec
@@ -123,6 +124,12 @@ func (q *Query) Select(fields ...string) db.Querier {
 // Where adds the given predicates to the query.
 func (q *Query) Where(predicates ...*db.Predicate) db.Querier {
 	q.predicates = append(q.predicates, predicates...)
+	return q
+}
+
+// WithRelationOptions sets options for loading relation records.
+func (q *Query) WithRelationOptions(options db.RelationOptions) db.Querier {
+	q.relationOptions = options
 	return q
 }
 
@@ -399,20 +406,23 @@ func (q *Query) loadEdges(ctx context.Context, edgesColumns map[string][]string)
 
 		edgeColumns := edgesColumns[edgeField.Name]
 
+		// Get relation options for this edge field
+		relOpt := q.relationOptions.Get(edgeField.Name)
+
 		if relation.Type == schema.O2M {
-			if err := q.loadEdgesO2M(ctx, edgeField, edgeEntModel, edgeColumns); err != nil {
+			if err := q.loadEdgesO2M(ctx, edgeField, edgeEntModel, edgeColumns, relOpt); err != nil {
 				return err
 			}
 		}
 
 		if relation.Type == schema.O2O {
-			if err := q.loadEdgesO2O(ctx, edgeField, edgeEntModel, edgeColumns); err != nil {
+			if err := q.loadEdgesO2O(ctx, edgeField, edgeEntModel, edgeColumns, relOpt); err != nil {
 				return err
 			}
 		}
 
 		if relation.Type == schema.M2M {
-			if err := q.loadEdgesM2M(ctx, edgeField, edgeEntModel, edgeColumns); err != nil {
+			if err := q.loadEdgesM2M(ctx, edgeField, edgeEntModel, edgeColumns, relOpt); err != nil {
 				return err
 			}
 		}
@@ -426,13 +436,22 @@ func (q *Query) loadEdgesO2M(
 	field *schema.Field,
 	edgeModel *Model,
 	edgeColumns []string,
+	relOpt *db.RelationOption,
 ) error {
 	if !field.Relation.Owner {
-		return q.loadNonOwnerEdges(ctx, field, edgeModel, edgeColumns)
+		return q.loadNonOwnerEdges(ctx, field, edgeModel, edgeColumns, relOpt)
+	}
+
+	// Initialize all entities with empty arrays for O2M relations
+	// This ensures that entities without neighbors still have an empty array
+	for _, node := range q.entities {
+		if node.Get(field.Name) == nil {
+			node.Set(field.Name, []*entity.Entity{})
+		}
 	}
 
 	return q.loadOwnerEdges(
-		ctx, field, edgeModel, edgeColumns,
+		ctx, field, edgeModel, edgeColumns, relOpt,
 		func(node *entity.Entity, neighbor *entity.Entity) error {
 			edgeValues := node.Get(field.Name)
 			if edgeValues == nil {
@@ -458,13 +477,14 @@ func (q *Query) loadEdgesO2O(
 	field *schema.Field,
 	edgeModel *Model,
 	edgeColumns []string,
+	relOpt *db.RelationOption,
 ) error {
 	if !field.Relation.Owner {
-		return q.loadNonOwnerEdges(ctx, field, edgeModel, edgeColumns)
+		return q.loadNonOwnerEdges(ctx, field, edgeModel, edgeColumns, relOpt)
 	}
 
 	return q.loadOwnerEdges(
-		ctx, field, edgeModel, edgeColumns,
+		ctx, field, edgeModel, edgeColumns, relOpt,
 		func(node *entity.Entity, neighbor *entity.Entity) error {
 			node.Set(field.Name, neighbor)
 			return nil
@@ -478,6 +498,7 @@ func (q *Query) loadEdgesM2M(
 	field *schema.Field,
 	edgeModel *Model,
 	edgeColumns []string,
+	relOpt *db.RelationOption,
 ) error {
 	edgeIDs, byID, err := collectEntityIDs(q.model.name, q.model.schema.IDField(), q.entities)
 	if err != nil {
@@ -608,6 +629,38 @@ func (q *Query) loadEdgesM2M(
 
 	entEdgeQuery.order = []string{edgeModel.entIDColumn.Name}
 
+	// Apply relation options if provided
+	if relOpt != nil {
+		// Apply sort order from relation options
+		if relOpt.Sort != "" {
+			entEdgeQuery.order = []string{relOpt.Sort}
+		}
+
+		// Apply filter from relation options
+		if relOpt.Filter != nil {
+			builder := q.client.SchemaBuilder()
+			if builder != nil {
+				predicates, err := db.CreatePredicatesFromRelationFilter(builder, edgeModel.schema, relOpt.Filter)
+				if err != nil {
+					return fmt.Errorf("invalid relation filter for %s: %w", field.Name, err)
+				}
+				entEdgeQuery.predicates = append(entEdgeQuery.predicates, predicates...)
+			}
+		}
+
+		// Pass relation options to nested edge queries
+		if relOpt.Select != nil {
+			for _, sel := range relOpt.Select {
+				if !utils.Contains(entEdgeQuery.fields, sel) {
+					entEdgeQuery.fields = append(entEdgeQuery.fields, sel)
+				}
+			}
+		}
+
+		// Pass nested relation options
+		entEdgeQuery.relationOptions = q.relationOptions.GetNestedOptions(field.Name)
+	}
+
 	// Add nested fields and relation fields to the edge query for recursive processing
 	entEdgeQuery.fields = append(entEdgeQuery.fields, nestedFields...)
 	entEdgeQuery.fields = append(entEdgeQuery.fields, relationFields...)
@@ -616,6 +669,9 @@ func (q *Query) loadEdgesM2M(
 		return err
 	}
 
+	// Track per-parent entity counters for limit/offset
+	perParentCounters := make(map[*entity.Entity]int)
+
 	for _, n := range neighbors {
 		key := valueKey(n.ID())
 		nodes, ok := nids[key]
@@ -623,6 +679,28 @@ func (q *Query) loadEdgesM2M(
 			continue
 		}
 		for kn := range nodes {
+			// Apply per-parent limit/offset if relation options are provided
+			if relOpt != nil && (relOpt.Limit > 0 || relOpt.Offset > 0) {
+				currentCount := perParentCounters[kn]
+				perParentCounters[kn]++
+
+				// Skip if we haven't reached the offset yet
+				if relOpt.Offset > 0 && uint(currentCount) < relOpt.Offset {
+					continue
+				}
+
+				// Skip if we've reached the limit
+				if relOpt.Limit > 0 {
+					effectiveCount := currentCount
+					if relOpt.Offset > 0 {
+						effectiveCount = currentCount - int(relOpt.Offset)
+					}
+					if uint(effectiveCount) >= relOpt.Limit {
+						continue
+					}
+				}
+			}
+
 			kn.Set(field.Name, append(kn.Get(field.Name).([]*entity.Entity), n))
 		}
 		delete(nids, key)
@@ -632,7 +710,7 @@ func (q *Query) loadEdgesM2M(
 }
 
 // loadNonOwnerEdges loads the non-owner edges for the given field.
-func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edgeModel *Model, edgeColumns []string) error {
+func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edgeModel *Model, edgeColumns []string, relOpt *db.RelationOption) error {
 	selectFullEdge := q.edgeDirectSelect != nil && q.edgeDirectSelect[field.Name]
 	relation := field.Relation
 	edgeSchemaName := relation.TargetSchemaName
@@ -726,6 +804,33 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 	}
 
 	edgeQuery = edgeQuery.Where(db.In(targetColumn, ids))
+
+	// Apply relation options if provided
+	if relOpt != nil {
+		entEdgeQuery, ok := edgeQuery.(*Query)
+		if ok {
+			// Apply sort order from relation options
+			if relOpt.Sort != "" {
+				entEdgeQuery.order = []string{relOpt.Sort}
+			}
+
+			// Apply filter from relation options
+			if relOpt.Filter != nil {
+				builder := q.client.SchemaBuilder()
+				if builder != nil {
+					predicates, err := db.CreatePredicatesFromRelationFilter(builder, edgeModel.schema, relOpt.Filter)
+					if err != nil {
+						return fmt.Errorf("invalid relation filter for %s: %w", field.Name, err)
+					}
+					entEdgeQuery.predicates = append(entEdgeQuery.predicates, predicates...)
+				}
+			}
+
+			// Pass nested relation options
+			entEdgeQuery.relationOptions = q.relationOptions.GetNestedOptions(field.Name)
+		}
+	}
+
 	neighbors, err := edgeQuery.Get(ctx)
 	if err != nil {
 		return err
@@ -767,13 +872,14 @@ func (q *Query) loadOwnerEdges(
 	field *schema.Field,
 	edgeModel *Model,
 	edgeColumns []string,
+	relOpt *db.RelationOption,
 	assignFn func(node, neighbor *entity.Entity) error,
 ) error {
 	selectFullEdge := q.edgeDirectSelect != nil && q.edgeDirectSelect[field.Name]
 	relation := field.Relation
 	edgeSchemaName := relation.TargetSchemaName
 	fks := make([]any, 0, len(q.entities))
-	nodeids := make(map[string]*entity.Entity)
+	nodeids := make(map[string][]*entity.Entity)
 	fkColumn := relation.BackRef.SourceColumn
 	refColumn := relation.BackRef.TargetColumn
 	useTargetColumn := refColumn != "" && refColumn != q.model.entIDColumn.Name
@@ -804,8 +910,11 @@ func (q *Query) loadOwnerEdges(
 			return err
 		}
 
-		fks = append(fks, normalized)
-		nodeids[valueKey(normalized)] = entity
+		key := valueKey(normalized)
+		if _, exists := nodeids[key]; !exists {
+			fks = append(fks, normalized)
+		}
+		nodeids[key] = append(nodeids[key], entity)
 	}
 
 	// Separate direct columns from nested field paths and relation fields
@@ -854,13 +963,77 @@ func (q *Query) loadOwnerEdges(
 		if ok {
 			entEdgeQuery.fields = append(entEdgeQuery.fields, nestedFields...)
 			entEdgeQuery.fields = append(entEdgeQuery.fields, relationFields...)
+
+			// Apply relation options if provided
+			if relOpt != nil {
+				// Apply sort order from relation options
+				if relOpt.Sort != "" {
+					entEdgeQuery.order = []string{relOpt.Sort}
+				}
+
+				// Apply filter from relation options
+				if relOpt.Filter != nil {
+					builder := q.client.SchemaBuilder()
+					if builder != nil {
+						predicates, err := db.CreatePredicatesFromRelationFilter(builder, edgeModel.schema, relOpt.Filter)
+						if err != nil {
+							return fmt.Errorf("invalid relation filter for %s: %w", field.Name, err)
+						}
+						entEdgeQuery.predicates = append(entEdgeQuery.predicates, predicates...)
+					}
+				}
+
+				// Pass relation options to nested edge queries
+				if relOpt.Select != nil {
+					for _, sel := range relOpt.Select {
+						if !utils.Contains(entEdgeQuery.fields, sel) {
+							entEdgeQuery.fields = append(entEdgeQuery.fields, sel)
+						}
+					}
+				}
+
+				// Pass nested relation options
+				entEdgeQuery.relationOptions = q.relationOptions.GetNestedOptions(field.Name)
+			}
 		}
 	}
 
-	neighbors, err := edgeQuery.Where(db.In(fkColumn, fks)).Get(ctx)
+	edgeQuery = edgeQuery.Where(db.In(fkColumn, fks))
+
+	// Apply relation options to the edge query
+	if relOpt != nil {
+		entEdgeQuery, ok := edgeQuery.(*Query)
+		if ok {
+			// Apply sort order from relation options
+			if relOpt.Sort != "" {
+				entEdgeQuery.order = []string{relOpt.Sort}
+			}
+
+			// Apply filter from relation options
+			if relOpt.Filter != nil {
+				builder := q.client.SchemaBuilder()
+				if builder != nil {
+					predicates, err := db.CreatePredicatesFromRelationFilter(builder, edgeModel.schema, relOpt.Filter)
+					if err != nil {
+						return fmt.Errorf("invalid relation filter for %s: %w", field.Name, err)
+					}
+					entEdgeQuery.predicates = append(entEdgeQuery.predicates, predicates...)
+				}
+			}
+
+			// Pass nested relation options
+			entEdgeQuery.relationOptions = q.relationOptions.GetNestedOptions(field.Name)
+		}
+	}
+
+	neighbors, err := edgeQuery.Get(ctx)
 	if err != nil {
 		return err
 	}
+
+	// Track per-parent entity counters for limit/offset (for O2M relations)
+	// Use the first entity in each node group as the key for tracking
+	perParentCounters := make(map[string]int)
 
 	for _, n := range neighbors {
 		fkValue := n.Get(fkColumn)
@@ -873,13 +1046,39 @@ func (q *Query) loadOwnerEdges(
 			return err
 		}
 
-		node, ok := nodeids[valueKey(normalized)]
+		key := valueKey(normalized)
+		nodes, ok := nodeids[key]
 		if !ok {
 			return noFKNodeError(q.model.name, edgeSchemaName, fkColumn, n.ID(), fkValue)
 		}
 
-		if err := assignFn(node, n); err != nil {
-			return err
+		// Apply per-parent limit/offset if relation options are provided
+		if relOpt != nil && (relOpt.Limit > 0 || relOpt.Offset > 0) {
+			currentCount := perParentCounters[key]
+			perParentCounters[key]++
+
+			// Skip if we haven't reached the offset yet
+			if relOpt.Offset > 0 && uint(currentCount) < relOpt.Offset {
+				continue
+			}
+
+			// Skip if we've reached the limit
+			if relOpt.Limit > 0 {
+				effectiveCount := currentCount
+				if relOpt.Offset > 0 {
+					effectiveCount = currentCount - int(relOpt.Offset)
+				}
+				if uint(effectiveCount) >= relOpt.Limit {
+					continue
+				}
+			}
+		}
+
+		// Assign neighbor to ALL entity instances with the same ID
+		for _, node := range nodes {
+			if err := assignFn(node, n); err != nil {
+				return err
+			}
 		}
 	}
 

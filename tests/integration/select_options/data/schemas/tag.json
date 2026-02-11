@@ -1,0 +1,36 @@
+{
+  "name": "tag",
+  "namespace": "tags",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "priority",
+      "label": "Priority",
+      "type": "int",
+      "sortable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "posts",
+      "label": "Posts",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "post",
+        "field": "tags",
+        "owner": false
+      }
+    }
+  ]
+}

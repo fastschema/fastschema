@@ -1,0 +1,30 @@
+{
+  "name": "country",
+  "namespace": "countries",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "code",
+      "label": "Code",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "authors",
+      "label": "Authors",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "author",
+        "field": "country",
+        "owner": true
+      }
+    }
+  ]
+}

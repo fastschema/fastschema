@@ -1,0 +1,30 @@
+{
+  "name": "commenter",
+  "namespace": "commenters",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "email",
+      "label": "Email",
+      "type": "string"
+    },
+    {
+      "name": "comments",
+      "label": "Comments",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "comment",
+        "field": "commenter",
+        "owner": true
+      }
+    }
+  ]
+}

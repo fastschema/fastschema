@@ -1,0 +1,40 @@
+{
+  "name": "author",
+  "namespace": "authors",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "bio",
+      "label": "Bio",
+      "type": "text"
+    },
+    {
+      "name": "posts",
+      "label": "Posts",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "post",
+        "field": "author",
+        "owner": true
+      }
+    },
+    {
+      "name": "country",
+      "label": "Country",
+      "type": "relation",
+      "relation": {
+        "type": "o2o",
+        "schema": "country",
+        "field": "authors",
+        "owner": false
+      }
+    }
+  ]
+}

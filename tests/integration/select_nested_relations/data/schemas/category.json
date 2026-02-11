@@ -1,0 +1,60 @@
+{
+  "name": "category",
+  "namespace": "categories",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "type": "text"
+    },
+    {
+      "name": "priority",
+      "label": "Priority",
+      "type": "int",
+      "sortable": true
+    },
+    {
+      "name": "posts",
+      "label": "Posts",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "m2m",
+        "schema": "post",
+        "field": "categories",
+        "owner": true
+      }
+    },
+    {
+      "name": "parent",
+      "label": "Parent Category",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "category",
+        "field": "children",
+        "owner": false
+      }
+    },
+    {
+      "name": "children",
+      "label": "Child Categories",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "category",
+        "field": "parent",
+        "owner": true
+      }
+    }
+  ]
+}

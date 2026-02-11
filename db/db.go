@@ -243,6 +243,10 @@ type Querier interface {
 	Offset(offset uint) Querier
 	Select(columns ...string) Querier
 	Order(order ...string) Querier
+	// WithRelationOptions sets options for loading relation records.
+	// This allows limiting, offsetting, sorting, filtering, and selecting
+	// specific fields when loading relation records per entity.
+	WithRelationOptions(options RelationOptions) Querier
 	Count(ctx context.Context, options ...*QueryOption) (int, error)
 	Get(ctx context.Context) ([]*entity.Entity, error)
 	First(ctx context.Context) (*entity.Entity, error)

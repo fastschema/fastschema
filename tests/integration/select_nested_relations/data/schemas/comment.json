@@ -1,0 +1,43 @@
+{
+  "name": "comment",
+  "namespace": "comments",
+  "label_field": "content",
+  "fields": [
+    {
+      "name": "content",
+      "label": "Content",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "rating",
+      "label": "Rating",
+      "type": "int",
+      "sortable": true
+    },
+    {
+      "name": "post",
+      "label": "Post",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "post",
+        "field": "comments",
+        "owner": false
+      }
+    },
+    {
+      "name": "commenter",
+      "label": "Commenter",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "commenter",
+        "field": "comments",
+        "owner": false
+      }
+    }
+  ]
+}

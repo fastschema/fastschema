@@ -57,15 +57,26 @@ func (cs *ContentService) List(c fs.Context, _ any) (*Pagination, error) {
 		columns = []string{"roles"}
 	}
 
+	// Parse relation options for controlling relation field loading
+	relationOptions, err := db.ParseRelationOptions(c.Arg("select_options", ""))
+	if err != nil {
+		return nil, errors.BadRequest(err.Error())
+	}
+
 	page := uint(c.ArgInt("page", 1))
 	limit := uint(c.ArgInt("limit", 10))
-	records, err := model.Query(predicates...).
+	query := model.Query(predicates...).
 		Select(columns...).
 		Limit(uint(c.ArgInt("limit", 10))).
 		Offset((page - 1) * limit).
-		Order(c.Arg("sort", "-id")).
-		Get(c)
+		Order(c.Arg("sort", "-id"))
 
+	// Apply relation options if provided
+	if relationOptions != nil {
+		query = query.WithRelationOptions(relationOptions)
+	}
+
+	records, err := query.Get(c)
 	if err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}

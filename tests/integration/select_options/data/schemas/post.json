@@ -1,0 +1,63 @@
+{
+  "name": "post",
+  "namespace": "posts",
+  "label_field": "title",
+  "fields": [
+    {
+      "name": "title",
+      "label": "Title",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "content",
+      "label": "Content",
+      "type": "text"
+    },
+    {
+      "name": "priority",
+      "label": "Priority",
+      "type": "int",
+      "sortable": true
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "author",
+      "label": "Author",
+      "type": "relation",
+      "relation": {
+        "type": "o2o",
+        "schema": "author",
+        "field": "posts",
+        "owner": false
+      }
+    },
+    {
+      "name": "tags",
+      "label": "Tags",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "tag",
+        "field": "posts",
+        "owner": true
+      }
+    },
+    {
+      "name": "categories",
+      "label": "Categories",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "category",
+        "field": "posts",
+        "owner": true
+      }
+    }
+  ]
+}

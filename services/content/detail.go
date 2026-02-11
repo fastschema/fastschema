@@ -23,9 +23,20 @@ func (cs *ContentService) Detail(c fs.Context, _ any) (*entity.Entity, error) {
 		columns = strings.Split(fields, ",")
 	}
 
-	entity, err := model.Query(db.EQ("id", id)).
-		Select(columns...).
-		First(c)
+	// Parse relation options for controlling relation field loading
+	relationOptions, err := db.ParseRelationOptions(c.Arg("select_options", ""))
+	if err != nil {
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	query := model.Query(db.EQ("id", id)).Select(columns...)
+
+	// Apply relation options if provided
+	if relationOptions != nil {
+		query = query.WithRelationOptions(relationOptions)
+	}
+
+	entity, err := query.First(c)
 	if err != nil {
 		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())
