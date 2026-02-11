@@ -30,6 +30,7 @@ func New(app AppLike) *RoleService {
 func (rs *RoleService) CreateResource(api *fs.Resource) {
 	api.Group("role").
 		Add(fs.NewResource("list", rs.List, &fs.Meta{Get: "/"})).
+		Add(fs.NewResource("export", rs.Export, &fs.Meta{Get: "/export"})). // Must be before /:id
 		Add(fs.NewResource("detail", rs.Detail, &fs.Meta{
 			Get:  "/:id",
 			Args: fs.Args{"id": fs.CreateArg(fs.TypeUint64, "The role ID")},

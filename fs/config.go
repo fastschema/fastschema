@@ -6,25 +6,26 @@ import (
 )
 
 type Config struct {
-	Dir                string         `json:"dir"`
-	AppName            string         `json:"app_name"`
-	AppKey             string         `json:"app_key"`
-	Port               string         `json:"port"`
-	BaseURL            string         `json:"base_url"`
-	DashURL            string         `json:"dash_url"`
-	APIBaseName        string         `json:"api_base_name"`
-	DashBaseName       string         `json:"dash_base_name"`
-	Logger             logger.Logger  `json:"-"`
-	LoggerConfig       *logger.Config `json:"logger_config"` // If Logger is set, LoggerConfig will be ignored
-	DB                 db.Client      `json:"-"`
-	DBConfig           *db.Config     `json:"db_config"` // If DB is set, DBConfig will be ignored
-	StorageConfig      *StorageConfig `json:"storage_config"`
-	AuthConfig         *AuthConfig    `json:"auth_config"`
-	MailConfig         *MailConfig    `json:"mail_config"`
-	SystemSchemas      []any          `json:"-"` // types to build the system schemas
-	Hooks              *Hooks         `json:"-"`
-	HideResourcesInfo  bool           `json:"hide_resources_info"`
-	MaxRequestBodySize int            `json:"max_request_body_size"` // in bytes, default is 4MB
+	Dir                    string                        `json:"dir"`
+	AppName                string                        `json:"app_name"`
+	AppKey                 string                        `json:"app_key"`
+	Port                   string                        `json:"port"`
+	BaseURL                string                        `json:"base_url"`
+	DashURL                string                        `json:"dash_url"`
+	APIBaseName            string                        `json:"api_base_name"`
+	DashBaseName           string                        `json:"dash_base_name"`
+	Logger                 logger.Logger                 `json:"-"`
+	LoggerConfig           *logger.Config                `json:"logger_config"` // If Logger is set, LoggerConfig will be ignored
+	DB                     db.Client                     `json:"-"`
+	DBConfig               *db.Config                    `json:"db_config"` // If DB is set, DBConfig will be ignored
+	StorageConfig          *StorageConfig                `json:"storage_config"`
+	AuthConfig             *AuthConfig                   `json:"auth_config"`
+	MailConfig             *MailConfig                   `json:"mail_config"`
+	RolePermissionSettings *RolePermissionSettingsConfig `json:"role_permission_settings"`
+	SystemSchemas          []any                         `json:"-"` // types to build the system schemas
+	Hooks                  *Hooks                        `json:"-"`
+	HideResourcesInfo      bool                          `json:"hide_resources_info"`
+	MaxRequestBodySize     int                           `json:"max_request_body_size"` // in bytes, default is 4MB
 }
 
 func (ac *Config) Clone() *Config {
@@ -66,6 +67,10 @@ func (ac *Config) Clone() *Config {
 
 	if ac.Hooks != nil {
 		c.Hooks = ac.Hooks.Clone()
+	}
+
+	if ac.RolePermissionSettings != nil {
+		c.RolePermissionSettings = ac.RolePermissionSettings.Clone()
 	}
 
 	return c

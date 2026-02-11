@@ -1510,7 +1510,7 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(1, "John"))
 				// pets: O2M with limit uses window function
-				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY .owner_id..*ORDER BY.*DESC").
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `id`, `name`, `owner_id`, `sub_owner_id`, `created_at`, `updated_at`, `deleted_at` FROM (SELECT `id`, `name`, `owner_id`, `sub_owner_id`, `created_at`, `updated_at`, `deleted_at`, (ROW_NUMBER() OVER (PARTITION BY `owner_id` ORDER BY `name DESC`)) AS `row_num` FROM `pets` WHERE `pets`.`owner_id` IN (?)) AS `ranked` WHERE `row_num` <= ? ORDER BY `name` DESC")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
 						AddRow(2, "Zebra", uint64(1)).
 						AddRow(1, "Alpha", uint64(1)))

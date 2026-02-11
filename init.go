@@ -205,6 +205,18 @@ func (a *App) prepareConfig() (err error) {
 		)
 	}
 
+	// Parse ROLE_PERMISSION_SETTINGS from environment variable
+	if a.config.RolePermissionSettings == nil {
+		if envValue := utils.Env("ROLE_PERMISSION_SETTINGS"); envValue != "" {
+			if err := json.Unmarshal([]byte(envValue), &a.config.RolePermissionSettings); err != nil {
+				return fmt.Errorf("failed to parse ROLE_PERMISSION_SETTINGS: %w", err)
+			}
+			if err := a.config.RolePermissionSettings.Validate(); err != nil {
+				return fmt.Errorf("invalid ROLE_PERMISSION_SETTINGS: %w", err)
+			}
+		}
+	}
+
 	return nil
 }
 

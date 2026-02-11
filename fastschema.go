@@ -317,6 +317,11 @@ func (a *App) UpdateCache(ctx context.Context) (err error) {
 		return err
 	}
 
+	// Apply permission overrides from environment configuration
+	if a.config.RolePermissionSettings != nil {
+		a.applyPermissionOverrides()
+	}
+
 	for _, role := range a.roles {
 		if err := role.Compile(); err != nil {
 			return err
@@ -330,6 +335,48 @@ func (a *App) UpdateCache(ctx context.Context) (err error) {
 	}
 
 	return nil
+}
+
+// applyPermissionOverrides merges permissions from environment configuration
+// into the roles loaded from the database. Environment permissions take precedence.
+func (a *App) applyPermissionOverrides() {
+	for _, roleConfig := range a.config.RolePermissionSettings.Roles {
+		var targetRole *fs.Role
+		for _, role := range a.roles {
+			if role.Name == roleConfig.Name {
+				targetRole = role
+				break
+			}
+		}
+
+		if targetRole == nil {
+			a.Logger().Warn(fmt.Sprintf("ROLE_PERMISSION_SETTINGS: role '%s' not found in database, skipping", roleConfig.Name))
+			continue
+		}
+
+		// Merge/override permissions
+		for _, permConfig := range roleConfig.Permissions {
+			overridden := false
+			for i, existingPerm := range targetRole.Permissions {
+				if existingPerm.Resource == permConfig.Resource {
+					// Override existing permission
+					targetRole.Permissions[i].Value = permConfig.Value
+					targetRole.Permissions[i].Modifier = permConfig.Modifier
+					overridden = true
+					break
+				}
+			}
+			if !overridden {
+				// Add new permission
+				targetRole.Permissions = append(targetRole.Permissions, &fs.Permission{
+					RoleID:   targetRole.ID,
+					Resource: permConfig.Resource,
+					Value:    permConfig.Value,
+					Modifier: permConfig.Modifier,
+				})
+			}
+		}
+	}
 }
 
 // CreateOpenAPISpec generates the openapi spec for the app.
