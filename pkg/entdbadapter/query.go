@@ -30,6 +30,31 @@ type Query struct {
 	querySpec        *sqlgraph.QuerySpec
 }
 
+func collectEntityIDs(schemaName string, idField *schema.Field, entities []*entity.Entity) ([]driver.Value, map[string]*entity.Entity, error) {
+	ids := make([]driver.Value, 0, len(entities))
+	byKey := make(map[string]*entity.Entity, len(entities))
+	for _, node := range entities {
+		var idValue any
+		if idField != nil {
+			idValue = node.Get(idField.Name)
+		}
+		if isZeroValue(idValue) {
+			idValue = node.ID()
+		}
+		if isZeroValue(idValue) {
+			return nil, nil, fmt.Errorf("entity %s has invalid id", schemaName)
+		}
+		normalized, err := normalizeIDValue(idField, idValue)
+		if err != nil {
+			return nil, nil, fmt.Errorf("entity %s has invalid id: %w", schemaName, err)
+		}
+		key := valueKey(normalized)
+		ids = append(ids, normalized)
+		byKey[key] = node
+	}
+	return ids, byKey, nil
+}
+
 func (q *Query) WithTrashed() db.Querier {
 	if !q.client.Config().UseSoftDeletes {
 		return q
@@ -253,7 +278,7 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 
 				if relation.Type != schema.M2M && relation.Owner && relation.BackRef != nil {
 					targetColumn := relation.BackRef.TargetColumn
-					if targetColumn != "" && targetColumn != entity.FieldID {
+					if targetColumn != "" && targetColumn != q.model.entIDColumn.Name {
 						fkColumns = append(fkColumns, targetColumn)
 					}
 				}
@@ -454,14 +479,16 @@ func (q *Query) loadEdgesM2M(
 	edgeModel *Model,
 	edgeColumns []string,
 ) error {
-	edgeIDs := make([]driver.Value, len(q.entities))
-	byID := make(map[uint64]*entity.Entity)
-	nids := make(map[uint64]map[*entity.Entity]struct{})
-	for i, node := range q.entities {
-		edgeIDs[i] = node.ID()
-		byID[node.ID()] = node
+	edgeIDs, byID, err := collectEntityIDs(q.model.name, q.model.schema.IDField(), q.entities)
+	if err != nil {
+		return err
+	}
+
+	for _, node := range q.entities {
 		node.Set(field.Name, make([]*entity.Entity, 0))
 	}
+
+	nids := make(map[string]map[*entity.Entity]struct{})
 
 	edgeQuery := edgeModel.Query()
 	entEdgeQuery, ok := edgeQuery.(*Query)
@@ -529,22 +556,53 @@ func (q *Query) loadEdgesM2M(
 
 	assignFn := entEdgeQuery.querySpec.Assign
 	valuesFn := entEdgeQuery.querySpec.ScanValues
+	selectColumn := relation.BackRef.SourceFieldName
+	if !relation.IsBidi() && relation.TargetColumn != "" {
+		selectColumn = relation.TargetColumn
+	}
+
+	junctionSchema := relation.JunctionSchema
+	if junctionSchema == nil {
+		return fmt.Errorf("relation %s.%s missing junction schema", relation.SourceSchemaName, relation.SourceFieldName)
+	}
+	selectField := junctionSchema.Field(selectColumn)
+	if selectField == nil {
+		return fmt.Errorf("junction column %s not found for relation %s.%s", selectColumn, relation.SourceSchemaName, relation.SourceFieldName)
+	}
+
 	entEdgeQuery.querySpec.ScanValues = func(columns []string) ([]any, error) {
 		values, err := valuesFn(columns[1:])
 		if err != nil {
 			return nil, err
 		}
-		return append([]any{new(sql.NullInt64)}, values...), nil
+		aliasScan := columnScanValue(selectField.Type)
+		return append([]any{aliasScan}, values...), nil
 	}
 
 	entEdgeQuery.querySpec.Assign = func(columns []string, values []any) error {
-		outValue := uint64(values[0].(*sql.NullInt64).Int64)
-		inValue := uint64(values[1].(*sql.NullInt64).Int64)
-		if nids[inValue] == nil {
-			nids[inValue] = map[*entity.Entity]struct{}{byID[outValue]: {}}
-			return assignFn(columns[1:], values[1:])
+		aliasValue, err := columnAssignValue(selectColumn, selectField.Type, values[0], entity.New())
+		if err != nil {
+			return err
 		}
-		nids[inValue][byID[outValue]] = struct{}{}
+		if err := assignFn(columns[1:], values[1:]); err != nil {
+			return err
+		}
+		if aliasValue == nil {
+			return fmt.Errorf("junction column %s returned nil", selectColumn)
+		}
+		baseEntity, ok := byID[valueKey(aliasValue)]
+		if !ok {
+			return fmt.Errorf("no base entity found for junction value %v", aliasValue)
+		}
+		if len(entEdgeQuery.entities) == 0 {
+			return fmt.Errorf("edge assignment missing neighbor entity for %v", aliasValue)
+		}
+		neighbor := entEdgeQuery.entities[len(entEdgeQuery.entities)-1]
+		inKey := valueKey(neighbor.ID())
+		if nids[inKey] == nil {
+			nids[inKey] = map[*entity.Entity]struct{}{}
+		}
+		nids[inKey][baseEntity] = struct{}{}
 		return nil
 	}
 
@@ -559,13 +617,15 @@ func (q *Query) loadEdgesM2M(
 	}
 
 	for _, n := range neighbors {
-		nodes, ok := nids[n.ID()]
+		key := valueKey(n.ID())
+		nodes, ok := nids[key]
 		if !ok {
 			continue
 		}
 		for kn := range nodes {
 			kn.Set(field.Name, append(kn.Get(field.Name).([]*entity.Entity), n))
 		}
+		delete(nids, key)
 	}
 
 	return nil
@@ -577,27 +637,39 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 	relation := field.Relation
 	edgeSchemaName := relation.TargetSchemaName
 	ids := make([]any, 0, len(q.entities))
-	nodeids := make(map[uint64][]*entity.Entity)
+	nodeids := make(map[string][]*entity.Entity)
 	fkColumn := relation.SourceColumn
 	targetColumn := relation.TargetColumn
 	if targetColumn == "" {
-		targetColumn = entity.FieldID
+		targetColumn = edgeModel.entIDColumn.Name
 	}
 
-	for _, entity := range q.entities {
-		fkUint64, err := entity.GetUint64(fkColumn, true)
-		if err != nil {
-			return invalidFKError(edgeSchemaName, fkColumn, entity.ID(), err)
-		}
+	builder := q.client.SchemaBuilder()
+	if builder == nil {
+		return fmt.Errorf("schema builder is not initialized")
+	}
 
-		if fkUint64 == 0 {
+	targetField, err := getRelationTargetField(builder, relation)
+	if err != nil {
+		return err
+	}
+
+	for _, parent := range q.entities {
+		fkValue := parent.Get(fkColumn)
+		if isZeroValue(fkValue) {
 			continue
 		}
 
-		if _, ok := nodeids[fkUint64]; !ok {
-			ids = append(ids, fkUint64)
+		normalized, err := normalizeIDValue(targetField, fkValue)
+		if err != nil {
+			return err
 		}
-		nodeids[fkUint64] = append(nodeids[fkUint64], entity)
+
+		key := valueKey(normalized)
+		if _, ok := nodeids[key]; !ok {
+			ids = append(ids, normalized)
+		}
+		nodeids[key] = append(nodeids[key], parent)
 	}
 
 	if len(ids) == 0 {
@@ -660,19 +732,25 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 	}
 
 	for _, n := range neighbors {
-		var refValue uint64
+		var refValue any
 		if targetColumn == edgeModel.entIDColumn.Name {
 			refValue = n.ID()
 		} else {
-			refValue, err = n.GetUint64(targetColumn, false)
-			if err != nil {
-				return fmt.Errorf("invalid target column %q for %s: %w", targetColumn, edgeSchemaName, err)
-			}
+			refValue = n.Get(targetColumn)
 		}
 
-		nodes, ok := nodeids[refValue]
+		if isZeroValue(refValue) {
+			return invalidFKError(edgeSchemaName, targetColumn, n.ID(), fmt.Errorf("empty reference value"))
+		}
+
+		normalized, err := normalizeIDValue(targetField, refValue)
+		if err != nil {
+			return err
+		}
+
+		nodes, ok := nodeids[valueKey(normalized)]
 		if !ok {
-			return noFKNodeError(q.model.name, edgeSchemaName, fkColumn, n.ID(), 0)
+			return noFKNodeError(q.model.name, edgeSchemaName, fkColumn, n.ID(), refValue)
 		}
 
 		for i := range nodes {
@@ -695,25 +773,39 @@ func (q *Query) loadOwnerEdges(
 	relation := field.Relation
 	edgeSchemaName := relation.TargetSchemaName
 	fks := make([]any, 0, len(q.entities))
-	nodeids := make(map[uint64]*entity.Entity)
+	nodeids := make(map[string]*entity.Entity)
 	fkColumn := relation.BackRef.SourceColumn
 	refColumn := relation.BackRef.TargetColumn
-	useTargetColumn := refColumn != "" && refColumn != entity.FieldID
+	useTargetColumn := refColumn != "" && refColumn != q.model.entIDColumn.Name
+	parentField := q.model.schema.IDField()
+	if useTargetColumn {
+		parentField = q.model.schema.Field(refColumn)
+		if parentField == nil {
+			return fmt.Errorf("field %s.%s not found", q.model.name, refColumn)
+		}
+	}
+	if parentField == nil {
+		return fmt.Errorf("schema %s is missing an id field definition", q.model.name)
+	}
 
 	for _, entity := range q.entities {
-		var refValue uint64
+		var refValue any
 		if useTargetColumn {
-			var err error
-			refValue, err = entity.GetUint64(refColumn, false)
-			if err != nil {
-				return invalidFKError(q.model.name, refColumn, entity.ID(), err)
+			refValue = entity.Get(refColumn)
+			if isZeroValue(refValue) {
+				return invalidFKError(q.model.name, refColumn, entity.ID(), fmt.Errorf("empty reference value"))
 			}
 		} else {
 			refValue = entity.ID()
 		}
 
-		fks = append(fks, refValue)
-		nodeids[refValue] = entity
+		normalized, err := normalizeIDValue(parentField, refValue)
+		if err != nil {
+			return err
+		}
+
+		fks = append(fks, normalized)
+		nodeids[valueKey(normalized)] = entity
 	}
 
 	// Separate direct columns from nested field paths and relation fields
@@ -771,14 +863,19 @@ func (q *Query) loadOwnerEdges(
 	}
 
 	for _, n := range neighbors {
-		fkUint64, err := n.GetUint64(fkColumn, false)
-		if err != nil {
-			return invalidFKError(edgeSchemaName, fkColumn, n.ID(), err)
+		fkValue := n.Get(fkColumn)
+		if isZeroValue(fkValue) {
+			return invalidFKError(edgeSchemaName, fkColumn, n.ID(), fmt.Errorf("empty reference value"))
 		}
 
-		node, ok := nodeids[fkUint64]
+		normalized, err := normalizeIDValue(parentField, fkValue)
+		if err != nil {
+			return err
+		}
+
+		node, ok := nodeids[valueKey(normalized)]
 		if !ok {
-			return noFKNodeError(q.model.name, edgeSchemaName, fkColumn, n.ID(), fkUint64)
+			return noFKNodeError(q.model.name, edgeSchemaName, fkColumn, n.ID(), fkValue)
 		}
 
 		if err := assignFn(node, n); err != nil {
@@ -793,14 +890,14 @@ func fieldTypeError(fieldType string, fieldValue any) error {
 	return fmt.Errorf("expected value of type '%s', got '%T'", fieldType, fieldValue)
 }
 
-func invalidFKError(edgeSchemaName, fkColumn string, id uint64, err error) error {
+func invalidFKError(edgeSchemaName, fkColumn string, id any, err error) error {
 	return fmt.Errorf(
-		`invalid FK value %s.%s for node id=%d: %w`,
+		`invalid FK value %s.%s for node id=%v: %w`,
 		edgeSchemaName, fkColumn, id, err,
 	)
 }
 
-func noFKNodeError(schemaName, edgeSchemaName, fkColumn string, id, fk uint64) error {
+func noFKNodeError(schemaName, edgeSchemaName, fkColumn string, id, fk any) error {
 	return fmt.Errorf(
 		`no FK node (%s) found for (%s=%v).%s=%v`,
 		schemaName, edgeSchemaName, id, fkColumn, fk,

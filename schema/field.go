@@ -43,10 +43,6 @@ type Field struct {
 // schemaNames is the source schema that the field belongs to.
 // schemaNames is required for file field.
 func (f *Field) Init(schemaNames ...string) (err error) {
-	if f.DB == nil {
-		f.DB = &FieldDB{}
-	}
-
 	if f.Type == TypeFile {
 		if len(schemaNames) == 0 {
 			return errors.New("schema names are required for file field")
@@ -195,6 +191,22 @@ func CreateUint64Field(name string) *Field {
 		Unique:   false,
 		Optional: false,
 	}
+}
+
+func cloneReferenceField(template *Field, name string) *Field {
+	if template == nil {
+		return nil
+	}
+
+	refField := &Field{
+		Type:  template.Type,
+		Size:  template.Size,
+		Name:  name,
+		Label: name,
+		DB:    template.DB.Clone(),
+	}
+
+	return refField
 }
 
 // MergeFields merge second field to the first field.

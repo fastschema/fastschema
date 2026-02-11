@@ -1,0 +1,69 @@
+{
+  "name": "post",
+  "namespace": "pk_posts",
+  "label_field": "title",
+  "fields": [
+    {
+      "name": "title",
+      "label": "Title",
+      "type": "string"
+    },
+    {
+      "name": "body",
+      "label": "Body",
+      "type": "text"
+    },
+    {
+      "name": "category",
+      "label": "Category",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "category",
+        "field": "posts"
+      }
+    },
+    {
+      "name": "author",
+      "label": "Author",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "user",
+        "field": "posts"
+      }
+    },
+    {
+      "name": "tags",
+      "label": "Tags",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "tag",
+        "field": "posts"
+      }
+    },
+    {
+      "name": "likes",
+      "label": "Likes",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "user",
+        "field": "liked_posts",
+        "owner": true
+      }
+    },
+    {
+      "name": "comments",
+      "label": "Comments",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "comment",
+        "field": "post",
+        "owner": true
+      }
+    }
+  ]
+}

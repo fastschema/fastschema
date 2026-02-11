@@ -116,7 +116,7 @@ func runPostDBCreateHooks(
 	client db.Client,
 	schema *schema.Schema,
 	createData *entity.Entity,
-	createdID uint64,
+	createdID any,
 ) error {
 	if client == nil {
 		return nil

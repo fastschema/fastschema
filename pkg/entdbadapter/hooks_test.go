@@ -49,7 +49,7 @@ func TestHooksError(t *testing.T) {
 				},
 			},
 			PostDBCreate: []db.PostDBCreate{
-				func(ctx context.Context, schema *schema.Schema, createData *entity.Entity, id uint64) error {
+				func(ctx context.Context, schema *schema.Schema, createData *entity.Entity, id any) error {
 					return assert.AnError
 				},
 			},

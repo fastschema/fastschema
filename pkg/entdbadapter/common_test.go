@@ -50,7 +50,7 @@ func TestCreateEntColumn(t *testing.T) {
 				Size: 100,
 				DB: &schema.FieldDB{
 					Collation: "utf8mb4_unicode_ci",
-					Key:       "MUL",
+					Key:       schema.MultipleKey,
 					Attr:      "UNIQUE",
 				},
 			},
@@ -59,7 +59,7 @@ func TestCreateEntColumn(t *testing.T) {
 				Type:      field.TypeString,
 				Size:      100,
 				Collation: "utf8mb4_unicode_ci",
-				Key:       "MUL",
+				Key:       schema.MultipleKey.String(),
 				Attr:      "UNIQUE",
 			},
 		},

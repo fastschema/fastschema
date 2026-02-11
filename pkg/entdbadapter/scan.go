@@ -93,14 +93,25 @@ func schemaScanValues(s *schema.Schema, columns []string) (_ []any, err error) {
 }
 
 // schemaAssignValues assigns the given values to the entity.
-func schemaAssignValues(s *schema.Schema, entity *entity.Entity, columns []string, values []any) error {
+func schemaAssignValues(
+	s *schema.Schema,
+	e *entity.Entity,
+	columns []string,
+	values []any,
+) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
+
+	primaryKey := ""
+	if s != nil {
+		primaryKey = s.PrimaryKeyName()
+	}
+
 	for i := range columns {
 		field := s.Field(columns[i])
 		if field == nil { // No field found. Ignore it.
-			entity.Set(columns[i], new(any))
+			e.Set(columns[i], new(any))
 			continue
 		}
 
@@ -108,14 +119,20 @@ func schemaAssignValues(s *schema.Schema, entity *entity.Entity, columns []strin
 			field.Name,
 			field.Type,
 			values[i],
-			entity,
+			e,
 		)
+
 		if err != nil {
 			return fmt.Errorf("getColumnAssignValue for field %s: %w", field.Name, err)
 		}
+
 		if v != nil {
-			entity.Set(columns[i], v)
+			e.Set(columns[i], v)
 		}
+	}
+
+	if primaryKey != "" {
+		e.SetIDField(primaryKey)
 	}
 
 	return nil

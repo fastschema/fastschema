@@ -6,15 +6,14 @@ import (
 	"fmt"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/schema/field"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/expr"
 )
 
 // Create creates a new entity in the database
-func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ uint64, err error) {
+func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ any, err error) {
 	if m.model == nil || m.model.schema == nil {
-		return 0, fmt.Errorf("model or schema %s not found", m.model.name)
+		return nil, fmt.Errorf("model or schema %s not found", m.model.name)
 	}
 
 	if err := m.model.schema.ApplySetters(ctx, e, expr.Config{
@@ -22,18 +21,18 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ uint64, err 
 			return m.client
 		},
 	}); err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	if err := runPreDBCreateHooks(ctx, m.client, m.model.schema, e); err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	createSpec := &sqlgraph.CreateSpec{
 		Table: m.model.schema.Namespace,
 		ID: &sqlgraph.FieldSpec{
 			Column: m.model.entIDColumn.Name,
-			Type:   field.TypeUint64,
+			Type:   m.model.entIDColumn.Type,
 		},
 		Fields: []*sqlgraph.FieldSpec{},
 		Edges:  []*sqlgraph.EdgeSpec{},
@@ -41,7 +40,7 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ uint64, err 
 
 	entAdapter, ok := m.client.(EntAdapter)
 	if !ok {
-		return 0, errors.New("client is not an ent adapter")
+		return nil, errors.New("client is not an ent adapter")
 	}
 
 	var c *Column
@@ -51,7 +50,7 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ uint64, err 
 
 		c, err = m.model.Column(fieldName)
 		if err != nil {
-			return 0, fmt.Errorf("column error: %w", err)
+			return nil, fmt.Errorf("column error: %w", err)
 		}
 
 		// Non-relation fields
@@ -67,13 +66,13 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ uint64, err 
 		// Relation fields
 		relationEntityIDs, err := m.GetRelationEntityIDs(c.field.Name, fieldValue)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 
 		if len(relationEntityIDs) > 0 {
 			edge, err := entAdapter.NewEdgeSpec(c.field.Relation, relationEntityIDs)
 			if err != nil {
-				return 0, fmt.Errorf("edge error %s.%s: %w", m.model.name, fieldName, err)
+				return nil, fmt.Errorf("edge error %s.%s: %w", m.model.name, fieldName, err)
 			}
 
 			createSpec.Edges = append(createSpec.Edges, edge)
@@ -81,22 +80,49 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ uint64, err 
 	}
 
 	if err = sqlgraph.CreateNode(ctx, entAdapter.Driver(), createSpec); err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	if err := e.SetID(createSpec.ID.Value); err != nil {
-		return 0, err
+	pkField := m.model.schema.IDField()
+	insertedID := createSpec.ID.Value
+	if insertedID == nil && pkField != nil {
+		insertedID = e.Get(pkField.Name)
+	}
+	if insertedID == nil {
+		insertedID = e.Get(entity.FieldID)
+	}
+
+	if insertedID == nil {
+		return nil, fmt.Errorf("create mutation for %s returned no ID", m.model.name)
+	}
+
+	if pkField != nil {
+		normalizedID, err := normalizeIDValue(pkField, insertedID)
+		if err != nil {
+			return nil, err
+		}
+		insertedID = normalizedID
+	}
+
+	primaryFieldName := entity.FieldID
+	if pkField != nil && pkField.Name != "" {
+		primaryFieldName = pkField.Name
+	}
+	e.SetIDField(primaryFieldName)
+
+	if err := e.SetID(insertedID); err != nil {
+		return nil, err
 	}
 
 	if m.autoCommit {
 		if err = m.client.Commit(); err != nil {
-			return 0, err
+			return nil, err
 		}
 	}
 
-	if err := runPostDBCreateHooks(ctx, m.client, m.model.schema, e, e.ID()); err != nil {
-		return 0, err
+	if err := runPostDBCreateHooks(ctx, m.client, m.model.schema, e, insertedID); err != nil {
+		return nil, err
 	}
 
-	return e.ID(), nil
+	return insertedID, nil
 }

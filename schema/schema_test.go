@@ -26,7 +26,7 @@ func TestSchema(t *testing.T) {
 		Label: "ID",
 		DB: &FieldDB{
 			Attr:      "UNSIGNED",
-			Key:       "UNI",
+			Key:       PrimaryKey,
 			Increment: true,
 		},
 		Unique:        true,
@@ -145,7 +145,7 @@ func TestNewSchemaFromJSON(t *testing.T) {
 	assert.True(t, schema.Fields[0].Unique)
 	assert.True(t, schema.Fields[0].Sortable)
 	assert.Equal(t, "UNSIGNED", schema.Fields[0].DB.Attr)
-	assert.Equal(t, "UNI", schema.Fields[0].DB.Key)
+	assert.Equal(t, PrimaryKey, schema.Fields[0].DB.Key)
 	assert.True(t, schema.Fields[0].DB.Increment)
 
 	assert.Equal(t, "name", schema.Fields[1].Name)
@@ -162,6 +162,47 @@ func TestNewSchemaFromJSON(t *testing.T) {
 	assert.False(t, schema.Fields[2].Unique)
 	assert.False(t, schema.Fields[2].Sortable)
 	assert.Equal(t, "CURRENT_TIMESTAMP", schema.Fields[2].Default)
+}
+
+func TestSchemaPrimaryFieldProperty(t *testing.T) {
+	jsonData := `{
+		"name": "notes",
+		"namespace": "notes",
+		"label_field": "label",
+		"primary_field": "ref",
+		"fields": [
+			{"name":"ref","type":"uuid"},
+			{"name":"label","type":"string"}
+		]
+	}`
+
+	s, err := NewSchemaFromJSON(jsonData)
+	assert.NoError(t, err)
+	assert.NoError(t, s.Init(false))
+
+	assert.Equal(t, "ref", s.PrimaryKeyName())
+	assert.Equal(t, "ref", s.PrimaryFieldName)
+
+	refField := s.Field("ref")
+	if assert.NotNil(t, refField) {
+		assert.Equal(t, PrimaryKey, refField.DB.Key)
+	}
+}
+
+type structPrimaryTarget struct {
+	_     any    `json:"-" fs:"namespace=struct_pk;label_field=title;primary_field=slug"`
+	Slug  string `json:"slug" fs:"type=string"`
+	Title string `json:"title"`
+}
+
+func TestSchemaPrimaryFieldFromStructTag(t *testing.T) {
+	s, err := CreateSchema(structPrimaryTarget{})
+	assert.NoError(t, err)
+	assert.NoError(t, s.Init(false))
+
+	assert.Equal(t, "slug", s.PrimaryKeyName())
+	slugField := s.Field("slug")
+	assert.NotNil(t, slugField)
 }
 
 func TestSaveToFile(t *testing.T) {
@@ -506,7 +547,7 @@ func TestNewSchemaFromMap(t *testing.T) {
 	assert.True(t, schema.Fields[0].Unique)
 	assert.True(t, schema.Fields[0].Sortable)
 	assert.Equal(t, "UNSIGNED", schema.Fields[0].DB.Attr)
-	assert.Equal(t, "UNI", schema.Fields[0].DB.Key)
+	assert.Equal(t, PrimaryKey, schema.Fields[0].DB.Key)
 	assert.True(t, schema.Fields[0].DB.Increment)
 
 	assert.Equal(t, "name", schema.Fields[1].Name)

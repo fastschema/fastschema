@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/fastschema/fastschema/pkg/errors"
 )
@@ -121,4 +122,120 @@ func AnyToUint[
 	default:
 		return out, fmt.Errorf("unsupported type when converting to uint: %T", value)
 	}
+}
+
+func AnyToInt[
+	OUT ~int | ~int8 | ~int16 | ~int32 | ~int64,
+](value any) (out OUT, err error) {
+	var convert = func(v int64) (OUT, error) {
+		out := OUT(v)
+		if int64(out) != v {
+			return 0, fmt.Errorf("value %d out of range for target type", v)
+		}
+		return out, nil
+	}
+
+	switch v := value.(type) {
+	case int:
+		return convert(int64(v))
+	case int8:
+		return convert(int64(v))
+	case int16:
+		return convert(int64(v))
+	case int32:
+		return convert(int64(v))
+	case int64:
+		return convert(v)
+	case uint:
+		return convert(int64(v))
+	case uint8:
+		return convert(int64(v))
+	case uint16:
+		return convert(int64(v))
+	case uint32:
+		return convert(int64(v))
+	case uint64:
+		if v > math.MaxInt64 {
+			return out, fmt.Errorf("value %d out of range for signed integer", v)
+		}
+		return convert(int64(v))
+	case float32:
+		return floatToInt(float64(v), convert)
+	case float64:
+		return floatToInt(v, convert)
+	case *int:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *int8:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *int16:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *int32:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *int64:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *uint:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *uint8:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *uint16:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *uint32:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *uint64:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *float32:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	case *float64:
+		if v == nil {
+			return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+		}
+		return AnyToInt[OUT](*v)
+	default:
+		return out, fmt.Errorf("unsupported type when converting to int: %T", value)
+	}
+}
+
+func floatToInt[
+	OUT ~int | ~int8 | ~int16 | ~int32 | ~int64,
+](value float64, convert func(int64) (OUT, error)) (OUT, error) {
+	if value < math.MinInt64 || value > math.MaxInt64 {
+		return 0, fmt.Errorf("float value %f out of range for signed integer", value)
+	}
+	if value != math.Trunc(value) {
+		return 0, fmt.Errorf("float value must be a whole number")
+	}
+	return convert(int64(value))
 }

@@ -109,7 +109,7 @@ func TestMutationGetRelationEntityIDsTargetColumn(t *testing.T) {
 
 	missingValue := entity.New(1)
 	_, err = mutation.GetRelationEntityIDs("ref", missingValue)
-	assert.EqualError(t, err, "relation entity for source.ref target column 'legacy_id' is invalid, value=0, err=cannot get uint64 value from entity: legacy_id")
+	assert.EqualError(t, err, "relation entity for source.ref target column 'legacy_id' is invalid, value=<nil>")
 
 	fullEntity := entity.New(99)
 	fullEntity.Set("legacy_id", uint64(77))

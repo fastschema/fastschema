@@ -1,0 +1,38 @@
+{
+  "name": "task",
+  "namespace": "id_tasks",
+  "label_field": "title",
+  "fields": [
+    {
+      "name": "title",
+      "label": "Title",
+      "type": "string"
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "name": "project",
+      "label": "Project",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "project",
+        "field": "tasks"
+      }
+    },
+    {
+      "name": "assignee",
+      "label": "Assignee",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "engineer",
+        "field": "tasks"
+      }
+    }
+  ]
+}

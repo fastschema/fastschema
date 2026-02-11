@@ -18,10 +18,10 @@ func TestEntity(t *testing.T) {
 	assert.Equal(t, nil, entity.Get("location"))
 
 	assert.Equal(t, "John", entity.First().Value)
-	assert.Equal(t, uint64(0), entity.ID())
+	assert.Nil(t, entity.ID())
 
 	entity.Set("id", "invalid")
-	assert.Equal(t, uint64(0), entity.ID())
+	assert.Equal(t, "invalid", entity.ID())
 
 	assert.Equal(t, uint64(0), utils.Must(entity.GetUint64("group_id", true)))
 	_, err := entity.GetUint64("group_id", false)
@@ -37,15 +37,16 @@ func TestEntity(t *testing.T) {
 	entity.Set("group_id", 1)
 	assert.Equal(t, 1, entity.Get("group_id"))
 
-	assert.Error(t, entity.SetID("invalid"))
+	assert.Error(t, entity.SetID(nil))
 
-	assert.Error(t, entity.SetID("1"))
+	assert.NoError(t, entity.SetID("1"))
+	assert.Equal(t, "1", entity.ID())
 
 	assert.NoError(t, entity.SetID(2))
-	assert.Equal(t, uint64(2), entity.ID())
+	assert.Equal(t, 2, entity.ID())
 
 	assert.NoError(t, entity.SetID(float64(3)))
-	assert.Equal(t, uint64(3), entity.ID())
+	assert.Equal(t, float64(3), entity.ID())
 
 	assert.NoError(t, entity.SetID(uint64(4)))
 	assert.Equal(t, uint64(4), entity.ID())
@@ -102,7 +103,7 @@ func TestEntity(t *testing.T) {
 		]
 	}`)))
 
-	assert.Equal(t, uint64(4), entity3.ID())
+	assert.Equal(t, float64(4), entity3.ID())
 	assert.Equal(t, "John", entity3.Get("name"))
 
 	value, err := UnmarshalJSONValue(nil, []byte("name"), jsonparser.String, 0)
@@ -127,11 +128,11 @@ func TestEntity(t *testing.T) {
 	assert.Equal(t, jsonString, entity3.String())
 
 	entity4 := New(4)
-	assert.Equal(t, uint64(4), entity4.ID())
+	assert.Equal(t, 4, entity4.ID())
 
 	entity5, err := NewEntityFromJSON(`{"id":5,"name":"John","group_id":1,"group":{"id":1,"name":"Admin"},"tags":["developer","admin"],"skills":[{"id":1,"name":"Go"},{"id":2,"name":"PHP"}]}`)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(5), entity5.ID())
+	assert.Equal(t, float64(5), entity5.ID())
 
 	_, err = NewEntityFromJSON(`{"id":5`)
 	assert.Error(t, err)
@@ -143,6 +144,15 @@ func TestEntity(t *testing.T) {
 	entity5.Set("skills", make(chan int))
 	str := entity5.String()
 	assert.Contains(t, str, "cannot convert entity to string")
+}
+
+func TestEntitySetIDCustomField(t *testing.T) {
+	e := New()
+	e.SetIDField("code")
+	assert.NoError(t, e.SetID("proj-9"))
+	assert.Equal(t, "proj-9", e.ID())
+	assert.Equal(t, "proj-9", e.Get("code"))
+	assert.Equal(t, "proj-9", e.Get(FieldID))
 }
 
 func TestEntityEmpty(t *testing.T) {

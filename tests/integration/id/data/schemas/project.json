@@ -1,0 +1,73 @@
+{
+  "name": "project",
+  "namespace": "id_projects",
+  "label_field": "name",
+  "primary_field": "code",
+  "fields": [
+    {
+      "name": "code",
+      "label": "Project Code",
+      "type": "uuid",
+      "filterable": true,
+      "sortable": true,
+      "db": {
+        "key": "PRI",
+        "increment": false
+      }
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string"
+    },
+    {
+      "name": "status",
+      "label": "Status",
+      "type": "string"
+    },
+    {
+      "name": "teams",
+      "label": "Teams",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "team",
+        "field": "projects",
+        "owner": true
+      }
+    },
+    {
+      "name": "tasks",
+      "label": "Tasks",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "task",
+        "field": "project",
+        "owner": true
+      }
+    },
+    {
+      "name": "deployments",
+      "label": "Deployments",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "deployment",
+        "field": "project",
+        "owner": true
+      }
+    },
+    {
+      "name": "artifacts",
+      "label": "Artifacts",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "artifact",
+        "field": "project",
+        "owner": true
+      }
+    }
+  ]
+}

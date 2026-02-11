@@ -1,0 +1,35 @@
+{
+  "name": "tag",
+  "namespace": "pk_tags",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "id",
+      "label": "TagID",
+      "type": "uint64",
+      "filterable": true,
+      "sortable": true,
+      "required": true,
+      "db": {
+        "key": "PRI",
+        "increment": false
+      }
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string"
+    },
+    {
+      "name": "posts",
+      "label": "Posts",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "post",
+        "field": "tags",
+        "owner": true
+      }
+    }
+  ]
+}

@@ -235,7 +235,7 @@ func TestCreateSchemaFieldTagDB(t *testing.T) {
 				Attr:      "unique",
 				Collation: "utf8mb4_unicode_ci",
 				Increment: true,
-				Key:       "PRI",
+				Key:       schema.PrimaryKey,
 			},
 		},
 	}

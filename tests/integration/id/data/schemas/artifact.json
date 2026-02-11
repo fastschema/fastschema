@@ -1,0 +1,35 @@
+{
+  "name": "artifact",
+  "namespace": "id_artifacts",
+  "label_field": "artifact_no",
+  "primary_field": "artifact_no",
+  "fields": [
+    {
+      "name": "artifact_no",
+      "label": "Artifact Number",
+      "type": "int",
+      "filterable": true,
+      "sortable": true,
+      "db": {
+        "key": "PRI",
+        "increment": false
+      }
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "name": "project",
+      "label": "Project",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "project",
+        "field": "artifacts"
+      }
+    }
+  ]
+}

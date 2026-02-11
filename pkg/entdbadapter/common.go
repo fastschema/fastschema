@@ -3,6 +3,7 @@ package entdbadapter
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
@@ -88,7 +89,7 @@ func createEntColumn(f *schema.Field) *entSchema.Column {
 	if f.DB != nil {
 		entColumn.Increment = f.DB.Increment
 		entColumn.Attr = f.DB.Attr
-		entColumn.Key = f.DB.Key
+		entColumn.Key = f.DB.Key.String()
 		entColumn.Collation = f.DB.Collation
 	}
 
@@ -374,6 +375,59 @@ func isDateTimeColumn(scanType reflect.Type, databaseTypeName string) bool {
 	return isStructTime || isSQLTime || isNullTime
 }
 
+func normalizeIDValue(field *schema.Field, value any) (driver.Value, error) {
+	if field == nil || value == nil {
+		return value, nil
+	}
+
+	switch field.Type {
+	case schema.TypeUint, schema.TypeUint8, schema.TypeUint16, schema.TypeUint32, schema.TypeUint64:
+		converted, err := utils.AnyToUint[uint64](value)
+		if err != nil {
+			return nil, fmt.Errorf("convert %s to unsigned integer: %w", field.Name, err)
+		}
+		return converted, nil
+	case schema.TypeInt, schema.TypeInt8, schema.TypeInt16, schema.TypeInt32, schema.TypeInt64:
+		converted, err := utils.AnyToInt[int64](value)
+		if err != nil {
+			return nil, fmt.Errorf("convert %s to integer: %w", field.Name, err)
+		}
+		return converted, nil
+	default:
+		return value, nil
+	}
+}
+
+func getRelationTargetField(builder *schema.Builder, relation *schema.Relation) (*schema.Field, error) {
+	if builder == nil {
+		return nil, fmt.Errorf("schema builder is not initialized")
+	}
+
+	if relation == nil {
+		return nil, fmt.Errorf("relation is not defined")
+	}
+
+	targetSchema, err := builder.Schema(relation.TargetSchemaName)
+	if err != nil {
+		return nil, err
+	}
+
+	targetColumn := relation.TargetColumn
+	if targetColumn == "" || relation.Type.IsM2M() {
+		targetColumn = targetSchema.PrimaryKeyName()
+		if targetColumn == "" {
+			targetColumn = entity.FieldID
+		}
+	}
+
+	targetField := targetSchema.Field(targetColumn)
+	if targetField == nil {
+		return nil, schema.ErrFieldNotFound(targetSchema.Name, targetColumn)
+	}
+
+	return targetField, nil
+}
+
 func driverExec(
 	driver dialect.Driver,
 	ctx context.Context,
@@ -429,4 +483,47 @@ func driverQuery(
 	}
 
 	return entities, nil
+}
+
+func isZeroValue(value any) bool {
+	if value == nil {
+		return true
+	}
+
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Bool:
+		return !rv.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return rv.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return rv.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return rv.Float() == 0
+	case reflect.String:
+		return rv.Len() == 0
+	case reflect.Slice, reflect.Map:
+		return rv.Len() == 0
+	case reflect.Interface, reflect.Pointer:
+		return rv.IsNil()
+	case reflect.Array:
+		zero := reflect.Zero(rv.Type()).Interface()
+		return reflect.DeepEqual(value, zero)
+	default:
+		zero := reflect.Zero(rv.Type()).Interface()
+		return reflect.DeepEqual(value, zero)
+	}
+}
+
+func valueKey(value any) string {
+	if value == nil {
+		return "<nil>"
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return fmt.Sprintf("%T:%x", value, v)
+	default:
+		return fmt.Sprintf("%T:%v", value, value)
+	}
 }

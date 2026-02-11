@@ -1,0 +1,45 @@
+{
+  "name": "team",
+  "namespace": "id_teams",
+  "label_field": "name",
+  "primary_field": "slug",
+  "fields": [
+    {
+      "name": "slug",
+      "label": "Slug",
+      "type": "string",
+      "filterable": true,
+      "sortable": true,
+      "db": {
+        "key": "PRI",
+        "increment": false
+      }
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string"
+    },
+    {
+      "name": "members",
+      "label": "Members",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "engineer",
+        "field": "teams",
+        "owner": true
+      }
+    },
+    {
+      "name": "projects",
+      "label": "Projects",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "project",
+        "field": "teams"
+      }
+    }
+  ]
+}

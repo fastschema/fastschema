@@ -102,10 +102,10 @@ func testOnUpdateSetNull(t *testing.T, client h.DBClient) {
 	catModel := u.Must(client.C.Model("category"))
 	postModel := u.Must(client.C.Model("post_update_setnull"))
 
-	catID := u.Must(catModel.CreateFromJSON(
+	catID := h.IDUint64(t, u.Must(catModel.CreateFromJSON(
 		h.Ctx(),
 		`{"name":"Category SetNull"}`,
-	))
+	)))
 	postID := u.Must(postModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(`{"name":"Post SetNull","category":{"id": %d}}`, catID),
@@ -124,10 +124,10 @@ func testOnUpdateRestrict(t *testing.T, client h.DBClient) {
 	catModel := u.Must(client.C.Model("category"))
 	postModel := u.Must(client.C.Model("post_update_restrict"))
 
-	catID := u.Must(catModel.CreateFromJSON(
+	catID := h.IDUint64(t, u.Must(catModel.CreateFromJSON(
 		h.Ctx(),
 		`{"name":"Category Restrict"}`,
-	))
+	)))
 	u.Must(postModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(`{"name":"Post Restrict","category":{"id": %d}}`, catID),
@@ -151,10 +151,10 @@ func testOnUpdateNoAction(t *testing.T, client h.DBClient) {
 	catModel := u.Must(client.C.Model("category"))
 	postModel := u.Must(client.C.Model("post_update_noaction"))
 
-	categoryID := u.Must(catModel.CreateFromJSON(
+	categoryID := h.IDUint64(t, u.Must(catModel.CreateFromJSON(
 		h.Ctx(),
 		`{"name":"Category NoAction"}`,
-	))
+	)))
 	u.Must(postModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(`{"name":"Post NoAction","category":{"id": %d}}`, categoryID),
@@ -178,10 +178,10 @@ func testOnUpdateCascade(t *testing.T, client h.DBClient) {
 	catModel := u.Must(client.C.Model("category"))
 	postModel := u.Must(client.C.Model("post_update_cascade"))
 
-	catID := u.Must(catModel.CreateFromJSON(
+	catID := h.IDUint64(t, u.Must(catModel.CreateFromJSON(
 		h.Ctx(),
 		`{"name":"Category Cascade"}`,
-	))
+	)))
 	postID := u.Must(postModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(`{"name":"Post Cascade","category":{"id": %d}}`, catID),
@@ -210,16 +210,16 @@ func testOnUpdateSetDefault(t *testing.T, client h.DBClient) {
 
 	// post_update_setdefault.json defines category_id with DEFAULT 5.
 	// Create a category with ID 5 to be the default.
-	defaultCatID := u.Must(catModel.CreateFromJSON(
+	defaultCatID := h.IDUint64(t, u.Must(catModel.CreateFromJSON(
 		h.Ctx(),
 		`{"id":5,"name":"Fallback Category"}`,
-	))
+	)))
 	require.Equal(t, uint64(5), defaultCatID)
 
-	catID := u.Must(catModel.CreateFromJSON(
+	catID := h.IDUint64(t, u.Must(catModel.CreateFromJSON(
 		h.Ctx(),
 		`{"id":6,"name":"Category SetDefault"}`,
-	))
+	)))
 	postID := u.Must(postModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(`{"name":"Post SetDefault","category":{"id": %d}}`, catID),

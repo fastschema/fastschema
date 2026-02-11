@@ -14,8 +14,8 @@ type authorBook struct {
 	book           db.Model
 	firstLegacyID  uint64
 	secondLegacyID uint64
-	firstBookID    uint64
-	secondBookID   uint64
+	firstBookID    any
+	secondBookID   any
 }
 
 func prepareAuthorBook(t *testing.T, client h.DBClient) authorBook {
@@ -64,8 +64,8 @@ type citizenPassport struct {
 	firstLegacyID      uint64
 	secondLegacyID     uint64
 	unassignedLegacyID uint64
-	firstPassportID    uint64
-	secondPassportID   uint64
+	firstPassportID    any
+	secondPassportID   any
 }
 
 func prepareCitizenPassport(t *testing.T, client h.DBClient) citizenPassport {
@@ -119,11 +119,11 @@ type playlistTrack struct {
 	track              db.Model
 	trackOneCode       uint64
 	trackTwoCode       uint64
-	trackOneID         uint64
-	trackTwoID         uint64
-	mixPlaylistID      uint64
+	trackOneID         any
+	trackTwoID         any
+	mixPlaylistID      any
 	mixPlaylistCode    uint64
-	singlePlaylistID   uint64
+	singlePlaylistID   any
 	singlePlaylistCode uint64
 }
 

@@ -38,7 +38,18 @@ func TestRelation(t *testing.T) {
 	}
 	assert.NoError(t, schema.Init(false))
 
-	relation.Init(schema, schema, field)
+	targetSchema := &Schema{
+		Name:           "user",
+		Namespace:      "users",
+		LabelFieldName: "name",
+		Fields: []*Field{
+			{Name: entity.FieldID, Type: TypeUint64},
+			{Name: "name", Type: TypeString},
+		},
+	}
+	assert.NoError(t, targetSchema.Init(false))
+
+	relation.Init(schema, targetSchema, field)
 	assert.Equal(t, field.Optional, relation.Optional)
 	assert.Equal(t, field.Name, relation.SourceFieldName)
 	assert.Equal(t, "post.owner-user.id", relation.Name)
@@ -51,8 +62,12 @@ func TestRelation(t *testing.T) {
 	assert.Equal(t, "user.id-post.owner", relation.GetBackRefName())
 	assert.Equal(t, false, relation.IsSameType())
 	assert.Equal(t, true, relation.HasFKs())
-	_, err := relation.CreateFKField()
+	idField := schema.Field(entity.FieldID)
+	assert.NotNil(t, idField)
+	fkField, err := relation.CreateFKField(idField)
 	assert.NoError(t, err)
+	assert.Equal(t, relation.SourceColumn, fkField.Name)
+	assert.Equal(t, idField.Type, fkField.Type)
 
 	assert.Equal(t, "relation node post.owner: 'user' is not found", NewRelationNodeError(schema, field).Error())
 	assert.Equal(t, "backref relation for post.owner is not valid: 'user.id', please check the 'field' property in the 'user.id' relation definition", NewRelationBackRefError(relation).Error())
@@ -157,4 +172,50 @@ func TestRelationOnUpdateDefaults(t *testing.T) {
 
 	ownerRelation := &Relation{Type: O2M, Owner: true}
 	assert.Equal(t, ReferenceOptionTypeInvalid, ownerRelation.OnUpdateOption())
+}
+
+func TestRelationTargetColumnFollowsPrimaryField(t *testing.T) {
+	customer := &Schema{
+		Name:             "customer",
+		Namespace:        "customers",
+		LabelFieldName:   "name",
+		PrimaryFieldName: "slug",
+		Fields: []*Field{
+			{Name: "name", Type: TypeString},
+			{Name: "slug", Type: TypeString},
+		},
+	}
+	assert.NoError(t, customer.Init(false))
+
+	order := &Schema{
+		Name:           "order",
+		Namespace:      "orders",
+		LabelFieldName: "reference",
+		Fields: []*Field{
+			{Name: "reference", Type: TypeString},
+		},
+	}
+
+	relation := &Relation{
+		Type:             O2M,
+		TargetSchemaName: customer.Name,
+		TargetFieldName:  "orders",
+		Owner:            false,
+	}
+	relationField := &Field{
+		Name:     "customer",
+		Type:     TypeRelation,
+		Relation: relation,
+	}
+	order.Fields = append(order.Fields, relationField)
+	assert.NoError(t, order.Init(false))
+
+	relation.Init(order, customer, relationField)
+	assert.Equal(t, "slug", relation.TargetColumn)
+	assert.Equal(t, "customer_slug", relation.SourceColumn)
+
+	// Ensure FK field matches target schema type
+	fkField, err := relation.CreateFKField(customer.Field("slug"))
+	assert.NoError(t, err)
+	assert.Equal(t, TypeString, fkField.Type)
 }

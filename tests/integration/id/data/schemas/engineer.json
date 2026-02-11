@@ -1,0 +1,51 @@
+{
+  "name": "engineer",
+  "namespace": "id_engineers",
+  "label_field": "name",
+  "primary_field": "handle",
+  "fields": [
+    {
+      "name": "handle",
+      "label": "Handle",
+      "type": "string",
+      "filterable": true,
+      "sortable": true,
+      "db": {
+        "key": "PRI",
+        "increment": false
+      }
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string"
+    },
+    {
+      "name": "level",
+      "label": "Level",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "name": "tasks",
+      "label": "Tasks",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "task",
+        "field": "assignee",
+        "owner": true
+      }
+    },
+    {
+      "name": "teams",
+      "label": "Teams",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "team",
+        "field": "members"
+      }
+    }
+  ]
+}

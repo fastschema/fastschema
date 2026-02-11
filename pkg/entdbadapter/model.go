@@ -7,7 +7,6 @@ import (
 
 	entSchema "entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	ef "entgo.io/ent/schema/field"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/schema"
@@ -100,8 +99,8 @@ func (m *Model) Query(predicates ...*db.Predicate) db.Querier {
 		Node: &sqlgraph.NodeSpec{
 			Table: m.schema.Namespace,
 			ID: &sqlgraph.FieldSpec{
-				Type:   ef.TypeUint64,
-				Column: entity.FieldID,
+				Type:   m.entIDColumn.Type,
+				Column: m.entIDColumn.Name,
 			},
 		},
 		ScanValues: func(columns []string) ([]any, error) {
@@ -131,12 +130,12 @@ func (m *Model) Mutation() db.Mutator {
 }
 
 // Create creates a new entity
-func (m *Model) Create(ctx context.Context, e *entity.Entity) (_ uint64, err error) {
+func (m *Model) Create(ctx context.Context, e *entity.Entity) (_ any, err error) {
 	return m.Mutation().Create(ctx, e)
 }
 
 // CreateFromJSON creates a new entity from JSON
-func (m *Model) CreateFromJSON(ctx context.Context, json string) (_ uint64, err error) {
+func (m *Model) CreateFromJSON(ctx context.Context, json string) (_ any, err error) {
 	entity, err := entity.NewEntityFromJSON(json)
 
 	if err != nil {

@@ -13,17 +13,19 @@ const FieldUpdatedAt = "updated_at"
 const FieldDeletedAt = "deleted_at"
 
 type Entity struct {
-	data *orderedmap.OrderedMap[string, any]
+	data    *orderedmap.OrderedMap[string, any]
+	idField string
 }
 
 // New creates a new entity.
-func New(ids ...uint64) *Entity {
+func New(ids ...any) *Entity {
 	entity := &Entity{
-		data: orderedmap.New[string, any](),
+		data:    orderedmap.New[string, any](),
+		idField: FieldID,
 	}
 
 	if len(ids) > 0 {
-		entity.Set(FieldID, ids[0])
+		_ = entity.SetID(ids[0])
 	}
 
 	return entity
@@ -68,23 +70,69 @@ func (e *Entity) Set(name string, value any) *Entity {
 	return e
 }
 
-// SetID sets the ID of the entity.
-// if the value is not a valid ID, returns the error.
+// NewWithIDField creates a new entity with a specific id field.
+func NewWithIDField(idField string, ids ...any) *Entity {
+	e := New()
+	e.SetIDField(idField)
+	if len(ids) > 0 {
+		_ = e.SetID(ids[0])
+	}
+	return e
+}
+
+// SetIDField configures which field should be treated as the id field for this entity.
+func (e *Entity) SetIDField(fieldName string) *Entity {
+	if e == nil {
+		return e
+	}
+	if fieldName == "" {
+		e.idField = FieldID
+		return e
+	}
+	e.idField = fieldName
+	return e
+}
+
+// GetIDField returns the configured id field name for the entity.
+func (e *Entity) GetIDField() string {
+	if e == nil {
+		return FieldID
+	}
+	if e.idField == "" {
+		return FieldID
+	}
+	return e.idField
+}
+
+// SetID sets the entity ID using the configured id field.
 func (e *Entity) SetID(value any) error {
-	uint64Value, err := utils.AnyToUint[uint64](value)
-	if err != nil {
-		return fmt.Errorf("cannot set entity id=%s (%T): %w", value, value, err)
+	if value == nil {
+		return fmt.Errorf("cannot set entity id=<nil>")
 	}
 
-	e.data.Set(FieldID, uint64Value)
+	idField := e.GetIDField()
+	if idField != FieldID {
+		e.data.Set(idField, value)
+	}
+	e.data.Set(FieldID, value)
 
 	return nil
 }
 
 // ID returns the ID of the entity.
-func (e *Entity) ID() uint64 {
-	idValue, _ := e.GetUint64(FieldID, true)
-	return idValue
+func (e *Entity) ID() any {
+	idField := e.GetIDField()
+	if idField != "" {
+		if value, ok := e.data.Get(idField); ok {
+			return value
+		}
+	}
+	if idField != FieldID {
+		if value, ok := e.data.Get(FieldID); ok {
+			return value
+		}
+	}
+	return nil
 }
 
 // Get returns a value from the entity.

@@ -51,7 +51,7 @@ func (rs *RealtimeService) Content(c fs.Context, _ any) (any, error) {
 
 type RealtimeCreateData struct {
 	Schema *schema.Schema
-	ID     uint64
+	ID     any
 	Data   *entity.Entity
 }
 
@@ -74,12 +74,12 @@ func (rs *RealtimeService) ContentCreateHook(
 	ctx context.Context,
 	schema *schema.Schema,
 	dataCreate *entity.Entity,
-	id uint64,
+	id any,
 ) error {
 	go rs.Broadcast([]string{
 		"content." + schema.Name,
 		fmt.Sprintf("content.%s.create", schema.Name),
-		fmt.Sprintf("content.%s.create.%d", schema.Name, id),
+		fmt.Sprintf("content.%s.create.%v", schema.Name, id),
 	}, &RealtimeCreateData{
 		Schema: schema,
 		ID:     id,

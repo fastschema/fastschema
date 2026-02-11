@@ -119,6 +119,8 @@ func (s *Schema) Customize() (_ *Schema, err error) {
 				s.Namespace = value
 			case "label_field":
 				s.LabelFieldName = value
+			case "primary_field":
+				s.PrimaryFieldName = value
 			case "disable_timestamp":
 				s.DisableTimestamp = true
 			case "is_junction_schema":
@@ -150,6 +152,10 @@ func (s *Schema) Customize() (_ *Schema, err error) {
 
 		if customizedSchema.LabelFieldName != "" {
 			s.LabelFieldName = customizedSchema.LabelFieldName
+		}
+
+		if customizedSchema.PrimaryFieldName != "" {
+			s.PrimaryFieldName = customizedSchema.PrimaryFieldName
 		}
 
 		if customizedSchema.DisableTimestamp {
@@ -376,7 +382,9 @@ func (s *Schema) ExtendFieldByTag(sf reflect.StructField, field *Field) error {
 			return fmt.Errorf("%s.%s=%s: invalid db format: %w", s.Name, field.Name, dbTag, err)
 		}
 
-		field.DB = db
+		if db != nil {
+			field.DB = db
+		}
 	}
 
 	// Custom setter for the field

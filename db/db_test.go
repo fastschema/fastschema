@@ -70,7 +70,7 @@ func TestHooksClone(t *testing.T) {
 		PostDBQuery: []db.PostDBQuery{func(ctx context.Context, option *db.QueryOption, entities []*entity.Entity) ([]*entity.Entity, error) {
 			return nil, nil
 		}},
-		PostDBCreate: []db.PostDBCreate{func(ctx context.Context, schema *schema.Schema, dataCreate *entity.Entity, id uint64) error {
+		PostDBCreate: []db.PostDBCreate{func(ctx context.Context, schema *schema.Schema, dataCreate *entity.Entity, id any) error {
 			return nil
 		}},
 		PostDBUpdate: []db.PostDBUpdate{func(ctx context.Context, schema *schema.Schema, predicates *[]*db.Predicate, updateData *entity.Entity, originalEntities []*entity.Entity, affected int) error {

@@ -14,13 +14,19 @@ func (cs *ContentService) Update(c fs.Context, _ any) (*entity.Entity, error) {
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
+	pkField := model.Schema().IDField()
+	pkName := entity.FieldID
+	if pkField != nil && pkField.Name != "" {
+		pkName = pkField.Name
+	}
 
 	entity, err := c.Payload()
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
+	entity.SetIDField(pkName)
 
-	if _, err := model.Mutation().Where(db.EQ("id", id)).Update(c, entity); err != nil {
+	if _, err := model.Mutation().Where(db.EQ(pkName, id)).Update(c, entity); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 

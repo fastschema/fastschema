@@ -7,7 +7,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
-// Relation define the relation structure
+// Relation describes how two schemas are connected.
 type Relation struct {
 	BackRef          *Relation `json:"-"` // back reference relation
 	Name             string    `json:"-"` // relation name: auto generated
@@ -69,16 +69,24 @@ func (r *Relation) Init(schema *Schema, relationSchema *Schema, f *Field) *Relat
 	}
 
 	if r.HasFKs() {
+		targetPrimary := entity.FieldID
+		if relationSchema != nil {
+			if pk := relationSchema.PrimaryKeyName(); pk != "" {
+				targetPrimary = pk
+			}
+		}
+
+		sourceColumn := fmt.Sprintf("%s_%s", r.SourceFieldName, targetPrimary)
 		r.SourceColumn = utils.If(
 			r.SourceColumn == "",
-			r.SourceFieldName+"_id",
+			sourceColumn,
 			r.SourceColumn,
 		)
 
 		if !r.Type.IsM2M() {
 			r.TargetColumn = utils.If(
 				r.TargetColumn == "",
-				entity.FieldID,
+				targetPrimary,
 				r.TargetColumn,
 			)
 		}
@@ -183,25 +191,40 @@ func (r *Relation) HasFKs() bool {
 }
 
 // CreateFKField create the foreign key fields
-func (r *Relation) CreateFKField() (*Field, error) {
+func (r *Relation) CreateFKField(targetField *Field) (*Field, error) {
 	if !r.HasFKs() {
 		return nil, nil
 	}
 
-	fkColumn := r.SourceColumn
-	fkField := &Field{
-		IsSystemField: true,
-		Immutable:     true,
-		Type:          TypeUint64,
-		Name:          fkColumn,
-		Label:         fkColumn,
-		Unique:        r.Type.IsO2O(),
-		Optional:      r.Optional,
-		DB: &FieldDB{
-			Key:  utils.If(r.Type.IsO2O(), "UNI", ""),
-			Attr: "UNSIGNED",
-		},
+	if targetField == nil {
+		return nil, fmt.Errorf(
+			"relation %s.%s: target field '%s' not found",
+			r.SourceSchemaName,
+			r.SourceFieldName,
+			utils.If(r.TargetColumn == "", entity.FieldID, r.TargetColumn),
+		)
 	}
+
+	fkField := cloneReferenceField(targetField, r.SourceColumn)
+	if fkField == nil {
+		return nil, fmt.Errorf(
+			"relation %s.%s: cannot clone target field",
+			r.SourceSchemaName,
+			r.SourceFieldName,
+		)
+	}
+
+	fkField.IsSystemField = true
+	fkField.Immutable = true
+	fkField.Unique = r.Type.IsO2O()
+	fkField.Optional = r.Optional
+
+	if fkField.DB == nil {
+		fkField.DB = &FieldDB{}
+	}
+
+	fkField.DB.Increment = false
+	fkField.DB.Key = utils.If(r.Type.IsO2O(), UniqueKey, EmptyKey)
 
 	if err := fkField.Init(); err != nil {
 		return nil, err

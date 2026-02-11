@@ -1,0 +1,32 @@
+{
+  "name": "comment",
+  "namespace": "pk_comments",
+  "label_field": "content",
+  "fields": [
+    {
+      "name": "content",
+      "label": "Content",
+      "type": "text"
+    },
+    {
+      "name": "post",
+      "label": "Post",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "post",
+        "field": "comments"
+      }
+    },
+    {
+      "name": "author",
+      "label": "Author",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "user",
+        "field": "comments"
+      }
+    }
+  ]
+}

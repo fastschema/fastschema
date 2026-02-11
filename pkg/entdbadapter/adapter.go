@@ -379,28 +379,45 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 		},
 	}
 
-	m.entIDColumn = &entSchema.Column{
-		Attr:      "UNSIGNED",
-		Key:       entSchema.UniqueKey,
-		Type:      field.TypeUint64,
-		Name:      entity.FieldID,
-		Increment: true,
-		Unique:    true,
+	var idEntColumn *entSchema.Column
+	primaryFieldName := s.PrimaryKeyName()
+	if primaryFieldName == "" {
+		primaryFieldName = entity.FieldID
 	}
-
-	if !s.IsJunctionSchema {
-		m.entTable.PrimaryKey = []*entSchema.Column{m.entIDColumn}
-	}
-
 	for _, f := range s.Fields {
 		column := &Column{field: f}
 		if !f.Type.IsRelationType() {
 			entColumn := createEntColumn(f)
 			m.entTable.Columns = append(m.entTable.Columns, entColumn)
 			column.entColumn = entColumn
+
+			if f.Name == primaryFieldName {
+				idEntColumn = entColumn
+			}
 		}
 
 		m.columns = append(m.columns, column)
+	}
+
+	if idEntColumn == nil {
+		if len(m.entTable.Columns) > 0 {
+			idEntColumn = m.entTable.Columns[0]
+		} else {
+			idEntColumn = &entSchema.Column{
+				Attr:      "UNSIGNED",
+				Key:       entSchema.UniqueKey,
+				Type:      field.TypeUint64,
+				Name:      primaryFieldName,
+				Increment: true,
+				Unique:    true,
+			}
+		}
+	}
+
+	m.entIDColumn = idEntColumn
+
+	if !s.IsJunctionSchema {
+		m.entTable.PrimaryKey = []*entSchema.Column{idEntColumn}
 	}
 
 	// add indexes
@@ -484,12 +501,9 @@ func relationOnDeleteOption(r *schema.Relation) entSchema.ReferenceOption {
 	return referenceOptionTypeToEnt(option)
 }
 
-func (d *Adapter) resolveRelationTargetColumn(targetModel *Model, r *schema.Relation) (*entSchema.Column, error) {
-	if r.Type.IsM2M() || r.TargetColumn == "" || r.TargetColumn == entity.FieldID {
-		return targetModel.entIDColumn, nil
-	}
 
-	if r.TargetColumn == targetModel.entIDColumn.Name {
+func (d *Adapter) resolveRelationTargetColumn(targetModel *Model, r *schema.Relation) (*entSchema.Column, error) {
+	if r.Type.IsM2M() || r.TargetColumn == "" || r.TargetColumn == targetModel.entIDColumn.Name {
 		return targetModel.entIDColumn, nil
 	}
 

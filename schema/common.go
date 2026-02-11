@@ -39,10 +39,10 @@ func (fr *FieldRenderer) Clone() *FieldRenderer {
 
 // FieldDB define the db config for a field
 type FieldDB struct {
-	Attr      string `json:"attr,omitempty"`      // extra attributes.
-	Collation string `json:"collation,omitempty"` // collation type (utf8mb4_unicode_ci, utf8mb4_general_ci)
-	Increment bool   `json:"increment,omitempty"` // auto increment
-	Key       string `json:"key,omitempty"`       // key definition (PRI, UNI or MUL).
+	Attr      string    `json:"attr,omitempty"`      // extra attributes.
+	Collation string    `json:"collation,omitempty"` // collation type (utf8mb4_unicode_ci, utf8mb4_general_ci)
+	Increment bool      `json:"increment,omitempty"` // auto increment
+	Key       DBKeyType `json:"key,omitempty"`       // key definition (PRI, UNI or MUL).
 }
 
 func (f *FieldEnum) Clone() *FieldEnum {
@@ -281,6 +281,23 @@ func (t FieldType) IsAtomic() bool {
 	return slices.Contains(atomicTypes, t)
 }
 
+func (t FieldType) IsInteger() bool {
+	switch t {
+	case TypeInt, TypeInt8, TypeInt16, TypeInt32, TypeInt64,
+		TypeUint, TypeUint8, TypeUint16, TypeUint32, TypeUint64:
+		return true
+	}
+	return false
+}
+
+func (t FieldType) IsUnsignedInteger() bool {
+	switch t {
+	case TypeUint, TypeUint8, TypeUint16, TypeUint32, TypeUint64:
+		return true
+	}
+	return false
+}
+
 // Valid reports if the given type if known type.
 func (t FieldType) Valid() bool {
 	return t > TypeInvalid && t < endFieldTypes
@@ -455,5 +472,70 @@ func (t *ReferenceOptionType) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	*t = stringToReferenceOptionTypes[j] // If the string can't be found, it will be set to the zero value: 'invalid'
+	return nil
+}
+
+type DBKeyType int
+
+const (
+	EmptyKey DBKeyType = iota
+	PrimaryKey
+	UniqueKey
+	MultipleKey
+	endDBKeyTypes
+)
+
+var (
+	dbKeyTypeToStrings = [...]string{
+		EmptyKey:    "",
+		PrimaryKey:  "PRI",
+		UniqueKey:   "UNI",
+		MultipleKey: "MUL",
+	}
+
+	stringToDBKeyTypes = map[string]DBKeyType{
+		"":    EmptyKey,
+		"PRI": PrimaryKey,
+		"UNI": UniqueKey,
+		"MUL": MultipleKey,
+	}
+)
+
+func DBKeyTypeFromString(s string) DBKeyType {
+	if r, ok := stringToDBKeyTypes[s]; ok {
+		return r
+	}
+
+	return EmptyKey
+}
+
+// String returns the string representation of a type.
+func (t DBKeyType) String() string {
+	if t < endDBKeyTypes {
+		return dbKeyTypeToStrings[t]
+	}
+	return dbKeyTypeToStrings[EmptyKey]
+}
+
+// Valid reports if the given type if known type.
+func (t DBKeyType) Valid() bool {
+	return t >= EmptyKey && t < endDBKeyTypes
+}
+
+// MarshalJSON marshal an enum value to the quoted json string value
+func (t DBKeyType) MarshalJSON() ([]byte, error) {
+	buffer := bytes.NewBufferString(`"`)
+	buffer.WriteString(dbKeyTypeToStrings[t])
+	buffer.WriteString(`"`)
+	return buffer.Bytes(), nil
+}
+
+// UnmarshalJSON unmashals a quoted json string to the enum value
+func (t *DBKeyType) UnmarshalJSON(b []byte) error {
+	var j string
+	if err := json.Unmarshal(b, &j); err != nil {
+		return err
+	}
+	*t = stringToDBKeyTypes[j] // If the string can't be found, it will be set to the zero value: ''
 	return nil
 }

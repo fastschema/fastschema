@@ -13,7 +13,6 @@ import (
 func TestField(t *testing.T) {
 	field := &Field{}
 	assert.NoError(t, field.Init())
-	assert.NotNil(t, field.DB)
 
 	uint64Field := CreateUint64Field("id")
 	assert.Equal(t, TypeUint64, uint64Field.Type)
@@ -38,11 +37,7 @@ func TestFieldInitTypeFile(t *testing.T) {
 	}
 
 	assert.NoError(t, field.Init(schemaName))
-
-	assert.NotNil(t, field.DB)
 	assert.Equal(t, TypeFile, field.Type)
-	assert.Equal(t, false, field.DB.Increment)
-
 	assert.NotNil(t, field.Relation)
 	assert.Equal(t, utils.If(field.IsMultiple, M2M, O2M), field.Relation.Type)
 	assert.Equal(t, false, field.Relation.Owner)
@@ -228,7 +223,7 @@ func TestFieldClone(t *testing.T) {
 			Attr:      "UNSIGNED",
 			Collation: "utf8mb4_unicode_ci",
 			Increment: true,
-			Key:       "PRI",
+			Key:       PrimaryKey,
 		},
 		Enums: []*FieldEnum{
 			{
@@ -392,7 +387,7 @@ func TestMergeFields(t *testing.T) {
 			Attr:      "UNSIGNED",
 			Collation: "utf8mb4_unicode_ci",
 			Increment: true,
-			Key:       "PRI",
+			Key:       PrimaryKey,
 		},
 		Enums: []*FieldEnum{
 			{
@@ -427,7 +422,7 @@ func TestMergeFields(t *testing.T) {
 			Attr:      "UNSIGNED",
 			Collation: "utf8mb4_unicode_ci",
 			Increment: true,
-			Key:       "PRI",
+			Key:       PrimaryKey,
 		},
 		Enums: []*FieldEnum{
 			{
@@ -468,7 +463,7 @@ func TestMergeFields(t *testing.T) {
 			Attr:      "UNSIGNED",
 			Collation: "utf8mb4_unicode_ci",
 			Increment: true,
-			Key:       "PRI",
+			Key:       PrimaryKey,
 		},
 		Enums: []*FieldEnum{
 			{

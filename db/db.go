@@ -57,7 +57,7 @@ type PostDBCreate = func(
 	ctx context.Context,
 	schema *schema.Schema,
 	dataCreate *entity.Entity,
-	id uint64,
+	id any,
 ) error
 
 // PreDBUpdate is a hook that is called before a database update is executed.
@@ -210,8 +210,8 @@ type Model interface {
 	Query(predicates ...*Predicate) Querier
 	Mutation() Mutator
 	Schema() *schema.Schema
-	CreateFromJSON(ctx context.Context, json string) (id uint64, err error)
-	Create(ctx context.Context, e *entity.Entity) (id uint64, err error)
+	CreateFromJSON(ctx context.Context, json string) (id any, err error)
+	Create(ctx context.Context, e *entity.Entity) (id any, err error)
 	SetClient(client Client) Model
 	Clone() Model
 }
@@ -253,7 +253,7 @@ type Querier interface {
 type Mutator interface {
 	Where(predicates ...*Predicate) Mutator
 	GetRelationEntityIDs(fieldName string, fieldValue any) ([]driver.Value, error)
-	Create(ctx context.Context, e *entity.Entity) (id uint64, err error)
+	Create(ctx context.Context, e *entity.Entity) (id any, err error)
 	Update(ctx context.Context, e *entity.Entity) (affected int, err error)
 	Delete(ctx context.Context) (affected int, err error)
 }

@@ -66,7 +66,7 @@ func TestFieldDBClone(t *testing.T) {
 		Attr:      "attr",
 		Collation: "collation",
 		Increment: true,
-		Key:       "key",
+		Key:       UniqueKey,
 	}
 
 	// Clone the FieldDB instance

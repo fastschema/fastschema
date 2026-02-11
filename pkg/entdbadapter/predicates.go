@@ -6,7 +6,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
-	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -340,26 +339,27 @@ func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 	}
 }
 
-func relationStepFromColumn(_ *Model, relation *schema.Relation) string {
-	if relation == nil || relation.Type.IsM2M() || !relation.Owner || relation.BackRef == nil {
+
+func relationStepFromColumn(model *Model, relation *schema.Relation) string {
+	if relation == nil || relation.Type.IsM2M() || !relation.Owner || relation.BackRef == nil || model == nil {
 		return ""
 	}
 
 	targetColumn := relation.BackRef.TargetColumn
-	if targetColumn == "" || targetColumn == entity.FieldID {
+	if targetColumn == "" || targetColumn == model.entIDColumn.Name {
 		return ""
 	}
 
 	return targetColumn
 }
 
-func relationStepToColumn(_ *Model, relation *schema.Relation) string {
-	if relation == nil || relation.Type.IsM2M() || relation.Owner {
+func relationStepToColumn(targetModel *Model, relation *schema.Relation) string {
+	if relation == nil || relation.Type.IsM2M() || relation.Owner || targetModel == nil {
 		return ""
 	}
 
 	targetColumn := relation.TargetColumn
-	if targetColumn == "" || targetColumn == entity.FieldID {
+	if targetColumn == "" || targetColumn == targetModel.entIDColumn.Name {
 		return ""
 	}
 

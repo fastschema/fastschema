@@ -111,7 +111,7 @@ func (ac *AppConfig) OnPostDBCreate(value *qjs.Value) error {
 			c context.Context,
 			schema *schema.Schema,
 			createData *entity.Entity,
-			createdID uint64,
+			createdID any,
 		) (err error) {
 			_, err = ac.plugin.InvokeJsFunc(
 				jsFuncName,

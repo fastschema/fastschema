@@ -1,0 +1,51 @@
+{
+  "name": "category",
+  "namespace": "pk_categories",
+  "label_field": "title",
+  "fields": [
+    {
+      "name": "id",
+      "label": "Slug",
+      "type": "string",
+      "filterable": true,
+      "sortable": true,
+      "required": true,
+      "db": {
+        "key": "PRI",
+        "increment": false
+      }
+    },
+    {
+      "name": "title",
+      "label": "Title",
+      "type": "string"
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "type": "text"
+    },
+    {
+      "name": "posts",
+      "label": "Posts",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "post",
+        "field": "category",
+        "owner": true
+      }
+    },
+    {
+      "name": "followers",
+      "label": "Followers",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "user",
+        "field": "followed_categories",
+        "owner": true
+      }
+    }
+  ]
+}

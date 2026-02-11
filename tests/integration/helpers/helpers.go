@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path"
@@ -14,7 +15,22 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/utils"
+	u "github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const (
+	defaultDBName = "fastschema"
+	mysqlUser     = "root"
+	mysqlPass     = "123"
+	mysqlHost     = "127.0.0.1"
+	postgresUser  = "postgres"
+	postgresPass  = "123"
+	postgresHost  = "localhost"
 )
 
 // DBConfig describes a database target used in integration tests.
@@ -31,6 +47,20 @@ type DBClient struct {
 
 // Ctx returns a background context for integration tests.
 func Ctx() context.Context { return context.Background() }
+
+func IDUint64(t *testing.T, value any) uint64 {
+	t.Helper()
+	id, err := u.AnyToUint[uint64](value)
+	require.NoError(t, err)
+	return id
+}
+
+func AssertUint64ID(t *testing.T, value any) {
+	t.Helper()
+	id, err := utils.AnyToInt[int64](value)
+	assert.NoError(t, err)
+	assert.Greater(t, id, int64(0))
+}
 
 func IsMySQLFamily(name string) bool {
 	return strings.HasPrefix(name, "mysql") || strings.HasPrefix(name, "mariadb")
@@ -126,12 +156,14 @@ func EnsureMigrationDir(base, name string) string {
 func NewMySQLClient(t *testing.T, cfg DBConfig, sb *schema.Builder, migrationDir string) DBClient {
 	t.Helper()
 	RemoveAllMigrationFiles(migrationDir)
+	dbName := deriveDatabaseName(defaultDBName, migrationDir)
+	resetMySQLDatabase(t, cfg, dbName)
 	client := utils.Must(entdbadapter.NewEntClient(&db.Config{
 		Driver:       "mysql",
-		Name:         "fastschema",
-		User:         "root",
-		Pass:         "123",
-		Host:         "127.0.0.1",
+		Name:         dbName,
+		User:         mysqlUser,
+		Pass:         mysqlPass,
+		Host:         mysqlHost,
 		Port:         strconv.Itoa(cfg.Port),
 		MigrationDir: migrationDir,
 		LogQueries:   false,
@@ -144,12 +176,14 @@ func NewMySQLClient(t *testing.T, cfg DBConfig, sb *schema.Builder, migrationDir
 func NewPostgresClient(t *testing.T, cfg DBConfig, sb *schema.Builder, migrationDir string) DBClient {
 	t.Helper()
 	RemoveAllMigrationFiles(migrationDir)
+	dbName := deriveDatabaseName(defaultDBName, migrationDir)
+	resetPostgresDatabase(t, cfg, dbName)
 	client := utils.Must(entdbadapter.NewEntClient(&db.Config{
 		Driver:       "pgx",
-		Name:         "fastschema",
-		User:         "postgres",
-		Pass:         "123",
-		Host:         "localhost",
+		Name:         dbName,
+		User:         postgresUser,
+		Pass:         postgresPass,
+		Host:         postgresHost,
 		Port:         strconv.Itoa(cfg.Port),
 		MigrationDir: migrationDir,
 		LogQueries:   false,
@@ -170,4 +204,71 @@ func NewSQLiteClient(t *testing.T, name, dbPath, migrationDir string, sb *schema
 	}, sb))
 	t.Cleanup(func() { _ = client.Close() })
 	return DBClient{Name: name, C: client}
+}
+
+func deriveDatabaseName(defaultName, migrationDir string) string {
+	cleaned := filepath.Clean(migrationDir)
+	parent := filepath.Dir(cleaned)
+	grandParent := filepath.Dir(parent)
+	suffix := strings.ToLower(filepath.Base(grandParent))
+	sanitized := sanitizeIdentifier(suffix)
+	if sanitized == "" || sanitized == defaultName {
+		return defaultName
+	}
+	return fmt.Sprintf("%s_%s", defaultName, sanitized)
+}
+
+func sanitizeIdentifier(value string) string {
+	var b strings.Builder
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('_')
+		}
+	}
+	return strings.Trim(b.String(), "_")
+}
+
+func resetMySQLDatabase(t *testing.T, cfg DBConfig, dbName string) {
+	t.Helper()
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/?multiStatements=true&parseTime=true", mysqlUser, mysqlPass, mysqlHost, cfg.Port)
+	sqlDB, err := sql.Open("mysql", dsn)
+	if err != nil {
+		panic(err)
+	}
+	defer sqlDB.Close()
+	if _, err := sqlDB.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", quoteMySQLIdent(dbName))); err != nil {
+		panic(err)
+	}
+	if _, err := sqlDB.Exec(fmt.Sprintf("CREATE DATABASE %s CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci", quoteMySQLIdent(dbName))); err != nil {
+		panic(err)
+	}
+}
+
+func resetPostgresDatabase(t *testing.T, cfg DBConfig, dbName string) {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=disable", postgresHost, cfg.Port, postgresUser, postgresPass))
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close(ctx)
+	if _, err := conn.Exec(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s", quotePostgresIdent(dbName))); err != nil {
+		panic(err)
+	}
+	if _, err := conn.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s", quotePostgresIdent(dbName))); err != nil {
+		panic(err)
+	}
+}
+
+func quoteMySQLIdent(name string) string {
+	return fmt.Sprintf("`%s`", strings.ReplaceAll(name, "`", "``"))
+}
+
+func quotePostgresIdent(name string) string {
+	return fmt.Sprintf("\"%s\"", strings.ReplaceAll(name, "\"", "\"\""))
 }

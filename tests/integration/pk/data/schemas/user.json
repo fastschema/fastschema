@@ -1,0 +1,92 @@
+{
+  "name": "user",
+  "namespace": "pk_users",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "id",
+      "label": "UserID",
+      "type": "uuid",
+      "filterable": true,
+      "sortable": true,
+      "required": true,
+      "db": {
+        "key": "PRI",
+        "increment": false
+      }
+    },
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string"
+    },
+    {
+      "name": "email",
+      "label": "Email",
+      "type": "string"
+    },
+    {
+      "name": "posts",
+      "label": "Posts",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "post",
+        "field": "author",
+        "owner": true
+      }
+    },
+    {
+      "name": "comments",
+      "label": "Comments",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "comment",
+        "field": "author",
+        "owner": true
+      }
+    },
+    {
+      "name": "followed_categories",
+      "label": "Followed Categories",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "category",
+        "field": "followers"
+      }
+    },
+    {
+      "name": "liked_posts",
+      "label": "Liked Posts",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "post",
+        "field": "likes"
+      }
+    },
+    {
+      "name": "profile",
+      "label": "Profile",
+      "type": "relation",
+      "relation": {
+        "type": "o2o",
+        "schema": "system_profile",
+        "field": "owner",
+        "owner": true
+      }
+    },
+    {
+      "name": "favorite_episodes",
+      "label": "Favorite Episodes",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "system_episode",
+        "field": "viewers"
+      }
+    }
+  ]
+}

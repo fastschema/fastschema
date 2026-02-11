@@ -6,10 +6,16 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 )
 
-func isDeletable(id int, schemaName string) error {
-	if schemaName == "user" && id == 1 {
+func isDeletable(id any, schemaName string) error {
+	if schemaName != "user" {
+		return nil
+	}
+
+	rootID, err := utils.AnyToUint[uint64](id)
+	if err == nil && rootID == 1 {
 		return errors.BadRequest("Cannot delete root user.")
 	}
 
@@ -18,29 +24,32 @@ func isDeletable(id int, schemaName string) error {
 
 func (cs *ContentService) Delete(c fs.Context, _ any) (any, error) {
 	schemaName := c.Arg("schema")
-	id := c.ArgInt("id")
-
-	if err := isDeletable(id, schemaName); err != nil {
-		return nil, err
-	}
-
 	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	_, err = model.Query(db.EQ("id", id)).Only(c)
+	idValue, err := parseIDArg(model.Schema(), c.Arg("id"))
+	if err != nil {
+		return nil, errors.BadRequest(err.Error())
+	}
+
+	if err := isDeletable(idValue, schemaName); err != nil {
+		return nil, err
+	}
+
+	_, err = model.Query(db.EQ(entity.FieldID, idValue)).Only(c)
 
 	if err != nil {
 		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
 		return nil, e(err.Error())
 	}
 
-	if _, err := model.Mutation().Where(db.EQ("id", id)).Delete(c); err != nil {
+	if _, err := model.Mutation().Where(db.EQ(entity.FieldID, idValue)).Delete(c); err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	return entity.New(uint64(id)), nil
+	return entity.New(idValue), nil
 }
 
 func (cs *ContentService) BulkDelete(c fs.Context, _ any) (int, error) {
@@ -68,13 +77,13 @@ func (cs *ContentService) BulkDelete(c fs.Context, _ any) (int, error) {
 		return 0, nil
 	}
 
-	var ids []any
+	ids := make([]any, 0, len(records))
 	for _, record := range records {
 		recordID := record.ID()
-		if err := isDeletable(int(recordID), schemaName); err != nil {
+		if err := isDeletable(recordID, schemaName); err != nil {
 			return 0, errors.InternalServerError("Cannot delete root user.")
 		}
-		ids = append(ids, int(recordID))
+		ids = append(ids, recordID)
 	}
 
 	recordDelete, err := model.Mutation().Where(db.In("id", ids)).Delete(c)
@@ -83,4 +92,21 @@ func (cs *ContentService) BulkDelete(c fs.Context, _ any) (int, error) {
 	}
 
 	return recordDelete, nil
+}
+
+func parseIDArg(s *schema.Schema, rawID string) (any, error) {
+	if rawID == "" {
+		return nil, errors.BadRequest("missing id")
+	}
+
+	if s == nil {
+		return rawID, nil
+	}
+
+	idField := s.IDField()
+	if idField == nil {
+		return rawID, nil
+	}
+
+	return schema.StringToFieldValue[any](idField, rawID)
 }

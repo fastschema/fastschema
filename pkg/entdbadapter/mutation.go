@@ -7,7 +7,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
 
@@ -81,26 +80,67 @@ func (m *Mutation) targetReferenceValue(
 		return nil, fmt.Errorf("relation for %s.%s not found", m.model.name, fieldName)
 	}
 
+	referenceField, err := m.relationReferenceField(fieldName, relation)
+	if err != nil {
+		return nil, err
+	}
+	if referenceField != nil {
+		relationEntity.SetIDField(referenceField.Name)
+	}
+
 	if relation.Type.IsM2M() {
-		if relationEntity.ID() == 0 {
+		idValue := relationEntity.ID()
+		if isZeroValue(idValue) {
 			return nil, fmt.Errorf("relation entity for %s.%s has no ID", m.model.name, fieldName)
 		}
 
-		return relationEntity.ID(), nil
+		return normalizeIDValue(referenceField, idValue)
 	}
 
-	refColumn := utils.If(relation.TargetColumn != "", relation.TargetColumn, entity.FieldID)
-	value, err := relationEntity.GetUint64(refColumn, false)
-	if err != nil || value == 0 {
+	refColumn := relation.TargetColumn
+	if refColumn == "" && referenceField != nil {
+		refColumn = referenceField.Name
+	}
+	if refColumn == "" {
+		refColumn = entity.FieldID
+	}
+	value := relationEntity.Get(refColumn)
+	if isZeroValue(value) {
 		return nil, fmt.Errorf(
-			"relation entity for %s.%s target column '%s' is invalid, value=%d, err=%w",
+			"relation entity for %s.%s target column '%s' is invalid, value=%v",
 			m.model.name,
 			fieldName,
 			refColumn,
 			value,
-			err,
 		)
 	}
 
-	return value, nil
+	return normalizeIDValue(referenceField, value)
+}
+
+func (m *Mutation) relationReferenceField(fieldName string, relation *schema.Relation) (*schema.Field, error) {
+	if relation == nil {
+		return nil, fmt.Errorf("relation for %s.%s not found", m.model.name, fieldName)
+	}
+
+	targetColumn := relation.TargetColumn
+	if targetColumn == "" {
+		targetColumn = entity.FieldID
+	}
+
+	if m.client == nil {
+		return &schema.Field{Name: targetColumn, Type: schema.TypeUint64}, nil
+	}
+
+	builder := m.client.SchemaBuilder()
+	if builder == nil {
+		return &schema.Field{Name: targetColumn, Type: schema.TypeUint64}, nil
+	}
+
+	field, err := getRelationTargetField(builder, relation)
+	if err != nil {
+		return nil, err
+	}
+
+	return field, nil
 }

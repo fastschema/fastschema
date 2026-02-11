@@ -58,12 +58,13 @@ func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema
 				schemas[schema.Name].Fields,
 				schema.Fields...,
 			)
-			if schemas[schema.Name].DB == nil {
-				schemas[schema.Name].DB = &SchemaDB{
-					Indexes: []*SchemaDBIndex{},
-				}
-			}
 			if schema.DB != nil && schema.DB.Indexes != nil {
+				if schemas[schema.Name].DB == nil {
+					schemas[schema.Name].DB = &SchemaDB{
+						Indexes: []*SchemaDBIndex{},
+					}
+				}
+
 				schemas[schema.Name].DB.Indexes = append(
 					schemas[schema.Name].DB.Indexes,
 					schema.DB.Indexes...,
@@ -85,6 +86,10 @@ func NewBuilderFromSchemas(dir string, schemas map[string]*Schema, systemSchemaT
 	for _, systemSchema := range systemSchemaTypes {
 		systemSchema, err := CreateSchema(systemSchema)
 		if err != nil {
+			return nil, err
+		}
+
+		if err := systemSchema.Init(false); err != nil {
 			return nil, err
 		}
 
@@ -272,7 +277,12 @@ func (b *Builder) CreateFKs() error {
 
 		// O2O and O2M relations
 		if relation.Type.IsO2O() || relation.Type.IsO2M() {
-			fkField, err := relation.CreateFKField()
+			targetField, err := b.relationTargetField(relation)
+			if err != nil {
+				return err
+			}
+
+			fkField, err := relation.CreateFKField(targetField)
 			if err != nil {
 				return err
 			}
@@ -330,6 +340,27 @@ func (b *Builder) Relation(name string) *Relation {
 	return nil
 }
 
+func (b *Builder) relationTargetField(r *Relation) (*Field, error) {
+	targetSchema, err := b.Schema(r.TargetSchemaName)
+	if err != nil {
+		return nil, err
+	}
+
+	targetColumnName := r.TargetColumn
+	if targetColumnName == "" {
+		targetColumnName = targetSchema.PrimaryKeyName()
+		if targetColumnName == "" {
+			targetColumnName = entity.FieldID
+		}
+	}
+	targetField := targetSchema.Field(targetColumnName)
+	if targetField == nil {
+		return nil, ErrFieldNotFound(targetSchema.Name, targetColumnName)
+	}
+
+	return targetField, nil
+}
+
 func (b *Builder) CreateM2mJunctionSchema(sourceSchema *Schema, r *Relation) (*Schema, bool, error) {
 	if r == nil || !r.Type.IsM2M() {
 		return nil, false, fmt.Errorf("field %s is not a m2m relation", r.Name)
@@ -369,11 +400,33 @@ func (b *Builder) CreateM2mJunctionSchema(sourceSchema *Schema, r *Relation) (*S
 		LabelFieldName:   fKColumnNames[0],
 		IsJunctionSchema: true,
 		IsSystemSchema:   true,
-		Fields: []*Field{
-			CreateUint64Field(fKColumnNames[0]),
-			CreateUint64Field(fKColumnNames[1]),
-		},
 	}
+
+	targetIDField := targetSchema.IDField()
+	if targetIDField == nil {
+		return nil, false, fmt.Errorf("schema %s is missing id field", targetSchema.Name)
+	}
+
+	sourceIDField := sourceSchema.IDField()
+	if sourceIDField == nil {
+		return nil, false, fmt.Errorf("schema %s is missing id field", sourceSchema.Name)
+	}
+
+	firstFKField := cloneReferenceField(targetIDField, fKColumnNames[0])
+	secondFKField := cloneReferenceField(sourceIDField, fKColumnNames[1])
+	for _, fkField := range []*Field{firstFKField, secondFKField} {
+		if fkField == nil {
+			return nil, false, fmt.Errorf("failed to create junction field for %s", r.JunctionTable)
+		}
+		fkField.IsSystemField = true
+		fkField.Immutable = true
+		fkField.Optional = false
+		fkField.Unique = false
+		fkField.DB.Increment = false
+		fkField.DB.Key = EmptyKey
+	}
+
+	junctionSchema.Fields = []*Field{firstFKField, secondFKField}
 
 	if err := junctionSchema.Init(true); err != nil {
 		return nil, false, err

@@ -1,0 +1,34 @@
+{
+  "name": "deployment",
+  "namespace": "id_deployments",
+  "label_field": "environment",
+  "primary_field": "deployment_id",
+  "fields": [
+    {
+      "name": "deployment_id",
+      "label": "Deployment ID",
+      "type": "uuid",
+      "filterable": true,
+      "sortable": true,
+      "db": {
+        "key": "PRI",
+        "increment": false
+      }
+    },
+    {
+      "name": "environment",
+      "label": "Environment",
+      "type": "string"
+    },
+    {
+      "name": "project",
+      "label": "Project",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "project",
+        "field": "deployments"
+      }
+    }
+  ]
+}

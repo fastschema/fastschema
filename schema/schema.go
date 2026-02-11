@@ -20,6 +20,20 @@ type SchemaDB struct {
 	Indexes []*SchemaDBIndex `json:"indexes,omitempty"`
 }
 
+type SchemaFormZone = []string
+
+type SchemaFormView map[string]SchemaFormZone
+
+type SchemaForm struct {
+	ActiveView   string                    `json:"active_view,omitempty"`
+	HiddenFields []string                  `json:"hidden_fields,omitempty"`
+	Views        map[string]SchemaFormView `json:"views,omitempty"`
+}
+
+type SchemaSettings struct {
+	Form *SchemaForm `json:"form,omitempty"`
+}
+
 // Schema holds the node data.
 type Schema struct {
 	*SystemSchema `json:"-"`
@@ -27,14 +41,17 @@ type Schema struct {
 	initialized bool
 	dbColumns   []string `json:"-"`
 
-	Name             string    `json:"name"`
-	Namespace        string    `json:"namespace"`
-	LabelFieldName   string    `json:"label_field"`
-	DisableTimestamp bool      `json:"disable_timestamp"`
-	Fields           []*Field  `json:"fields"`
-	IsSystemSchema   bool      `json:"is_system_schema,omitempty"`
-	IsJunctionSchema bool      `json:"is_junction_schema,omitempty"`
-	DB               *SchemaDB `json:"db,omitempty"`
+	Name             string          `json:"name"`
+	Namespace        string          `json:"namespace"`
+	LabelFieldName   string          `json:"label_field"`
+	PrimaryFieldName string          `json:"primary_field,omitempty"`
+	DisableTimestamp bool            `json:"disable_timestamp"`
+	Fields           []*Field        `json:"fields"`
+	IsSystemSchema   bool            `json:"is_system_schema,omitempty"`
+	IsJunctionSchema bool            `json:"is_junction_schema,omitempty"`
+	DB               *SchemaDB       `json:"db,omitempty"`
+	Settings         *SchemaSettings `json:"settings,omitempty"`
+	primaryField     string          `json:"-"`
 }
 
 // NewSchemaFromJSON creates a new node from a json string.
@@ -86,29 +103,8 @@ func (s *Schema) Init(disableIDColumn bool) error {
 		return err
 	}
 
-	if !disableIDColumn {
-		newIDField := &Field{}
-		newIDField.Name = entity.FieldID
-		newIDField.Type = TypeUint64
-		newIDField.IsSystemField = true
-		newIDField.Immutable = true
-		newIDField.Label = "ID"
-		newIDField.DB = &FieldDB{
-			Attr:      "UNSIGNED",
-			Key:       "UNI",
-			Increment: true,
-		}
-		newIDField.Unique = true
-		newIDField.Filterable = true
-		newIDField.Sortable = true
-
-		existingIDField := s.Field(entity.FieldID)
-		// If ID field already exists, merge the new ID field with the existing one
-		if existingIDField != nil {
-			MergeFields(existingIDField, newIDField)
-		} else {
-			s.Fields = append([]*Field{newIDField}, s.Fields...)
-		}
+	if err := s.ensurePrimaryField(disableIDColumn); err != nil {
+		return err
 	}
 
 	for _, f := range s.Fields {
@@ -165,10 +161,13 @@ func (s *Schema) Clone() *Schema {
 		Name:             s.Name,
 		Namespace:        s.Namespace,
 		LabelFieldName:   s.LabelFieldName,
+		PrimaryFieldName: s.PrimaryFieldName,
 		DisableTimestamp: s.DisableTimestamp,
 		dbColumns:        s.dbColumns,
 		IsSystemSchema:   s.IsSystemSchema,
 		IsJunctionSchema: s.IsJunctionSchema,
+		Settings:         s.Settings,
+		primaryField:     s.primaryField,
 	}
 
 	for _, f := range s.Fields {
@@ -211,6 +210,33 @@ func (s *Schema) Field(name string) *Field {
 	}
 
 	return nil
+}
+
+// IDField returns the primary key field definition.
+func (s *Schema) IDField() *Field {
+	primaryName := s.PrimaryKeyName()
+	if primaryName == "" {
+		return nil
+	}
+
+	return s.Field(primaryName)
+}
+
+// PrimaryKeyName returns the resolved primary key field name.
+func (s *Schema) PrimaryKeyName() string {
+	if s.primaryField != "" {
+		return s.primaryField
+	}
+
+	if s.PrimaryFieldName != "" {
+		return s.PrimaryFieldName
+	}
+
+	if s.Field(entity.FieldID) != nil {
+		return entity.FieldID
+	}
+
+	return ""
 }
 
 // Validate inspects the fields of the schema for validation errors.
@@ -293,6 +319,108 @@ func (s *Schema) Validate() error {
 	return nil
 }
 
+func (s *Schema) ensurePrimaryField(disableIDColumn bool) error {
+	var candidate *Field
+	var autoCreated bool
+	userDefined := s.PrimaryFieldName != ""
+
+	if s.PrimaryFieldName != "" {
+		candidate = s.Field(s.PrimaryFieldName)
+		if candidate == nil {
+			return fmt.Errorf("schema %s: primary field '%s' is not found", s.Name, s.PrimaryFieldName)
+		}
+	}
+
+	if candidate == nil && !disableIDColumn {
+		candidate = s.Field(entity.FieldID)
+	}
+
+	if candidate == nil && !disableIDColumn {
+		candidate = defaultIDField()
+		autoCreated = true
+		s.Fields = append([]*Field{candidate}, s.Fields...)
+	}
+
+	if candidate == nil {
+		s.primaryField = ""
+		if disableIDColumn {
+			return nil
+		}
+
+		return fmt.Errorf("schema %s: primary key field is required", s.Name)
+	}
+
+	applyPrimaryFieldDefaults(candidate, autoCreated)
+
+	s.primaryField = candidate.Name
+	if candidate.Name != entity.FieldID || userDefined {
+		s.PrimaryFieldName = candidate.Name
+	} else if !userDefined {
+		s.PrimaryFieldName = ""
+	}
+
+	return nil
+}
+
 func ErrFieldNotFound(schemaName, fieldName string) error {
 	return fmt.Errorf("field %s.%s not found", schemaName, fieldName)
+}
+
+func defaultIDField() *Field {
+	idField := &Field{
+		Name:  entity.FieldID,
+		Type:  TypeUint64,
+		Label: "ID",
+		DB: &FieldDB{
+			Attr:      "UNSIGNED",
+			Key:       PrimaryKey,
+			Increment: true,
+		},
+		IsSystemField: true,
+	}
+
+	applyPrimaryFieldDefaults(idField, true)
+
+	return idField
+}
+
+func applyPrimaryFieldDefaults(field *Field, autoCreated bool) {
+	if field == nil {
+		return
+	}
+
+	if field.Type == TypeInvalid {
+		field.Type = TypeUint64
+	}
+
+	dbProvided := field.DB != nil
+	if !dbProvided {
+		field.DB = &FieldDB{}
+	}
+
+	if field.Label == "" {
+		field.Label = "ID"
+	}
+
+	if field.DB.Key == EmptyKey {
+		field.DB.Key = PrimaryKey
+	}
+
+	if field.DB.Attr == "" && field.Type.IsUnsignedInteger() {
+		field.DB.Attr = "UNSIGNED"
+	}
+
+	if !field.Type.IsInteger() {
+		field.DB.Increment = false
+	} else if autoCreated || !dbProvided {
+		field.DB.Increment = true
+	}
+
+	field.IsSystemField = autoCreated || field.Name == entity.FieldID
+
+	field.Immutable = true
+	field.Unique = true
+	field.Filterable = true
+	field.Sortable = true
+	field.Optional = false
 }

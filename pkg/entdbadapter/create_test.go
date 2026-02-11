@@ -118,7 +118,7 @@ func TestMockCreateNodeHookError(t *testing.T) {
 							ctx context.Context,
 							schema *schema.Schema,
 							dataCreate *entity.Entity,
-							id uint64,
+							id any,
 						) error {
 							assert.Greater(t, id, uint64(0))
 							return errors.New("hook error")
