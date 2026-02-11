@@ -296,6 +296,35 @@ func (m *Mutation) ProcessUpdateFieldSet(entAdapter EntAdapter, k string, v any)
 			Value:  v,
 		})
 	} else {
+		if nested, ok := v.(*entity.Entity); ok {
+			clearVal := nested.Get("$clear", nil)
+			addVal := nested.Get("$add", nil)
+			handledKeys := 0
+			if clearVal != nil {
+				handledKeys++
+			}
+			if addVal != nil {
+				handledKeys++
+			}
+
+			// Only short-circuit when the nested payload contains exclusively $clear/$add keys
+			if handledKeys > 0 && nested.Data().Len() == handledKeys {
+				if clearVal != nil {
+					if err := m.ProcessFieldClear(entAdapter, k, clearVal); err != nil {
+						return err
+					}
+				}
+
+				if addVal != nil {
+					if err := m.ProcessFieldAdd(entAdapter, k, addVal); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			}
+		}
+
 		entityIDs, err := m.GetRelationEntityIDs(k, v)
 		if err != nil {
 			return err

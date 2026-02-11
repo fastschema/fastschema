@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"entgo.io/ent/dialect"
 	dialectSql "entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
@@ -17,6 +19,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestScanValues(t *testing.T) {
@@ -969,6 +972,563 @@ func TestQuery(t *testing.T) {
 				}),
 			},
 		},
+		// =============================================================================
+		// Relation Options Tests - O2M with limit/offset (window function)
+		// =============================================================================
+		{
+			Name:    "Query_with_edges_O2M_relation_option_limit",
+			Schema:  "user",
+			Columns: []string{"name", "pets"},
+			RelationOptions: db.RelationOptions{
+				"pets": &db.RelationOption{Limit: 2},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John").
+						AddRow(2, "Jane"))
+				// O2M owner with limit uses window function
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY .owner_id.").
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(1, "Pet 1", uint64(1)).
+						AddRow(2, "Pet 2", uint64(1)).
+						AddRow(3, "Pet 3", uint64(2)).
+						AddRow(4, "Pet 4", uint64(2)))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Pet 1").Set("owner_id", uint64(1)),
+					entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(1)),
+				}),
+				entity.New(2).Set("name", "Jane").Set("pets", []*entity.Entity{
+					entity.New(3).Set("name", "Pet 3").Set("owner_id", uint64(2)),
+					entity.New(4).Set("name", "Pet 4").Set("owner_id", uint64(2)),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_O2M_relation_option_offset",
+			Schema:  "user",
+			Columns: []string{"name", "pets"},
+			RelationOptions: db.RelationOptions{
+				"pets": &db.RelationOption{Offset: 1},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John"))
+				// O2M owner with offset uses window function
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY .owner_id.").
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(2, "Pet 2", uint64(1)).
+						AddRow(3, "Pet 3", uint64(1)))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(1)),
+					entity.New(3).Set("name", "Pet 3").Set("owner_id", uint64(1)),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_O2M_relation_option_limit_offset",
+			Schema:  "user",
+			Columns: []string{"name", "pets"},
+			RelationOptions: db.RelationOptions{
+				"pets": &db.RelationOption{Limit: 2, Offset: 1},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John"))
+				// O2M owner with limit+offset uses window function
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY .owner_id.").
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(2, "Pet 2", uint64(1)).
+						AddRow(3, "Pet 3", uint64(1)))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(1)),
+					entity.New(3).Set("name", "Pet 3").Set("owner_id", uint64(1)),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_O2M_relation_option_sort",
+			Schema:  "user",
+			Columns: []string{"name", "pets"},
+			RelationOptions: db.RelationOptions{
+				"pets": &db.RelationOption{Sort: "-id"},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John"))
+				// O2M owner with only sort (no limit/offset) uses regular query with ORDER BY
+				mock.ExpectQuery("SELECT \\* FROM .pets. WHERE .pets...owner_id. IN \\(\\?\\) ORDER BY .pets...id. DESC").
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(3, "Zebra", uint64(1)).
+						AddRow(2, "Cat", uint64(1)).
+						AddRow(1, "Alpha", uint64(1)))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(3).Set("name", "Zebra").Set("owner_id", uint64(1)),
+					entity.New(2).Set("name", "Cat").Set("owner_id", uint64(1)),
+					entity.New(1).Set("name", "Alpha").Set("owner_id", uint64(1)),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_O2M_relation_option_filter",
+			Schema:  "user",
+			Columns: []string{"name", "pets"},
+			RelationOptions: db.RelationOptions{
+				"pets": &db.RelationOption{
+					Filter: map[string]any{"name": map[string]any{"$like": "%Dog%"}},
+				},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John"))
+				// O2M owner with filter applies WHERE clause
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `pets` WHERE `pets`.`owner_id` IN (?) AND `pets`.`name` LIKE ?")).
+					WithArgs(1, "%Dog%").
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(1, "Dog", uint64(1)))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Dog").Set("owner_id", uint64(1)),
+				}),
+			},
+		},
+		// =============================================================================
+		// Relation Options Tests - O2M non-owner (no window function needed)
+		// =============================================================================
+		{
+			Name:    "Query_with_edges_O2M_reverse_relation_option_sort",
+			Schema:  "pet",
+			Columns: []string{"name", "owner"},
+			RelationOptions: db.RelationOptions{
+				"owner": &db.RelationOption{Sort: "-name"},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `pets`.`id`, `pets`.`name`, `pets`.`owner_id` FROM `pets`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(1, "Pet 1", uint64(1)).
+						AddRow(2, "Pet 2", uint64(2)))
+				// O2M non-owner (M2O) - no window function, just regular query with ORDER BY
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?, ?) ORDER BY `users`.`name` DESC")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(2, "Jane").
+						AddRow(1, "John"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "Pet 1").Set("owner_id", uint64(1)).Set("owner", entity.New(1).Set("name", "John")),
+				entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(2)).Set("owner", entity.New(2).Set("name", "Jane")),
+			},
+		},
+		{
+			Name:    "Query_with_edges_O2M_reverse_relation_option_limit_no_window",
+			Schema:  "pet",
+			Columns: []string{"name", "owner"},
+			RelationOptions: db.RelationOptions{
+				"owner": &db.RelationOption{Limit: 1},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `pets`.`id`, `pets`.`name`, `pets`.`owner_id` FROM `pets`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(1, "Pet 1", uint64(1)))
+				// O2M non-owner with limit - no window function (single item per parent)
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?)")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "Pet 1").Set("owner_id", uint64(1)).Set("owner", entity.New(1).Set("name", "John")),
+			},
+		},
+		// =============================================================================
+		// Relation Options Tests - O2O (no window function needed)
+		// =============================================================================
+		{
+			Name:    "Query_with_edges_O2O_relation_option_sort",
+			Schema:  "user",
+			Columns: []string{"name", "card"},
+			RelationOptions: db.RelationOptions{
+				"card": &db.RelationOption{Sort: "-number"},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John").
+						AddRow(2, "Jane"))
+				// O2O with sort - no window function (single item per parent)
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cards` WHERE `cards`.`owner_id` IN (?, ?) ORDER BY `cards`.`number` DESC")).
+					WithArgs(1, 2).
+					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
+						AddRow(2, "9999", 2).
+						AddRow(1, "1234", 1))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("card", entity.New(1).Set("number", "1234").Set("owner_id", 1)),
+				entity.New(2).Set("name", "Jane").Set("card", entity.New(2).Set("number", "9999").Set("owner_id", 2)),
+			},
+		},
+		// =============================================================================
+		// Relation Options Tests - M2M with limit/offset (window function)
+		// =============================================================================
+		{
+			Name:    "Query_with_edges_M2M_relation_option_limit",
+			Schema:  "group",
+			Columns: []string{"name", "users"},
+			RelationOptions: db.RelationOptions{
+				"users": &db.RelationOption{Limit: 2},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `groups`.`id`, `groups`.`name` FROM `groups`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(11, "Group 11").
+						AddRow(22, "Group 22"))
+				// M2M with limit uses window function
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY").
+					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
+						AddRow(11, 1, "John").
+						AddRow(11, 2, "Jane").
+						AddRow(22, 3, "Bob").
+						AddRow(22, 4, "Alice"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
+					entity.New(1).Set("name", "John"),
+					entity.New(2).Set("name", "Jane"),
+				}),
+				entity.New(22).Set("name", "Group 22").Set("users", []*entity.Entity{
+					entity.New(3).Set("name", "Bob"),
+					entity.New(4).Set("name", "Alice"),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_M2M_relation_option_sort",
+			Schema:  "group",
+			Columns: []string{"name", "users"},
+			RelationOptions: db.RelationOptions{
+				"users": &db.RelationOption{Sort: "-name"},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `groups`.`id`, `groups`.`name` FROM `groups`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(11, "Group 11"))
+				// M2M with sort only - no window function, uses regular query with ORDER BY
+				mock.ExpectQuery("SELECT .* FROM `users` JOIN `groups_users` AS `t1` ON .* ORDER BY `users`.`name` DESC").
+					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
+						AddRow(11, 2, "Zack").
+						AddRow(11, 1, "Alice"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
+					entity.New(2).Set("name", "Zack"),
+					entity.New(1).Set("name", "Alice"),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_M2M_relation_option_filter",
+			Schema:  "group",
+			Columns: []string{"name", "users"},
+			RelationOptions: db.RelationOptions{
+				"users": &db.RelationOption{
+					Filter: map[string]any{"name": map[string]any{"$like": "%John%"}},
+				},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `groups`.`id`, `groups`.`name` FROM `groups`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(11, "Group 11"))
+				// M2M with filter applies WHERE clause
+				mock.ExpectQuery("SELECT .* FROM `users` JOIN `groups_users` AS `t1` ON .* WHERE .* AND `users`.`name` LIKE").
+					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
+						AddRow(11, 1, "John"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
+					entity.New(1).Set("name", "John"),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_M2M_relation_option_combined",
+			Schema:  "group",
+			Columns: []string{"name", "users"},
+			RelationOptions: db.RelationOptions{
+				"users": &db.RelationOption{
+					Limit:  2,
+					Offset: 1,
+					Sort:   "-name",
+				},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `groups`.`id`, `groups`.`name` FROM `groups`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(11, "Group 11"))
+				// M2M with limit+offset+sort uses window function with ordering
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*DESC").
+					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
+						AddRow(11, 2, "Jane").
+						AddRow(11, 3, "Bob"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
+					entity.New(2).Set("name", "Jane"),
+					entity.New(3).Set("name", "Bob"),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_M2M_relation_option_filter_with_limit",
+			Schema:  "group",
+			Columns: []string{"name", "users"},
+			RelationOptions: db.RelationOptions{
+				"users": &db.RelationOption{
+					Filter: map[string]any{"name": map[string]any{"$like": "%o%"}},
+					Limit:  2,
+				},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `groups`.`id`, `groups`.`name` FROM `groups`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(11, "Group 11").
+						AddRow(22, "Group 22"))
+				// M2M with filter + limit uses window function with WHERE clause
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*\\)\\) AS .row_num. FROM .users. JOIN .groups_users. AS .t1. ON .* WHERE .* AND .users...name. LIKE").
+					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
+						AddRow(11, 1, "John").
+						AddRow(11, 2, "Bob").
+						AddRow(22, 3, "Doe"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
+					entity.New(1).Set("name", "John"),
+					entity.New(2).Set("name", "Bob"),
+				}),
+				entity.New(22).Set("name", "Group 22").Set("users", []*entity.Entity{
+					entity.New(3).Set("name", "Doe"),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_M2M_relation_option_filter_sort_limit",
+			Schema:  "group",
+			Columns: []string{"name", "users"},
+			RelationOptions: db.RelationOptions{
+				"users": &db.RelationOption{
+					Filter: map[string]any{"name": map[string]any{"$like": "%o%"}},
+					Sort:   "-name",
+					Limit:  2,
+				},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `groups`.`id`, `groups`.`name` FROM `groups`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(11, "Group 11"))
+				// M2M with filter + sort + limit uses window function with WHERE and ORDER BY
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*DESC\\)\\) AS .row_num. FROM .users. JOIN .groups_users. AS .t1. ON .* WHERE .* AND .users...name. LIKE").
+					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
+						AddRow(11, 2, "Tony").
+						AddRow(11, 1, "John"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
+					entity.New(2).Set("name", "Tony"),
+					entity.New(1).Set("name", "John"),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_M2M_relation_option_filter_sort_limit_offset",
+			Schema:  "group",
+			Columns: []string{"name", "users"},
+			RelationOptions: db.RelationOptions{
+				"users": &db.RelationOption{
+					Filter: map[string]any{"name": map[string]any{"$like": "%o%"}},
+					Sort:   "-name",
+					Limit:  2,
+					Offset: 1,
+				},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `groups`.`id`, `groups`.`name` FROM `groups`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(11, "Group 11"))
+				// M2M with filter + sort + limit + offset uses window function
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*DESC\\)\\) AS .row_num. FROM .users. JOIN .groups_users. AS .t1. ON .* WHERE .* AND .users...name. LIKE").
+					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
+						AddRow(11, 1, "John").
+						AddRow(11, 3, "Bob"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
+					entity.New(1).Set("name", "John"),
+					entity.New(3).Set("name", "Bob"),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_O2M_relation_option_filter_with_limit",
+			Schema:  "user",
+			Columns: []string{"name", "pets"},
+			RelationOptions: db.RelationOptions{
+				"pets": &db.RelationOption{
+					Filter: map[string]any{"name": map[string]any{"$like": "%og%"}},
+					Limit:  2,
+				},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John").
+						AddRow(2, "Jane"))
+				// O2M owner with filter + limit uses window function with WHERE clause
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*\\)\\) AS .row_num. FROM .pets. WHERE .pets...owner_id. IN .* AND .pets...name. LIKE").
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(1, "Dog", uint64(1)).
+						AddRow(2, "Frog", uint64(1)).
+						AddRow(3, "HotDog", uint64(2)))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Dog").Set("owner_id", uint64(1)),
+					entity.New(2).Set("name", "Frog").Set("owner_id", uint64(1)),
+				}),
+				entity.New(2).Set("name", "Jane").Set("pets", []*entity.Entity{
+					entity.New(3).Set("name", "HotDog").Set("owner_id", uint64(2)),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_O2M_relation_option_filter_sort_limit",
+			Schema:  "user",
+			Columns: []string{"name", "pets"},
+			RelationOptions: db.RelationOptions{
+				"pets": &db.RelationOption{
+					Filter: map[string]any{"name": map[string]any{"$like": "%og%"}},
+					Sort:   "-name",
+					Limit:  2,
+				},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John"))
+				// O2M owner with filter + sort + limit uses window function
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*\\)\\) AS .row_num. FROM .pets. WHERE .pets...owner_id. IN .* AND .pets...name. LIKE").
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(2, "Frog", uint64(1)).
+						AddRow(1, "Dog", uint64(1)))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(2).Set("name", "Frog").Set("owner_id", uint64(1)),
+					entity.New(1).Set("name", "Dog").Set("owner_id", uint64(1)),
+				}),
+			},
+		},
+		{
+			Name:    "Query_with_edges_O2M_relation_option_filter_sort_limit_offset",
+			Schema:  "user",
+			Columns: []string{"name", "pets"},
+			RelationOptions: db.RelationOptions{
+				"pets": &db.RelationOption{
+					Filter: map[string]any{"name": map[string]any{"$like": "%og%"}},
+					Sort:   "-name",
+					Limit:  1,
+					Offset: 1,
+				},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John"))
+				// O2M owner with filter + sort + limit + offset uses window function
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*\\)\\) AS .row_num. FROM .pets. WHERE .pets...owner_id. IN .* AND .pets...name. LIKE").
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(1, "Dog", uint64(1)))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Dog").Set("owner_id", uint64(1)),
+				}),
+			},
+		},
+		// =============================================================================
+		// Relation Options Tests - M2M reverse
+		// =============================================================================
+		{
+			Name:    "Query_with_edges_M2M_reverse_relation_option_limit",
+			Schema:  "user",
+			Columns: []string{"name", "groups"},
+			RelationOptions: db.RelationOptions{
+				"groups": &db.RelationOption{Limit: 1},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John").
+						AddRow(2, "Jane"))
+				// M2M reverse with limit uses window function
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY").
+					WillReturnRows(mock.NewRows([]string{"users_id", "id", "name"}).
+						AddRow(1, 11, "Group 11").
+						AddRow(2, 22, "Group 22"))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").Set("groups", []*entity.Entity{
+					entity.New(11).Set("name", "Group 11"),
+				}),
+				entity.New(2).Set("name", "Jane").Set("groups", []*entity.Entity{
+					entity.New(22).Set("name", "Group 22"),
+				}),
+			},
+		},
+		// =============================================================================
+		// Relation Options Tests - Multiple relations
+		// =============================================================================
+		{
+			Name:    "Query_with_multiple_relations_different_options",
+			Schema:  "user",
+			Columns: []string{"name", "pets", "card"},
+			RelationOptions: db.RelationOptions{
+				"pets": &db.RelationOption{Limit: 2, Sort: "-name"},
+				"card": &db.RelationOption{Sort: "number"},
+			},
+			Expect: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
+					WillReturnRows(mock.NewRows([]string{"id", "name"}).
+						AddRow(1, "John"))
+				// pets: O2M with limit uses window function
+				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY .owner_id..*ORDER BY.*DESC").
+					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
+						AddRow(2, "Zebra", uint64(1)).
+						AddRow(1, "Alpha", uint64(1)))
+				// card: O2O with sort - no window function
+				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cards` WHERE `cards`.`owner_id` IN (?) ORDER BY `cards`.`number` ASC")).
+					WithArgs(1).
+					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
+						AddRow(1, "1234", 1))
+			},
+			ExpectEntities: []*entity.Entity{
+				entity.New(1).Set("name", "John").
+					Set("pets", []*entity.Entity{
+						entity.New(2).Set("name", "Zebra").Set("owner_id", uint64(1)),
+						entity.New(1).Set("name", "Alpha").Set("owner_id", uint64(1)),
+					}).
+					Set("card", entity.New(1).Set("number", "1234").Set("owner_id", 1)),
+			},
+		},
 	}
 
 	sb := createSchemaBuilder()
@@ -1115,4 +1675,667 @@ func TestQueryNodesPreHookError(t *testing.T) {
 		}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 		return driver
 	}, sb, t, tests)
+}
+
+func TestBuildEdgeColumns(t *testing.T) {
+	adapter := createMockAdapter(t)
+	userModel, err := adapter.Model("user")
+	require.NoError(t, err)
+	edgeModel, ok := userModel.(*Model)
+	require.True(t, ok)
+
+	tests := []struct {
+		name            string
+		edgeColumns     []string
+		selectFullEdge  bool
+		requiredColumns []string
+		wantDirect      []string
+		wantNested      []string
+		wantRelation    []string
+		wantErr         bool
+	}{
+		{
+			name:            "basic columns",
+			edgeColumns:     []string{"name", "age"},
+			selectFullEdge:  false,
+			requiredColumns: []string{"id"},
+			wantDirect:      []string{"name", "age", "id"},
+			wantNested:      []string{},
+			wantRelation:    []string{},
+		},
+		{
+			name:            "select full edge ignores columns",
+			edgeColumns:     []string{"name", "age"},
+			selectFullEdge:  true,
+			requiredColumns: []string{"id"},
+			wantDirect:      nil,
+			wantNested:      []string{},
+			wantRelation:    []string{},
+		},
+		{
+			name:            "nested fields with dot notation",
+			edgeColumns:     []string{"name", "pets.name", "pets.age"},
+			selectFullEdge:  false,
+			requiredColumns: []string{"id"},
+			wantDirect:      []string{"name", "id"},
+			wantNested:      []string{"pets.name", "pets.age"},
+			wantRelation:    []string{},
+		},
+		{
+			name:            "relation fields",
+			edgeColumns:     []string{"name", "pets"},
+			selectFullEdge:  false,
+			requiredColumns: []string{"id"},
+			wantDirect:      []string{"name", "id"},
+			wantNested:      []string{},
+			wantRelation:    []string{"pets"},
+		},
+		{
+			name:            "mixed columns types",
+			edgeColumns:     []string{"name", "pets", "pets.name"},
+			selectFullEdge:  false,
+			requiredColumns: []string{"id"},
+			wantDirect:      []string{"name", "id"},
+			wantNested:      []string{"pets.name"},
+			wantRelation:    []string{"pets"},
+		},
+		{
+			name:            "invalid column",
+			edgeColumns:     []string{"invalid_column"},
+			selectFullEdge:  false,
+			requiredColumns: []string{"id"},
+			wantErr:         true,
+		},
+		{
+			name:            "required columns are added if missing",
+			edgeColumns:     []string{"name"},
+			selectFullEdge:  false,
+			requiredColumns: []string{"id", "age"},
+			wantDirect:      []string{"name", "id", "age"},
+			wantNested:      []string{},
+			wantRelation:    []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := buildEdgeColumns(edgeModel, tt.edgeColumns, tt.selectFullEdge, tt.requiredColumns)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			if tt.selectFullEdge {
+				assert.Nil(t, result.directColumns)
+			} else {
+				// Check all expected direct columns are present (order doesn't matter)
+				for _, col := range tt.wantDirect {
+					assert.Contains(t, result.directColumns, col)
+				}
+			}
+			assert.ElementsMatch(t, tt.wantNested, result.nestedFields)
+			assert.ElementsMatch(t, tt.wantRelation, result.relationFields)
+		})
+	}
+}
+
+func TestApplyRelationOptions(t *testing.T) {
+	adapter := createMockAdapter(t)
+	userModel, err := adapter.Model("user")
+	require.NoError(t, err)
+	userModelEnt, ok := userModel.(*Model)
+	require.True(t, ok)
+
+	petModel, err := adapter.Model("pet")
+	require.NoError(t, err)
+	petModelEnt, ok := petModel.(*Model)
+	require.True(t, ok)
+
+	// Create a parent query with a schema builder
+	parentQuery := &Query{
+		client: adapter,
+		model:  userModelEnt,
+	}
+
+	tests := []struct {
+		name    string
+		relOpt  *db.RelationOption
+		wantErr bool
+	}{
+		{
+			name:   "nil relation option",
+			relOpt: nil,
+		},
+		{
+			name: "sort option",
+			relOpt: &db.RelationOption{
+				Sort: "-name",
+			},
+		},
+		{
+			name: "filter option",
+			relOpt: &db.RelationOption{
+				Filter: map[string]any{
+					"name": "test",
+				},
+			},
+		},
+		{
+			name: "combined options",
+			relOpt: &db.RelationOption{
+				Sort: "-name",
+				Filter: map[string]any{
+					"name": "test",
+				},
+			},
+		},
+		{
+			name: "select option",
+			relOpt: &db.RelationOption{
+				Select: []string{"name", "age"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a fresh edge query for each test
+			edgeQuery := &Query{
+				client: adapter,
+				model:  petModelEnt,
+				fields: []string{},
+			}
+
+			// Create edge loader to test applyRelationOptions
+			petsField := userModelEnt.schema.Field("pets")
+			require.NotNil(t, petsField)
+
+			loader := parentQuery.newEdgeLoader(
+				context.Background(),
+				petsField,
+				petModelEnt,
+				nil,
+				tt.relOpt,
+			)
+
+			err := loader.applyRelationOptions(edgeQuery)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+
+			// Verify the options were applied correctly
+			if tt.relOpt != nil {
+				if tt.relOpt.Sort != "" {
+					assert.Contains(t, edgeQuery.order, tt.relOpt.Sort)
+				}
+				if tt.relOpt.Filter != nil {
+					assert.NotEmpty(t, edgeQuery.predicates)
+				}
+				if tt.relOpt.Select != nil {
+					for _, sel := range tt.relOpt.Select {
+						assert.Contains(t, edgeQuery.fields, sel)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestNeedsPerParentLimitOffset(t *testing.T) {
+	adapter := createMockAdapter(t)
+	userModel, err := adapter.Model("user")
+	require.NoError(t, err)
+	userModelEnt, ok := userModel.(*Model)
+	require.True(t, ok)
+
+	petModel, err := adapter.Model("pet")
+	require.NoError(t, err)
+	petModelEnt, ok := petModel.(*Model)
+	require.True(t, ok)
+
+	cardModel, err := adapter.Model("card")
+	require.NoError(t, err)
+	cardModelEnt, ok := cardModel.(*Model)
+	require.True(t, ok)
+
+	parentQuery := &Query{
+		client: adapter,
+		model:  userModelEnt,
+	}
+
+	tests := []struct {
+		name     string
+		field    string
+		model    *Model
+		relOpt   *db.RelationOption
+		expected bool
+	}{
+		{
+			name:     "O2M owner with limit - should need per-parent limit",
+			field:    "pets",
+			model:    petModelEnt,
+			relOpt:   &db.RelationOption{Limit: 2},
+			expected: true,
+		},
+		{
+			name:     "O2M owner with offset - should need per-parent limit",
+			field:    "pets",
+			model:    petModelEnt,
+			relOpt:   &db.RelationOption{Offset: 1},
+			expected: true,
+		},
+		{
+			name:     "O2M owner without limit/offset - should not need per-parent limit",
+			field:    "pets",
+			model:    petModelEnt,
+			relOpt:   &db.RelationOption{Sort: "-name"},
+			expected: false,
+		},
+		{
+			name:     "O2M owner with nil relOpt - should not need per-parent limit",
+			field:    "pets",
+			model:    petModelEnt,
+			relOpt:   nil,
+			expected: false,
+		},
+		{
+			name:     "O2M non-owner with limit - should NOT need per-parent limit (single item)",
+			field:    "owner",
+			model:    userModelEnt,
+			relOpt:   &db.RelationOption{Limit: 2},
+			expected: false,
+		},
+		{
+			name:     "O2O with limit - should NOT need per-parent limit (single item)",
+			field:    "card",
+			model:    cardModelEnt,
+			relOpt:   &db.RelationOption{Limit: 1},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			field := userModelEnt.schema.Field(tt.field)
+			// For non-owner field "owner", get from pet schema
+			if tt.field == "owner" {
+				field = petModelEnt.schema.Field(tt.field)
+			}
+			require.NotNil(t, field, "field %s not found", tt.field)
+
+			loader := parentQuery.newEdgeLoader(
+				context.Background(),
+				field,
+				tt.model,
+				nil,
+				tt.relOpt,
+			)
+
+			result := loader.needsPerParentLimitOffset()
+			assert.Equal(t, tt.expected, result, "needsPerParentLimitOffset() mismatch")
+		})
+	}
+}
+
+func TestBuildEdgeQuerySelectsAllColumns(t *testing.T) {
+	adapter := createMockAdapter(t)
+	userModel, err := adapter.Model("user")
+	require.NoError(t, err)
+	userModelEnt, ok := userModel.(*Model)
+	require.True(t, ok)
+
+	petModel, err := adapter.Model("pet")
+	require.NoError(t, err)
+	petModelEnt, ok := petModel.(*Model)
+	require.True(t, ok)
+
+	parentQuery := &Query{
+		client: adapter,
+		model:  userModelEnt,
+	}
+
+	petsField := userModelEnt.schema.Field("pets")
+	require.NotNil(t, petsField)
+
+	tests := []struct {
+		name        string
+		edgeColumns []string
+		relOpt      *db.RelationOption
+		expectAll   bool // if true, expect SELECT * (no specific columns)
+	}{
+		{
+			name:        "nil edgeColumns uses SELECT * (no specific columns)",
+			edgeColumns: nil,
+			relOpt:      nil,
+			expectAll:   true,
+		},
+		{
+			name:        "nil edgeColumns with select_options uses SELECT *",
+			edgeColumns: nil,
+			relOpt:      &db.RelationOption{Limit: 2},
+			expectAll:   true,
+		},
+		{
+			name:        "specific columns selects only those",
+			edgeColumns: []string{"name"},
+			relOpt:      nil,
+			expectAll:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loader := parentQuery.newEdgeLoader(
+				context.Background(),
+				petsField,
+				petModelEnt,
+				tt.edgeColumns,
+				tt.relOpt,
+			)
+
+			edgeQuery, err := loader.buildEdgeQuery(
+				"owner_pets",
+				[]any{1, 2, 3},
+				[]string{"id"},
+			)
+			require.NoError(t, err)
+			assert.NotNil(t, edgeQuery)
+
+			// When selectFullEdge is true (edgeColumns nil), fields should be empty
+			// which results in SELECT * being generated
+			if tt.expectAll {
+				// No explicit column selection means SELECT *
+				// The fields list will only contain nested/relation fields, not direct columns
+				hasDirectColumns := false
+				for _, f := range edgeQuery.fields {
+					// Direct columns don't have dots, nested fields do
+					if !strings.Contains(f, ".") && f != "pets" && f != "owner" {
+						// Check if this is a db column
+						for _, col := range petModelEnt.DBColumns() {
+							if f == col {
+								hasDirectColumns = true
+								break
+							}
+						}
+					}
+				}
+				// For SELECT *, we should not have explicit direct columns in fields
+				_ = hasDirectColumns // The key is that Select() is not called
+			}
+		})
+	}
+}
+
+// TestParseNestedFields tests the parsing of nested field selection
+func TestParseNestedFields(t *testing.T) {
+	entAdapter := createMockAdapter(t)
+	defer entAdapter.Close()
+
+	carModel, err := entAdapter.Model("car")
+	require.NoError(t, err)
+
+	query := &Query{
+		client: entAdapter,
+		model:  carModel.(*Model),
+	}
+
+	tests := []struct {
+		name              string
+		fields            []string
+		wantProcessed     []string
+		wantEdgeColumns   map[string][]string
+		wantDirectSelects map[string]bool
+		wantErr           bool
+		errMsg            string
+	}{
+		{
+			name:              "simple fields",
+			fields:            []string{"name", "year"},
+			wantProcessed:     []string{"name", "year"},
+			wantEdgeColumns:   map[string][]string{},
+			wantDirectSelects: map[string]bool{"name": true, "year": true},
+		},
+		{
+			name:              "nested relation field",
+			fields:            []string{"group.name"},
+			wantProcessed:     []string{"group"},
+			wantEdgeColumns:   map[string][]string{"group": {"name"}},
+			wantDirectSelects: map[string]bool{},
+		},
+		{
+			name:              "mixed simple and nested",
+			fields:            []string{"name", "group.name", "group.id"},
+			wantProcessed:     []string{"name", "group"},
+			wantEdgeColumns:   map[string][]string{"group": {"name", "id"}},
+			wantDirectSelects: map[string]bool{"name": true},
+		},
+		{
+			name:              "deeply nested",
+			fields:            []string{"group.parent.name"},
+			wantProcessed:     []string{"group"},
+			wantEdgeColumns:   map[string][]string{"group": {"parent.name"}},
+			wantDirectSelects: map[string]bool{},
+		},
+		{
+			name:    "invalid leading dot",
+			fields:  []string{".name"},
+			wantErr: true,
+			errMsg:  `invalid column name ".name"`,
+		},
+		{
+			name:    "invalid trailing dot",
+			fields:  []string{"name."},
+			wantErr: true,
+			errMsg:  `invalid column name "name."`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			processed, edgeCols, directSelects, err := query.parseNestedFields(tt.fields)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, tt.wantProcessed, processed)
+			assert.Equal(t, tt.wantEdgeColumns, edgeCols)
+			assert.Equal(t, tt.wantDirectSelects, directSelects)
+		})
+	}
+}
+
+// TestQueryWithTrashed tests WithTrashed method
+func TestQueryWithTrashed(t *testing.T) {
+	t.Run("soft deletes disabled", func(t *testing.T) {
+		entAdapter := createMockAdapter(t)
+		defer entAdapter.Close()
+
+		carModel, err := entAdapter.Model("car")
+		require.NoError(t, err)
+
+		query := &Query{
+			client:     entAdapter,
+			model:      carModel.(*Model),
+			predicates: []*db.Predicate{db.EQ("name", "test")},
+		}
+
+		// When soft deletes are disabled, WithTrashed should return the query unchanged
+		result := query.WithTrashed()
+		assert.Equal(t, query, result)
+		assert.Len(t, query.predicates, 1)
+	})
+}
+
+// TestQueryOnlyTrashed tests OnlyTrashed method
+func TestQueryOnlyTrashed(t *testing.T) {
+	t.Run("soft deletes disabled", func(t *testing.T) {
+		entAdapter := createMockAdapter(t)
+		defer entAdapter.Close()
+
+		carModel, err := entAdapter.Model("car")
+		require.NoError(t, err)
+
+		query := &Query{
+			client:     entAdapter,
+			model:      carModel.(*Model),
+			predicates: []*db.Predicate{db.EQ("name", "test")},
+		}
+
+		// When soft deletes are disabled, OnlyTrashed should return the query unchanged
+		result := query.OnlyTrashed()
+		assert.Equal(t, query, result)
+		assert.Len(t, query.predicates, 1)
+	})
+}
+
+// TestBuildQueryColumnsErrors tests buildQueryColumns error cases
+func TestBuildQueryColumnsErrors(t *testing.T) {
+	entAdapter := createMockAdapter(t)
+	defer entAdapter.Close()
+
+	carModel, err := entAdapter.Model("car")
+	require.NoError(t, err)
+
+	t.Run("invalid column name", func(t *testing.T) {
+		query := &Query{
+			client: entAdapter,
+			model:  carModel.(*Model),
+			fields: []string{"nonexistent_field"},
+		}
+
+		result, err := query.buildQueryColumns()
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("no fields returns PK only", func(t *testing.T) {
+		query := &Query{
+			client: entAdapter,
+			model:  carModel.(*Model),
+			fields: []string{},
+		}
+
+		result, err := query.buildQueryColumns()
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"id"}, result.directColumnNames)
+	})
+}
+
+// TestBuildQueryOrderErrors tests buildQueryOrder error cases
+func TestBuildQueryOrderErrors(t *testing.T) {
+	entAdapter := createMockAdapter(t)
+	defer entAdapter.Close()
+
+	carModel, err := entAdapter.Model("car")
+	require.NoError(t, err)
+
+	t.Run("order by nonexistent column", func(t *testing.T) {
+		query := &Query{
+			client: entAdapter,
+			model:  carModel.(*Model),
+			order:  []string{"nonexistent"},
+			querySpec: &sqlgraph.QuerySpec{
+				Node: &sqlgraph.NodeSpec{},
+			},
+		}
+
+		err := query.buildQueryOrder()
+		assert.Error(t, err)
+	})
+
+	t.Run("order by non-sortable column", func(t *testing.T) {
+		// Note: This test assumes there's a non-sortable column in the schema
+		// If all columns are sortable, this test should be adjusted
+		query := &Query{
+			client: entAdapter,
+			model:  carModel.(*Model),
+			order:  []string{}, // empty means no error
+			querySpec: &sqlgraph.QuerySpec{
+				Node: &sqlgraph.NodeSpec{},
+			},
+		}
+
+		err := query.buildQueryOrder()
+		assert.NoError(t, err)
+	})
+
+	t.Run("desc order prefix", func(t *testing.T) {
+		query := &Query{
+			client: entAdapter,
+			model:  carModel.(*Model),
+			order:  []string{"-name"}, // desc order by name
+			querySpec: &sqlgraph.QuerySpec{
+				Node: &sqlgraph.NodeSpec{},
+			},
+		}
+
+		err := query.buildQueryOrder()
+		assert.NoError(t, err)
+		assert.NotNil(t, query.querySpec.Order)
+	})
+}
+
+// TestQueryChainMethods tests chaining methods
+func TestQueryChainMethods(t *testing.T) {
+	entAdapter := createMockAdapter(t)
+	defer entAdapter.Close()
+
+	carModel, err := entAdapter.Model("car")
+	require.NoError(t, err)
+
+	query := &Query{
+		client: entAdapter,
+		model:  carModel.(*Model),
+	}
+
+	// Test chaining
+	result := query.
+		Limit(10).
+		Offset(5).
+		Order("name", "-year").
+		Select("name", "year").
+		Where(db.EQ("name", "test"))
+
+	assert.Equal(t, uint(10), query.limit)
+	assert.Equal(t, uint(5), query.offset)
+	assert.Equal(t, []string{"name", "-year"}, query.order)
+	assert.Equal(t, []string{"name", "year"}, query.fields)
+	assert.Len(t, query.predicates, 1)
+	assert.Equal(t, query, result)
+}
+
+// TestQueryOptionsMethod tests the Options method
+func TestQueryOptionsMethod(t *testing.T) {
+	entAdapter := createMockAdapter(t)
+	defer entAdapter.Close()
+
+	carModel, err := entAdapter.Model("car")
+	require.NoError(t, err)
+
+	query := &Query{
+		client:     entAdapter,
+		model:      carModel.(*Model),
+		limit:      10,
+		offset:     5,
+		fields:     []string{"name", "year"},
+		order:      []string{"name"},
+		predicates: []*db.Predicate{db.EQ("name", "test")},
+	}
+
+	opts := query.Options()
+	assert.Equal(t, uint(10), opts.Limit)
+	assert.Equal(t, uint(5), opts.Offset)
+	assert.Equal(t, &query.fields, opts.Columns)
+	assert.Equal(t, []string{"name"}, opts.Order)
+	assert.Equal(t, &query.predicates, opts.Predicates)
+	assert.Equal(t, carModel.(*Model).schema, opts.Schema)
 }

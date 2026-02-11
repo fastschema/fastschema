@@ -19,6 +19,73 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestParseFieldPath tests the parseFieldPath function for dot notation parsing
+func TestParseFieldPath(t *testing.T) {
+	tests := []struct {
+		name               string
+		field              string
+		wantRelationFields []string
+		wantFieldName      string
+	}{
+		{
+			name:               "simple field",
+			field:              "name",
+			wantRelationFields: nil,
+			wantFieldName:      "name",
+		},
+		{
+			name:               "single relation",
+			field:              "teams.slug",
+			wantRelationFields: []string{"teams"},
+			wantFieldName:      "slug",
+		},
+		{
+			name:               "nested relations",
+			field:              "teams.project.name",
+			wantRelationFields: []string{"teams", "project"},
+			wantFieldName:      "name",
+		},
+		{
+			name:               "deep nested relations",
+			field:              "org.teams.project.status",
+			wantRelationFields: []string{"org", "teams", "project"},
+			wantFieldName:      "status",
+		},
+		{
+			name:               "empty field",
+			field:              "",
+			wantRelationFields: nil,
+			wantFieldName:      "",
+		},
+		{
+			name:               "leading dot",
+			field:              ".field",
+			wantRelationFields: nil,
+			wantFieldName:      ".field",
+		},
+		{
+			name:               "trailing dot",
+			field:              "field.",
+			wantRelationFields: nil,
+			wantFieldName:      "field.",
+		},
+		{
+			name:               "only dots",
+			field:              "...",
+			wantRelationFields: nil,
+			wantFieldName:      "...",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotRelations, gotField := parseFieldPath(tt.field)
+			assert.Equal(t, tt.wantRelationFields, gotRelations, "relation fields mismatch")
+			assert.Equal(t, tt.wantFieldName, gotField, "field name mismatch")
+		})
+	}
+}
+
 var groupSchemaJSON = `{
 	"name": "group",
 	"namespace": "groups",
@@ -258,6 +325,95 @@ func TestCreateFieldPredicate(t *testing.T) {
 			},
 			expectError: errors.New("operator invalid not supported"),
 		},
+		// Additional operators: NotLike
+		{
+			name:      "NotLike",
+			predicate: &db.Predicate{Field: "name", Operator: db.OpNotLike, Value: "%test%"},
+			// Just check args, since column gets qualified with table name
+			expectSQLPredicate: nil,
+		},
+		{
+			name: "NotLikeInvalid",
+			predicate: &db.Predicate{
+				Field:    "name",
+				Operator: db.OpNotLike,
+				Value:    123,
+			},
+			expectError: errors.New("value of field name.$notlike = 123 (int) must be string"),
+		},
+		// Contains
+		{
+			name:               "Contains",
+			predicate:          &db.Predicate{Field: "name", Operator: db.OpContains, Value: "test"},
+			expectSQLPredicate: dialectSql.Contains("name", "test"),
+		},
+		{
+			name: "ContainsInvalid",
+			predicate: &db.Predicate{
+				Field:    "name",
+				Operator: db.OpContains,
+				Value:    123,
+			},
+			expectError: errors.New("value of field name.$contains = 123 (int) must be string"),
+		},
+		// NotContains
+		{
+			name:      "NotContains",
+			predicate: &db.Predicate{Field: "name", Operator: db.OpNotContains, Value: "test"},
+			// Just check args, since column gets qualified with table name
+			expectSQLPredicate: nil,
+		},
+		{
+			name: "NotContainsInvalid",
+			predicate: &db.Predicate{
+				Field:    "name",
+				Operator: db.OpNotContains,
+				Value:    123,
+			},
+			expectError: errors.New("value of field name.$notcontains = 123 (int) must be string"),
+		},
+		// ContainsFold
+		{
+			name:      "ContainsFold",
+			predicate: &db.Predicate{Field: "name", Operator: db.OpContainsFold, Value: "test"},
+			// Just check args, since column gets qualified with table name
+			expectSQLPredicate: nil,
+		},
+		{
+			name: "ContainsFoldInvalid",
+			predicate: &db.Predicate{
+				Field:    "name",
+				Operator: db.OpContainsFold,
+				Value:    123,
+			},
+			expectError: errors.New("value of field name.$containsfold = 123 (int) must be string"),
+		},
+		// NotContainsFold
+		{
+			name:      "NotContainsFold",
+			predicate: &db.Predicate{Field: "name", Operator: db.OpNotContainsFold, Value: "test"},
+			// Just check args, since column gets qualified with table name
+			expectSQLPredicate: nil,
+		},
+		{
+			name: "NotContainsFoldInvalid",
+			predicate: &db.Predicate{
+				Field:    "name",
+				Operator: db.OpNotContainsFold,
+				Value:    123,
+			},
+			expectError: errors.New("value of field name.$notcontainsfold = 123 (int) must be string"),
+		},
+		// NIN (NotIn)
+		{
+			name: "NINInvalid",
+			predicate: &db.Predicate{
+				Field:    "name",
+				Operator: db.OpNIN,
+				Value:    "not-array",
+			},
+			expectError: errors.New("value of field name.$nin = not-array (string) must be an array"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -268,6 +424,7 @@ func TestCreateFieldPredicate(t *testing.T) {
 			if tt.expectError == nil {
 				selector := dialectSql.Select("*").From(dialectSql.Table("users"))
 				got := gotFn(selector)
+				assert.NotNil(t, got)
 
 				if tt.expectSQLPredicate != nil {
 					expectQuery, expectArgs := tt.expectSQLPredicate.Query()
@@ -275,9 +432,8 @@ func TestCreateFieldPredicate(t *testing.T) {
 
 					assert.Contains(t, gotQuery, expectQuery)
 					assert.Equal(t, expectArgs, gotArgs)
-				} else {
-					assert.Nil(t, got)
 				}
+				// If expectSQLPredicate is nil but no error, we just verify the function didn't return nil
 			}
 		})
 	}

@@ -389,12 +389,12 @@ func (b *Builder) CreateM2mJunctionSchema(sourceSchema *Schema, r *Relation) (*S
 		IsSystemSchema:   true,
 	}
 
-	targetIDField := targetSchema.IDField()
+	targetIDField := targetSchema.PrimaryField()
 	if targetIDField == nil {
 		return nil, false, fmt.Errorf("schema %s is missing id field", targetSchema.Name)
 	}
 
-	sourceIDField := sourceSchema.IDField()
+	sourceIDField := sourceSchema.PrimaryField()
 	if sourceIDField == nil {
 		return nil, false, fmt.Errorf("schema %s is missing id field", sourceSchema.Name)
 	}

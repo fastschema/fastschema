@@ -14,7 +14,7 @@ func (cs *ContentService) Update(c fs.Context, _ any) (*entity.Entity, error) {
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
-	pkField := model.Schema().IDField()
+	pkField := model.Schema().PrimaryField()
 	pkName := entity.FieldID
 	if pkField != nil && pkField.Name != "" {
 		pkName = pkField.Name

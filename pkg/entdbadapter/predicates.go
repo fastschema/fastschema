@@ -212,7 +212,7 @@ func createRelationsPredicate(
 			s2.Where(p(s2))
 		}
 	} else {
-		useNegatedExists = relation.Type.IsM2M() && needsM2MNegation(lastFieldPredicate.Operator)
+		useNegatedExists = relationOperatorNeedsNegation(lastFieldPredicate.Operator)
 		targetPredicate := lastFieldPredicate
 		if useNegatedExists {
 			if positiveOperator, ok := inverseRelationOperator(lastFieldPredicate.Operator); ok {
@@ -237,159 +237,154 @@ func createRelationsPredicate(
 		s1 := selector.Clone().SetP(nil)
 		sqlgraph.HasNeighborsWith(s1, relationStep, pred)
 		predicate := s1.P()
-		if !hasNestedRelations && relation.Type.IsM2M() && useNegatedExists {
+		if !hasNestedRelations && useNegatedExists {
 			return sql.Not(predicate)
 		}
 		return predicate
 	}, nil
 }
 
+// =============================================================================
+// Predicate Helper Functions
+// =============================================================================
+
+// columnWrap wraps a column name with selector context if available.
+func columnWrap(field string, selectors ...*sql.Selector) string {
+	if len(selectors) > 0 {
+		return selectors[0].C(field)
+	}
+	return field
+}
+
+// validateStringValue validates that the predicate value is a string and returns it.
+// Returns an error with field context if the value is not a string.
+func validateStringValue(predicate *db.Predicate) (string, error) {
+	stringValue, ok := predicate.Value.(string)
+	if !ok {
+		return "", fmt.Errorf(
+			"value of field %s.%s = %v (%T) must be string",
+			predicate.Field,
+			predicate.Operator,
+			predicate.Value,
+			predicate.Value,
+		)
+	}
+	return stringValue, nil
+}
+
+// validateArrayValue validates that the predicate value is an array and returns it.
+// Returns an error with field context if the value is not an array.
+func validateArrayValue(predicate *db.Predicate) ([]any, error) {
+	arrayValue, ok := predicate.Value.([]any)
+	if !ok {
+		return nil, fmt.Errorf(
+			"value of field %s.%s = %v (%T) must be an array",
+			predicate.Field,
+			predicate.Operator,
+			predicate.Value,
+			predicate.Value,
+		)
+	}
+	return arrayValue, nil
+}
+
+// simplePredicateBuilder is a function type for simple comparison predicates.
+type simplePredicateBuilder func(column string, value any) *sql.Predicate
+
+// simplePredicateMap maps operators to their simple predicate builders.
+var simplePredicateMap = map[db.OperatorType]simplePredicateBuilder{
+	db.OpEQ:  sql.EQ,
+	db.OpNEQ: sql.NEQ,
+	db.OpGT:  sql.GT,
+	db.OpGTE: sql.GTE,
+	db.OpLT:  sql.LT,
+	db.OpLTE: sql.LTE,
+}
+
+// =============================================================================
+// CreateFieldPredicate
+// =============================================================================
+
 // CreateFieldPredicate convert a predicate to ent predicate
 func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
-	var columnWrap = func(field string, selectors ...*sql.Selector) string {
-		if len(selectors) > 0 {
-			return selectors[0].C(field)
-		}
-
-		return field
+	// Check for simple comparison operators first
+	if builder, ok := simplePredicateMap[predicate.Operator]; ok {
+		return func(s *sql.Selector) *sql.Predicate {
+			return builder(columnWrap(predicate.Field, s), predicate.Value)
+		}, nil
 	}
 
 	switch predicate.Operator {
-	case db.OpEQ:
-		return func(s *sql.Selector) *sql.Predicate {
-			return sql.EQ(columnWrap(predicate.Field, s), predicate.Value)
-		}, nil
-	case db.OpNEQ:
-		return func(s *sql.Selector) *sql.Predicate {
-			return sql.NEQ(columnWrap(predicate.Field, s), predicate.Value)
-		}, nil
-	case db.OpGT:
-		return func(s *sql.Selector) *sql.Predicate {
-			return sql.GT(columnWrap(predicate.Field, s), predicate.Value)
-		}, nil
-	case db.OpGTE:
-		return func(s *sql.Selector) *sql.Predicate {
-			return sql.GTE(columnWrap(predicate.Field, s), predicate.Value)
-		}, nil
-	case db.OpLT:
-		return func(s *sql.Selector) *sql.Predicate {
-			return sql.LT(columnWrap(predicate.Field, s), predicate.Value)
-		}, nil
-	case db.OpLTE:
-		return func(s *sql.Selector) *sql.Predicate {
-			return sql.LTE(columnWrap(predicate.Field, s), predicate.Value)
-		}, nil
 	case db.OpLike:
-		stringValue, ok := predicate.Value.(string)
-		if !ok {
-			return nil, fmt.Errorf(
-				"value of field %s.%s = %v (%T) must be string",
-				predicate.Field,
-				db.OpLike,
-				predicate.Value,
-				predicate.Value,
-			)
+		stringValue, err := validateStringValue(predicate)
+		if err != nil {
+			return nil, err
 		}
-
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.Like(columnWrap(predicate.Field, s), stringValue)
 		}, nil
-	case db.OpNotLike:
-		stringValue, ok := predicate.Value.(string)
-		if !ok {
-			return nil, fmt.Errorf(
-				"value of field %s.%s = %v (%T) must be string",
-				predicate.Field,
-				db.OpNotLike,
-				predicate.Value,
-				predicate.Value,
-			)
-		}
 
+	case db.OpNotLike:
+		stringValue, err := validateStringValue(predicate)
+		if err != nil {
+			return nil, err
+		}
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.Not(sql.Like(columnWrap(predicate.Field, s), stringValue))
 		}, nil
-	case db.OpContains:
-		stringValue, ok := predicate.Value.(string)
-		if !ok {
-			return nil, fmt.Errorf(
-				"value of field %s.%s = %v (%T) must be string",
-				predicate.Field,
-				db.OpContains,
-				predicate.Value,
-				predicate.Value,
-			)
-		}
 
+	case db.OpContains:
+		stringValue, err := validateStringValue(predicate)
+		if err != nil {
+			return nil, err
+		}
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.Contains(columnWrap(predicate.Field, s), stringValue)
 		}, nil
-	case db.OpNotContains:
-		stringValue, ok := predicate.Value.(string)
-		if !ok {
-			return nil, fmt.Errorf(
-				"value of field %s.%s = %v (%T) must be string",
-				predicate.Field,
-				db.OpNotContains,
-				predicate.Value,
-				predicate.Value,
-			)
-		}
 
+	case db.OpNotContains:
+		stringValue, err := validateStringValue(predicate)
+		if err != nil {
+			return nil, err
+		}
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.Not(sql.Contains(columnWrap(predicate.Field, s), stringValue))
 		}, nil
-	case db.OpContainsFold:
-		stringValue, ok := predicate.Value.(string)
-		if !ok {
-			return nil, fmt.Errorf(
-				"value of field %s.%s = %v (%T) must be string",
-				predicate.Field,
-				db.OpContainsFold,
-				predicate.Value,
-				predicate.Value,
-			)
-		}
 
+	case db.OpContainsFold:
+		stringValue, err := validateStringValue(predicate)
+		if err != nil {
+			return nil, err
+		}
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.ContainsFold(columnWrap(predicate.Field, s), stringValue)
 		}, nil
-	case db.OpNotContainsFold:
-		stringValue, ok := predicate.Value.(string)
-		if !ok {
-			return nil, fmt.Errorf(
-				"value of field %s.%s = %v (%T) must be string",
-				predicate.Field,
-				db.OpNotContainsFold,
-				predicate.Value,
-				predicate.Value,
-			)
-		}
 
+	case db.OpNotContainsFold:
+		stringValue, err := validateStringValue(predicate)
+		if err != nil {
+			return nil, err
+		}
 		return func(s *sql.Selector) *sql.Predicate {
 			return sql.Not(sql.ContainsFold(columnWrap(predicate.Field, s), stringValue))
 		}, nil
-	case db.OpIN, db.OpNIN:
-		arrayValue, ok := predicate.Value.([]any)
-		if !ok {
-			return nil, fmt.Errorf(
-				"value of field %s.%s = %v (%T) must be an array",
-				predicate.Field,
-				predicate.Operator,
-				predicate.Value,
-				predicate.Value,
-			)
-		}
 
+	case db.OpIN, db.OpNIN:
+		arrayValue, err := validateArrayValue(predicate)
+		if err != nil {
+			return nil, err
+		}
 		return func(s *sql.Selector) *sql.Predicate {
 			op := utils.If(predicate.Operator == db.OpIN, sql.In, sql.NotIn)
 			return op(columnWrap(predicate.Field, s), arrayValue...)
 		}, nil
+
 	case db.OpNULL:
 		return func(s *sql.Selector) *sql.Predicate {
 			op := utils.If(predicate.Value == true, sql.IsNull, sql.NotNull)
 			return op(columnWrap(predicate.Field, s))
 		}, nil
+
 	default:
 		return nil, fmt.Errorf("operator %s not supported", predicate.Operator)
 	}
@@ -421,7 +416,7 @@ func relationStepToColumn(targetModel *Model, relation *schema.Relation) string 
 	return targetColumn
 }
 
-func needsM2MNegation(operator db.OperatorType) bool {
+func relationOperatorNeedsNegation(operator db.OperatorType) bool {
 	_, ok := inverseRelationOperator(operator)
 	return ok
 }
@@ -432,6 +427,12 @@ func inverseRelationOperator(operator db.OperatorType) (db.OperatorType, bool) {
 		return db.OpEQ, true
 	case db.OpNIN:
 		return db.OpIN, true
+	case db.OpNotLike:
+		return db.OpLike, true
+	case db.OpNotContains:
+		return db.OpContains, true
+	case db.OpNotContainsFold:
+		return db.OpContainsFold, true
 	default:
 		return operator, false
 	}

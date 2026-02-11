@@ -515,3 +515,96 @@ func TestNormalizeIDValueUUID(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, testUUID, result)
 }
+
+// TestNormalizeIDValueUnsignedIntegers tests normalizeIDValue for unsigned integer types
+func TestNormalizeIDValueUnsignedIntegers(t *testing.T) {
+	tests := []struct {
+		name      string
+		fieldType schema.FieldType
+		input     any
+		want      uint64
+		wantErr   bool
+	}{
+		{"uint64 from int", schema.TypeUint64, 123, 123, false},
+		{"uint64 from float64", schema.TypeUint64, float64(123.0), 123, false},
+		{"uint64 from uint64", schema.TypeUint64, uint64(123), 123, false},
+		{"uint from int", schema.TypeUint, 456, 456, false},
+		{"uint32 from int", schema.TypeUint32, 789, 789, false},
+		{"uint16 from int", schema.TypeUint16, 100, 100, false},
+		{"uint8 from int", schema.TypeUint8, 50, 50, false},
+		// Edge cases
+		{"uint64 large number", schema.TypeUint64, uint64(18446744073709551615), 18446744073709551615, false},
+		{"uint64 zero", schema.TypeUint64, 0, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			field := &schema.Field{Name: "test", Type: tt.fieldType}
+			result, err := normalizeIDValue(field, tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
+// TestNormalizeIDValueSignedIntegers tests normalizeIDValue for signed integer types
+func TestNormalizeIDValueSignedIntegers(t *testing.T) {
+	tests := []struct {
+		name      string
+		fieldType schema.FieldType
+		input     any
+		want      int64
+		wantErr   bool
+	}{
+		{"int64 from int", schema.TypeInt64, 123, 123, false},
+		{"int64 from float64", schema.TypeInt64, float64(123.0), 123, false},
+		{"int64 from int64", schema.TypeInt64, int64(123), 123, false},
+		{"int from int", schema.TypeInt, 456, 456, false},
+		{"int32 from int", schema.TypeInt32, 789, 789, false},
+		{"int16 from int", schema.TypeInt16, 100, 100, false},
+		{"int8 from int", schema.TypeInt8, 50, 50, false},
+		// Negative values
+		{"int64 negative", schema.TypeInt64, -123, -123, false},
+		{"int64 zero", schema.TypeInt64, 0, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			field := &schema.Field{Name: "test", Type: tt.fieldType}
+			result, err := normalizeIDValue(field, tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
+// TestNormalizeIDValuePassthrough tests that non-numeric types pass through unchanged
+func TestNormalizeIDValuePassthrough(t *testing.T) {
+	tests := []struct {
+		name      string
+		fieldType schema.FieldType
+		input     any
+	}{
+		{"string type", schema.TypeString, "test"},
+		{"bool type", schema.TypeBool, true},
+		{"json type", schema.TypeJSON, map[string]any{"key": "value"}},
+		{"time type", schema.TypeTime, "2023-01-01"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			field := &schema.Field{Name: "test", Type: tt.fieldType}
+			result, err := normalizeIDValue(field, tt.input)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.input, result)
+		})
+	}
+}

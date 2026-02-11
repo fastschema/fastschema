@@ -103,7 +103,7 @@ func parseIDArg(s *schema.Schema, rawID string) (any, error) {
 		return rawID, nil
 	}
 
-	idField := s.IDField()
+	idField := s.PrimaryField()
 	if idField == nil {
 		return rawID, nil
 	}

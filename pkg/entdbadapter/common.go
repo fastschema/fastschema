@@ -604,3 +604,72 @@ func invalidEntityArrayError(schemaName, fieldName string, edgeValues any) error
 		schemaName, fieldName, edgeValues, edgeValues,
 	)
 }
+
+func collectEntityIDs(
+	schemaName string,
+	primaryField *schema.Field,
+	entities []*entity.Entity,
+) ([]driver.Value, map[string]*entity.Entity, error) {
+	ids := make([]driver.Value, 0, len(entities))
+	byKey := make(map[string]*entity.Entity, len(entities))
+	for _, node := range entities {
+		var idValue any
+		if primaryField != nil {
+			idValue = node.Get(primaryField.Name)
+		}
+		if isZeroValue(idValue) {
+			idValue = node.ID()
+		}
+		if isZeroValue(idValue) {
+			return nil, nil, fmt.Errorf("entity %s has invalid id", schemaName)
+		}
+		normalized, err := normalizeIDValue(primaryField, idValue)
+		if err != nil {
+			return nil, nil, fmt.Errorf("entity %s has invalid id: %w", schemaName, err)
+		}
+		key := valueKey(normalized)
+		ids = append(ids, normalized)
+		byKey[key] = node
+	}
+	return ids, byKey, nil
+}
+
+// collectParentRefs collects reference values from parent entities for edge loading.
+// Returns: slice of unique ref values, map of ref value -> parent entities.
+// - refField: field definition to get value from (uses field.Name to get value)
+// - schemaName: parent schema name for error messages
+// - skipNullFK: if true, skip entities with null FK values (for non-owner side)
+func collectParentRefs(
+	entities []*entity.Entity,
+	refColumn string,
+	refField *schema.Field,
+	schemaName string,
+	skipNullFK bool,
+) ([]any, map[string][]*entity.Entity, error) {
+	refs := make([]any, 0, len(entities))
+	parentMap := make(map[string][]*entity.Entity)
+
+	for _, ent := range entities {
+		refValue := ent.Get(refColumn)
+
+		if isZeroValue(refValue) {
+			if skipNullFK {
+				continue // FK is null, no edge to load
+			}
+			return nil, nil, invalidFKError(schemaName, refColumn, ent.ID(), fmt.Errorf("empty reference value"))
+		}
+
+		normalized, err := normalizeIDValue(refField, refValue)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		key := valueKey(normalized)
+		if _, exists := parentMap[key]; !exists {
+			refs = append(refs, normalized)
+		}
+		parentMap[key] = append(parentMap[key], ent)
+	}
+
+	return refs, parentMap, nil
+}

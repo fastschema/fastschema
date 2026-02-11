@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
@@ -187,4 +188,140 @@ func TestIsDateTimeColumn(t *testing.T) {
 	databaseTypeName = "VARCHAR"
 	result = isDateTimeColumn(scanType, databaseTypeName)
 	assert.False(t, result)
+}
+
+// TestColumnScanValue tests the scan value creation for different field types
+func TestColumnScanValue(t *testing.T) {
+	tests := []struct {
+		name      string
+		fieldType schema.FieldType
+		wantType  string
+	}{
+		{"JSON", schema.TypeJSON, "*[]uint8"},
+		{"Bytes", schema.TypeBytes, "*[]uint8"},
+		{"Bool", schema.TypeBool, "*sql.NullBool"},
+		{"Float32", schema.TypeFloat32, "*sql.NullFloat64"},
+		{"Float64", schema.TypeFloat64, "*sql.NullFloat64"},
+		{"Int8", schema.TypeInt8, "*sql.NullInt64"},
+		{"Int16", schema.TypeInt16, "*sql.NullInt64"},
+		{"Int32", schema.TypeInt32, "*sql.NullInt64"},
+		{"Int", schema.TypeInt, "*sql.NullInt64"},
+		{"Int64", schema.TypeInt64, "*sql.NullInt64"},
+		{"Uint8", schema.TypeUint8, "*sql.NullInt64"},
+		{"Uint16", schema.TypeUint16, "*sql.NullInt64"},
+		{"Uint32", schema.TypeUint32, "*sql.NullInt64"},
+		{"Uint", schema.TypeUint, "*sql.NullInt64"},
+		{"Uint64", schema.TypeUint64, "*sql.NullInt64"},
+		{"Enum", schema.TypeEnum, "*sql.NullString"},
+		{"String", schema.TypeString, "*sql.NullString"},
+		{"Text", schema.TypeText, "*sql.NullString"},
+		{"Time", schema.TypeTime, "*sql.NullTime"},
+		{"UUID", schema.TypeUUID, "*uuid.UUID"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := columnScanValue(tt.fieldType)
+			gotType := reflect.TypeOf(result).String()
+			assert.Equal(t, tt.wantType, gotType)
+		})
+	}
+}
+
+// TestSchemaAssignValues tests the assignment of scanned values to entity
+func TestSchemaAssignValues(t *testing.T) {
+	testSchema := &schema.Schema{
+		Name:           "test",
+		Namespace:      "tests",
+		LabelFieldName: "name",
+		Fields: []*schema.Field{
+			{Name: "id", Type: schema.TypeUint64, DB: &schema.FieldDB{Attr: "PRIMARY_KEY"}},
+			{Name: "name", Type: schema.TypeString},
+			{Name: "age", Type: schema.TypeInt},
+			{Name: "active", Type: schema.TypeBool},
+			{Name: "score", Type: schema.TypeFloat64},
+		},
+	}
+	assert.NoError(t, testSchema.Init(false))
+
+	t.Run("assign string value", func(t *testing.T) {
+		e := entity.New()
+		nameValue := &sql.NullString{String: "John", Valid: true}
+
+		err := schemaAssignValues(testSchema, e, []string{"name"}, []any{nameValue})
+		assert.NoError(t, err)
+		assert.Equal(t, "John", e.Get("name"))
+	})
+
+	t.Run("assign bool value", func(t *testing.T) {
+		e := entity.New()
+		activeValue := &sql.NullBool{Bool: true, Valid: true}
+
+		err := schemaAssignValues(testSchema, e, []string{"active"}, []any{activeValue})
+		assert.NoError(t, err)
+		assert.Equal(t, true, e.Get("active"))
+	})
+
+	t.Run("assign float value", func(t *testing.T) {
+		e := entity.New()
+		scoreValue := &sql.NullFloat64{Float64: 95.5, Valid: true}
+
+		err := schemaAssignValues(testSchema, e, []string{"score"}, []any{scoreValue})
+		assert.NoError(t, err)
+		assert.Equal(t, 95.5, e.Get("score"))
+	})
+
+	t.Run("assign null value", func(t *testing.T) {
+		e := entity.New()
+		nameValue := &sql.NullString{Valid: false}
+
+		err := schemaAssignValues(testSchema, e, []string{"name"}, []any{nameValue})
+		assert.NoError(t, err)
+		// Null values should not be set
+		assert.Nil(t, e.Get("name"))
+	})
+
+	t.Run("error on mismatched column count", func(t *testing.T) {
+		e := entity.New()
+		err := schemaAssignValues(testSchema, e, []string{"name", "age"}, []any{&sql.NullString{}})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "mismatch number of scan values")
+	})
+
+	t.Run("unknown column creates new any field", func(t *testing.T) {
+		e := entity.New()
+		err := schemaAssignValues(testSchema, e, []string{"unknown_col"}, []any{new(any)})
+		assert.NoError(t, err)
+		// Unknown columns should still be set
+		assert.NotNil(t, e.Get("unknown_col"))
+	})
+}
+
+// TestColumnAssignValueErrors tests error cases for column assignment
+func TestColumnAssignValueErrors(t *testing.T) {
+	e := entity.New()
+
+	t.Run("bool type mismatch", func(t *testing.T) {
+		_, err := columnAssignValue("test", schema.TypeBool, "not a bool", e)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "*sql.NullBool")
+	})
+
+	t.Run("time type mismatch", func(t *testing.T) {
+		_, err := columnAssignValue("test", schema.TypeTime, "not a time", e)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "*sql.NullTime")
+	})
+
+	t.Run("JSON type mismatch", func(t *testing.T) {
+		_, err := columnAssignValue("test", schema.TypeJSON, "not bytes", e)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "*[]byte")
+	})
+
+	t.Run("UUID type mismatch", func(t *testing.T) {
+		_, err := columnAssignValue("test", schema.TypeUUID, "not uuid", e)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "*uuid.UUID")
+	})
 }

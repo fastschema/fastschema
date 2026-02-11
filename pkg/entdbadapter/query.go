@@ -2,7 +2,6 @@ package entdbadapter
 
 import (
 	"context"
-	"database/sql/driver"
 	"errors"
 	"fmt"
 	"strings"
@@ -16,44 +15,25 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
-type Query struct {
-	limit            uint
-	offset           uint
-	fields           []string
-	order            []string
-	entities         []*entity.Entity
-	predicates       []*db.Predicate
-	withEdgesFields  []*schema.Field
-	edgeDirectSelect map[string]bool
-	relationOptions  db.RelationOptions
-	client           db.Client
-	model            *Model
-	querySpec        *sqlgraph.QuerySpec
+// perParentLimitConfig holds configuration for per-parent limit/offset using window functions.
+type perParentLimitConfig struct {
+	partitionColumn string // Column to partition by (e.g., FK column)
+	limit           uint
+	offset          uint
 }
 
-func collectEntityIDs(schemaName string, idField *schema.Field, entities []*entity.Entity) ([]driver.Value, map[string]*entity.Entity, error) {
-	ids := make([]driver.Value, 0, len(entities))
-	byKey := make(map[string]*entity.Entity, len(entities))
-	for _, node := range entities {
-		var idValue any
-		if idField != nil {
-			idValue = node.Get(idField.Name)
-		}
-		if isZeroValue(idValue) {
-			idValue = node.ID()
-		}
-		if isZeroValue(idValue) {
-			return nil, nil, fmt.Errorf("entity %s has invalid id", schemaName)
-		}
-		normalized, err := normalizeIDValue(idField, idValue)
-		if err != nil {
-			return nil, nil, fmt.Errorf("entity %s has invalid id: %w", schemaName, err)
-		}
-		key := valueKey(normalized)
-		ids = append(ids, normalized)
-		byKey[key] = node
-	}
-	return ids, byKey, nil
+type Query struct {
+	limit           uint
+	offset          uint
+	fields          []string
+	order           []string
+	entities        []*entity.Entity
+	predicates      []*db.Predicate
+	relationOptions db.RelationOptions
+	client          db.Client
+	model           *Model
+	querySpec       *sqlgraph.QuerySpec
+	perParentLimit  *perParentLimitConfig // For per-parent limit/offset in edge queries
 }
 
 func (q *Query) WithTrashed() db.Querier {
@@ -250,133 +230,212 @@ func (q *Query) parseNestedFields(fields []string) ([]string, map[string][]strin
 	return utils.Unique(processedFields), edgeColumns, directSelections, nil
 }
 
+// edgeSelection holds both the edge field and its nested columns.
+// If columns is nil, all columns are selected.
+type edgeSelection struct {
+	field   *schema.Field
+	columns []string // nested columns to select; nil means select all
+}
+
+// queryBuildResult holds the result of building query columns.
+type queryBuildResult struct {
+	directColumnNames  []string
+	fkColumns          []string
+	edges              map[string]*edgeSelection
+	allSelectsAreEdges bool
+}
+
+// buildQueryColumns processes the selected fields and separates them into direct columns,
+// FK columns, and edge columns for relation loading.
+func (q *Query) buildQueryColumns() (*queryBuildResult, error) {
+	result := &queryBuildResult{
+		directColumnNames:  []string{q.model.entPrimaryColumn.Name},
+		fkColumns:          []string{},
+		edges:              map[string]*edgeSelection{},
+		allSelectsAreEdges: true,
+	}
+
+	if len(q.fields) == 0 {
+		return result, nil
+	}
+
+	selectFieldNames, edgeColumns, directSelections, err := q.parseNestedFields(q.fields)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, fieldName := range selectFieldNames {
+		column, err := q.model.Column(fieldName)
+		if err != nil {
+			return nil, err
+		}
+
+		if column.field.Type.IsRelationType() {
+			relation := column.field.Relation
+			// If edge was directly selected (e.g., "tags"), columns is nil (select all)
+			// Otherwise, columns contains specific nested fields (e.g., from "tags.name")
+			var columns []string
+			if !directSelections[fieldName] {
+				columns = edgeColumns[fieldName]
+			}
+			result.edges[fieldName] = &edgeSelection{
+				field:   column.field,
+				columns: columns,
+			}
+			if relation.Type != schema.M2M && !relation.Owner {
+				result.fkColumns = append(result.fkColumns, relation.SourceColumn)
+			}
+
+			if relation.Type != schema.M2M && relation.Owner && relation.BackRef != nil {
+				targetColumn := relation.BackRef.TargetColumn
+				if targetColumn != "" && targetColumn != q.model.entPrimaryColumn.Name {
+					result.fkColumns = append(result.fkColumns, targetColumn)
+				}
+			}
+		} else if fieldName != q.model.entPrimaryColumn.Name {
+			result.directColumnNames = append(result.directColumnNames, fieldName)
+			result.allSelectsAreEdges = false
+		}
+	}
+
+	return result, nil
+}
+
+// buildQueryPredicates builds the predicate function for the query spec.
+func (q *Query) buildQueryPredicates(entAdapter EntAdapter) error {
+	if len(q.predicates) == 0 {
+		return nil
+	}
+
+	sqlPredicatesFn, err := createEntPredicates(entAdapter, q.model, q.predicates)
+	if err != nil {
+		return err
+	}
+
+	currentPredicate := q.querySpec.Predicate
+	q.querySpec.Predicate = func(s *sql.Selector) {
+		if currentPredicate != nil {
+			currentPredicate(s)
+		}
+		s.Where(sql.And(sqlPredicatesFn(s)...))
+	}
+
+	return nil
+}
+
+// buildQueryOrder builds the order function for the query spec.
+func (q *Query) buildQueryOrder() error {
+	if len(q.order) == 0 {
+		return nil
+	}
+
+	orderSelectors := []func(*sql.Selector){}
+
+	for _, order := range q.order {
+		orderFn := sql.Asc
+		columnName := order
+
+		if after, ok := strings.CutPrefix(order, "-"); ok {
+			columnName = after
+			orderFn = sql.Desc
+		}
+
+		column, err := q.model.Column(columnName)
+		if err != nil {
+			return err
+		}
+
+		if !column.field.Sortable {
+			return fmt.Errorf(`column %q is not sortable`, columnName)
+		}
+
+		// Capture columnName and orderFn for closure
+		colName, ordFn := columnName, orderFn
+		orderSelectors = append(orderSelectors, func(s *sql.Selector) {
+			s.OrderBy(ordFn(s.C(colName)))
+		})
+	}
+
+	q.querySpec.Order = func(s *sql.Selector) {
+		for _, orderSelector := range orderSelectors {
+			orderSelector(s)
+		}
+	}
+
+	return nil
+}
+
 // Get returns the list of entities that match the query.
 func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
-	var selectFieldNames []string
-	directColumnNames := []string{q.model.entPrimaryColumn.Name}
-	fkColumns := []string{}
-	edgeColumns := map[string][]string{}
-	allSelectsAreEdges := true
 	option := q.Options()
 
 	if err := runPreDBQueryHooks(ctx, q.client, option); err != nil {
 		return nil, err
 	}
 
-	if len(q.fields) > 0 {
-		var directSelections map[string]bool
-		if selectFieldNames, edgeColumns, directSelections, err = q.parseNestedFields(q.fields); err != nil {
-			return nil, err
-		}
-		q.edgeDirectSelect = directSelections
-
-		for _, fieldName := range selectFieldNames {
-			column, err := q.model.Column(fieldName)
-			if err != nil {
-				return nil, err
-			}
-
-			if column.field.Type.IsRelationType() {
-				relation := column.field.Relation
-				q.withEdgesFields = append(q.withEdgesFields, column.field)
-				if relation.Type != schema.M2M && !relation.Owner {
-					fkColumns = append(fkColumns, relation.SourceColumn)
-				}
-
-				if relation.Type != schema.M2M && relation.Owner && relation.BackRef != nil {
-					targetColumn := relation.BackRef.TargetColumn
-					if targetColumn != "" && targetColumn != q.model.entPrimaryColumn.Name {
-						fkColumns = append(fkColumns, targetColumn)
-					}
-				}
-			} else if fieldName != q.model.entPrimaryColumn.Name {
-				directColumnNames = append(directColumnNames, fieldName)
-				allSelectsAreEdges = false
-			}
-		}
-	} else {
-		q.edgeDirectSelect = nil
+	// Build query columns
+	buildResult, err := q.buildQueryColumns()
+	if err != nil {
+		return nil, err
 	}
 
-	directColumnNames = append(directColumnNames, fkColumns...)
-	directColumnNames = utils.Unique(directColumnNames)
+	// Combine direct and FK columns
+	allColumns := append(buildResult.directColumnNames, buildResult.fkColumns...)
+	allColumns = utils.Unique(allColumns)
+
 	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
 		return nil, errors.New("client is not an ent adapter")
 	}
 
+	// Use window function query for per-parent limit/offset
+	if q.perParentLimit != nil {
+		// For window function queries, we need explicit columns.
+		// If no specific columns were selected (SELECT *), use all model columns.
+		if len(q.fields) == 0 {
+			allColumns = q.model.DBColumns()
+		}
+		return q.getWithPerParentLimit(ctx, entAdapter, allColumns, buildResult)
+	}
+
+	// Build query spec
 	builder := sql.Dialect(entAdapter.Driver().Dialect())
-	if !allSelectsAreEdges {
-		q.querySpec.Node.Columns = directColumnNames
+	if !buildResult.allSelectsAreEdges {
+		q.querySpec.Node.Columns = allColumns
 	}
 	q.querySpec.From = builder.
-		Select(directColumnNames...).
+		Select(allColumns...).
 		From(builder.Table(q.model.schema.Namespace))
 
-	if len(q.predicates) > 0 {
-		sqlPredicatesFn, err := createEntPredicates(entAdapter, q.model, q.predicates)
-		if err != nil {
-			return nil, err
-		}
-		currentPredicate := q.querySpec.Predicate
-		q.querySpec.Predicate = func(s *sql.Selector) {
-			if currentPredicate != nil {
-				currentPredicate(s)
-			}
-
-			s.Where(sql.And(sqlPredicatesFn(s)...))
-		}
+	// Build predicates
+	if err := q.buildQueryPredicates(entAdapter); err != nil {
+		return nil, err
 	}
 
-	if len(q.order) > 0 {
-		orderSelectors := []func(*sql.Selector){}
-
-		for _, order := range q.order {
-			orderFn := sql.Asc
-			columnName := order
-
-			if after, ok := strings.CutPrefix(order, "-"); ok {
-				columnName = after
-				orderFn = sql.Desc
-			}
-
-			column, err := q.model.Column(columnName)
-			if err != nil {
-				return nil, err
-			}
-
-			if !column.field.Sortable {
-				return nil, fmt.Errorf(`column %q is not sortable`, columnName)
-			}
-
-			orderSelectors = append(orderSelectors, func(s *sql.Selector) {
-				s.OrderBy(orderFn(s.C(columnName)))
-			})
-		}
-
-		q.querySpec.Order = func(s *sql.Selector) {
-			for _, orderSelector := range orderSelectors {
-				orderSelector(s)
-			}
-		}
+	// Build order
+	if err := q.buildQueryOrder(); err != nil {
+		return nil, err
 	}
 
+	// Apply limit and offset
 	if q.limit > 0 {
 		q.querySpec.Limit = int(q.limit)
 	}
-
 	if q.offset > 0 {
 		q.querySpec.Offset = int(q.offset)
 	}
 
+	// Execute query
 	if err := sqlgraph.QueryNodes(ctx, entAdapter.Driver(), q.querySpec); err != nil {
 		return nil, err
 	}
 
-	if err := q.loadEdges(ctx, edgeColumns); err != nil {
+	// Load edges
+	if err := q.loadEdges(ctx, buildResult.edges); err != nil {
 		return nil, err
 	}
 
+	// Apply getters
 	for _, entity := range q.entities {
 		if err := q.model.schema.ApplyGetters(ctx, entity, expr.Config{
 			DB: func() expr.DBLike {
@@ -390,697 +449,101 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 	return runPostDBQueryHooks(ctx, q.client, option, q.entities)
 }
 
-// loadEdges loads the edges for the given fields.
-func (q *Query) loadEdges(ctx context.Context, edgesColumns map[string][]string) error {
-	for _, edgeField := range q.withEdgesFields {
-		relation := edgeField.Relation
-		edgeModel, err := q.client.Model(relation.TargetSchemaName)
-		if err != nil {
-			return err
-		}
-
-		edgeEntModel, ok := edgeModel.(*Model)
-		if !ok {
-			return fmt.Errorf(`unexpected model type %T`, edgeModel)
-		}
-
-		edgeColumns := edgesColumns[edgeField.Name]
-
-		// Get relation options for this edge field
-		relOpt := q.relationOptions.Get(edgeField.Name)
-
-		if relation.Type == schema.O2M {
-			if err := q.loadEdgesO2M(ctx, edgeField, edgeEntModel, edgeColumns, relOpt); err != nil {
-				return err
-			}
-		}
-
-		if relation.Type == schema.O2O {
-			if err := q.loadEdgesO2O(ctx, edgeField, edgeEntModel, edgeColumns, relOpt); err != nil {
-				return err
-			}
-		}
-
-		if relation.Type == schema.M2M {
-			if err := q.loadEdgesM2M(ctx, edgeField, edgeEntModel, edgeColumns, relOpt); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// loadEdgesO2M loads the one-to-many edges for the given field.
-func (q *Query) loadEdgesO2M(
+// getWithPerParentLimit executes a query with per-parent limit/offset using window functions.
+// It generates SQL like:
+//
+//	SELECT * FROM (
+//	  SELECT *, ROW_NUMBER() OVER (PARTITION BY partition_col ORDER BY order_col) AS row_num
+//	  FROM table WHERE ...
+//	) AS ranked
+//	WHERE row_num > offset AND row_num <= offset + limit
+func (q *Query) getWithPerParentLimit(
 	ctx context.Context,
-	field *schema.Field,
-	edgeModel *Model,
-	edgeColumns []string,
-	relOpt *db.RelationOption,
-) error {
-	if !field.Relation.Owner {
-		return q.loadNonOwnerEdges(ctx, field, edgeModel, edgeColumns, relOpt)
+	entAdapter EntAdapter,
+	allColumns []string,
+	buildResult *queryBuildResult,
+) ([]*entity.Entity, error) {
+	cfg := q.perParentLimit
+	builder := sql.Dialect(entAdapter.Driver().Dialect())
+	table := builder.Table(q.model.schema.Namespace)
+
+	// Build the inner query with all columns plus ROW_NUMBER()
+	inner := builder.Select(allColumns...).From(table)
+
+	// Build window function ORDER BY
+	orderCols := q.order
+	if len(orderCols) == 0 {
+		orderCols = []string{q.model.entPrimaryColumn.Name}
 	}
 
-	// Initialize all entities with empty arrays for O2M relations
-	// This ensures that entities without neighbors still have an empty array
-	for _, node := range q.entities {
-		if node.Get(field.Name) == nil {
-			node.Set(field.Name, []*entity.Entity{})
-		}
-	}
-
-	return q.loadOwnerEdges(
-		ctx, field, edgeModel, edgeColumns, relOpt,
-		func(node *entity.Entity, neighbor *entity.Entity) error {
-			edgeValues := node.Get(field.Name)
-			if edgeValues == nil {
-				node.Set(field.Name, []*entity.Entity{neighbor})
-				return nil
-			}
-
-			edgeEntities, ok := edgeValues.([]*entity.Entity)
-			if !ok {
-				return invalidEntityArrayError(q.model.name, field.Name, edgeValues)
-			}
-
-			edgeEntities = append(edgeEntities, neighbor)
-			node.Set(field.Name, edgeEntities)
-			return nil
-		},
-	)
-}
-
-// loadEdgesO2O loads the one-to-one edges for the given field.
-func (q *Query) loadEdgesO2O(
-	ctx context.Context,
-	field *schema.Field,
-	edgeModel *Model,
-	edgeColumns []string,
-	relOpt *db.RelationOption,
-) error {
-	if !field.Relation.Owner {
-		return q.loadNonOwnerEdges(ctx, field, edgeModel, edgeColumns, relOpt)
-	}
-
-	return q.loadOwnerEdges(
-		ctx, field, edgeModel, edgeColumns, relOpt,
-		func(node *entity.Entity, neighbor *entity.Entity) error {
-			node.Set(field.Name, neighbor)
-			return nil
-		},
-	)
-}
-
-// loadEdgesM2M loads the many-to-many edges for the given field.
-func (q *Query) loadEdgesM2M(
-	ctx context.Context,
-	field *schema.Field,
-	edgeModel *Model,
-	edgeColumns []string,
-	relOpt *db.RelationOption,
-) error {
-	edgeIDs, byID, err := collectEntityIDs(q.model.name, q.model.schema.IDField(), q.entities)
-	if err != nil {
-		return err
-	}
-
-	for _, node := range q.entities {
-		node.Set(field.Name, make([]*entity.Entity, 0))
-	}
-
-	nids := make(map[string]map[*entity.Entity]struct{})
-
-	edgeQuery := edgeModel.Query()
-	entEdgeQuery, ok := edgeQuery.(*Query)
-	if !ok {
-		return fmt.Errorf(`unexpected edge query type %T`, edgeQuery)
-	}
-
-	relation := field.Relation
-	conditionColumn := utils.If(relation.IsBidi(), relation.SourceSchemaName, relation.BackRef.SourceFieldName)
-	if !relation.IsBidi() && relation.TargetColumn != "" {
-		conditionColumn = relation.TargetColumn
-	}
-	joinColumn := utils.If(relation.IsBidi(), relation.SourceSchemaName, relation.SourceFieldName)
-	if relation.SourceColumn != "" {
-		joinColumn = relation.SourceColumn
-	}
-
-	// Separate direct columns from nested field paths and relation fields
-	directColumns := []string{}
-	nestedFields := []string{}
-	relationFields := []string{}
-
-	for _, col := range edgeColumns {
-		if strings.Contains(col, ".") {
-			nestedFields = append(nestedFields, col)
-			continue
-		}
-
-		column, err := edgeModel.Column(col)
-		if err != nil {
-			return fmt.Errorf("invalid column %q for model %s: %w", col, edgeModel.name, err)
-		}
-
-		if column.field.Type.IsRelationType() {
-			relationFields = append(relationFields, col)
+	windowFn := sql.RowNumber().PartitionBy(cfg.partitionColumn)
+	for _, col := range orderCols {
+		if after, ok := strings.CutPrefix(col, "-"); ok {
+			windowFn = windowFn.OrderBy(after + " DESC")
 		} else {
-			directColumns = append(directColumns, col)
+			windowFn = windowFn.OrderBy(col)
 		}
 	}
+	inner.AppendSelectExprAs(windowFn, "row_num")
 
-	entEdgeQuery.querySpec.Predicate = func(s *sql.Selector) {
-		joinJuntion := sql.Table(relation.JunctionTable)
-		s.Join(joinJuntion).On(joinJuntion.C(joinColumn), s.C(edgeModel.entPrimaryColumn.Name))
-		s.Where(sql.InValues(joinJuntion.C(conditionColumn), edgeIDs...))
-		selectColumn := relation.BackRef.SourceFieldName
-		if !relation.IsBidi() && relation.TargetColumn != "" {
-			selectColumn = relation.TargetColumn
-		}
-		s.Select(joinJuntion.C(selectColumn) + " AS " + selectColumn + "_id")
-
-		// Need complete entity data for recursive loading
-		if len(directColumns) == 0 || len(relationFields) > 0 || len(nestedFields) > 0 {
-			directColumns = edgeModel.DBColumns()
-		}
-
-		if !utils.Contains(directColumns, edgeModel.entPrimaryColumn.Name) {
-			directColumns = append([]string{edgeModel.entPrimaryColumn.Name}, directColumns...)
-		}
-
-		s.AppendSelect(utils.Map(directColumns, func(c string) string {
-			return s.C(c)
-		})...)
-		s.SetDistinct(false)
-	}
-
-	assignFn := entEdgeQuery.querySpec.Assign
-	valuesFn := entEdgeQuery.querySpec.ScanValues
-	selectColumn := relation.BackRef.SourceFieldName
-	if !relation.IsBidi() && relation.TargetColumn != "" {
-		selectColumn = relation.TargetColumn
-	}
-
-	junctionSchema := relation.JunctionSchema
-	if junctionSchema == nil {
-		return fmt.Errorf("relation %s.%s missing junction schema", relation.SourceSchemaName, relation.SourceFieldName)
-	}
-	selectField := junctionSchema.Field(selectColumn)
-	if selectField == nil {
-		return fmt.Errorf("junction column %s not found for relation %s.%s", selectColumn, relation.SourceSchemaName, relation.SourceFieldName)
-	}
-
-	entEdgeQuery.querySpec.ScanValues = func(columns []string) ([]any, error) {
-		values, err := valuesFn(columns[1:])
+	// Apply predicates to inner query
+	if len(q.predicates) > 0 {
+		sqlPredicatesFn, err := createEntPredicates(entAdapter, q.model, q.predicates)
 		if err != nil {
 			return nil, err
 		}
-		aliasScan := columnScanValue(selectField.Type)
-		return append([]any{aliasScan}, values...), nil
+		inner.Where(sql.And(sqlPredicatesFn(inner)...))
 	}
 
-	entEdgeQuery.querySpec.Assign = func(columns []string, values []any) error {
-		aliasValue, err := columnAssignValue(selectColumn, selectField.Type, values[0], entity.New())
-		if err != nil {
-			return err
-		}
-		if err := assignFn(columns[1:], values[1:]); err != nil {
-			return err
-		}
-		if aliasValue == nil {
-			return fmt.Errorf("junction column %s returned nil", selectColumn)
-		}
-		baseEntity, ok := byID[valueKey(aliasValue)]
-		if !ok {
-			return fmt.Errorf("no base entity found for junction value %v", aliasValue)
-		}
-		if len(entEdgeQuery.entities) == 0 {
-			return fmt.Errorf("edge assignment missing neighbor entity for %v", aliasValue)
-		}
-		neighbor := entEdgeQuery.entities[len(entEdgeQuery.entities)-1]
-		inKey := valueKey(neighbor.ID())
-		if nids[inKey] == nil {
-			nids[inKey] = map[*entity.Entity]struct{}{}
-		}
-		nids[inKey][baseEntity] = struct{}{}
-		return nil
+	// Alias the inner query
+	inner.As("ranked")
+
+	// Build outer query with row_num filter
+	outer := builder.Select(allColumns...).From(inner)
+
+	// Apply row_num conditions for per-parent limit/offset
+	if cfg.offset > 0 {
+		outer.Where(sql.GT("row_num", cfg.offset))
+	}
+	if cfg.limit > 0 {
+		maxRowNum := cfg.offset + cfg.limit
+		outer.Where(sql.LTE("row_num", maxRowNum))
 	}
 
-	entEdgeQuery.order = []string{edgeModel.entPrimaryColumn.Name}
-
-	// Apply relation options if provided
-	if relOpt != nil {
-		// Apply sort order from relation options
-		if relOpt.Sort != "" {
-			entEdgeQuery.order = []string{relOpt.Sort}
-		}
-
-		// Apply filter from relation options
-		if relOpt.Filter != nil {
-			builder := q.client.SchemaBuilder()
-			if builder != nil {
-				predicates, err := db.CreatePredicatesFromRelationFilter(builder, edgeModel.schema, relOpt.Filter)
-				if err != nil {
-					return fmt.Errorf("invalid relation filter for %s: %w", field.Name, err)
-				}
-				entEdgeQuery.predicates = append(entEdgeQuery.predicates, predicates...)
-			}
-		}
-
-		// Pass relation options to nested edge queries
-		if relOpt.Select != nil {
-			for _, sel := range relOpt.Select {
-				if !utils.Contains(entEdgeQuery.fields, sel) {
-					entEdgeQuery.fields = append(entEdgeQuery.fields, sel)
-				}
-			}
-		}
-
-		// Pass nested relation options
-		entEdgeQuery.relationOptions = q.relationOptions.GetNestedOptions(field.Name)
-	}
-
-	// Add nested fields and relation fields to the edge query for recursive processing
-	entEdgeQuery.fields = append(entEdgeQuery.fields, nestedFields...)
-	entEdgeQuery.fields = append(entEdgeQuery.fields, relationFields...)
-	neighbors, err := entEdgeQuery.Get(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Track per-parent entity counters for limit/offset
-	perParentCounters := make(map[*entity.Entity]int)
-
-	for _, n := range neighbors {
-		key := valueKey(n.ID())
-		nodes, ok := nids[key]
-		if !ok {
-			continue
-		}
-		for kn := range nodes {
-			// Apply per-parent limit/offset if relation options are provided
-			if relOpt != nil && (relOpt.Limit > 0 || relOpt.Offset > 0) {
-				currentCount := perParentCounters[kn]
-				perParentCounters[kn]++
-
-				// Skip if we haven't reached the offset yet
-				if relOpt.Offset > 0 && uint(currentCount) < relOpt.Offset {
-					continue
-				}
-
-				// Skip if we've reached the limit
-				if relOpt.Limit > 0 {
-					effectiveCount := currentCount
-					if relOpt.Offset > 0 {
-						effectiveCount = currentCount - int(relOpt.Offset)
-					}
-					if uint(effectiveCount) >= relOpt.Limit {
-						continue
-					}
-				}
-			}
-
-			kn.Set(field.Name, append(kn.Get(field.Name).([]*entity.Entity), n))
-		}
-		delete(nids, key)
-	}
-
-	return nil
-}
-
-// loadNonOwnerEdges loads the non-owner edges for the given field.
-func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edgeModel *Model, edgeColumns []string, relOpt *db.RelationOption) error {
-	selectFullEdge := q.edgeDirectSelect != nil && q.edgeDirectSelect[field.Name]
-	relation := field.Relation
-	edgeSchemaName := relation.TargetSchemaName
-	ids := make([]any, 0, len(q.entities))
-	nodeids := make(map[string][]*entity.Entity)
-	fkColumn := relation.SourceColumn
-	targetColumn := relation.TargetColumn
-	if targetColumn == "" {
-		targetColumn = edgeModel.entPrimaryColumn.Name
-	}
-
-	builder := q.client.SchemaBuilder()
-	if builder == nil {
-		return fmt.Errorf("schema builder is not initialized")
-	}
-
-	targetField, err := getRelationTargetField(builder, relation)
-	if err != nil {
-		return err
-	}
-
-	for _, parent := range q.entities {
-		fkValue := parent.Get(fkColumn)
-		if isZeroValue(fkValue) {
-			continue
-		}
-
-		normalized, err := normalizeIDValue(targetField, fkValue)
-		if err != nil {
-			return err
-		}
-
-		key := valueKey(normalized)
-		if _, ok := nodeids[key]; !ok {
-			ids = append(ids, normalized)
-		}
-		nodeids[key] = append(nodeids[key], parent)
-	}
-
-	if len(ids) == 0 {
-		return nil
-	}
-
-	// Separate direct columns from nested field paths and relation fields
-	directColumns := []string{}
-	nestedFields := []string{}
-	relationFields := []string{}
-
-	for _, col := range edgeColumns {
-		if strings.Contains(col, ".") {
-			nestedFields = append(nestedFields, col)
-			continue
-		}
-
-		column, err := edgeModel.Column(col)
-		if err != nil {
-			return fmt.Errorf("invalid column %q for model %s: %w", col, edgeModel.name, err)
-		}
-
-		if column.field.Type.IsRelationType() {
-			relationFields = append(relationFields, col)
+	// Apply ordering to outer query (maintain order within each partition)
+	for _, col := range orderCols {
+		if after, ok := strings.CutPrefix(col, "-"); ok {
+			outer.OrderBy(sql.Desc(after))
 		} else {
-			directColumns = append(directColumns, col)
+			outer.OrderBy(sql.Asc(col))
 		}
 	}
 
-	if selectFullEdge {
-		directColumns = nil
-	} else {
-		if !utils.Contains(directColumns, edgeModel.entPrimaryColumn.Name) {
-			directColumns = append(directColumns, edgeModel.entPrimaryColumn.Name)
-		}
-		if targetColumn != edgeModel.entPrimaryColumn.Name && !utils.Contains(directColumns, targetColumn) {
-			directColumns = append(directColumns, targetColumn)
-		}
-		directColumns = utils.Unique(directColumns)
-	}
-
-	edgeQuery := edgeModel.Query()
-	if len(directColumns) > 0 {
-		edgeQuery = edgeQuery.Select(directColumns...)
-	}
-
-	// Add nested fields and relation fields for recursive processing
-	if len(nestedFields) > 0 || len(relationFields) > 0 {
-		entEdgeQuery, ok := edgeQuery.(*Query)
-		if ok {
-			entEdgeQuery.fields = append(entEdgeQuery.fields, nestedFields...)
-			entEdgeQuery.fields = append(entEdgeQuery.fields, relationFields...)
-		}
-	}
-
-	edgeQuery = edgeQuery.Where(db.In(targetColumn, ids))
-
-	// Apply relation options if provided
-	if relOpt != nil {
-		entEdgeQuery, ok := edgeQuery.(*Query)
-		if ok {
-			// Apply sort order from relation options
-			if relOpt.Sort != "" {
-				entEdgeQuery.order = []string{relOpt.Sort}
-			}
-
-			// Apply filter from relation options
-			if relOpt.Filter != nil {
-				builder := q.client.SchemaBuilder()
-				if builder != nil {
-					predicates, err := db.CreatePredicatesFromRelationFilter(builder, edgeModel.schema, relOpt.Filter)
-					if err != nil {
-						return fmt.Errorf("invalid relation filter for %s: %w", field.Name, err)
-					}
-					entEdgeQuery.predicates = append(entEdgeQuery.predicates, predicates...)
-				}
-			}
-
-			// Pass nested relation options
-			entEdgeQuery.relationOptions = q.relationOptions.GetNestedOptions(field.Name)
-		}
-	}
-
-	neighbors, err := edgeQuery.Get(ctx)
+	// Execute query
+	query, args := outer.Query()
+	entities, err := driverQuery(entAdapter.Driver(), ctx, query, args)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, n := range neighbors {
-		var refValue any
-		if targetColumn == edgeModel.entPrimaryColumn.Name {
-			refValue = n.ID()
-		} else {
-			refValue = n.Get(targetColumn)
-		}
+	q.entities = entities
 
-		if isZeroValue(refValue) {
-			return invalidFKError(edgeSchemaName, targetColumn, n.ID(), fmt.Errorf("empty reference value"))
-		}
-
-		normalized, err := normalizeIDValue(targetField, refValue)
-		if err != nil {
-			return err
-		}
-
-		nodes, ok := nodeids[valueKey(normalized)]
-		if !ok {
-			return noFKNodeError(q.model.name, edgeSchemaName, fkColumn, n.ID(), refValue)
-		}
-
-		for i := range nodes {
-			nodes[i].Set(field.Name, n)
-		}
+	// Load edges
+	if err := q.loadEdges(ctx, buildResult.edges); err != nil {
+		return nil, err
 	}
 
-	return nil
-}
-
-// loadOwnerEdges loads the owner edges for the given field.
-func (q *Query) loadOwnerEdges(
-	ctx context.Context,
-	field *schema.Field,
-	edgeModel *Model,
-	edgeColumns []string,
-	relOpt *db.RelationOption,
-	assignFn func(node, neighbor *entity.Entity) error,
-) error {
-	selectFullEdge := q.edgeDirectSelect != nil && q.edgeDirectSelect[field.Name]
-	relation := field.Relation
-	edgeSchemaName := relation.TargetSchemaName
-	fks := make([]any, 0, len(q.entities))
-	nodeids := make(map[string][]*entity.Entity)
-	fkColumn := relation.BackRef.SourceColumn
-	refColumn := relation.BackRef.TargetColumn
-	useTargetColumn := refColumn != "" && refColumn != q.model.entPrimaryColumn.Name
-	parentField := q.model.schema.IDField()
-	if useTargetColumn {
-		parentField = q.model.schema.Field(refColumn)
-		if parentField == nil {
-			return fmt.Errorf("field %s.%s not found", q.model.name, refColumn)
-		}
-	}
-	if parentField == nil {
-		return fmt.Errorf("schema %s is missing an id field definition", q.model.name)
-	}
-
+	// Apply getters
 	for _, entity := range q.entities {
-		var refValue any
-		if useTargetColumn {
-			refValue = entity.Get(refColumn)
-			if isZeroValue(refValue) {
-				return invalidFKError(q.model.name, refColumn, entity.ID(), fmt.Errorf("empty reference value"))
-			}
-		} else {
-			refValue = entity.ID()
-		}
-
-		normalized, err := normalizeIDValue(parentField, refValue)
-		if err != nil {
-			return err
-		}
-
-		key := valueKey(normalized)
-		if _, exists := nodeids[key]; !exists {
-			fks = append(fks, normalized)
-		}
-		nodeids[key] = append(nodeids[key], entity)
-	}
-
-	// Separate direct columns from nested field paths and relation fields
-	directColumns := []string{}
-	nestedFields := []string{}
-	relationFields := []string{}
-
-	for _, col := range edgeColumns {
-		if strings.Contains(col, ".") {
-			nestedFields = append(nestedFields, col)
-			continue
-		}
-
-		column, err := edgeModel.Column(col)
-		if err != nil {
-			return fmt.Errorf("invalid column %q for model %s: %w", col, edgeModel.name, err)
-		}
-
-		if column.field.Type.IsRelationType() {
-			relationFields = append(relationFields, col)
-		} else {
-			directColumns = append(directColumns, col)
+		if err := q.model.schema.ApplyGetters(ctx, entity, expr.Config{
+			DB: func() expr.DBLike {
+				return entAdapter
+			},
+		}); err != nil {
+			return nil, err
 		}
 	}
 
-	if selectFullEdge {
-		directColumns = nil
-	} else {
-		if !utils.Contains(directColumns, edgeModel.entPrimaryColumn.Name) {
-			directColumns = append(directColumns, edgeModel.entPrimaryColumn.Name)
-		}
-		if fkColumn != "" && !utils.Contains(directColumns, fkColumn) {
-			directColumns = append(directColumns, fkColumn)
-		}
-		directColumns = utils.Unique(directColumns)
-	}
-
-	edgeQuery := edgeModel.Query()
-	if len(directColumns) > 0 {
-		edgeQuery = edgeQuery.Select(directColumns...)
-	}
-
-	// Add nested fields and relation fields for recursive processing
-	if len(nestedFields) > 0 || len(relationFields) > 0 {
-		entEdgeQuery, ok := edgeQuery.(*Query)
-		if ok {
-			entEdgeQuery.fields = append(entEdgeQuery.fields, nestedFields...)
-			entEdgeQuery.fields = append(entEdgeQuery.fields, relationFields...)
-
-			// Apply relation options if provided
-			if relOpt != nil {
-				// Apply sort order from relation options
-				if relOpt.Sort != "" {
-					entEdgeQuery.order = []string{relOpt.Sort}
-				}
-
-				// Apply filter from relation options
-				if relOpt.Filter != nil {
-					builder := q.client.SchemaBuilder()
-					if builder != nil {
-						predicates, err := db.CreatePredicatesFromRelationFilter(builder, edgeModel.schema, relOpt.Filter)
-						if err != nil {
-							return fmt.Errorf("invalid relation filter for %s: %w", field.Name, err)
-						}
-						entEdgeQuery.predicates = append(entEdgeQuery.predicates, predicates...)
-					}
-				}
-
-				// Pass relation options to nested edge queries
-				if relOpt.Select != nil {
-					for _, sel := range relOpt.Select {
-						if !utils.Contains(entEdgeQuery.fields, sel) {
-							entEdgeQuery.fields = append(entEdgeQuery.fields, sel)
-						}
-					}
-				}
-
-				// Pass nested relation options
-				entEdgeQuery.relationOptions = q.relationOptions.GetNestedOptions(field.Name)
-			}
-		}
-	}
-
-	edgeQuery = edgeQuery.Where(db.In(fkColumn, fks))
-
-	// Apply relation options to the edge query
-	if relOpt != nil {
-		entEdgeQuery, ok := edgeQuery.(*Query)
-		if ok {
-			// Apply sort order from relation options
-			if relOpt.Sort != "" {
-				entEdgeQuery.order = []string{relOpt.Sort}
-			}
-
-			// Apply filter from relation options
-			if relOpt.Filter != nil {
-				builder := q.client.SchemaBuilder()
-				if builder != nil {
-					predicates, err := db.CreatePredicatesFromRelationFilter(builder, edgeModel.schema, relOpt.Filter)
-					if err != nil {
-						return fmt.Errorf("invalid relation filter for %s: %w", field.Name, err)
-					}
-					entEdgeQuery.predicates = append(entEdgeQuery.predicates, predicates...)
-				}
-			}
-
-			// Pass nested relation options
-			entEdgeQuery.relationOptions = q.relationOptions.GetNestedOptions(field.Name)
-		}
-	}
-
-	neighbors, err := edgeQuery.Get(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Track per-parent entity counters for limit/offset (for O2M relations)
-	// Use the first entity in each node group as the key for tracking
-	perParentCounters := make(map[string]int)
-
-	for _, n := range neighbors {
-		fkValue := n.Get(fkColumn)
-		if isZeroValue(fkValue) {
-			return invalidFKError(edgeSchemaName, fkColumn, n.ID(), fmt.Errorf("empty reference value"))
-		}
-
-		normalized, err := normalizeIDValue(parentField, fkValue)
-		if err != nil {
-			return err
-		}
-
-		key := valueKey(normalized)
-		nodes, ok := nodeids[key]
-		if !ok {
-			return noFKNodeError(q.model.name, edgeSchemaName, fkColumn, n.ID(), fkValue)
-		}
-
-		// Apply per-parent limit/offset if relation options are provided
-		if relOpt != nil && (relOpt.Limit > 0 || relOpt.Offset > 0) {
-			currentCount := perParentCounters[key]
-			perParentCounters[key]++
-
-			// Skip if we haven't reached the offset yet
-			if relOpt.Offset > 0 && uint(currentCount) < relOpt.Offset {
-				continue
-			}
-
-			// Skip if we've reached the limit
-			if relOpt.Limit > 0 {
-				effectiveCount := currentCount
-				if relOpt.Offset > 0 {
-					effectiveCount = currentCount - int(relOpt.Offset)
-				}
-				if uint(effectiveCount) >= relOpt.Limit {
-					continue
-				}
-			}
-		}
-
-		// Assign neighbor to ALL entity instances with the same ID
-		for _, node := range nodes {
-			if err := assignFn(node, n); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	option := q.Options()
+	return runPostDBQueryHooks(ctx, q.client, option, q.entities)
 }

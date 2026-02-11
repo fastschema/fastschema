@@ -88,7 +88,7 @@ func testSchemaMetadata(t *testing.T, client h.DBClient) {
 	require.NotNil(t, builder)
 
 	category := u.Must(builder.Schema("category"))
-	categoryID := category.IDField()
+	categoryID := category.PrimaryField()
 	require.NotNil(t, categoryID)
 	assert.Equal(t, schema.TypeString, categoryID.Type)
 	assert.False(t, categoryID.DB.Increment)
@@ -96,18 +96,18 @@ func testSchemaMetadata(t *testing.T, client h.DBClient) {
 	assert.True(t, categoryID.Sortable)
 
 	tag := u.Must(builder.Schema("tag"))
-	tagID := tag.IDField()
+	tagID := tag.PrimaryField()
 	require.NotNil(t, tagID)
 	assert.Equal(t, schema.TypeUint64, tagID.Type)
 	assert.False(t, tagID.DB.Increment)
 
 	user := u.Must(builder.Schema("user"))
-	userID := user.IDField()
+	userID := user.PrimaryField()
 	require.NotNil(t, userID)
 	assert.Equal(t, schema.TypeUUID, userID.Type)
 
 	post := u.Must(builder.Schema("post"))
-	postID := post.IDField()
+	postID := post.PrimaryField()
 	require.NotNil(t, postID)
 	assert.Equal(t, schema.TypeUint64, postID.Type)
 	assert.True(t, postID.DB.Increment)

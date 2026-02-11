@@ -10,6 +10,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	h "github.com/fastschema/fastschema/tests/integration/helpers"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func DBUpdateNodes(t *testing.T, client db.Client) {
@@ -32,6 +33,79 @@ func DBUpdateNodes(t *testing.T, client db.Client) {
 				assert.Equal(t, uint(20), entities[0].Get("age"))
 				assert.Equal(t, uint64(2), entities[1].ID())
 				assert.Equal(t, uint(20), entities[1].Get("age"))
+			},
+		},
+		{
+			Name:         "fields/clear/nested_clear_block_o2m",
+			Schema:       "user",
+			Predicates:   []*db.Predicate{db.EQ("id", 2)},
+			WantAffected: 1,
+			ClearTables:  []string{"users", "pets"},
+			Prepare: func(t *testing.T, m db.Model) {
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{
+					"name": "User 2",
+					"username": "user2",
+					"provider": "local",
+					"sub_pets": [ { "id": 1 }, { "id": 2 } ]
+				}`))
+			},
+			InputJSON: `{
+				"sub_pets": { "$clear": [ { "id": 1 }, { "id": 2 } ] }
+			}`,
+			Expect: func(t *testing.T, m db.Model) {
+				pets := utils.Must(utils.Must(client.Model("pet")).Query().Order("id").Get(h.Ctx()))
+				require.Len(t, pets, 2)
+				for _, p := range pets {
+					assert.Nil(t, p.Get("sub_owner_id"))
+				}
+			},
+		},
+		{
+			Name:         "fields/add/nested_add_block_o2m",
+			Schema:       "user",
+			Predicates:   []*db.Predicate{db.EQ("id", 2)},
+			WantAffected: 1,
+			ClearTables:  []string{"users", "pets"},
+			Prepare: func(t *testing.T, m db.Model) {
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+			},
+			InputJSON: `{
+				"sub_pets": { "$add": [ { "id": 1 }, { "id": 2 } ] }
+			}`,
+			Expect: func(t *testing.T, m db.Model) {
+				pets := utils.Must(utils.Must(client.Model("pet")).Query().Order("id").Get(h.Ctx()))
+				require.Len(t, pets, 2)
+				for _, p := range pets {
+					assert.EqualValues(t, 2, p.Get("sub_owner_id"))
+				}
+			},
+		},
+		{
+			Name:         "fields/add_clear/nested_add_clear_block_o2m",
+			Schema:       "user",
+			Predicates:   []*db.Predicate{db.EQ("id", 2)},
+			WantAffected: 1,
+			ClearTables:  []string{"users", "pets"},
+			Prepare: func(t *testing.T, m db.Model) {
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 2}}`))
+				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+			},
+			InputJSON: `{
+				"sub_pets": { "$clear": true, "$add": [ { "id": 2 } ] }
+			}`,
+			Expect: func(t *testing.T, m db.Model) {
+				pets := utils.Must(utils.Must(client.Model("pet")).Query().Order("id").Get(h.Ctx()))
+				require.Len(t, pets, 2)
+				assert.Nil(t, pets[0].Get("sub_owner_id"))
+				assert.EqualValues(t, 2, pets[1].Get("sub_owner_id"))
 			},
 		},
 		{

@@ -90,7 +90,7 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ any, err err
 		return nil, err
 	}
 
-	pkField := m.model.schema.IDField()
+	pkField := m.model.schema.PrimaryField()
 	insertedID := createSpec.ID.Value
 	if insertedID == nil && pkField != nil {
 		insertedID = e.Get(pkField.Name)
@@ -138,7 +138,7 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ any, err err
 // - The primary key field is of type UUID
 // - The primary key value is not already set in the entity
 func (m *Mutation) autoGenerateUUID(e *entity.Entity) error {
-	pkField := m.model.schema.IDField()
+	pkField := m.model.schema.PrimaryField()
 	if pkField == nil {
 		return nil
 	}

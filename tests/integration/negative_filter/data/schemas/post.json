@@ -1,0 +1,24 @@
+{
+  "name": "post",
+  "namespace": "posts",
+  "label_field": "title",
+  "fields": [
+    {
+      "name": "title",
+      "label": "Title",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "tags",
+      "label": "Tags",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "tag",
+        "field": "posts",
+        "owner": true
+      }
+    }
+  ]
+}

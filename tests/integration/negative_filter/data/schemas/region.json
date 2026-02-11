@@ -1,0 +1,24 @@
+{
+  "name": "region",
+  "namespace": "regions",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "countries",
+      "label": "Countries",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "country",
+        "field": "region",
+        "owner": true
+      }
+    }
+  ]
+}

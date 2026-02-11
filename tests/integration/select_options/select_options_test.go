@@ -101,6 +101,18 @@ func runSelectOptionsTests(t *testing.T, clients []h.DBClient) {
 			t.Run("BackwardCompatibility", func(t *testing.T) {
 				testBackwardCompatibility(t, client)
 			})
+
+			t.Run("O2M_NonOwner_WithSelectOptions", func(t *testing.T) {
+				testO2MNonOwnerWithSelectOptions(t, client)
+			})
+
+			t.Run("O2O_WithSelectOptions", func(t *testing.T) {
+				testO2OWithSelectOptions(t, client)
+			})
+
+			t.Run("O2M_Owner_SelectOptionsReturnsAllColumns", func(t *testing.T) {
+				testO2MOwnerWithSelectOptionsReturnsAllColumns(t, client)
+			})
 		})
 	}
 }
@@ -615,4 +627,101 @@ func testBackwardCompatibility(t *testing.T, client h.DBClient) {
 	require.Len(t, post2Tags, 2, "Post 2 should have 2 tags")
 	assert.Equal(t, "Tag A", post2Tags[0].Get("name"))
 	assert.Equal(t, "Tag C", post2Tags[1].Get("name"))
+}
+
+// testO2MNonOwnerWithSelectOptions tests that O2M non-owner (single item) relations
+// return all columns when select_options is provided (limit/offset is ignored for single items)
+func testO2MNonOwnerWithSelectOptions(t *testing.T, client h.DBClient) {
+	setupTestData(t, client)
+	postModel := u.Must(client.C.Model("post"))
+
+	// post.author is O2M non-owner (single item per post)
+	// select_options with limit should be ignored, but all author columns should be returned
+	relOpts := db.RelationOptions{
+		"author": {Limit: 1},
+	}
+
+	results := u.Must(postModel.Query().
+		Select("title", "author").
+		WithRelationOptions(relOpts).
+		Order("id").
+		Get(h.Ctx()))
+
+	require.Len(t, results, 2)
+
+	// Post 1 has Author 1 - should return ALL author columns, not just id
+	post1Author := results[0].Get("author").(*entity.Entity)
+	require.NotNil(t, post1Author, "Post 1 should have an author")
+	assert.NotNil(t, post1Author.Get("name"), "Author should have name column")
+	assert.Equal(t, "Author 1", post1Author.Get("name"), "Author name should be Author 1")
+	assert.NotNil(t, post1Author.Get("bio"), "Author should have bio column")
+
+	// Post 2 has Author 2
+	post2Author := results[1].Get("author").(*entity.Entity)
+	require.NotNil(t, post2Author, "Post 2 should have an author")
+	assert.Equal(t, "Author 2", post2Author.Get("name"), "Author name should be Author 2")
+}
+
+// testO2OWithSelectOptions tests that O2O relations return all columns
+// when select_options is provided (limit/offset is ignored for single items)
+func testO2OWithSelectOptions(t *testing.T, client h.DBClient) {
+	setupTestData(t, client)
+	authorModel := u.Must(client.C.Model("author"))
+
+	// author.country is O2O non-owner (single item per author)
+	// select_options with limit should be ignored, but all country columns should be returned
+	relOpts := db.RelationOptions{
+		"country": {Limit: 1},
+	}
+
+	results := u.Must(authorModel.Query().
+		Select("name", "country").
+		WithRelationOptions(relOpts).
+		Order("id").
+		Get(h.Ctx()))
+
+	require.Len(t, results, 2)
+
+	// Author 1 has USA country - should return ALL country columns, not just id
+	author1Country := results[0].Get("country").(*entity.Entity)
+	require.NotNil(t, author1Country, "Author 1 should have a country")
+	assert.NotNil(t, author1Country.Get("name"), "Country should have name column")
+	assert.Equal(t, "USA", author1Country.Get("name"), "Country name should be USA")
+	assert.NotNil(t, author1Country.Get("code"), "Country should have code column")
+	assert.Equal(t, "US", author1Country.Get("code"), "Country code should be US")
+
+	// Author 2 has UK country
+	author2Country := results[1].Get("country").(*entity.Entity)
+	require.NotNil(t, author2Country, "Author 2 should have a country")
+	assert.Equal(t, "UK", author2Country.Get("name"), "Country name should be UK")
+	assert.Equal(t, "GB", author2Country.Get("code"), "Country code should be GB")
+}
+
+// testO2MOwnerWithSelectOptionsReturnsAllColumns tests that O2M owner relations
+// return all columns when select_options is provided
+func testO2MOwnerWithSelectOptionsReturnsAllColumns(t *testing.T, client h.DBClient) {
+	setupTestData(t, client)
+	authorModel := u.Must(client.C.Model("author"))
+
+	// author.posts is O2M owner (multiple posts per author)
+	relOpts := db.RelationOptions{
+		"posts": {Limit: 1},
+	}
+
+	results := u.Must(authorModel.Query().
+		Select("name", "posts").
+		WithRelationOptions(relOpts).
+		Order("id").
+		Get(h.Ctx()))
+
+	require.Len(t, results, 2)
+
+	// Author 1 has Post 1 - should return ALL post columns with limit 1
+	author1Posts := results[0].Get("posts").([]*entity.Entity)
+	require.Len(t, author1Posts, 1, "Author 1 should have exactly 1 post with limit")
+	post := author1Posts[0]
+	assert.NotNil(t, post.Get("title"), "Post should have title column")
+	assert.NotNil(t, post.Get("content"), "Post should have content column")
+	assert.NotNil(t, post.Get("priority"), "Post should have priority column")
+	assert.NotNil(t, post.Get("status"), "Post should have status column")
 }

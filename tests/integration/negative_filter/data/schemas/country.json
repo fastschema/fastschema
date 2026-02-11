@@ -1,0 +1,28 @@
+{
+  "name": "country",
+  "namespace": "countries",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string",
+      "sortable": true
+    },
+    {
+      "name": "region",
+      "label": "Region",
+      "type": "relation",
+      "sortable": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "region",
+        "field": "countries",
+        "source_column": "region_id",
+        "target_column": "id",
+        "on_delete": "NO ACTION",
+        "on_update": "NO ACTION"
+      }
+    }
+  ]
+}

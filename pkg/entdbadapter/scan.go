@@ -2,15 +2,12 @@ package entdbadapter
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"reflect"
 
 	dialectsql "entgo.io/ent/dialect/sql"
 	"github.com/fastschema/fastschema/entity"
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
-	"github.com/google/uuid"
 )
 
 type SQLColumnType interface {
@@ -138,165 +135,19 @@ func schemaAssignValues(
 	return nil
 }
 
+// columnScanValue returns a pointer suitable for sql.Rows.Scan for the given field type.
+// Uses the unified TypeHandler system for consistent type handling.
 func columnScanValue(fieldType schema.FieldType) any {
-	switch fieldType {
-	case schema.TypeJSON, schema.TypeBytes:
-		return new([]byte)
-	case schema.TypeBool:
-		return new(sql.NullBool)
-	case schema.TypeFloat32, schema.TypeFloat64:
-		return new(sql.NullFloat64)
-	case schema.TypeInt8, schema.TypeInt16, schema.TypeInt32, schema.TypeInt, schema.TypeInt64, schema.TypeUint8, schema.TypeUint16, schema.TypeUint32, schema.TypeUint, schema.TypeUint64:
-		return new(sql.NullInt64)
-	case schema.TypeEnum, schema.TypeString, schema.TypeText:
-		return new(sql.NullString)
-	case schema.TypeTime:
-		return new(sql.NullTime)
-	case schema.TypeUUID:
-		return new(uuid.UUID)
-	default:
-		return new(any)
-	}
+	return GetTypeHandler(fieldType).ScanValue()
 }
 
+// columnAssignValue converts a scanned value to the appropriate Go type for the field.
+// Uses the unified TypeHandler system for consistent type handling.
 func columnAssignValue(
 	column string,
 	fieldType schema.FieldType,
 	value any,
 	entity *entity.Entity,
 ) (any, error) {
-	switch fieldType {
-	case schema.TypeBool:
-		if v, ok := value.(*sql.NullBool); !ok {
-			return nil, fieldTypeError("*sql.NullBool", value)
-		} else if v.Valid {
-			return v.Bool, nil
-		}
-	case schema.TypeTime:
-		if v, ok := value.(*sql.NullTime); !ok {
-			return nil, fieldTypeError("*sql.NullTime", value)
-		} else if v.Valid {
-			return v.Time, nil
-		}
-	case schema.TypeJSON:
-		if v, ok := value.(*[]byte); !ok {
-			return nil, fieldTypeError("*[]byte", value)
-		} else if v != nil && len(*v) > 0 {
-			e := entity.Get(column)
-			if err := json.Unmarshal(*v, &e); err != nil {
-				return nil, fmt.Errorf("unmarshal field field_type_JSON: %w", err)
-			}
-			return e, nil
-		}
-	case schema.TypeUUID:
-		if v, ok := value.(*uuid.UUID); !ok {
-			return nil, fieldTypeError("*uuid.UUID", value)
-		} else if v != nil {
-			return *v, nil
-		}
-	case schema.TypeBytes:
-		if v, ok := value.(*[]byte); !ok {
-			return nil, fieldTypeError("*[]byte", value)
-		} else if v != nil {
-			return *v, nil
-		}
-	case schema.TypeEnum:
-		if v, ok := value.(*sql.NullString); !ok {
-			return nil, fieldTypeError("*sql.NullString", value)
-		} else if v.Valid {
-			return v.String, nil
-		}
-	case schema.TypeString:
-		if v, ok := value.(*sql.NullString); !ok {
-			return nil, fieldTypeError("*sql.NullString", value)
-		} else if v.Valid {
-			return v.String, nil
-		}
-	case schema.TypeText:
-		if v, ok := value.(*sql.NullString); !ok {
-			return nil, fieldTypeError("*sql.NullString", value)
-		} else if v.Valid {
-			return v.String, nil
-		}
-	case schema.TypeInt8:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else if v.Valid {
-			return int8(v.Int64), nil
-		}
-	case schema.TypeInt16:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else if v.Valid {
-			return int16(v.Int64), nil
-		}
-	case schema.TypeInt32:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else if v.Valid {
-			return int32(v.Int64), nil
-		}
-	case schema.TypeInt:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else if v.Valid {
-			return int(v.Int64), nil
-		}
-	case schema.TypeInt64:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else if v.Valid {
-			return v.Int64, nil
-		}
-	case schema.TypeUint8:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else if v.Valid {
-			return uint8(v.Int64), nil
-		}
-	case schema.TypeUint16:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else if v.Valid {
-			return uint16(v.Int64), nil
-		}
-	case schema.TypeUint32:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else if v.Valid {
-			return uint32(v.Int64), nil
-		}
-	case schema.TypeUint:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else {
-			return utils.If(v.Valid, uint(v.Int64), uint(0)), nil
-		}
-	case schema.TypeUint64:
-		if v, ok := value.(*sql.NullInt64); !ok {
-			return nil, fieldTypeError("*sql.NullInt64", value)
-		} else if v.Valid {
-			return uint64(v.Int64), nil
-		}
-	case schema.TypeFloat32:
-		if v, ok := value.(*sql.NullFloat64); !ok {
-			return nil, fieldTypeError("*sql.NullFloat64", value)
-		} else if v.Valid {
-			return float32(v.Float64), nil
-		}
-	case schema.TypeFloat64:
-		if v, ok := value.(*sql.NullFloat64); !ok {
-			return nil, fieldTypeError("*sql.NullFloat64", value)
-		} else if v.Valid {
-			return v.Float64, nil
-		}
-	default:
-		if v, ok := value.(*any); !ok {
-			return nil, fieldTypeError("*any", value)
-		} else if v != nil {
-			return *v, nil
-		}
-	}
-
-	return nil, nil
+	return GetTypeHandler(fieldType).AssignValue(column, value, entity)
 }

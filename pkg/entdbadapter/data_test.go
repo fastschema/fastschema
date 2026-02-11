@@ -69,19 +69,21 @@ type MockTestCountData struct {
 	ExpectCount int
 }
 type MockTestQueryData struct {
-	Name    string
-	Schema  string
-	Filter  string
-	Limit   uint
-	Offset  uint
-	Columns []string
-	Order   []string
-	Expect  func(sqlmock.Sqlmock)
-	Run     func(
+	Name            string
+	Schema          string
+	Filter          string
+	Limit           uint
+	Offset          uint
+	Columns         []string
+	Order           []string
+	RelationOptions db.RelationOptions
+	Expect          func(sqlmock.Sqlmock)
+	Run             func(
 		model db.Model,
 		predicates []*db.Predicate,
 		limit, offset uint,
 		order []string,
+		relationOptions db.RelationOptions,
 		columns ...string,
 	) ([]*entity.Entity, error)
 	ExpectError    string
@@ -457,6 +459,7 @@ func MockDefaultQueryRunFn(
 	predicates []*db.Predicate,
 	limit, offset uint,
 	order []string,
+	relationOptions db.RelationOptions,
 	columns ...string,
 ) ([]*entity.Entity, error) {
 	query := model.Query()
@@ -478,6 +481,10 @@ func MockDefaultQueryRunFn(
 
 	if len(columns) > 0 {
 		query = query.Select(columns...)
+	}
+
+	if relationOptions != nil {
+		query = query.WithRelationOptions(relationOptions)
 	}
 
 	return query.Get(context.Background())
@@ -510,7 +517,7 @@ func MockRunQueryTests(
 				require.NoError(t, err)
 			}
 
-			entities, err := runFn(model, predicates, tt.Limit, tt.Offset, tt.Order, tt.Columns...)
+			entities, err := runFn(model, predicates, tt.Limit, tt.Offset, tt.Order, tt.RelationOptions, tt.Columns...)
 			if tt.ExpectError == "" {
 				assert.NoError(t, err)
 				expectEntititiesJSONs := make([]string, len(tt.ExpectEntities))

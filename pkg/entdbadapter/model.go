@@ -88,11 +88,10 @@ func (m *Model) Query(predicates ...*db.Predicate) db.Querier {
 	}
 
 	q := &Query{
-		model:           m,
-		client:          m.client,
-		predicates:      append(defaultPredicates, predicates...),
-		entities:        []*entity.Entity{},
-		withEdgesFields: []*schema.Field{},
+		model:      m,
+		client:     m.client,
+		predicates: append(defaultPredicates, predicates...),
+		entities:   []*entity.Entity{},
 	}
 
 	q.querySpec = &sqlgraph.QuerySpec{

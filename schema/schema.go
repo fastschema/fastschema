@@ -249,8 +249,8 @@ func (s *Schema) Field(name string) *Field {
 	})
 }
 
-// IDField returns the primary key field definition.
-func (s *Schema) IDField() *Field {
+// PrimaryField returns the primary key field definition.
+func (s *Schema) PrimaryField() *Field {
 	primaryName := s.PrimaryKeyName()
 	if primaryName == "" {
 		return nil

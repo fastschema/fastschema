@@ -16,7 +16,7 @@ func (cs *ContentService) Create(c fs.Context, _ any) (any, error) {
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
-	if pkField := model.Schema().IDField(); pkField != nil {
+	if pkField := model.Schema().PrimaryField(); pkField != nil {
 		entity.SetIDField(pkField.Name)
 	}
 
