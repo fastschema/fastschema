@@ -99,10 +99,15 @@ func (op *OTPProvider) RequestOTP(c fs.Context, req *OTPRequest) (*OTPResponse, 
 	}
 
 	// For security, always return success message even if user doesn't exist
+	sessionID, err := uuid.NewV7()
+	if err != nil {
+		c.Logger().Errorf("Error generating session ID: %v", err)
+		return nil, errors.InternalServerError(MSG_OTP_SESSION_CREATE_ERROR)
+	}
 	if user == nil {
 		return &OTPResponse{
 			Message:   MSG_OTP_SENT,
-			SessionID: uuid.New().String(),
+			SessionID: sessionID.String(),
 			ExpiresIn: otpConfig.GetExpiration(),
 		}, nil
 	}
@@ -111,7 +116,7 @@ func (op *OTPProvider) RequestOTP(c fs.Context, req *OTPRequest) (*OTPResponse, 
 	if !user.Active {
 		return &OTPResponse{
 			Message:   MSG_OTP_SENT,
-			SessionID: uuid.New().String(),
+			SessionID: sessionID.String(),
 			ExpiresIn: otpConfig.GetExpiration(),
 		}, nil
 	}
@@ -140,13 +145,7 @@ func (op *OTPProvider) RequestOTP(c fs.Context, req *OTPRequest) (*OTPResponse, 
 		deviceInfo = c.Arg("device_info")
 	}
 
-	sessionID, err := uuid.NewV7()
-	if err != nil {
-		c.Logger().Errorf("Error generating session ID: %v", err)
-		return nil, errors.InternalServerError(MSG_OTP_SESSION_CREATE_ERROR)
-	}
-
-	_, err = db.Builder[*fs.Session](op.db()).Create(c, entity.New().
+	session, err := db.Builder[*fs.Session](op.db()).Create(c, entity.New().
 		Set("id", sessionID).
 		Set("user_id", user.ID).
 		Set("type", string(fs.SessionTypeOTPLogin)).
@@ -185,7 +184,7 @@ func (op *OTPProvider) RequestOTP(c fs.Context, req *OTPRequest) (*OTPResponse, 
 
 	return &OTPResponse{
 		Message:   MSG_OTP_SENT,
-		SessionID: sessionID.String(),
+		SessionID: session.ID.String(),
 		ExpiresIn: otpConfig.GetExpiration(),
 	}, nil
 }

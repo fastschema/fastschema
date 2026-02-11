@@ -93,7 +93,7 @@ func TestAssignValues(t *testing.T) {
 	jsonValue := []byte(`{"a": 1}`)
 	jsonValueError := []byte(`{"a": 1, "b"}`)
 	byteValue := []byte("hello")
-	uuidValue := uuid.New()
+	uuidValue := utils.Must(uuid.NewV7())
 	tests := []args{
 		{
 			column:      "bool_field",

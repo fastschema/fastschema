@@ -84,14 +84,14 @@ func seedBlogGraph(t *testing.T, client h.DBClient) *pkGraph {
 
 	slug := fmt.Sprintf(
 		"cat-%s",
-		strings.ToLower(uuid.NewString())[:8],
+		strings.ToLower(u.Must(uuid.NewV7()).String())[:8],
 	)
 	u.Must(categoryModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(`{"id":"%s","title":"Tech","description":"Latest"}`, slug),
 	))
 
-	userID := uuid.NewString()
+	userID := u.Must(uuid.NewV7()).String()
 	u.Must(userModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(`{"id":"%s","name":"Alice","email":"alice@example.com"}`, userID),

@@ -35,6 +35,7 @@ var pkTestCases = []struct {
 	{"MixedSystemM2MUuidUint", testMixedSystemM2MUuidUint},
 	{"M2MStringUUID", testM2MStringUUID},
 	{"M2MUuidUint", testM2MUuidUint},
+	{"UUIDAutoGeneration", testUUIDAutoGeneration},
 }
 
 func newPKSchemaBuilder(t *testing.T) *schema.Builder {
@@ -309,7 +310,7 @@ func testSystemSchemasOnly(t *testing.T, client h.DBClient) {
 	seriesModel := u.Must(client.C.Model("system_series"))
 	episodeModel := u.Must(client.C.Model("system_episode"))
 
-	seriesID := uuid.NewString()
+	seriesID := u.Must(uuid.NewV7()).String()
 
 	// Create series
 	u.Must(seriesModel.CreateFromJSON(
@@ -395,9 +396,9 @@ func testSystemM2MRelations(t *testing.T, client h.DBClient) {
 
 	// Create test topics
 	topicIDs := []string{
-		fmt.Sprintf("topic-%s", uuid.NewString()),
-		fmt.Sprintf("topic-%s", uuid.NewString()),
-		fmt.Sprintf("topic-%s", uuid.NewString()),
+		fmt.Sprintf("topic-%s", u.Must(uuid.NewV7()).String()),
+		fmt.Sprintf("topic-%s", u.Must(uuid.NewV7()).String()),
+		fmt.Sprintf("topic-%s", u.Must(uuid.NewV7()).String()),
 	}
 
 	for idx, id := range topicIDs {
@@ -407,7 +408,7 @@ func testSystemM2MRelations(t *testing.T, client h.DBClient) {
 		))
 	}
 
-	seriesID := uuid.NewString()
+	seriesID := u.Must(uuid.NewV7()).String()
 
 	// Create series
 	u.Must(seriesModel.CreateFromJSON(
@@ -477,7 +478,7 @@ func testMixedSystemAndJSONSchemas(t *testing.T, client h.DBClient) {
 	profileModel := u.Must(client.C.Model("system_profile"))
 	userModel := u.Must(client.C.Model("user"))
 
-	primaryProfileID := fmt.Sprintf("profile-%s", uuid.NewString())
+	primaryProfileID := fmt.Sprintf("profile-%s", u.Must(uuid.NewV7()).String())
 
 	// Create primary profile for user with string PK
 	u.Must(profileModel.CreateFromJSON(
@@ -496,7 +497,7 @@ func testMixedSystemAndJSONSchemas(t *testing.T, client h.DBClient) {
 	assert.Equal(t, primaryProfileID, coerceString(t, primaryOwnerProfiles[0].Get("id")))
 
 	// Create orphan profile with string PK
-	orphanProfileID := fmt.Sprintf("profile-%s", uuid.NewString())
+	orphanProfileID := fmt.Sprintf("profile-%s", u.Must(uuid.NewV7()).String())
 	u.Must(profileModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(
@@ -506,7 +507,7 @@ func testMixedSystemAndJSONSchemas(t *testing.T, client h.DBClient) {
 	))
 
 	// Create second user with uuid PK
-	secondUserID := uuid.NewString()
+	secondUserID := u.Must(uuid.NewV7()).String()
 	u.Must(userModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(`{"id":"%s","name":"Barry","email":"barry_%s@example.com"}`,
@@ -555,7 +556,7 @@ func testMixedSystemM2MUuidUint(t *testing.T, client h.DBClient) {
 	userModel := u.Must(client.C.Model("user"))
 	joinModel := u.Must(client.C.Model("favorite_episodes_viewers"))
 
-	seriesID := uuid.NewString()
+	seriesID := u.Must(uuid.NewV7()).String()
 
 	// Create series with uuid PK
 	u.Must(seriesModel.CreateFromJSON(
@@ -600,7 +601,7 @@ func testMixedSystemM2MUuidUint(t *testing.T, client h.DBClient) {
 	assert.Equal(t, seriesID, coerceString(t, serieses[0].Get("id")))
 
 	// Create viewer users with uuid PKs
-	viewerIDs := []string{uuid.NewString(), uuid.NewString()}
+	viewerIDs := []string{u.Must(uuid.NewV7()).String(), u.Must(uuid.NewV7()).String()}
 	for idx, viewer := range viewerIDs {
 		u.Must(userModel.CreateFromJSON(
 			h.Ctx(),
@@ -674,7 +675,7 @@ func testM2MStringUUID(t *testing.T, client h.DBClient) {
 	joinModel := u.Must(client.C.Model("followed_categories_followers"))
 
 	toString := func(value any) string { return coerceString(t, value) }
-	secondUserID := uuid.NewString()
+	secondUserID := u.Must(uuid.NewV7()).String()
 
 	// Create second user with uuid PK
 	u.Must(userModel.CreateFromJSON(
@@ -686,7 +687,7 @@ func testM2MStringUUID(t *testing.T, client h.DBClient) {
 	))
 
 	// Create third user with uuid PK
-	thirdUserID := uuid.NewString()
+	thirdUserID := u.Must(uuid.NewV7()).String()
 	u.Must(userModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(
@@ -772,7 +773,7 @@ func testM2MUuidUint(t *testing.T, client h.DBClient) {
 	joinModel := u.Must(client.C.Model("liked_posts_likes"))
 
 	toString := func(value any) string { return coerceString(t, value) }
-	secondUserID := uuid.NewString()
+	secondUserID := u.Must(uuid.NewV7()).String()
 
 	// Create second user with uuid PK
 	u.Must(userModel.CreateFromJSON(
@@ -784,7 +785,7 @@ func testM2MUuidUint(t *testing.T, client h.DBClient) {
 	))
 
 	// Create third user with uuid PK
-	thirdUserID := uuid.NewString()
+	thirdUserID := u.Must(uuid.NewV7()).String()
 	u.Must(userModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(`{"id":"%s","name":"Eli","email":"eli@example.com"}`, thirdUserID),
@@ -859,4 +860,100 @@ func testM2MUuidUint(t *testing.T, client h.DBClient) {
 		Get(h.Ctx()))
 	require.Len(t, inverse, 1)
 	assert.Equal(t, f.postID, coerceUint(t, inverse[0].Get("liked_posts")))
+}
+
+func testUUIDAutoGeneration(t *testing.T, client h.DBClient) {
+	h.ClearDBData(client.C, pkTables...)
+
+	userModel := u.Must(client.C.Model("user"))
+	seriesModel := u.Must(client.C.Model("system_series"))
+
+	// Test 1: Create user without providing UUID - should auto-generate UUID v7
+	createdID1, err := userModel.CreateFromJSON(
+		h.Ctx(),
+		`{"name":"AutoGen User","email":"autogen@example.com"}`,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, createdID1)
+
+	// Verify the created ID is a valid UUID
+	createdUUID1, ok := createdID1.(uuid.UUID)
+	require.True(t, ok, "expected uuid.UUID, got %T", createdID1)
+	assert.NotEqual(t, uuid.Nil, createdUUID1)
+
+	// Verify UUID v7 version (version byte should be 7)
+	assert.EqualValues(t, 7, createdUUID1.Version(), "expected UUID version 7")
+
+	// Query the user to verify it was stored correctly
+	user1 := u.Must(userModel.Query(db.EQ("email", "autogen@example.com")).First(h.Ctx()))
+	require.NotNil(t, user1)
+	assert.Equal(t, "AutoGen User", user1.Get("name"))
+
+	// Verify the queried ID matches the created ID
+	queriedID1, ok := user1.Get("id").(uuid.UUID)
+	require.True(t, ok, "expected uuid.UUID from query, got %T", user1.Get("id"))
+	assert.Equal(t, createdUUID1, queriedID1)
+
+	// Test 2: Create user with explicit UUID - should use provided UUID
+	explicitUUID := uuid.MustParse("01938c5a-7b2d-7000-8000-000000000001")
+	createdID2, err := userModel.CreateFromJSON(
+		h.Ctx(),
+		fmt.Sprintf(`{"id":"%s","name":"Explicit User","email":"explicit@example.com"}`, explicitUUID.String()),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, createdID2)
+
+	// Verify the created ID matches the explicit UUID
+	createdUUID2, ok := createdID2.(uuid.UUID)
+	require.True(t, ok, "expected uuid.UUID, got %T", createdID2)
+	assert.Equal(t, explicitUUID, createdUUID2)
+
+	// Query the user to verify it was stored with the explicit UUID
+	user2 := u.Must(userModel.Query(db.EQ("email", "explicit@example.com")).First(h.Ctx()))
+	require.NotNil(t, user2)
+	queriedID2, ok := user2.Get("id").(uuid.UUID)
+	require.True(t, ok, "expected uuid.UUID from query, got %T", user2.Get("id"))
+	assert.Equal(t, explicitUUID, queriedID2)
+
+	// Test 3: Create multiple entities without UUIDs - should generate unique UUIDs
+	var generatedUUIDs []uuid.UUID
+	for i := 0; i < 5; i++ {
+		createdID, err := userModel.CreateFromJSON(
+			h.Ctx(),
+			fmt.Sprintf(`{"name":"Batch User %d","email":"batch%d@example.com"}`, i, i),
+		)
+		require.NoError(t, err)
+		createdUUID, ok := createdID.(uuid.UUID)
+		require.True(t, ok)
+		generatedUUIDs = append(generatedUUIDs, createdUUID)
+	}
+
+	// Verify all UUIDs are unique
+	seen := make(map[uuid.UUID]bool)
+	for _, id := range generatedUUIDs {
+		assert.False(t, seen[id], "duplicate UUID generated: %s", id)
+		seen[id] = true
+		assert.EqualValues(t, 7, id.Version(), "expected UUID version 7")
+	}
+
+	// Test 4: System schema with UUID primary key should also auto-generate
+	createdSeriesID, err := seriesModel.CreateFromJSON(
+		h.Ctx(),
+		`{"title":"Auto Series","synopsis":"Testing auto-generation"}`,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, createdSeriesID)
+
+	// Verify it's a valid UUID v7
+	seriesUUID, ok := createdSeriesID.(uuid.UUID)
+	require.True(t, ok, "expected uuid.UUID for series, got %T", createdSeriesID)
+	assert.NotEqual(t, uuid.Nil, seriesUUID)
+	assert.EqualValues(t, 7, seriesUUID.Version(), "expected UUID version 7 for series")
+
+	// Query to verify storage
+	series := u.Must(seriesModel.Query(db.EQ("title", "Auto Series")).First(h.Ctx()))
+	require.NotNil(t, series)
+	queriedSeriesID, ok := series.Get("id").(uuid.UUID)
+	require.True(t, ok)
+	assert.Equal(t, seriesUUID, queriedSeriesID)
 }

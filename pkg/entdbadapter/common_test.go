@@ -14,6 +14,7 @@ import (
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -390,4 +391,127 @@ func TestGetPlanForRenameTables(t *testing.T) {
 		{From: "users", To: "members"},
 	})
 	assert.Error(t, err)
+}
+
+func TestNormalizeUUIDValue(t *testing.T) {
+	testUUID := uuid.MustParse("01938c5a-7b2d-7000-8000-000000000001")
+
+	tests := []struct {
+		name    string
+		input   any
+		want    uuid.UUID
+		wantErr bool
+	}{
+		{
+			name:    "nil value",
+			input:   nil,
+			want:    uuid.Nil,
+			wantErr: false,
+		},
+		{
+			name:    "uuid.UUID",
+			input:   testUUID,
+			want:    testUUID,
+			wantErr: false,
+		},
+		{
+			name:    "pointer to uuid.UUID",
+			input:   &testUUID,
+			want:    testUUID,
+			wantErr: false,
+		},
+		{
+			name:    "nil pointer to uuid.UUID",
+			input:   (*uuid.UUID)(nil),
+			want:    uuid.Nil,
+			wantErr: false,
+		},
+		{
+			name:    "string UUID",
+			input:   "01938c5a-7b2d-7000-8000-000000000001",
+			want:    testUUID,
+			wantErr: false,
+		},
+		{
+			name:    "invalid string",
+			input:   "invalid-uuid",
+			want:    uuid.Nil,
+			wantErr: true,
+		},
+		{
+			name:    "16 byte array",
+			input:   [16]byte(testUUID),
+			want:    testUUID,
+			wantErr: false,
+		},
+		{
+			name:    "16 byte slice",
+			input:   testUUID[:],
+			want:    testUUID,
+			wantErr: false,
+		},
+		{
+			name:    "byte slice as string",
+			input:   []byte("01938c5a-7b2d-7000-8000-000000000001"),
+			want:    testUUID,
+			wantErr: false,
+		},
+		{
+			name:    "unsupported type",
+			input:   12345,
+			want:    uuid.Nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := normalizeUUIDValue(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			if tt.input == nil || (tt.input != nil && tt.input == (*uuid.UUID)(nil)) {
+				assert.Nil(t, got)
+			} else {
+				gotUUID, ok := got.(uuid.UUID)
+				assert.True(t, ok, "expected uuid.UUID, got %T", got)
+				assert.Equal(t, tt.want, gotUUID)
+			}
+		})
+	}
+}
+
+func TestNormalizeIDValueUUID(t *testing.T) {
+	testUUID := uuid.MustParse("01938c5a-7b2d-7000-8000-000000000001")
+
+	uuidField := &schema.Field{
+		Name: "id",
+		Type: schema.TypeUUID,
+	}
+
+	// Test with uuid.UUID
+	result, err := normalizeIDValue(uuidField, testUUID)
+	assert.NoError(t, err)
+	assert.Equal(t, testUUID, result)
+
+	// Test with string
+	result, err = normalizeIDValue(uuidField, testUUID.String())
+	assert.NoError(t, err)
+	assert.Equal(t, testUUID, result)
+
+	// Test with invalid string
+	_, err = normalizeIDValue(uuidField, "invalid")
+	assert.Error(t, err)
+
+	// Test with nil
+	result, err = normalizeIDValue(uuidField, nil)
+	assert.NoError(t, err)
+	assert.Nil(t, result)
+
+	// Test with nil field
+	result, err = normalizeIDValue(nil, testUUID)
+	assert.NoError(t, err)
+	assert.Equal(t, testUUID, result)
 }

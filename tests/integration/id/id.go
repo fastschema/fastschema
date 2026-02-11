@@ -90,7 +90,7 @@ func seedIDGraph(t *testing.T, client h.DBClient) *idFixture {
 	deploymentModel := u.Must(client.C.Model("deployment"))
 	artifactModel := u.Must(client.C.Model("artifact"))
 
-	projectCode := uuid.New()
+	projectCode := u.Must(uuid.NewV7())
 	u.Must(projectModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(
@@ -99,7 +99,7 @@ func seedIDGraph(t *testing.T, client h.DBClient) *idFixture {
 		),
 	))
 
-	engineerHandle := "eng-" + uuid.NewString()[:8]
+	engineerHandle := u.Must(uuid.NewV7()).String()
 	u.Must(engineerModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(
@@ -108,7 +108,7 @@ func seedIDGraph(t *testing.T, client h.DBClient) *idFixture {
 		),
 	))
 
-	teamSlug := "team-" + uuid.NewString()[:6]
+	teamSlug := u.Must(uuid.NewV7()).String()
 	u.Must(teamModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(
@@ -140,7 +140,7 @@ func seedIDGraph(t *testing.T, client h.DBClient) *idFixture {
 		),
 	))
 
-	deploymentID := uuid.New()
+	deploymentID := u.Must(uuid.NewV7())
 	u.Must(deploymentModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(
@@ -180,7 +180,7 @@ func seedSystemIDGraph(t *testing.T, client h.DBClient) *systemIDFixture {
 	experimentModel := u.Must(client.C.Model("system_experiment"))
 	sampleModel := u.Must(client.C.Model("system_sample"))
 
-	labCode := uuid.New()
+	labCode := u.Must(uuid.NewV7())
 	u.Must(labModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(
@@ -189,7 +189,7 @@ func seedSystemIDGraph(t *testing.T, client h.DBClient) *systemIDFixture {
 		),
 	))
 
-	scientistHandle := "sci-" + uuid.NewString()[:8]
+	scientistHandle := u.Must(uuid.NewV7()).String()
 	u.Must(scientistModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(
@@ -205,7 +205,7 @@ func seedSystemIDGraph(t *testing.T, client h.DBClient) *systemIDFixture {
 			refEntity("handle", scientistHandle),
 		})))
 
-	experimentID := uuid.New()
+	experimentID := u.Must(uuid.NewV7())
 	u.Must(experimentModel.CreateFromJSON(
 		h.Ctx(),
 		fmt.Sprintf(

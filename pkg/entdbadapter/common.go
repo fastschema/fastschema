@@ -24,6 +24,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 	_ "github.com/ncruces/go-sqlite3/vfs/memdb"
 )
 
@@ -393,8 +394,51 @@ func normalizeIDValue(field *schema.Field, value any) (driver.Value, error) {
 			return nil, fmt.Errorf("convert %s to integer: %w", field.Name, err)
 		}
 		return converted, nil
+	case schema.TypeUUID:
+		return normalizeUUIDValue(value)
 	default:
 		return value, nil
+	}
+}
+
+// normalizeUUIDValue converts various UUID representations to uuid.UUID
+func normalizeUUIDValue(value any) (driver.Value, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	switch v := value.(type) {
+	case uuid.UUID:
+		return v, nil
+	case *uuid.UUID:
+		if v == nil {
+			return nil, nil
+		}
+		return *v, nil
+	case string:
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			return nil, fmt.Errorf("parse UUID from string: %w", err)
+		}
+		return parsed, nil
+	case []byte:
+		if len(v) == 16 {
+			parsed, err := uuid.FromBytes(v)
+			if err != nil {
+				return nil, fmt.Errorf("parse UUID from bytes: %w", err)
+			}
+			return parsed, nil
+		}
+		// Try parsing as string
+		parsed, err := uuid.Parse(string(v))
+		if err != nil {
+			return nil, fmt.Errorf("parse UUID from bytes string: %w", err)
+		}
+		return parsed, nil
+	case [16]byte:
+		return uuid.UUID(v), nil
+	default:
+		return nil, fmt.Errorf("unsupported UUID value type: %T", value)
 	}
 }
 
@@ -488,6 +532,14 @@ func driverQuery(
 func isZeroValue(value any) bool {
 	if value == nil {
 		return true
+	}
+
+	if v, ok := value.(uuid.UUID); ok {
+		return v == uuid.Nil
+	}
+
+	if v, ok := value.(*uuid.UUID); ok {
+		return v == nil || *v == uuid.Nil
 	}
 
 	rv := reflect.ValueOf(value)

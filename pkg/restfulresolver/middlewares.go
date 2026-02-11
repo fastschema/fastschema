@@ -18,7 +18,11 @@ const HeaderRequestID = "X-Request-Id"
 func MiddlewareRequestID(c *Context) error {
 	requestID := c.Header(HeaderRequestID)
 	if requestID == "" {
-		requestID = uuid.NewString()
+		requestIDUUID, err := uuid.NewV7()
+		if err != nil {
+			return err
+		}
+		requestID = requestIDUUID.String()
 	}
 
 	c.Local(fs.TraceID, requestID)
@@ -62,10 +66,14 @@ func CreateMiddlewareRequestLog(statics []*fs.StaticFs) func(c *Context) error {
 
 func MiddlewareCookie(c *Context) error {
 	if c.Cookie("UUID") == "" {
+		uuidValue, err := uuid.NewV7()
+		if err != nil {
+			return err
+		}
 		exp := time.Now().Add(time.Hour * 100 * 365 * 24)
 		c.Cookie("UUID", &Cookie{
 			Name:     "UUID",
-			Value:    uuid.NewString(),
+			Value:    uuidValue.String(),
 			Expires:  exp,
 			HTTPOnly: false,
 			SameSite: "lax",

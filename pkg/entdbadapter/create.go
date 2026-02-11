@@ -8,6 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/expr"
+	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 )
 
 // Create creates a new entity in the database
@@ -25,6 +27,11 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ any, err err
 	}
 
 	if err := runPreDBCreateHooks(ctx, m.client, m.model.schema, e); err != nil {
+		return nil, err
+	}
+
+	// Auto-generate UUID v7 for primary key if not provided
+	if err := m.autoGenerateUUID(e); err != nil {
 		return nil, err
 	}
 
@@ -125,4 +132,34 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ any, err err
 	}
 
 	return insertedID, nil
+}
+
+// autoGenerateUUID generates a UUID v7 for the primary key field if:
+// - The primary key field is of type UUID
+// - The primary key value is not already set in the entity
+func (m *Mutation) autoGenerateUUID(e *entity.Entity) error {
+	pkField := m.model.schema.IDField()
+	if pkField == nil {
+		return nil
+	}
+
+	// Only auto-generate for UUID type primary keys
+	if pkField.Type != schema.TypeUUID {
+		return nil
+	}
+
+	// Check if the primary key value is already set
+	existingValue := e.Get(pkField.Name)
+	if !isZeroValue(existingValue) {
+		return nil
+	}
+
+	// Generate a new UUID v7
+	newUUID, err := uuid.NewV7()
+	if err != nil {
+		return fmt.Errorf("failed to generate UUID v7 for field %s: %w", pkField.Name, err)
+	}
+
+	e.Set(pkField.Name, newUUID)
+	return nil
 }

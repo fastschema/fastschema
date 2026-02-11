@@ -2,11 +2,11 @@ package id_test
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
+	"github.com/fastschema/fastschema/pkg/utils"
 	u "github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	h "github.com/fastschema/fastschema/tests/integration/helpers"
@@ -30,6 +30,7 @@ var idTestCases = []struct {
 	{"RelationFiltersAndSelects", testRelationFiltersAndSelects},
 	{"SystemPrimaryLifecycle", testSystemPrimaryLifecycle},
 	{"SystemRelationQueries", testSystemRelationQueries},
+	{"UUIDAutoGeneration", testUUIDAutoGeneration},
 }
 
 var systemSchemaTypes = []any{
@@ -87,7 +88,7 @@ func testCustomPrimaryLifecycle(t *testing.T, client h.DBClient) {
 	artifactModel := u.Must(client.C.Model("artifact"))
 	taskModel := u.Must(client.C.Model("task"))
 
-	extraProjectCode := uuid.New()
+	extraProjectCode := utils.Must(uuid.NewV7())
 	// Create an extra project to with custom PK name and type=uuid
 	u.Must(projectModel.CreateFromJSON(
 		ctx,
@@ -276,7 +277,7 @@ func testRelationFiltersAndSelects(t *testing.T, client h.DBClient) {
 	taskModel := u.Must(client.C.Model("task"))
 
 	// Create additional team and engineer to test m2m and fk relations
-	secondTeamSlug := "team-" + uuid.NewString()[:6]
+	secondTeamSlug := utils.Must(uuid.NewV7()).String()
 	u.Must(teamModel.CreateFromJSON(
 		ctx,
 		fmt.Sprintf(
@@ -286,7 +287,7 @@ func testRelationFiltersAndSelects(t *testing.T, client h.DBClient) {
 	))
 
 	// Create additional engineer to test m2m and fk relations
-	secondEngineerHandle := "eng-" + uuid.NewString()[:8]
+	secondEngineerHandle := utils.Must(uuid.NewV7())
 	u.Must(engineerModel.CreateFromJSON(
 		ctx,
 		fmt.Sprintf(
@@ -406,7 +407,7 @@ func testSystemPrimaryLifecycle(t *testing.T, client h.DBClient) {
 	sampleModel := u.Must(client.C.Model("system_sample"))
 
 	// Create an extra lab with a unique code
-	extraLabCode := uuid.New()
+	extraLabCode := u.Must(uuid.NewV7())
 	u.Must(labModel.CreateFromJSON(
 		ctx,
 		fmt.Sprintf(`{"code":"%s","name":"Orion"}`, extraLabCode),
@@ -485,7 +486,7 @@ func testSystemRelationQueries(t *testing.T, client h.DBClient) {
 	sampleModel := u.Must(client.C.Model("system_sample"))
 
 	// Create additional scientist to test fk and m2m relations
-	secondHandle := fmt.Sprintf("sci-%s", strings.ToLower(uuid.NewString())[:8])
+	secondHandle := u.Must(uuid.NewV7()).String()
 	u.Must(scientistModel.CreateFromJSON(
 		ctx,
 		fmt.Sprintf(
@@ -504,7 +505,7 @@ func testSystemRelationQueries(t *testing.T, client h.DBClient) {
 		})))
 
 	// Create additional experiment to test fk relations
-	secondExperimentID := uuid.New()
+	secondExperimentID := u.Must(uuid.NewV7())
 	u.Must(experimentModel.CreateFromJSON(
 		ctx,
 		fmt.Sprintf(`{"experiment_id":"%s","title":"Comet","lab":{"code":"%s"},"scientist":{"handle":"%s"}}`, secondExperimentID, f.labCode, secondHandle),
@@ -571,4 +572,134 @@ func testSystemRelationQueries(t *testing.T, client h.DBClient) {
 		return e.ID().(uuid.UUID)
 	})
 	assert.ElementsMatch(t, []uuid.UUID{f.experimentID, secondExperimentID}, experimentIDs)
+}
+
+func testUUIDAutoGeneration(t *testing.T, client h.DBClient) {
+	h.ClearDBData(client.C, idTables...)
+	ctx := h.Ctx()
+
+	projectModel := u.Must(client.C.Model("project"))
+	deploymentModel := u.Must(client.C.Model("deployment"))
+	labModel := u.Must(client.C.Model("system_lab"))
+	scientistModel := u.Must(client.C.Model("system_scientist"))
+	experimentModel := u.Must(client.C.Model("system_experiment"))
+
+	// Test 1: Create project without providing UUID - should auto-generate UUID v7
+	// Project has custom PK field name "code" with type uuid
+	createdProjectCode, err := projectModel.CreateFromJSON(
+		ctx,
+		`{"name":"AutoGen Project","status":"active"}`,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, createdProjectCode)
+
+	// Verify the created ID is a valid UUID
+	projectUUID, ok := createdProjectCode.(uuid.UUID)
+	require.True(t, ok, "expected uuid.UUID for project, got %T", createdProjectCode)
+	assert.NotEqual(t, uuid.Nil, projectUUID)
+	assert.EqualValues(t, 7, projectUUID.Version(), "expected UUID version 7")
+
+	// Query the project to verify it was stored correctly
+	project := u.Must(projectModel.Query(db.EQ("name", "AutoGen Project")).First(ctx))
+	require.NotNil(t, project)
+	assert.Equal(t, projectUUID, project.ID())
+	assert.Equal(t, projectUUID, project.Get("code"))
+
+	// Test 2: Create project with explicit UUID - should use provided UUID
+	explicitProjectCode := uuid.MustParse("01938c5a-7b2d-7000-8000-000000000002")
+	createdProjectID2, err := projectModel.CreateFromJSON(
+		ctx,
+		fmt.Sprintf(`{"code":"%s","name":"Explicit Project","status":"draft"}`, explicitProjectCode.String()),
+	)
+	require.NoError(t, err)
+	createdProjectUUID2, ok := createdProjectID2.(uuid.UUID)
+	require.True(t, ok)
+	assert.Equal(t, explicitProjectCode, createdProjectUUID2)
+
+	// Verify the project was stored with the explicit UUID
+	project2 := u.Must(projectModel.Query(db.EQ("name", "Explicit Project")).First(ctx))
+	assert.Equal(t, explicitProjectCode, project2.ID())
+
+	// Test 3: Create deployment without UUID - should auto-generate UUID v7
+	// Deployment has custom PK field name "deployment_id" with type uuid
+	createdDeploymentID, err := deploymentModel.CreateFromJSON(
+		ctx,
+		fmt.Sprintf(`{"environment":"staging","project":{"code":"%s"}}`, projectUUID.String()),
+	)
+	require.NoError(t, err)
+	deploymentUUID, ok := createdDeploymentID.(uuid.UUID)
+	require.True(t, ok, "expected uuid.UUID for deployment, got %T", createdDeploymentID)
+	assert.NotEqual(t, uuid.Nil, deploymentUUID)
+	assert.EqualValues(t, 7, deploymentUUID.Version(), "expected UUID version 7")
+
+	// Verify the deployment was stored correctly and linked to project
+	deployment := u.Must(deploymentModel.Query(db.EQ("deployment_id", deploymentUUID)).First(ctx))
+	assert.Equal(t, "staging", deployment.Get("environment"))
+	assert.Equal(t, projectUUID, deployment.Get("project_code"))
+
+	// Test 4: System schema with UUID PK - auto-generation
+	// Lab has custom PK field name "code" with type uuid
+	createdLabID, err := labModel.CreateFromJSON(
+		ctx,
+		`{"name":"AutoGen Lab","focus":"research"}`,
+	)
+	require.NoError(t, err)
+	labUUID, ok := createdLabID.(uuid.UUID)
+	require.True(t, ok, "expected uuid.UUID for lab, got %T", createdLabID)
+	assert.NotEqual(t, uuid.Nil, labUUID)
+	assert.EqualValues(t, 7, labUUID.Version(), "expected UUID version 7")
+
+	// Verify the lab was stored correctly
+	lab := u.Must(labModel.Query(db.EQ("name", "AutoGen Lab")).First(ctx))
+	assert.Equal(t, labUUID, lab.ID())
+
+	// Create a scientist for experiment (required FK)
+	scientistHandle := u.Must(uuid.NewV7()).String()
+	_, err = scientistModel.CreateFromJSON(
+		ctx,
+		fmt.Sprintf(`{"handle":"%s","name":"Dr. AutoGen"}`, scientistHandle),
+	)
+	require.NoError(t, err)
+
+	// Test 5: Create experiment with auto-generated UUID v7
+	// Experiment has custom PK field name "experiment_id" with type uuid
+	createdExpID, err := experimentModel.CreateFromJSON(
+		ctx,
+		fmt.Sprintf(`{"title":"AutoGen Experiment","lab":{"code":"%s"},"scientist":{"handle":"%s"}}`, labUUID.String(), scientistHandle),
+	)
+	require.NoError(t, err)
+	expUUID, ok := createdExpID.(uuid.UUID)
+	require.True(t, ok, "expected uuid.UUID for experiment, got %T", createdExpID)
+	assert.NotEqual(t, uuid.Nil, expUUID)
+	assert.EqualValues(t, 7, expUUID.Version(), "expected UUID version 7")
+
+	// Verify the experiment was stored correctly and linked to lab
+	experiment := u.Must(experimentModel.Query(db.EQ("experiment_id", expUUID)).First(ctx))
+	assert.Equal(t, "AutoGen Experiment", experiment.Get("title"))
+	assert.Equal(t, labUUID, experiment.Get("lab_code"))
+
+	// Test 6: Multiple auto-generated UUIDs should be unique
+	var generatedUUIDs []uuid.UUID
+	for i := 0; i < 5; i++ {
+		createdID, err := projectModel.CreateFromJSON(
+			ctx,
+			fmt.Sprintf(`{"name":"Batch Project %d","status":"batch"}`, i),
+		)
+		require.NoError(t, err)
+		createdUUID, ok := createdID.(uuid.UUID)
+		require.True(t, ok)
+		generatedUUIDs = append(generatedUUIDs, createdUUID)
+	}
+
+	// Verify all UUIDs are unique and are v7
+	seen := make(map[uuid.UUID]bool)
+	for _, id := range generatedUUIDs {
+		assert.False(t, seen[id], "duplicate UUID generated: %s", id)
+		seen[id] = true
+		assert.EqualValues(t, 7, id.Version(), "expected UUID version 7")
+	}
+
+	// Verify batch projects can be queried
+	batchProjects := u.Must(projectModel.Query(db.EQ("status", "batch")).Get(ctx))
+	require.Len(t, batchProjects, 5)
 }
