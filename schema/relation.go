@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
@@ -33,9 +34,9 @@ type Relation struct {
 	// or the column referencing the target schema's PK
 	// in the M2M junction table.
 	SourceColumn string `json:"source_column"`
-	// TargetColumn is only used for M2M relations and
-	// represents the column referencing
-	// the source schema's primary key in the junction table.
+	// TargetColumn optionally specifies the referenced column on the target schema
+	// for FK relations. For M2M relations it continues to describe the junction
+	// column that references the source schema's primary key.
 	TargetColumn string `json:"target_column"`
 
 	// JunctionTable is the junction table name for m2m relation
@@ -73,6 +74,14 @@ func (r *Relation) Init(schema *Schema, relationSchema *Schema, f *Field) *Relat
 			r.SourceFieldName+"_id",
 			r.SourceColumn,
 		)
+
+		if !r.Type.IsM2M() {
+			r.TargetColumn = utils.If(
+				r.TargetColumn == "",
+				entity.FieldID,
+				r.TargetColumn,
+			)
+		}
 	}
 
 	return r

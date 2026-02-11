@@ -3,6 +3,7 @@ package schema
 import (
 	"testing"
 
+	"github.com/fastschema/fastschema/entity"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,6 +43,7 @@ func TestRelation(t *testing.T) {
 	assert.Equal(t, field.Name, relation.SourceFieldName)
 	assert.Equal(t, "post.owner-user.id", relation.Name)
 	assert.Equal(t, "owner_id", relation.SourceColumn)
+	assert.Equal(t, entity.FieldID, relation.TargetColumn)
 	assert.Equal(t, NoAction, relation.OnDelete)
 	assert.Equal(t, NoAction, relation.OnDeleteOption())
 	assert.Equal(t, NoAction, relation.OnUpdate)

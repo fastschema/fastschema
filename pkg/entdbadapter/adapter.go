@@ -204,13 +204,18 @@ func (d *Adapter) init() error {
 			)
 		}
 
+		targetEntColumn, err := d.resolveRelationTargetColumn(targetModel, r)
+		if err != nil {
+			return err
+		}
+
 		if r.FKFields != nil {
 			currentModel.entTable.ForeignKeys = append(
 				currentModel.entTable.ForeignKeys,
 				&entSchema.ForeignKey{
 					Symbol:     fmt.Sprintf("%s_%s", currentSchema.Name, r.SourceColumn),
 					Columns:    []*entSchema.Column{createEntColumn(r.FKFields[0])},
-					RefColumns: []*entSchema.Column{targetModel.entIDColumn},
+					RefColumns: []*entSchema.Column{targetEntColumn},
 					OnDelete:   onDelete,
 					OnUpdate:   onUpdate,
 					RefTable:   targetModel.entTable,
@@ -238,6 +243,11 @@ func (d *Adapter) init() error {
 		relationModel, err := d.model(r.TargetSchemaName)
 		if err != nil {
 			return fmt.Errorf("invalid relation model %s: %w", r.TargetSchemaName, err)
+		}
+
+		targetEntColumn, err := d.resolveRelationTargetColumn(relationModel, r)
+		if err != nil {
+			return err
 		}
 
 		inverse := !r.IsBidi() && !r.Owner
@@ -277,6 +287,19 @@ func (d *Adapter) init() error {
 			columns[1] = r.SourceSchemaName
 		}
 
+		var edgeTargetIDSpec *sqlgraph.FieldSpec
+		if r.Owner || r.IsSameType() {
+			edgeTargetIDSpec = &sqlgraph.FieldSpec{
+				Column: relationModel.entIDColumn.Name,
+				Type:   relationModel.entIDColumn.Type,
+			}
+		} else if !r.Type.IsM2M() && targetEntColumn != nil && targetEntColumn.Name != relationModel.entIDColumn.Name {
+			edgeTargetIDSpec = &sqlgraph.FieldSpec{
+				Column: targetEntColumn.Name,
+				Type:   targetEntColumn.Type,
+			}
+		}
+
 		relEdgeSpec := sqlgraph.EdgeSpec{
 			Rel:     RelMaps[r.Type],
 			Bidi:    r.IsBidi(),
@@ -284,10 +307,7 @@ func (d *Adapter) init() error {
 			Table:   utils.If(r.Type.IsM2M(), r.JunctionTable, relationModel.entTable.Name),
 			Columns: columns,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: utils.If(r.Owner || r.IsSameType(), &sqlgraph.FieldSpec{
-					Column: relationModel.entIDColumn.Name,
-					Type:   relationModel.entIDColumn.Type,
-				}, nil),
+				IDSpec: edgeTargetIDSpec,
 			},
 		}
 
@@ -410,7 +430,10 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 
 		r := relations[0]
 		// add unique key for the junction table
-		indexParts := []string{m.entTable.Columns[0].Name, m.entTable.Columns[1].Name}
+		indexParts := []string{
+			m.entTable.Columns[0].Name,
+			m.entTable.Columns[1].Name,
+		}
 		sort.Strings(indexParts)
 
 		colIndexes := [2]uint{0, 1}
@@ -436,6 +459,7 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 				RefColumns: []*entSchema.Column{firstRelationModel.entIDColumn},
 				RefTable:   firstRelationModel.entTable,
 				OnDelete:   entSchema.Cascade,
+				OnUpdate:   entSchema.Cascade,
 			},
 			{
 				Symbol:     fmt.Sprintf("%s_%s", s.Namespace, col2.Name),
@@ -443,6 +467,7 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 				RefColumns: []*entSchema.Column{secondRelationModel.entIDColumn},
 				RefTable:   secondRelationModel.entTable,
 				OnDelete:   entSchema.Cascade,
+				OnUpdate:   entSchema.Cascade,
 			},
 		}
 	}
@@ -457,6 +482,29 @@ func relationOnDeleteOption(r *schema.Relation) entSchema.ReferenceOption {
 	}
 
 	return referenceOptionTypeToEnt(option)
+}
+
+func (d *Adapter) resolveRelationTargetColumn(targetModel *Model, r *schema.Relation) (*entSchema.Column, error) {
+	if r.Type.IsM2M() || r.TargetColumn == "" || r.TargetColumn == entity.FieldID {
+		return targetModel.entIDColumn, nil
+	}
+
+	if r.TargetColumn == targetModel.entIDColumn.Name {
+		return targetModel.entIDColumn, nil
+	}
+
+	entColumn, ok := targetModel.entTable.Column(r.TargetColumn)
+	if !ok {
+		return nil, fmt.Errorf(
+			"relation %s.%s: target column '%s' not found in schema %s",
+			r.SourceSchemaName,
+			r.SourceFieldName,
+			r.TargetColumn,
+			r.TargetSchemaName,
+		)
+	}
+
+	return entColumn, nil
 }
 
 func relationOnUpdateOption(r *schema.Relation) entSchema.ReferenceOption {

@@ -13,7 +13,7 @@ func TestSchema(t *testing.T) {
 	_, err := NewSchemaFromJSONFile("invalid_file.json")
 	assert.Error(t, err)
 
-	s, err := NewSchemaFromJSONFile("../tests/data/schemas/user.json")
+	s, err := NewSchemaFromJSONFile("../tests/integration/db/data/schemas/user.json")
 	assert.NoError(t, err)
 	assert.Equal(t, "user", s.Name)
 
@@ -41,7 +41,7 @@ func TestSchema(t *testing.T) {
 	assert.NotNil(t, s.Field(entity.FieldUpdatedAt))
 	assert.NotNil(t, s.Field(entity.FieldDeletedAt))
 
-	s2, err := NewSchemaFromJSONFile("../tests/data/schemas/user.json")
+	s2, err := NewSchemaFromJSONFile("../tests/integration/db/data/schemas/user.json")
 	assert.NoError(t, err)
 	assert.Equal(t, "user", s2.Name)
 

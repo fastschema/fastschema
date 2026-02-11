@@ -95,7 +95,7 @@ func TestNewBuilderFromDir(t *testing.T) {
 	_, err = NewBuilderFromDir(tmpDir, testcategory{}, testpost{})
 	assert.Error(t, err)
 
-	builder, err := NewBuilderFromDir("../tests/data/schemas", testcategory{}, testpost{})
+	builder, err := NewBuilderFromDir("../tests/integration/db/data/schemas", testcategory{}, testpost{})
 	assert.Nil(t, err)
 	assert.NotNil(t, builder)
 

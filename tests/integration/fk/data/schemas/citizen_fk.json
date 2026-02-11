@@ -1,0 +1,29 @@
+{
+  "name": "citizen_fk",
+  "namespace": "citizen_fk",
+  "label_field": "full_name",
+  "fields": [
+    {
+      "name": "full_name",
+      "label": "Full Name",
+      "type": "string"
+    },
+    {
+      "name": "legacy_id",
+      "label": "Legacy ID",
+      "type": "uint64",
+      "unique": true
+    },
+    {
+      "name": "passport",
+      "label": "Passport",
+      "type": "relation",
+      "relation": {
+        "type": "o2o",
+        "schema": "passport_fk",
+        "field": "holder",
+        "owner": true
+      }
+    }
+  ]
+}

@@ -7,6 +7,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
+	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/fastschema/fastschema/schema"
 )
 
 // Mutation holds the entity mutation data
@@ -31,6 +33,13 @@ func (m *Mutation) GetRelationEntityIDs(fieldName string, fieldValue any) ([]dri
 		return nil, nil
 	}
 
+	var relation *schema.Relation
+	if m.model != nil && m.model.schema != nil {
+		if field := m.model.schema.Field(fieldName); field != nil {
+			relation = field.Relation
+		}
+	}
+
 	relationEntities := make([]*entity.Entity, 0)
 	relationEntity, ok := fieldValue.(*entity.Entity)
 	if ok {
@@ -52,26 +61,46 @@ func (m *Mutation) GetRelationEntityIDs(fieldName string, fieldValue any) ([]dri
 			continue
 		}
 
-		// Create the relation entity if it doesn't exist
-		// if relationEntity.ID() == 0 {
-		// 	relationModel := m.client.Model(relation.TargetSchemaName)
-		// 	relationEntity, err = relationModel.Mutation(true).Create(relationEntity)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// }
-
-		if relationEntity.ID() == 0 {
-			return nil, fmt.Errorf(
-				"relation entity for %s.%s has no ID",
-				m.model.name,
-				fieldName,
-			)
+		value, err := m.targetReferenceValue(fieldName, relation, relationEntity)
+		if err != nil {
+			return nil, err
 		}
 
-		// Add the relation entity id to the list of ids
-		relationEntityIDs = append(relationEntityIDs, relationEntity.ID())
+		relationEntityIDs = append(relationEntityIDs, value)
 	}
 
 	return relationEntityIDs, nil
+}
+
+func (m *Mutation) targetReferenceValue(
+	fieldName string,
+	relation *schema.Relation,
+	relationEntity *entity.Entity,
+) (driver.Value, error) {
+	if relation == nil {
+		return nil, fmt.Errorf("relation for %s.%s not found", m.model.name, fieldName)
+	}
+
+	if relation.Type.IsM2M() {
+		if relationEntity.ID() == 0 {
+			return nil, fmt.Errorf("relation entity for %s.%s has no ID", m.model.name, fieldName)
+		}
+
+		return relationEntity.ID(), nil
+	}
+
+	refColumn := utils.If(relation.TargetColumn != "", relation.TargetColumn, entity.FieldID)
+	value, err := relationEntity.GetUint64(refColumn, false)
+	if err != nil || value == 0 {
+		return nil, fmt.Errorf(
+			"relation entity for %s.%s target column '%s' is invalid, value=%d, err=%w",
+			m.model.name,
+			fieldName,
+			refColumn,
+			value,
+			err,
+		)
+	}
+
+	return value, nil
 }

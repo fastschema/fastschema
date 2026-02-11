@@ -1,6 +1,7 @@
 releases/
 tests/coverage
 tests/integration/**/data/migrations/*
+tests/integration/**/data/*.db
 !tests/integration/**/data/migrations/.gitkeep
 .env
 /data/*

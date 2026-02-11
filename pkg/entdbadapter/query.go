@@ -17,16 +17,17 @@ import (
 )
 
 type Query struct {
-	limit           uint
-	offset          uint
-	fields          []string
-	order           []string
-	entities        []*entity.Entity
-	predicates      []*db.Predicate
-	withEdgesFields []*schema.Field
-	client          db.Client
-	model           *Model
-	querySpec       *sqlgraph.QuerySpec
+	limit            uint
+	offset           uint
+	fields           []string
+	order            []string
+	entities         []*entity.Entity
+	predicates       []*db.Predicate
+	withEdgesFields  []*schema.Field
+	edgeDirectSelect map[string]bool
+	client           db.Client
+	model            *Model
+	querySpec        *sqlgraph.QuerySpec
 }
 
 func (q *Query) WithTrashed() db.Querier {
@@ -150,6 +151,7 @@ func (q *Query) Count(ctx context.Context, options ...*db.QueryOption) (int, err
 }
 
 // First returns the first entity that matches the query.
+// Returns NotFoundError if no entity was found.
 func (q *Query) First(ctx context.Context) (*entity.Entity, error) {
 	q.Limit(1)
 	entities, err := q.Get(ctx)
@@ -165,7 +167,8 @@ func (q *Query) First(ctx context.Context) (*entity.Entity, error) {
 	return entities[0], nil
 }
 
-// Only returns the matched entity or an error if there is more than one.
+// Only returns the only entity that matches the query.
+// Returns NotFoundError if no or more than one entity was found.
 func (q *Query) Only(ctx context.Context) (*entity.Entity, error) {
 	entities, err := q.Get(ctx)
 
@@ -184,20 +187,22 @@ func (q *Query) Only(ctx context.Context) (*entity.Entity, error) {
 	return entities[0], nil
 }
 
-func (q *Query) parseNestedFields(fields []string) ([]string, map[string][]string, error) {
+func (q *Query) parseNestedFields(fields []string) ([]string, map[string][]string, map[string]bool, error) {
 	edgeColumns := map[string][]string{}
 	processedFields := []string{}
+	directSelections := map[string]bool{}
 
 	for _, originalField := range fields {
 		if !strings.Contains(originalField, ".") {
 			processedFields = append(processedFields, originalField)
+			directSelections[originalField] = true
 			continue
 		}
 
 		// Get the first part of the field path and the remaining path
 		dotIndex := strings.Index(originalField, ".")
 		if dotIndex == 0 || dotIndex == len(originalField)-1 {
-			return nil, nil, fmt.Errorf(`invalid column name %q`, originalField)
+			return nil, nil, nil, fmt.Errorf(`invalid column name %q`, originalField)
 		}
 
 		// The first part is the edge name, and the remaining path is the nested field
@@ -210,7 +215,7 @@ func (q *Query) parseNestedFields(fields []string) ([]string, map[string][]strin
 		processedFields = append(processedFields, processField)
 	}
 
-	return utils.Unique(processedFields), edgeColumns, nil
+	return utils.Unique(processedFields), edgeColumns, directSelections, nil
 }
 
 // Get returns the list of entities that match the query.
@@ -227,9 +232,11 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 	}
 
 	if len(q.fields) > 0 {
-		if selectFieldNames, edgeColumns, err = q.parseNestedFields(q.fields); err != nil {
+		var directSelections map[string]bool
+		if selectFieldNames, edgeColumns, directSelections, err = q.parseNestedFields(q.fields); err != nil {
 			return nil, err
 		}
+		q.edgeDirectSelect = directSelections
 
 		for _, fieldName := range selectFieldNames {
 			column, err := q.model.Column(fieldName)
@@ -243,11 +250,20 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 				if relation.Type != schema.M2M && !relation.Owner {
 					fkColumns = append(fkColumns, relation.SourceColumn)
 				}
+
+				if relation.Type != schema.M2M && relation.Owner && relation.BackRef != nil {
+					targetColumn := relation.BackRef.TargetColumn
+					if targetColumn != "" && targetColumn != entity.FieldID {
+						fkColumns = append(fkColumns, targetColumn)
+					}
+				}
 			} else if fieldName != q.model.entIDColumn.Name {
 				directColumnNames = append(directColumnNames, fieldName)
 				allSelectsAreEdges = false
 			}
 		}
+	} else {
+		q.edgeDirectSelect = nil
 	}
 
 	directColumnNames = append(directColumnNames, fkColumns...)
@@ -302,7 +318,7 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 			}
 
 			orderSelectors = append(orderSelectors, func(s *sql.Selector) {
-				s.OrderBy(orderFn(columnName))
+				s.OrderBy(orderFn(s.C(columnName)))
 			})
 		}
 
@@ -455,7 +471,13 @@ func (q *Query) loadEdgesM2M(
 
 	relation := field.Relation
 	conditionColumn := utils.If(relation.IsBidi(), relation.SourceSchemaName, relation.BackRef.SourceFieldName)
+	if !relation.IsBidi() && relation.TargetColumn != "" {
+		conditionColumn = relation.TargetColumn
+	}
 	joinColumn := utils.If(relation.IsBidi(), relation.SourceSchemaName, relation.SourceFieldName)
+	if relation.SourceColumn != "" {
+		joinColumn = relation.SourceColumn
+	}
 
 	// Separate direct columns from nested field paths and relation fields
 	directColumns := []string{}
@@ -484,7 +506,11 @@ func (q *Query) loadEdgesM2M(
 		joinJuntion := sql.Table(relation.JunctionTable)
 		s.Join(joinJuntion).On(joinJuntion.C(joinColumn), s.C(edgeModel.entIDColumn.Name))
 		s.Where(sql.InValues(joinJuntion.C(conditionColumn), edgeIDs...))
-		s.Select(joinJuntion.C(relation.BackRef.SourceFieldName) + " AS " + relation.BackRef.SourceFieldName + "_id")
+		selectColumn := relation.BackRef.SourceFieldName
+		if !relation.IsBidi() && relation.TargetColumn != "" {
+			selectColumn = relation.TargetColumn
+		}
+		s.Select(joinJuntion.C(selectColumn) + " AS " + selectColumn + "_id")
 
 		// Need complete entity data for recursive loading
 		if len(directColumns) == 0 || len(relationFields) > 0 || len(nestedFields) > 0 {
@@ -547,11 +573,16 @@ func (q *Query) loadEdgesM2M(
 
 // loadNonOwnerEdges loads the non-owner edges for the given field.
 func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edgeModel *Model, edgeColumns []string) error {
+	selectFullEdge := q.edgeDirectSelect != nil && q.edgeDirectSelect[field.Name]
 	relation := field.Relation
 	edgeSchemaName := relation.TargetSchemaName
 	ids := make([]any, 0, len(q.entities))
 	nodeids := make(map[uint64][]*entity.Entity)
 	fkColumn := relation.SourceColumn
+	targetColumn := relation.TargetColumn
+	if targetColumn == "" {
+		targetColumn = entity.FieldID
+	}
 
 	for _, entity := range q.entities {
 		fkUint64, err := entity.GetUint64(fkColumn, true)
@@ -596,6 +627,18 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 		}
 	}
 
+	if selectFullEdge {
+		directColumns = nil
+	} else {
+		if !utils.Contains(directColumns, edgeModel.entIDColumn.Name) {
+			directColumns = append(directColumns, edgeModel.entIDColumn.Name)
+		}
+		if targetColumn != edgeModel.entIDColumn.Name && !utils.Contains(directColumns, targetColumn) {
+			directColumns = append(directColumns, targetColumn)
+		}
+		directColumns = utils.Unique(directColumns)
+	}
+
 	edgeQuery := edgeModel.Query()
 	if len(directColumns) > 0 {
 		edgeQuery = edgeQuery.Select(directColumns...)
@@ -610,14 +653,24 @@ func (q *Query) loadNonOwnerEdges(ctx context.Context, field *schema.Field, edge
 		}
 	}
 
-	edgeQuery = edgeQuery.Where(db.In(edgeModel.entIDColumn.Name, ids))
+	edgeQuery = edgeQuery.Where(db.In(targetColumn, ids))
 	neighbors, err := edgeQuery.Get(ctx)
 	if err != nil {
 		return err
 	}
 
 	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID()]
+		var refValue uint64
+		if targetColumn == edgeModel.entIDColumn.Name {
+			refValue = n.ID()
+		} else {
+			refValue, err = n.GetUint64(targetColumn, false)
+			if err != nil {
+				return fmt.Errorf("invalid target column %q for %s: %w", targetColumn, edgeSchemaName, err)
+			}
+		}
+
+		nodes, ok := nodeids[refValue]
 		if !ok {
 			return noFKNodeError(q.model.name, edgeSchemaName, fkColumn, n.ID(), 0)
 		}
@@ -638,16 +691,29 @@ func (q *Query) loadOwnerEdges(
 	edgeColumns []string,
 	assignFn func(node, neighbor *entity.Entity) error,
 ) error {
+	selectFullEdge := q.edgeDirectSelect != nil && q.edgeDirectSelect[field.Name]
 	relation := field.Relation
 	edgeSchemaName := relation.TargetSchemaName
 	fks := make([]any, 0, len(q.entities))
 	nodeids := make(map[uint64]*entity.Entity)
 	fkColumn := relation.BackRef.SourceColumn
+	refColumn := relation.BackRef.TargetColumn
+	useTargetColumn := refColumn != "" && refColumn != entity.FieldID
 
 	for _, entity := range q.entities {
-		entityID := entity.ID()
-		fks = append(fks, entityID)
-		nodeids[entityID] = entity
+		var refValue uint64
+		if useTargetColumn {
+			var err error
+			refValue, err = entity.GetUint64(refColumn, false)
+			if err != nil {
+				return invalidFKError(q.model.name, refColumn, entity.ID(), err)
+			}
+		} else {
+			refValue = entity.ID()
+		}
+
+		fks = append(fks, refValue)
+		nodeids[refValue] = entity
 	}
 
 	// Separate direct columns from nested field paths and relation fields
@@ -673,8 +739,16 @@ func (q *Query) loadOwnerEdges(
 		}
 	}
 
-	if len(directColumns) > 0 && !utils.Contains(directColumns, fkColumn) {
-		directColumns = append(directColumns, fkColumn)
+	if selectFullEdge {
+		directColumns = nil
+	} else {
+		if !utils.Contains(directColumns, edgeModel.entIDColumn.Name) {
+			directColumns = append(directColumns, edgeModel.entIDColumn.Name)
+		}
+		if fkColumn != "" && !utils.Contains(directColumns, fkColumn) {
+			directColumns = append(directColumns, fkColumn)
+		}
+		directColumns = utils.Unique(directColumns)
 	}
 
 	edgeQuery := edgeModel.Query()

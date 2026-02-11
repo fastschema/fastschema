@@ -1,0 +1,30 @@
+{
+  "name": "book_fk",
+  "namespace": "book_fk",
+  "label_field": "title",
+  "fields": [
+    {
+      "name": "title",
+      "label": "Title",
+      "type": "string"
+    },
+    {
+      "name": "author_legacy_id",
+      "label": "Author Legacy ID",
+      "type": "uint64"
+    },
+    {
+      "name": "author",
+      "label": "Author",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "author_fk",
+        "field": "books",
+        "owner": false,
+        "source_column": "author_legacy_id",
+        "target_column": "legacy_id"
+      }
+    }
+  ]
+}

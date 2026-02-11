@@ -1,0 +1,31 @@
+{
+  "name": "passport_fk",
+  "namespace": "passport_fk",
+  "label_field": "number",
+  "fields": [
+    {
+      "name": "number",
+      "label": "Passport Number",
+      "type": "string",
+      "unique": true
+    },
+    {
+      "name": "holder_legacy_id",
+      "label": "Holder Legacy ID",
+      "type": "uint64"
+    },
+    {
+      "name": "holder",
+      "label": "Holder",
+      "type": "relation",
+      "relation": {
+        "type": "o2o",
+        "schema": "citizen_fk",
+        "field": "passport",
+        "owner": false,
+        "source_column": "holder_legacy_id",
+        "target_column": "legacy_id"
+      }
+    }
+  ]
+}

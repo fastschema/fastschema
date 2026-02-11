@@ -279,14 +279,14 @@ func (b *Builder) CreateFKs() error {
 
 			// if relation.FKFields != nil {
 			if fkField != nil {
-				existedSchemaField := schema.Field(fkField.Name)
-				if existedSchemaField != nil {
-					MergeFields(existedSchemaField, fkField)
+				foundFKField := schema.Field(fkField.Name)
+				if foundFKField != nil {
+					MergeFields(foundFKField, fkField)
 				} else {
-					existedSchemaField = fkField
+					foundFKField = fkField
 					schema.Fields = utils.SliceInsertBeforeElement(
 						schema.Fields,
-						existedSchemaField,
+						foundFKField,
 						func(f *Field) bool {
 							return f.Name == entity.FieldCreatedAt
 						},
@@ -300,7 +300,7 @@ func (b *Builder) CreateFKs() error {
 					)
 				}
 
-				relation.FKFields = []*Field{existedSchemaField}
+				relation.FKFields = []*Field{foundFKField}
 			}
 		}
 	}
@@ -340,20 +340,18 @@ func (b *Builder) CreateM2mJunctionSchema(sourceSchema *Schema, r *Relation) (*S
 		return nil, false, err
 	}
 
-	// firstFKName: the field name from the source schema (used as FK column name)
-	// secondFKName: the field name from the target schema (used as FK column name)
-	// If the relation is bidi, use the schema name as the first fk name to avoid conflicts
-	firstFKName := utils.If(r.IsBidi(), r.SourceSchemaName, r.SourceFieldName)
-	secondFKName := r.TargetFieldName
+	// first/second FK names default to field identifiers but allow overrides
+	defaultFirstFKName := utils.If(r.IsBidi(), r.SourceSchemaName, r.SourceFieldName)
+	defaultSecondFKName := r.TargetFieldName
 
-	// The junction table's "firstFKName" column references the target schema's PK
-	// The junction table's "secondFKName" column references the source schema's PK
-	fKColumnNames := []string{firstFKName, secondFKName}
+	sourceColumn := utils.If(r.SourceColumn == "", defaultFirstFKName, r.SourceColumn)
+	targetColumn := utils.If(r.TargetColumn == "", defaultSecondFKName, r.TargetColumn)
+	fKColumnNames := []string{sourceColumn, targetColumn}
 	r.RelationSchemas = []*Schema{targetSchema, sourceSchema}
-	r.SourceColumn = firstFKName
-	r.TargetColumn = secondFKName
+	r.SourceColumn = sourceColumn
+	r.TargetColumn = targetColumn
 
-	tableNameParts := []string{firstFKName, secondFKName}
+	tableNameParts := []string{sourceColumn, targetColumn}
 	sort.Strings(tableNameParts)
 	if r.JunctionTable == "" {
 		r.JunctionTable = strings.Join(tableNameParts, "_")

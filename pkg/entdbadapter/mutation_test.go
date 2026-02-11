@@ -6,14 +6,31 @@ import (
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
+	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMutation(t *testing.T) {
+	testSchema := &schema.Schema{
+		Name: "test",
+		Fields: []*schema.Field{
+			{
+				Name: "test",
+				Type: schema.TypeRelation,
+				Relation: &schema.Relation{
+					Type:             schema.O2M,
+					TargetSchemaName: "other",
+					TargetFieldName:  "tests",
+				},
+			},
+		},
+	}
+
 	mutation := &Mutation{
 		client: nil,
 		model: &Model{
-			name: "test",
+			name:   "test",
+			schema: testSchema,
 		},
 		predicates: &[]*db.Predicate{},
 	}
@@ -58,4 +75,45 @@ func TestMutationGetRelationEntityIDsNil(t *testing.T) {
 	}
 	_, err = mutation3.GetRelationEntityIDs("test", entity.New(0))
 	assert.Error(t, err)
+}
+
+func TestMutationGetRelationEntityIDsTargetColumn(t *testing.T) {
+	relationSchema := &schema.Schema{
+		Name: "source",
+		Fields: []*schema.Field{
+			{
+				Name: "ref",
+				Type: schema.TypeRelation,
+				Relation: &schema.Relation{
+					Type:             schema.O2M,
+					TargetSchemaName: "target",
+					TargetFieldName:  "sources",
+					TargetColumn:     "legacy_id",
+				},
+			},
+		},
+	}
+
+	mutation := &Mutation{
+		model: &Model{
+			name:   "source",
+			schema: relationSchema,
+		},
+	}
+
+	relationEntity := entity.New()
+	relationEntity.Set("legacy_id", uint64(42))
+	values, err := mutation.GetRelationEntityIDs("ref", relationEntity)
+	assert.NoError(t, err)
+	assert.Equal(t, []driver.Value{uint64(42)}, values)
+
+	missingValue := entity.New(1)
+	_, err = mutation.GetRelationEntityIDs("ref", missingValue)
+	assert.EqualError(t, err, "relation entity for source.ref target column 'legacy_id' is invalid, value=0, err=cannot get uint64 value from entity: legacy_id")
+
+	fullEntity := entity.New(99)
+	fullEntity.Set("legacy_id", uint64(77))
+	values, err = mutation.GetRelationEntityIDs("ref", fullEntity)
+	assert.NoError(t, err)
+	assert.Equal(t, []driver.Value{uint64(77)}, values)
 }

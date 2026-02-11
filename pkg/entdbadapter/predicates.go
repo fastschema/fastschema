@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/fastschema/fastschema/db"
+	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
@@ -120,9 +121,20 @@ func createRelationsPredicate(
 		return nil, fmt.Errorf("invalid edge step option '%s': %w", relationFieldName, err)
 	}
 
+	fromColumn := model.entIDColumn.Name
+	toColumn := entTargetModel.entIDColumn.Name
+
+	if column := relationStepFromColumn(model, relation); column != "" {
+		fromColumn = column
+	}
+
+	if column := relationStepToColumn(entTargetModel, relation); column != "" {
+		toColumn = column
+	}
+
 	relationStep := sqlgraph.NewStep(
-		sqlgraph.From(model.schema.Namespace, model.entIDColumn.Name),
-		sqlgraph.To(entTargetModel.schema.Namespace, entTargetModel.entIDColumn.Name),
+		sqlgraph.From(model.schema.Namespace, fromColumn),
+		sqlgraph.To(entTargetModel.schema.Namespace, toColumn),
 		stepOption,
 	)
 
@@ -309,4 +321,30 @@ func CreateFieldPredicate(predicate *db.Predicate) (PredicateFN, error) {
 	default:
 		return nil, fmt.Errorf("operator %s not supported", predicate.Operator)
 	}
+}
+
+func relationStepFromColumn(_ *Model, relation *schema.Relation) string {
+	if relation == nil || relation.Type.IsM2M() || !relation.Owner || relation.BackRef == nil {
+		return ""
+	}
+
+	targetColumn := relation.BackRef.TargetColumn
+	if targetColumn == "" || targetColumn == entity.FieldID {
+		return ""
+	}
+
+	return targetColumn
+}
+
+func relationStepToColumn(_ *Model, relation *schema.Relation) string {
+	if relation == nil || relation.Type.IsM2M() || relation.Owner {
+		return ""
+	}
+
+	targetColumn := relation.TargetColumn
+	if targetColumn == "" || targetColumn == entity.FieldID {
+		return ""
+	}
+
+	return targetColumn
 }

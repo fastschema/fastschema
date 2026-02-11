@@ -1,0 +1,32 @@
+{
+  "name": "track_fk",
+  "namespace": "track_fk",
+  "label_field": "title",
+  "fields": [
+    {
+      "name": "title",
+      "label": "Title",
+      "type": "string"
+    },
+    {
+      "name": "code",
+      "label": "Track Code",
+      "type": "uint64",
+      "unique": true
+    },
+    {
+      "name": "playlists",
+      "label": "Playlists",
+      "type": "relation",
+      "relation": {
+        "type": "m2m",
+        "schema": "playlist_fk",
+        "field": "tracks",
+        "owner": true,
+        "source_column": "playlist_code_ref",
+        "target_column": "track_code_ref",
+        "junction_table": "playlist_track_fk"
+      }
+    }
+  ]
+}
