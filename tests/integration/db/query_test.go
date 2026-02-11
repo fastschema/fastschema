@@ -6,6 +6,7 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
+	h "github.com/fastschema/fastschema/tests/integration/helpers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,13 +17,13 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Schema:      "user",
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID, err1 := m.Mutation().Create(Ctx(), entity.New().Set("name", "John Doe").Set("username", "john").Set("provider", "local"))
+				user1ID, err1 := m.Mutation().Create(h.Ctx(), entity.New().Set("name", "John Doe").Set("username", "john").Set("provider", "local"))
 				assert.NoError(t, err1)
-				user2ID, err2 := m.Mutation().Create(Ctx(), entity.New().Set("name", "Jane Doe").Set("username", "jane").Set("provider", "local"))
+				user2ID, err2 := m.Mutation().Create(h.Ctx(), entity.New().Set("name", "Jane Doe").Set("username", "jane").Set("provider", "local"))
 				assert.NoError(t, err2)
 				return []*entity.Entity{
-					utils.Must(m.Query(db.EQ("id", user1ID)).First(Ctx())),
-					utils.Must(m.Query(db.EQ("id", user2ID)).First(Ctx())),
+					utils.Must(m.Query(db.EQ("id", user1ID)).First(h.Ctx())),
+					utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx())),
 				}
 			},
 		},
@@ -36,11 +37,11 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID, err1 := m.Mutation().Create(Ctx(), entity.New().Set("name", "John Doe").Set("age", 10).Set("username", "john").Set("provider", "local"))
+				user1ID, err1 := m.Mutation().Create(h.Ctx(), entity.New().Set("name", "John Doe").Set("age", 10).Set("username", "john").Set("provider", "local"))
 				assert.NoError(t, err1)
-				_, err2 := m.Mutation().Create(Ctx(), entity.New().Set("name", "Jane Doe").Set("age", 2).Set("username", "jane").Set("provider", "local"))
+				_, err2 := m.Mutation().Create(h.Ctx(), entity.New().Set("name", "Jane Doe").Set("age", 2).Set("username", "jane").Set("provider", "local"))
 				assert.NoError(t, err2)
-				return []*entity.Entity{utils.Must(m.Query(db.EQ("id", user1ID)).First(Ctx()))}
+				return []*entity.Entity{utils.Must(m.Query(db.EQ("id", user1ID)).First(h.Ctx()))}
 			},
 		},
 		{
@@ -51,20 +52,20 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Order:       []string{"-name", "id"},
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				user22ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2 2", "username": "user22", "provider": "local"}`))
+				user22ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2 2", "username": "user22", "provider": "local"}`))
 				assert.True(t, user22ID > 0)
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
 				assert.True(t, user2ID > 0)
-				user3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
+				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
 				assert.True(t, user3ID > 0)
-				user4ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 4", "username": "user4", "provider": "local"}`))
+				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local"}`))
 				assert.True(t, user4ID > 0)
 				return []*entity.Entity{
-					utils.Must(m.Query(db.EQ("id", user22ID)).First(Ctx())),
-					utils.Must(m.Query(db.EQ("id", user2ID)).First(Ctx())),
-					utils.Must(m.Query(db.EQ("id", user1ID)).First(Ctx())),
+					utils.Must(m.Query(db.EQ("id", user22ID)).First(h.Ctx())),
+					utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx())),
+					utils.Must(m.Query(db.EQ("id", user1ID)).First(h.Ctx())),
 				}
 			},
 		},
@@ -77,7 +78,7 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			},
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "age": 10, "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "age": 10, "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
 				return []*entity.Entity{entity.New(user1ID).Set("name", "User 1")}
 			},
@@ -90,22 +91,22 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"groups_users", "users", "groups", "cars"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				group1ID := utils.Must(utils.Must(client.Model("group")).CreateFromJSON(Ctx(), `{"name": "Group 1"}`))
+				group1ID := utils.Must(utils.Must(client.Model("group")).CreateFromJSON(h.Ctx(), `{"name": "Group 1"}`))
 				assert.True(t, group1ID > 0)
-				group2ID := utils.Must(utils.Must(client.Model("group")).CreateFromJSON(Ctx(), `{"name": "Group 2"}`))
+				group2ID := utils.Must(utils.Must(client.Model("group")).CreateFromJSON(h.Ctx(), `{"name": "Group 2"}`))
 				assert.True(t, group2ID > 0)
 
-				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{"name": "User 1", "groups": [{"id": 1}], "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "groups": [{"id": 1}], "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{"name": "User 2", "groups": [{"id": 2}], "username": "user2", "provider": "local"}`))
+				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 2", "groups": [{"id": 2}], "username": "user2", "provider": "local"}`))
 				assert.True(t, user2ID > 0)
 
-				car1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Car 1", "owner": {"id": 1}}`))
+				car1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Car 1", "owner": {"id": 1}}`))
 				assert.True(t, car1ID > 0)
-				car2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Car 2", "owner": {"id": 2}}`))
+				car2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Car 2", "owner": {"id": 2}}`))
 				assert.True(t, car2ID > 0)
 
-				car2 := utils.Must(m.Query(db.EQ("id", car2ID)).First(Ctx()))
+				car2 := utils.Must(m.Query(db.EQ("id", car2ID)).First(h.Ctx()))
 				return []*entity.Entity{car2}
 			},
 		},
@@ -119,15 +120,15 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			},
 			ClearTables: []string{"users", "pets"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				pet1ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				pet1ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
 				assert.True(t, pet1ID > 0)
-				pet2ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				pet2ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
 				assert.True(t, pet2ID > 0)
 				return []*entity.Entity{entity.New(user1ID).Set("name", "User 1").Set("pets", []*entity.Entity{
-					utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet1ID)).First(Ctx())),
-					utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet2ID)).First(Ctx())),
+					utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet1ID)).First(h.Ctx())),
+					utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet2ID)).First(h.Ctx())),
 				})}
 			},
 		},
@@ -141,13 +142,13 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			},
 			ClearTables: []string{"users", "pets"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				pet1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				pet1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
 				assert.True(t, pet1ID > 0)
-				pet2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				pet2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
 				assert.True(t, pet2ID > 0)
-				user1 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user1ID)).First(Ctx()))
+				user1 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user1ID)).First(h.Ctx()))
 				return []*entity.Entity{
 					entity.New(pet1ID).Set("name", "Pet 1").Set("owner_id", uint64(1)).Set("owner", user1),
 					entity.New(pet2ID).Set("name", "Pet 2").Set("owner_id", uint64(1)).Set("owner", user1),
@@ -163,16 +164,16 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				"id": 1,
 			}`,
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				node1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 1"}`))
+				node1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 1"}`))
 				assert.True(t, node1ID > 0)
-				node2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 2", "parent": {"id": 1}}`))
+				node2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 2", "parent": {"id": 1}}`))
 				assert.True(t, node2ID > 0)
-				node3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 3", "parent": {"id": 1}}`))
+				node3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 3", "parent": {"id": 1}}`))
 				assert.True(t, node3ID > 0)
 				return []*entity.Entity{
 					entity.New(node1ID).Set("name", "Node 1").Set("children", []*entity.Entity{
-						utils.Must(m.Query(db.EQ("id", node2ID)).First(Ctx())),
-						utils.Must(m.Query(db.EQ("id", node3ID)).First(Ctx())),
+						utils.Must(m.Query(db.EQ("id", node2ID)).First(h.Ctx())),
+						utils.Must(m.Query(db.EQ("id", node3ID)).First(h.Ctx())),
 					}),
 				}
 			},
@@ -188,23 +189,23 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"nodes"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				node1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 1"}`))
+				node1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 1"}`))
 				assert.True(t, node1ID > 0)
-				node2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 2"}`))
+				node2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 2"}`))
 				assert.True(t, node2ID > 0)
-				node3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 3", "parent": {"id": 1}}`))
+				node3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 3", "parent": {"id": 1}}`))
 				assert.True(t, node3ID > 0)
-				node4ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 4", "parent": {"id": 2}}`))
+				node4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 4", "parent": {"id": 2}}`))
 				assert.True(t, node4ID > 0)
 				return []*entity.Entity{
 					entity.New(node3ID).
 						Set("name", "Node 3").
 						Set("parent_id", uint64(1)).
-						Set("parent", utils.Must(m.Query(db.EQ("id", node1ID)).First(Ctx()))),
+						Set("parent", utils.Must(m.Query(db.EQ("id", node1ID)).First(h.Ctx()))),
 					entity.New(node4ID).
 						Set("name", "Node 4").
 						Set("parent_id", uint64(2)).
-						Set("parent", utils.Must(m.Query(db.EQ("id", node2ID)).First(Ctx()))),
+						Set("parent", utils.Must(m.Query(db.EQ("id", node2ID)).First(h.Ctx()))),
 				}
 			},
 		},
@@ -219,12 +220,12 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "cards"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				card1ID := utils.Must(utils.Must(client.Model("card")).CreateFromJSON(Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
+				card1ID := utils.Must(utils.Must(client.Model("card")).CreateFromJSON(h.Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
 				assert.True(t, card1ID > 0)
-				card1 := utils.Must(utils.Must(client.Model("card")).Query(db.EQ("id", card1ID)).First(Ctx()))
+				card1 := utils.Must(utils.Must(client.Model("card")).Query(db.EQ("id", card1ID)).First(h.Ctx()))
 				return []*entity.Entity{
 					entity.New(user1ID).Set("name", "User 1").Set("card", card1),
 					entity.New(user2ID).Set("name", "User 2").Set("sub_card", card1),
@@ -242,16 +243,16 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "cards"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
+				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
 
-				card1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
+				card1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
 				assert.True(t, card1ID > 0)
-				card2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"number": "5678", "owner": {"id": 2}}`))
+				card2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"number": "5678", "owner": {"id": 2}}`))
 
-				user1 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user1ID)).First(Ctx()))
-				user2 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user2ID)).First(Ctx()))
+				user1 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user1ID)).First(h.Ctx()))
+				user2 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user2ID)).First(h.Ctx()))
 
 				return []*entity.Entity{
 					entity.New(card1ID).
@@ -274,28 +275,28 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Columns:     []string{"name", "next", "prev_id"},
 			ClearTables: []string{"nodes"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				node1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 1"}`))
+				node1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 1"}`))
 				assert.True(t, node1ID > 0)
-				node2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 2"}`))
+				node2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 2"}`))
 				assert.True(t, node2ID > 0)
-				node3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 3"}`))
+				node3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 3"}`))
 				assert.True(t, node3ID > 0)
-				node4ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 4"}`))
+				node4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 4"}`))
 				assert.True(t, node4ID > 0)
 
-				a1 := utils.Must(m.Mutation().Where(db.EQ("id", node3ID)).Update(Ctx(), entity.New().Set("prev_id", 1)))
+				a1 := utils.Must(m.Mutation().Where(db.EQ("id", node3ID)).Update(h.Ctx(), entity.New().Set("prev_id", 1)))
 				assert.Equal(t, 1, a1)
 
-				a2 := utils.Must(m.Mutation().Where(db.EQ("id", node4ID)).Update(Ctx(), entity.New().Set("prev_id", 2)))
+				a2 := utils.Must(m.Mutation().Where(db.EQ("id", node4ID)).Update(h.Ctx(), entity.New().Set("prev_id", 2)))
 				assert.Equal(t, 1, a2)
 
 				return []*entity.Entity{
 					entity.New(node1ID).
 						Set("name", "Node 1").
-						Set("next", utils.Must(m.Query(db.EQ("id", node3ID)).First(Ctx()))),
+						Set("next", utils.Must(m.Query(db.EQ("id", node3ID)).First(h.Ctx()))),
 					entity.New(node2ID).
 						Set("name", "Node 2").
-						Set("next", utils.Must(m.Query(db.EQ("id", node4ID)).First(Ctx()))),
+						Set("next", utils.Must(m.Query(db.EQ("id", node4ID)).First(h.Ctx()))),
 					entity.New(node3ID).
 						Set("name", "Node 3").
 						Set("prev_id", uint64(1)),
@@ -311,13 +312,13 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Columns:     []string{"name", "prev", "prev_id"},
 			ClearTables: []string{"nodes"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				node1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 1"}`))
+				node1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 1"}`))
 				assert.True(t, node1ID > 0)
-				node2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 2"}`))
+				node2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 2"}`))
 				assert.True(t, node2ID > 0)
-				node3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 3", "prev_id": 1}`))
+				node3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 3", "prev_id": 1}`))
 				assert.True(t, node3ID > 0)
-				node4ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Node 4", "prev_id": 2}`))
+				node4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Node 4", "prev_id": 2}`))
 				assert.True(t, node4ID > 0)
 
 				return []*entity.Entity{
@@ -326,11 +327,11 @@ func DBQueryNode(t *testing.T, client db.Client) {
 					entity.New(node3ID).
 						Set("name", "Node 3").
 						Set("prev_id", uint64(1)).
-						Set("prev", utils.Must(m.Query(db.EQ("id", 1)).First(Ctx()))),
+						Set("prev", utils.Must(m.Query(db.EQ("id", 1)).First(h.Ctx()))),
 					entity.New(node4ID).
 						Set("name", "Node 4").
 						Set("prev_id", uint64(2)).
-						Set("prev", utils.Must(m.Query(db.EQ("id", 2)).First(Ctx()))),
+						Set("prev", utils.Must(m.Query(db.EQ("id", 2)).First(h.Ctx()))),
 				}
 			},
 		},
@@ -340,20 +341,20 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Columns:     []string{"name", "spouse"},
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
 				assert.True(t, user2ID > 0)
 
-				a1 := utils.Must(m.Mutation().Where(db.EQ("id", user1ID)).Update(Ctx(), entity.New().Set("spouse_id", user2ID)))
+				a1 := utils.Must(m.Mutation().Where(db.EQ("id", user1ID)).Update(h.Ctx(), entity.New().Set("spouse_id", user2ID)))
 				assert.Equal(t, 1, a1)
 
-				a2 := utils.Must(m.Mutation().Where(db.EQ("id", user2ID)).Update(Ctx(), entity.New().Set("spouse_id", user1ID)))
+				a2 := utils.Must(m.Mutation().Where(db.EQ("id", user2ID)).Update(h.Ctx(), entity.New().Set("spouse_id", user1ID)))
 				assert.Equal(t, 1, a2)
 
 				return []*entity.Entity{
-					entity.New(user1ID).Set("name", "User 1").Set("spouse_id", uint64(2)).Set("spouse", utils.Must(m.Query(db.EQ("id", user2ID)).First(Ctx()))),
-					entity.New(user2ID).Set("name", "User 2").Set("spouse_id", uint64(1)).Set("spouse", utils.Must(m.Query(db.EQ("id", user1ID)).First(Ctx()))),
+					entity.New(user1ID).Set("name", "User 1").Set("spouse_id", uint64(2)).Set("spouse", utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx()))),
+					entity.New(user2ID).Set("name", "User 2").Set("spouse_id", uint64(1)).Set("spouse", utils.Must(m.Query(db.EQ("id", user1ID)).First(h.Ctx()))),
 				}
 			},
 		},
@@ -364,24 +365,24 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"groups", "users", "groups_users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				userModel := utils.Must(client.Model("user"))
-				group1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Group 1"}`))
+				group1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Group 1"}`))
 				assert.True(t, group1ID > 0)
-				group2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Group 2"}`))
+				group2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Group 2"}`))
 				assert.True(t, group2ID > 0)
 
-				group3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Group 3"}`))
+				group3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Group 3"}`))
 				assert.True(t, group3ID > 0)
 
-				user1ID := utils.Must(userModel.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local", "groups": [{"id": 1}]}`))
+				user1ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local", "groups": [{"id": 1}]}`))
 				assert.True(t, user1ID > 0)
-				user2ID := utils.Must(userModel.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "groups": [{"id": 1}, {"id": 2}]}`))
+				user2ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "groups": [{"id": 1}, {"id": 2}]}`))
 				assert.True(t, user2ID > 0)
 
-				user3ID := utils.Must(userModel.CreateFromJSON(Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
+				user3ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
 				assert.True(t, user3ID > 0)
 
-				user1 := utils.Must(userModel.Query(db.EQ("id", user1ID)).First(Ctx()))
-				user2 := utils.Must(userModel.Query(db.EQ("id", user2ID)).First(Ctx()))
+				user1 := utils.Must(userModel.Query(db.EQ("id", user1ID)).First(h.Ctx()))
+				user2 := utils.Must(userModel.Query(db.EQ("id", user2ID)).First(h.Ctx()))
 
 				return []*entity.Entity{
 					entity.New(group1ID).Set("name", "Group 1").Set("users", []*entity.Entity{
@@ -402,25 +403,25 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"groups", "users", "groups_users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				groupModel := utils.Must(client.Model("group"))
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
 				assert.True(t, user2ID > 0)
 
-				user3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
+				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
 				assert.True(t, user3ID > 0)
 
-				group1ID := utils.Must(groupModel.CreateFromJSON(Ctx(), `{"name": "Group 1", "users": [{"id": 1}]}`))
+				group1ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), `{"name": "Group 1", "users": [{"id": 1}]}`))
 				assert.True(t, group1ID > 0)
 
-				group2ID := utils.Must(groupModel.CreateFromJSON(Ctx(), `{"name": "Group 2", "users": [{"id": 1}, {"id": 2}]}`))
+				group2ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), `{"name": "Group 2", "users": [{"id": 1}, {"id": 2}]}`))
 				assert.True(t, group2ID > 0)
 
-				group3ID := utils.Must(groupModel.CreateFromJSON(Ctx(), `{"name": "Group 3"}`))
+				group3ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), `{"name": "Group 3"}`))
 				assert.True(t, group3ID > 0)
 
-				group1 := utils.Must(groupModel.Query(db.EQ("id", group1ID)).First(Ctx()))
-				group2 := utils.Must(groupModel.Query(db.EQ("id", group2ID)).First(Ctx()))
+				group1 := utils.Must(groupModel.Query(db.EQ("id", group1ID)).First(h.Ctx()))
+				group2 := utils.Must(groupModel.Query(db.EQ("id", group2ID)).First(h.Ctx()))
 
 				return []*entity.Entity{
 					entity.New(user1ID).Set("name", "User 1").Set("groups", []*entity.Entity{
@@ -441,41 +442,41 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users", "followers_following"},
 			Order:       []string{"id"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
 
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
 				assert.True(t, user2ID > 0)
 
-				user3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
+				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
 				assert.True(t, user3ID > 0)
 
-				user4ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 4", "username": "user4", "provider": "local"}`))
+				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local"}`))
 				assert.True(t, user4ID > 0)
 
-				user5ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 5", "username": "user5", "provider": "local"}`))
+				user5ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 5", "username": "user5", "provider": "local"}`))
 				assert.True(t, user5ID > 0)
 
-				_, err := m.Mutation().Where(db.EQ("id", user1ID)).Update(Ctx(), entity.New(user1ID).Set("following", []*entity.Entity{
+				_, err := m.Mutation().Where(db.EQ("id", user1ID)).Update(h.Ctx(), entity.New(user1ID).Set("following", []*entity.Entity{
 					entity.New(user2ID),
 					entity.New(user3ID),
 				}))
 				assert.NoError(t, err)
 
-				_, err = m.Mutation().Where(db.EQ("id", user2ID)).Update(Ctx(), entity.New(user2ID).Set("following", []*entity.Entity{
+				_, err = m.Mutation().Where(db.EQ("id", user2ID)).Update(h.Ctx(), entity.New(user2ID).Set("following", []*entity.Entity{
 					entity.New(user3ID),
 					entity.New(user4ID),
 				}))
 				assert.NoError(t, err)
 
-				_, err = m.Mutation().Where(db.EQ("id", user3ID)).Update(Ctx(), entity.New(user3ID).Set("following", []*entity.Entity{
+				_, err = m.Mutation().Where(db.EQ("id", user3ID)).Update(h.Ctx(), entity.New(user3ID).Set("following", []*entity.Entity{
 					entity.New(user4ID),
 				}))
 				assert.NoError(t, err)
 
-				user2 := utils.Must(m.Query(db.EQ("id", user2ID)).First(Ctx()))
-				user3 := utils.Must(m.Query(db.EQ("id", user3ID)).First(Ctx()))
-				user4 := utils.Must(m.Query(db.EQ("id", user4ID)).First(Ctx()))
+				user2 := utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx()))
+				user3 := utils.Must(m.Query(db.EQ("id", user3ID)).First(h.Ctx()))
+				user4 := utils.Must(m.Query(db.EQ("id", user4ID)).First(h.Ctx()))
 
 				return []*entity.Entity{
 					entity.New(user1ID).Set("name", "User 1").Set("following", []*entity.Entity{
@@ -501,24 +502,24 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users", "followers_following"},
 			Order:       []string{"id"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
 
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "following": [{"id": 1}]}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "following": [{"id": 1}]}`))
 				assert.True(t, user2ID > 0)
 
-				user3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "following": [{"id": 1}, {"id": 2}]}`))
+				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "following": [{"id": 1}, {"id": 2}]}`))
 				assert.True(t, user3ID > 0)
 
-				user4ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "following": [{"id": 1}, {"id": 2}, {"id": 3}]}`))
+				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "following": [{"id": 1}, {"id": 2}, {"id": 3}]}`))
 				assert.True(t, user4ID > 0)
 
-				user5ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 5", "username": "user5", "provider": "local"}`))
+				user5ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 5", "username": "user5", "provider": "local"}`))
 				assert.True(t, user5ID > 0)
 
-				user2 := utils.Must(m.Query(db.EQ("id", user2ID)).First(Ctx()))
-				user3 := utils.Must(m.Query(db.EQ("id", user3ID)).First(Ctx()))
-				user4 := utils.Must(m.Query(db.EQ("id", user4ID)).First(Ctx()))
+				user2 := utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx()))
+				user3 := utils.Must(m.Query(db.EQ("id", user3ID)).First(h.Ctx()))
+				user4 := utils.Must(m.Query(db.EQ("id", user4ID)).First(h.Ctx()))
 
 				return []*entity.Entity{
 					entity.New(user1ID).Set("name", "User 1").Set("followers", []*entity.Entity{
@@ -545,29 +546,29 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users", "friends_user"},
 			Order:       []string{"id"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
 
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "friends": [{"id": 1}]}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "friends": [{"id": 1}]}`))
 				assert.True(t, user2ID > 0)
 
-				user3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "friends": [{"id": 1}, {"id": 2}]}`))
+				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "friends": [{"id": 1}, {"id": 2}]}`))
 				assert.True(t, user3ID > 0)
 
-				user4ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "friends": [{"id": 1}]}`))
+				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "friends": [{"id": 1}]}`))
 				assert.True(t, user4ID > 0)
 
-				user5ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 5", "username": "user5", "provider": "local", "friends": [{"id": 4}]}`))
+				user5ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 5", "username": "user5", "provider": "local", "friends": [{"id": 4}]}`))
 				assert.True(t, user5ID > 0)
 
-				user6ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 6", "username": "user6", "provider": "local"}`))
+				user6ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 6", "username": "user6", "provider": "local"}`))
 				assert.True(t, user6ID > 0)
 
-				user1 := utils.Must(m.Query(db.EQ("id", user1ID)).First(Ctx()))
-				user2 := utils.Must(m.Query(db.EQ("id", user2ID)).First(Ctx()))
-				user3 := utils.Must(m.Query(db.EQ("id", user3ID)).First(Ctx()))
-				user4 := utils.Must(m.Query(db.EQ("id", user4ID)).First(Ctx()))
-				user5 := utils.Must(m.Query(db.EQ("id", user5ID)).First(Ctx()))
+				user1 := utils.Must(m.Query(db.EQ("id", user1ID)).First(h.Ctx()))
+				user2 := utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx()))
+				user3 := utils.Must(m.Query(db.EQ("id", user3ID)).First(h.Ctx()))
+				user4 := utils.Must(m.Query(db.EQ("id", user4ID)).First(h.Ctx()))
+				user5 := utils.Must(m.Query(db.EQ("id", user5ID)).First(h.Ctx()))
 
 				return []*entity.Entity{
 					entity.New(user1ID).Set("name", "User 1").Set("friends", []*entity.Entity{
@@ -605,10 +606,10 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "cards"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				card1ID := utils.Must(utils.Must(client.Model("card")).CreateFromJSON(Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
+				card1ID := utils.Must(utils.Must(client.Model("card")).CreateFromJSON(h.Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
 				assert.True(t, card1ID > 0)
 				card1 := entity.New(card1ID).Set("number", "1234").Set("owner_id", uint64(1))
 				card1Sub := entity.New(card1ID).Set("number", "1234").Set("sub_owner_id", uint64(2))
@@ -629,13 +630,13 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			}`,
 			ClearTables: []string{"users", "cards"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "age": 5, "provider": "local"}`))
-				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "age": 8, "provider": "local"}`))
+				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "age": 5, "provider": "local"}`))
+				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "age": 8, "provider": "local"}`))
 				assert.True(t, user1ID > 0)
 
-				card1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
+				card1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
 				assert.True(t, card1ID > 0)
-				card2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"number": "5678", "owner": {"id": 2}}`))
+				card2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"number": "5678", "owner": {"id": 2}}`))
 
 				user1 := entity.New(user1ID).Set("name", "User 1").Set("age", uint(5))
 				user2 := entity.New(user2ID).Set("name", "User 2").Set("age", uint(8))
@@ -663,15 +664,15 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users", "pets"},
 			Order:       []string{"id"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				pet1ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				pet1ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
 				assert.True(t, pet1ID > 0)
-				pet2ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				pet2ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
 				assert.True(t, pet2ID > 0)
 
-				pet1 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet1ID)).First(Ctx()))
-				pet2 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet2ID)).First(Ctx()))
+				pet1 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet1ID)).First(h.Ctx()))
+				pet2 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet2ID)).First(h.Ctx()))
 
 				return []*entity.Entity{entity.New(user1ID).
 					Set("name", "User 1").
@@ -699,11 +700,11 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			},
 			ClearTables: []string{"users", "pets"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
-				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "age": 8, "provider": "local"}`))
+				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "age": 8, "provider": "local"}`))
 				assert.True(t, user1ID > 0)
-				pet1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				pet1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
 				assert.True(t, pet1ID > 0)
-				pet2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				pet2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
 				assert.True(t, pet2ID > 0)
 				user1 := entity.New(user1ID).
 					Set("name", "User 1").
@@ -728,20 +729,20 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Order:       []string{"id"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				userModel := utils.Must(client.Model("user"))
-				group1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Group 1"}`))
+				group1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Group 1"}`))
 				assert.True(t, group1ID > 0)
-				group2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Group 2"}`))
+				group2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Group 2"}`))
 				assert.True(t, group2ID > 0)
 
-				group3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "Group 3"}`))
+				group3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Group 3"}`))
 				assert.True(t, group3ID > 0)
 
-				user1ID := utils.Must(userModel.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "age": 8, "provider": "local", "groups": [{"id": 1}]}`))
+				user1ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "age": 8, "provider": "local", "groups": [{"id": 1}]}`))
 				assert.True(t, user1ID > 0)
-				user2ID := utils.Must(userModel.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "age": 5, "provider": "local", "groups": [{"id": 1}, {"id": 2}]}`))
+				user2ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "age": 5, "provider": "local", "groups": [{"id": 1}, {"id": 2}]}`))
 				assert.True(t, user2ID > 0)
 
-				user3ID := utils.Must(userModel.CreateFromJSON(Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
+				user3ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
 				assert.True(t, user3ID > 0)
 
 				return []*entity.Entity{
@@ -783,10 +784,10 @@ func DBCountNode(t *testing.T, client db.Client) {
 			Schema:      "user",
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) int {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
 
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
 				assert.True(t, user2ID > 0)
 
 				return 2
@@ -802,10 +803,10 @@ func DBCountNode(t *testing.T, client db.Client) {
 				}
 			}`,
 			Prepare: func(t *testing.T, client db.Client, m db.Model) int {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				assert.True(t, user1ID > 0)
 
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
 				assert.True(t, user2ID > 0)
 
 				return 1
@@ -822,16 +823,16 @@ func DBCountNode(t *testing.T, client db.Client) {
 			Column:      "status",
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) int {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local", "status": "offline"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local", "status": "offline"}`))
 				assert.True(t, user1ID > 0)
 
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "status": "online"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "status": "online"}`))
 				assert.True(t, user2ID > 0)
 
-				user3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "status": "offline"}`))
+				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "status": "offline"}`))
 				assert.True(t, user3ID > 0)
 
-				user4ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "status": "online"}`))
+				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "status": "online"}`))
 				assert.True(t, user4ID > 0)
 
 				return 3
@@ -849,16 +850,16 @@ func DBCountNode(t *testing.T, client db.Client) {
 			Column:      "status",
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) int {
-				user1ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 1", "username": "user1", "provider": "local", "status": "offline"}`))
+				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local", "status": "offline"}`))
 				assert.True(t, user1ID > 0)
 
-				user2ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "status": "online"}`))
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "status": "online"}`))
 				assert.True(t, user2ID > 0)
 
-				user3ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "status": "offline"}`))
+				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "status": "offline"}`))
 				assert.True(t, user3ID > 0)
 
-				user4ID := utils.Must(m.CreateFromJSON(Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "status": "online"}`))
+				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "status": "online"}`))
 				assert.True(t, user4ID > 0)
 
 				return 2

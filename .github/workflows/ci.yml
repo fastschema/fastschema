@@ -31,80 +31,67 @@ jobs:
         go: ['1.23.x', '1.24.x', '1.25.x']
         platform: [ubuntu-latest, windows-latest, macos-latest, macos-14]
     services:
-      mysql56:
-        image: mysql:5.6.35
-        env:
-          MYSQL_DATABASE: fastschema
-          MYSQL_ROOT_PASSWORD: 123
-        ports:
-          - 33061:3306
-        options: >-
-          --health-cmd "mysqladmin ping -ppass"
-          --health-interval 10s
-          --health-start-period 10s
-          --health-timeout 5s
-          --health-retries 10
-      mysql57:
-        image: mysql:5.7.26
-        env:
-          MYSQL_DATABASE: fastschema
-          MYSQL_ROOT_PASSWORD: 123
-        ports:
-          - 33062:3306
-        options: >-
-          --health-cmd "mysqladmin ping -ppass"
-          --health-interval 10s
-          --health-start-period 10s
-          --health-timeout 5s
-          --health-retries 10
       mysql8:
         image: mysql:8
         env:
           MYSQL_DATABASE: fastschema
           MYSQL_ROOT_PASSWORD: 123
         ports:
-          - 33063:3306
+          - 33060:3306
         options: >-
-          --health-cmd "mysqladmin ping -ppass"
+          --health-cmd "mysqladmin ping -p123"
           --health-interval 10s
           --health-start-period 10s
           --health-timeout 5s
           --health-retries 10
-      mariadb:
-        image: mariadb:10.4 # Temporary to unblock PRs from failing.
+      mysql9:
+        image: mysql:9
         env:
           MYSQL_DATABASE: fastschema
           MYSQL_ROOT_PASSWORD: 123
         ports:
-          - 33064:3306
+          - 33061:3306
         options: >-
-          --health-cmd "mysqladmin ping -ppass"
+          --health-cmd "mysqladmin ping -p123"
           --health-interval 10s
           --health-start-period 10s
           --health-timeout 5s
           --health-retries 10
-      mariadb102:
-        image: mariadb:10.2.32
+      mariadb10:
+        image: mariadb:10
         env:
           MYSQL_DATABASE: fastschema
           MYSQL_ROOT_PASSWORD: 123
         ports:
-          - 33065:3306
+          - 33070:3306
         options: >-
-          --health-cmd "mysqladmin ping -ppass"
+          --health-cmd "mariadb-admin ping -h 127.0.0.1 -uroot -p123 --silent"
           --health-interval 10s
           --health-start-period 10s
           --health-timeout 5s
           --health-retries 10
-      mariadb103:
-        image: mariadb:10.3.13
+      mariadb11:
+        image: mariadb:11
         env:
           MYSQL_DATABASE: fastschema
           MYSQL_ROOT_PASSWORD: 123
         ports:
-          - 33066:3306
+          - 33071:3306
         options: >-
-          --health-cmd "mysqladmin ping -ppass"
+          --health-cmd "mariadb-admin ping -h 127.0.0.1 -uroot -p123 --silent"
+          --health-interval 10s
+          --health-start-period 10s
+          --health-timeout 5s
+          --health-retries 10
+      mariadb12:
+        image: mariadb:12
+        env:
+          MYSQL_DATABASE: fastschema
+          MYSQL_ROOT_PASSWORD: 123
+        ports:
+          - 33072:3306
+        options: >-
+          --health-cmd "mariadb-admin ping -h 127.0.0.1 -uroot -p123 --silent"
           --health-interval 10s
           --health-start-period 10s
           --health-timeout 5s
@@ -115,7 +102,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54321:5432
+          - 54320:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -127,7 +114,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54322:5432
+          - 54321:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -139,7 +126,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54323:5432
+          - 54322:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -151,7 +138,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54324:5432
+          - 54323:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -163,7 +150,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54325:5432
+          - 54324:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -175,7 +162,43 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
+          - 54325:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres16:
+        image: postgres:16
+        env:
+          POSTGRES_DB: fastschema
+          POSTGRES_PASSWORD: 123
+        ports:
           - 54326:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres17:
+        image: postgres:17
+        env:
+          POSTGRES_DB: fastschema
+          POSTGRES_PASSWORD: 123
+        ports:
+          - 54327:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres18:
+        image: postgres:18
+        env:
+          POSTGRES_DB: fastschema
+          POSTGRES_PASSWORD: 123
+        ports:
+          - 54328:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s

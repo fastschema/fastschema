@@ -1,0 +1,67 @@
+{
+  "name": "category",
+  "namespace": "categories",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string"
+    },
+    {
+      "name": "post_update_setnull",
+      "label": "Nullable Posts",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "post_update_setnull",
+        "field": "category",
+        "owner": true
+      }
+    },
+    {
+      "name": "post_update_restrict",
+      "label": "Restrict Posts",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "post_update_restrict",
+        "field": "category",
+        "owner": true
+      }
+    },
+    {
+      "name": "post_update_noaction",
+      "label": "NoAction Posts",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "post_update_noaction",
+        "field": "category",
+        "owner": true
+      }
+    },
+    {
+      "name": "post_update_cascade",
+      "label": "Cascade Posts",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "post_update_cascade",
+        "field": "category",
+        "owner": true
+      }
+    },
+    {
+      "name": "post_update_setdefault",
+      "label": "Default Posts",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "post_update_setdefault",
+        "field": "category",
+        "owner": true
+      }
+    }
+  ]
+}

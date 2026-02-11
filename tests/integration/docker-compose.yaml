@@ -1,76 +1,66 @@
-# Copyright 2019-present Facebook Inc. All rights reserved.
-# This source code is licensed under the Apache 2.0 license found
-# in the LICENSE file in the root directory of this source tree.
-
 version: "3.7"
 
 services:
 
-  mysql56:
+  mysql8:
     platform: linux/amd64
-    image: mysql:5.6.35
+    image: mysql:8
     environment:
       MYSQL_DATABASE: fastschema
       MYSQL_ROOT_PASSWORD: 123
     healthcheck:
-      test: mysqladmin ping -ppass
+      test: mysqladmin ping -p123
+    ports:
+      - 33060:3306
+  mysql9:
+    platform: linux/amd64
+    image: mysql:9
+    environment:
+      MYSQL_DATABASE: fastschema
+      MYSQL_ROOT_PASSWORD: 123
+    healthcheck:
+      test: mysqladmin ping -p123
     ports:
       - 33061:3306
 
-  mysql57:
+  mariadb10:
     platform: linux/amd64
-    image: mysql:5.7.26
+    image: mariadb:10
     environment:
       MYSQL_DATABASE: fastschema
       MYSQL_ROOT_PASSWORD: 123
     healthcheck:
-      test: mysqladmin ping -ppass
+      test: mysqladmin ping -p123
     ports:
-      - 33062:3306
+      - 33070:3306
 
-  mysql8:
+  mariadb11:
     platform: linux/amd64
-    image: mysql:8.0.19
+    image: mariadb:11
     environment:
       MYSQL_DATABASE: fastschema
       MYSQL_ROOT_PASSWORD: 123
     healthcheck:
-      test: mysqladmin ping -ppass
+      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-p123", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
-      - 33063:3306
+      - 33071:3306
 
-  mariadb:
+  mariadb12:
     platform: linux/amd64
-    image: mariadb
+    image: mariadb:12
     environment:
       MYSQL_DATABASE: fastschema
       MYSQL_ROOT_PASSWORD: 123
     healthcheck:
-      test: mysqladmin ping -ppass
+      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-p123", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
-      - 33064:3306
-
-  mariadb102:
-    platform: linux/amd64
-    image: mariadb:10.2.32
-    environment:
-      MYSQL_DATABASE: fastschema
-      MYSQL_ROOT_PASSWORD: 123
-    healthcheck:
-      test: mysqladmin ping -ppass
-    ports:
-      - 33065:3306
-
-  mariadb103:
-    platform: linux/amd64
-    image: mariadb:10.3.13
-    environment:
-      MYSQL_DATABASE: fastschema
-      MYSQL_ROOT_PASSWORD: 123
-    healthcheck:
-      test: mysqladmin ping -ppass
-    ports:
-      - 33066:3306
+      - 33072:3306
 
   postgres10:
     platform: linux/amd64
@@ -81,7 +71,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54321:5432
+      - 54320:5432
 
   postgres11:
     platform: linux/amd64
@@ -92,7 +82,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54322:5432
+      - 54321:5432
 
   postgres12:
     platform: linux/amd64
@@ -103,7 +93,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54323:5432
+      - 54322:5432
 
   postgres13:
     platform: linux/amd64
@@ -114,7 +104,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54324:5432
+      - 54323:5432
 
   postgres14:
     platform: linux/amd64
@@ -125,7 +115,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54325:5432
+      - 54324:5432
 
   postgres15:
     platform: linux/amd64
@@ -136,4 +126,37 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
+      - 54325:5432
+
+  postgres16:
+    platform: linux/amd64
+    image: postgres:16
+    environment:
+      POSTGRES_DB: fastschema
+      POSTGRES_PASSWORD: 123
+    healthcheck:
+      test: pg_isready -U postgres
+    ports:
       - 54326:5432
+
+  postgres17:
+    platform: linux/amd64
+    image: postgres:17
+    environment:
+      POSTGRES_DB: fastschema
+      POSTGRES_PASSWORD: 123
+    healthcheck:
+      test: pg_isready -U postgres
+    ports:
+      - 54327:5432
+
+  postgres18:
+    platform: linux/amd64
+    image: postgres:18
+    environment:
+      POSTGRES_DB: fastschema
+      POSTGRES_PASSWORD: 123
+    healthcheck:
+      test: pg_isready -U postgres
+    ports:
+      - 54328:5432

@@ -106,7 +106,7 @@ func createSchemaBuilderFromDir(schemaDir string) *schema.Builder {
 }
 
 func createSchemaBuilder() *schema.Builder {
-	return createSchemaBuilderFromDir("../../tests/data/schemas")
+	return createSchemaBuilderFromDir("../../tests/integration/db/data/schemas")
 }
 
 func createMockAdapter(t *testing.T, configs ...*db.Config) EntAdapter {

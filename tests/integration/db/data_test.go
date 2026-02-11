@@ -2,14 +2,13 @@ package db
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
-	"entgo.io/ent/dialect"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
+	h "github.com/fastschema/fastschema/tests/integration/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -103,67 +102,6 @@ type DBTestCountData struct {
 	ExpectError string
 }
 
-func ClearDBData(client db.Client, tables ...string) {
-	sqls := []string{}
-
-	if client.Dialect() == dialect.MySQL {
-		sqls = append(sqls, "SET FOREIGN_KEY_CHECKS=0")
-	}
-
-	if client.Dialect() == dialect.SQLite {
-		sqls = append(sqls, "PRAGMA foreign_keys = OFF;")
-	}
-
-	if client.Dialect() == dialect.MySQL {
-		sqls = append(sqls, strings.Join(utils.Map(tables, func(table string) string {
-			return fmt.Sprintf("TRUNCATE TABLE `%s`", table)
-		}), ";"))
-	}
-
-	if client.Dialect() == dialect.SQLite {
-		sqls = append(sqls, strings.Join(utils.Map(tables, func(table string) string {
-			return fmt.Sprintf(
-				"DELETE FROM %s; DELETE FROM SQLITE_SEQUENCE WHERE name='%s'",
-				table,
-				table,
-			)
-		}), ";"))
-	}
-
-	if client.Dialect() == dialect.Postgres {
-		sqls = append(sqls, fmt.Sprintf(
-			"TRUNCATE TABLE %s CASCADE",
-			strings.Join(tables, ", "),
-		))
-		sqls = append(sqls, utils.Map(tables, func(table string) string {
-			return fmt.Sprintf(
-				"ALTER SEQUENCE IF EXISTS %s_id_seq RESTART WITH 1",
-				table,
-			)
-		})...)
-	}
-
-	if client.Dialect() == dialect.MySQL {
-		sqls = append(sqls, "SET FOREIGN_KEY_CHECKS=1")
-	}
-
-	if client.Dialect() == dialect.SQLite {
-		sqls = append(sqls, "PRAGMA foreign_keys = ON;")
-	}
-
-	sqls = utils.Filter(sqls, func(sql string) bool {
-		return strings.TrimSpace(sql) != ""
-	})
-
-	if _, err := client.Exec(
-		Ctx(),
-		strings.Join(sqls, "; "),
-	); err != nil {
-		panic(err)
-	}
-	fmt.Printf("\n")
-}
-
 func DBRunCreateTests(client db.Client, t *testing.T, tests []DBTestCreateData) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -174,7 +112,7 @@ func DBRunCreateTests(client db.Client, t *testing.T, tests []DBTestCreateData) 
 			model, err := client.Model(tt.Schema)
 			require.NoError(t, err)
 
-			ClearDBData(client, tt.ClearTables...)
+			h.ClearDBData(client, tt.ClearTables...)
 
 			if tt.Prepare != nil {
 				tt.Prepare(t)
@@ -184,8 +122,8 @@ func DBRunCreateTests(client db.Client, t *testing.T, tests []DBTestCreateData) 
 			runFn := tt.Run
 			if runFn == nil {
 				runFn = func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
-					createdEntityID := utils.Must(model.Create(Ctx(), e))
-					return model.Query(db.EQ("id", createdEntityID)).First(Ctx())
+					createdEntityID := utils.Must(model.Create(h.Ctx(), e))
+					return model.Query(db.EQ("id", createdEntityID)).First(h.Ctx())
 				}
 			}
 
@@ -215,7 +153,7 @@ func DBRunUpdateTests(client db.Client, t *testing.T, tests []DBTestUpdateData) 
 			assert.NoError(t, err)
 			require.NotNil(t, model)
 
-			ClearDBData(client, tt.ClearTables...)
+			h.ClearDBData(client, tt.ClearTables...)
 
 			if tt.Prepare != nil {
 				tt.Prepare(t, model)
@@ -229,7 +167,7 @@ func DBRunUpdateTests(client db.Client, t *testing.T, tests []DBTestUpdateData) 
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
-					return mut.Update(Ctx(), e)
+					return mut.Update(h.Ctx(), e)
 				}
 			}
 
@@ -254,7 +192,7 @@ func DBRunDeleteTests(client db.Client, t *testing.T, tests []DBTestDeleteData) 
 			model, err := client.Model(tt.Schema)
 			assert.NoError(t, err)
 			require.NotNil(t, model)
-			ClearDBData(client, tt.ClearTables...)
+			h.ClearDBData(client, tt.ClearTables...)
 
 			if tt.Prepare != nil {
 				tt.Prepare(t, model)
@@ -268,7 +206,7 @@ func DBRunDeleteTests(client db.Client, t *testing.T, tests []DBTestDeleteData) 
 					if len(tt.Predicates) > 0 {
 						mut = mut.Where(tt.Predicates...)
 					}
-					return mut.Delete(Ctx())
+					return mut.Delete(h.Ctx())
 				}
 			}
 
@@ -317,7 +255,7 @@ func MockDefaultQueryRunFn(
 		query = query.Select(columns...)
 	}
 
-	return query.Get(Ctx())
+	return query.Get(h.Ctx())
 }
 
 func DBRunQueryTests(client db.Client, t *testing.T, tests []DBTestQueryData) {
@@ -339,7 +277,7 @@ func DBRunQueryTests(client db.Client, t *testing.T, tests []DBTestQueryData) {
 				require.NoError(t, err)
 			}
 
-			ClearDBData(client, tt.ClearTables...)
+			h.ClearDBData(client, tt.ClearTables...)
 			var preparedEntities []*entity.Entity
 			if tt.Prepare != nil {
 				preparedEntities = tt.Prepare(t, client, model)
@@ -404,7 +342,7 @@ func DBRunCountTests(client db.Client, t *testing.T, tests []DBTestCountData) {
 						Column: column,
 					}
 
-					return query.Count(Ctx(), countOptions)
+					return query.Count(h.Ctx(), countOptions)
 				}
 			}
 
@@ -414,7 +352,7 @@ func DBRunCountTests(client db.Client, t *testing.T, tests []DBTestCountData) {
 				require.NoError(t, err)
 			}
 
-			ClearDBData(client, tt.ClearTables...)
+			h.ClearDBData(client, tt.ClearTables...)
 			var preparedCount int
 			if tt.Prepare != nil {
 				preparedCount = tt.Prepare(t, client, model)

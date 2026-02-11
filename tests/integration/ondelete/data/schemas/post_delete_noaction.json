@@ -1,0 +1,23 @@
+{
+  "name": "post_delete_noaction",
+  "namespace": "post_delete_noaction",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string"
+    },
+    {
+      "name": "category",
+      "label": "Category",
+      "type": "relation",
+      "relation": {
+        "type": "o2m",
+        "schema": "category",
+        "field": "post_delete_noaction",
+        "on_delete": "NO ACTION"
+      }
+    }
+  ]
+}

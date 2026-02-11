@@ -1,0 +1,24 @@
+{
+  "name": "post_update_setnull",
+  "namespace": "post_update_setnull",
+  "label_field": "name",
+  "fields": [
+    {
+      "name": "name",
+      "label": "Name",
+      "type": "string"
+    },
+    {
+      "name": "category",
+      "label": "Category",
+      "type": "relation",
+      "optional": true,
+      "relation": {
+        "type": "o2m",
+        "schema": "category",
+        "field": "post_update_setnull",
+        "on_update": "SET NULL"
+      }
+    }
+  ]
+}

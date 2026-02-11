@@ -184,7 +184,8 @@ func (d *Adapter) init() error {
 	}
 
 	for _, r := range d.schemaBuilder.Relations() {
-		onDelete := utils.If(r.Optional, entSchema.SetNull, entSchema.NoAction)
+		onDelete := relationOnDeleteOption(r)
+		onUpdate := relationOnUpdateOption(r)
 		currentSchema, err := d.schemaBuilder.Schema(r.SourceSchemaName)
 		if err != nil {
 			return err
@@ -211,6 +212,7 @@ func (d *Adapter) init() error {
 					Columns:    []*entSchema.Column{createEntColumn(r.FKFields[0])},
 					RefColumns: []*entSchema.Column{targetModel.entIDColumn},
 					OnDelete:   onDelete,
+					OnUpdate:   onUpdate,
 					RefTable:   targetModel.entTable,
 				},
 			)
@@ -446,4 +448,39 @@ func (d *Adapter) CreateModel(s *schema.Schema, relations ...*schema.Relation) *
 	}
 
 	return m
+}
+
+func relationOnDeleteOption(r *schema.Relation) entSchema.ReferenceOption {
+	option := r.OnDeleteOption()
+	if !option.Valid() {
+		return entSchema.ReferenceOption("")
+	}
+
+	return referenceOptionTypeToEnt(option)
+}
+
+func relationOnUpdateOption(r *schema.Relation) entSchema.ReferenceOption {
+	option := r.OnUpdateOption()
+	if !option.Valid() {
+		return entSchema.ReferenceOption("")
+	}
+
+	return referenceOptionTypeToEnt(option)
+}
+
+func referenceOptionTypeToEnt(option schema.ReferenceOptionType) entSchema.ReferenceOption {
+	switch option {
+	case schema.NoAction:
+		return entSchema.NoAction
+	case schema.Restrict:
+		return entSchema.Restrict
+	case schema.Cascade:
+		return entSchema.Cascade
+	case schema.SetNull:
+		return entSchema.SetNull
+	case schema.SetDefault:
+		return entSchema.SetDefault
+	default:
+		return entSchema.NoAction
+	}
 }

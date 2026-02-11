@@ -23,6 +23,11 @@ type Relation struct {
 	// Only used for O2O/O2M non-owner side
 	OnDelete ReferenceOptionType `json:"on_delete,omitempty"`
 
+	// OnUpdate specifies the action to take on update
+	// e.g., "NO ACTION", "RESTRICT", "CASCADE", "SET NULL", "SET DEFAULT".
+	// Only used for O2O/O2M non-owner side
+	OnUpdate ReferenceOptionType `json:"on_update,omitempty"`
+
 	// SourceColumn is the FK column name in the source schema table
 	// (for O2O/O2M non-owner side)
 	// or the column referencing the target schema's PK
@@ -54,6 +59,14 @@ func (r *Relation) Init(schema *Schema, relationSchema *Schema, f *Field) *Relat
 		r.TargetFieldName,
 	)
 
+	if r.HasFKs() && !r.OnDelete.Valid() {
+		r.OnDelete = r.defaultOnDeleteOption()
+	}
+
+	if r.HasFKs() && !r.OnUpdate.Valid() {
+		r.OnUpdate = r.defaultOnUpdateOption()
+	}
+
 	if r.HasFKs() {
 		r.SourceColumn = utils.If(
 			r.SourceColumn == "",
@@ -82,12 +95,52 @@ func (r *Relation) Clone() *Relation {
 
 		Type:         r.Type,
 		Owner:        r.Owner,
+		OnDelete:     r.OnDelete,
+		OnUpdate:     r.OnUpdate,
 		Optional:     r.Optional,
 		SourceColumn: r.SourceColumn,
 		TargetColumn: r.TargetColumn,
 	}
 
 	return newRelation
+}
+
+func (r *Relation) defaultOnDeleteOption() ReferenceOptionType {
+	if r.Optional {
+		return SetNull
+	}
+
+	return NoAction
+}
+
+// OnDeleteOption returns the effective on delete option for relations with FKs.
+func (r *Relation) OnDeleteOption() ReferenceOptionType {
+	if !r.HasFKs() {
+		return ReferenceOptionTypeInvalid
+	}
+
+	if r.OnDelete.Valid() {
+		return r.OnDelete
+	}
+
+	return r.defaultOnDeleteOption()
+}
+
+func (r *Relation) defaultOnUpdateOption() ReferenceOptionType {
+	return NoAction
+}
+
+// OnUpdateOption returns the effective on update option for relations with FKs.
+func (r *Relation) OnUpdateOption() ReferenceOptionType {
+	if !r.HasFKs() {
+		return ReferenceOptionTypeInvalid
+	}
+
+	if r.OnUpdate.Valid() {
+		return r.OnUpdate
+	}
+
+	return r.defaultOnUpdateOption()
 }
 
 // GetBackRefName get the back reference name

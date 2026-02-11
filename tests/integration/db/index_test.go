@@ -1,61 +1,14 @@
 package db
 
 import (
-	"context"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
-	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	h "github.com/fastschema/fastschema/tests/integration/helpers"
 )
-
-type dbConfig struct {
-	name string
-	port int
-}
-
-type dbClient struct {
-	name   string
-	client db.Client
-}
-
-func Ctx() context.Context {
-	return context.Background()
-}
-
-func removeAllMigrationFiles(migrationDir string) {
-	// Remove all migration files in the directory with prefix .sql
-	files := utils.Must(filepath.Glob(path.Join(migrationDir, "*.sql")))
-
-	for _, file := range files {
-		if err := os.RemoveAll(file); err != nil {
-			panic(err)
-		}
-	}
-
-	atlasFile := path.Join(migrationDir, "atlas.sum")
-	if _, err := os.Stat(atlasFile); err == nil {
-		if err := os.Remove(atlasFile); err != nil {
-			panic(err)
-		}
-	}
-}
-
-func runTests(t *testing.T, clients []dbClient) {
-	for _, client := range clients {
-		for _, test := range tests {
-			t.Run(client.name+"/"+test.name, func(t *testing.T) {
-				test.fn(t, client.client)
-			})
-		}
-	}
-}
 
 var systemSchemas = []any{
 	fs.Role{},
@@ -76,76 +29,38 @@ var tests = []struct {
 	{"DBDeleteNodes", DBDeleteNodes},
 }
 
-func TestMysql(t *testing.T) {
-	runTests(t, utils.Map([]dbConfig{
-		{"mysql56", 33061},
-		{"mysql57", 33062},
-		{"mysql8", 33063},
-		{"mariadb", 33064},
-		{"mariadb102", 33065},
-		{"mariadb103", 33066},
-	}, func(sc dbConfig) dbClient {
-		sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas", systemSchemas...))
-		removeAllMigrationFiles("../../../tests/data/migrations")
-		client := utils.Must(entdbadapter.NewEntClient(&db.Config{
-			Driver:       "mysql",
-			Name:         "fastschema",
-			User:         "root",
-			Pass:         "123",
-			Host:         "127.0.0.1",
-			Port:         strconv.Itoa(sc.port),
-			MigrationDir: "../../../tests/data/migrations",
-			LogQueries:   false,
-		}, sb))
+const (
+	schemaDir    = "../../../tests/integration/db/data/schemas"
+	migrationDir = "../../../tests/integration/db/data/migrations"
+	sqliteDSN    = "../../../tests/integration/db/data/db_test.db"
+)
 
-		return dbClient{
-			name:   sc.name,
-			client: client,
+func runTests(t *testing.T, clients []h.DBClient) {
+	for _, client := range clients {
+		for _, test := range tests {
+			t.Run(client.Name+"/"+test.name, func(t *testing.T) {
+				test.fn(t, client.C)
+			})
 		}
+	}
+}
+
+func TestMysql(t *testing.T) {
+	runTests(t, utils.Map(h.MysqlConfigs, func(sc h.DBConfig) h.DBClient {
+		sb := utils.Must(schema.NewBuilderFromDir(schemaDir, systemSchemas...))
+		return h.NewMySQLClient(t, sc, sb, migrationDir)
 	}))
 }
 
 func TestPostgres(t *testing.T) {
-	runTests(t, utils.Map([]dbConfig{
-		{"postgres10", 54321},
-		{"postgres11", 54322},
-		{"postgres12", 54323},
-		{"postgres13", 54324},
-		{"postgres14", 54325},
-		{"postgres15", 54326},
-	}, func(sc dbConfig) dbClient {
-		sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas", systemSchemas...))
-		removeAllMigrationFiles("../../../tests/data/migrations")
-		client := utils.Must(entdbadapter.NewEntClient(&db.Config{
-			Driver:       "pgx",
-			Name:         "fastschema",
-			User:         "postgres",
-			Pass:         "123",
-			Host:         "localhost",
-			Port:         strconv.Itoa(sc.port),
-			MigrationDir: "../../../tests/data/migrations",
-			LogQueries:   false,
-		}, sb))
-
-		return dbClient{
-			name:   sc.name,
-			client: client,
-		}
+	runTests(t, utils.Map(h.PostgresConfigs, func(sc h.DBConfig) h.DBClient {
+		sb := utils.Must(schema.NewBuilderFromDir(schemaDir, systemSchemas...))
+		return h.NewPostgresClient(t, sc, sb, migrationDir)
 	}))
 }
 
 func TestSQLite(t *testing.T) {
-	sb := utils.Must(schema.NewBuilderFromDir("../../../tests/data/schemas", systemSchemas...))
-	removeAllMigrationFiles("../../../tests/data/migrations")
-	client := utils.Must(entdbadapter.NewEntClient(&db.Config{
-		Driver:       "sqlite",
-		Name:         path.Join(t.TempDir(), "fastschema"),
-		MigrationDir: "../../../tests/data/migrations",
-		LogQueries:   false,
-	}, sb))
-
-	runTests(t, []dbClient{{
-		name:   "sqlite",
-		client: client,
-	}})
+	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, systemSchemas...))
+	client := h.NewSQLiteClient(t, "sqlite", sqliteDSN, migrationDir, sb)
+	runTests(t, []h.DBClient{client})
 }
