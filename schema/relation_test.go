@@ -219,3 +219,181 @@ func TestRelationTargetColumnFollowsPrimaryField(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, TypeString, fkField.Type)
 }
+
+func TestCreateFKFieldEdgeCases(t *testing.T) {
+	t.Run("no FKs returns nil", func(t *testing.T) {
+		// Owner side O2M has no FKs
+		relation := &Relation{
+			Type:             O2M,
+			TargetSchemaName: "user",
+			Owner:            true,
+		}
+		fkField, err := relation.CreateFKField(&Field{Name: "id", Type: TypeUint64})
+		assert.NoError(t, err)
+		assert.Nil(t, fkField)
+	})
+
+	t.Run("nil target field returns error", func(t *testing.T) {
+		relation := &Relation{
+			Type:             O2M,
+			TargetSchemaName: "user",
+			SourceSchemaName: "post",
+			SourceFieldName:  "owner",
+			Owner:            false,
+		}
+		fkField, err := relation.CreateFKField(nil)
+		assert.Error(t, err)
+		assert.Nil(t, fkField)
+		assert.Contains(t, err.Error(), "target field")
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("with custom target column", func(t *testing.T) {
+		relation := &Relation{
+			Type:             O2M,
+			TargetSchemaName: "user",
+			SourceSchemaName: "post",
+			SourceFieldName:  "author",
+			TargetColumn:     "custom_pk",
+			Owner:            false,
+		}
+		fkField, err := relation.CreateFKField(nil)
+		assert.Error(t, err)
+		assert.Nil(t, fkField)
+		// Error should mention the custom target column
+		assert.Contains(t, err.Error(), "custom_pk")
+	})
+}
+
+func TestOnDeleteOptionWithCustomOption(t *testing.T) {
+	// Test that custom OnDelete option is returned when set
+	relation := &Relation{
+		Type:             O2M,
+		TargetSchemaName: "user",
+		Owner:            false,
+		OnDelete:         Cascade,
+	}
+	assert.Equal(t, Cascade, relation.OnDeleteOption())
+}
+
+func TestOnUpdateOptionWithCustomOption(t *testing.T) {
+	// Test that custom OnUpdate option is returned when set
+	relation := &Relation{
+		Type:             O2M,
+		TargetSchemaName: "user",
+		Owner:            false,
+		OnUpdate:         Cascade,
+	}
+	assert.Equal(t, Cascade, relation.OnUpdateOption())
+}
+
+func TestRelationIsBidi(t *testing.T) {
+	// Same type, same field name = bidirectional
+	relation := &Relation{
+		Type:             O2O,
+		SourceSchemaName: "user",
+		SourceFieldName:  "friend",
+		TargetSchemaName: "user",
+		TargetFieldName:  "friend",
+	}
+	assert.True(t, relation.IsSameType())
+	assert.True(t, relation.IsBidi())
+
+	// Same type, different field name = not bidirectional
+	relation2 := &Relation{
+		Type:             O2O,
+		SourceSchemaName: "user",
+		SourceFieldName:  "parent",
+		TargetSchemaName: "user",
+		TargetFieldName:  "children",
+	}
+	assert.True(t, relation2.IsSameType())
+	assert.False(t, relation2.IsBidi())
+}
+
+func TestHasFKsVariants(t *testing.T) {
+	tests := []struct {
+		name     string
+		relation *Relation
+		expected bool
+	}{
+		{
+			name: "O2O two types not owner",
+			relation: &Relation{
+				Type:             O2O,
+				SourceSchemaName: "user",
+				TargetSchemaName: "profile",
+				Owner:            false,
+			},
+			expected: true,
+		},
+		{
+			name: "O2O two types owner",
+			relation: &Relation{
+				Type:             O2O,
+				SourceSchemaName: "user",
+				TargetSchemaName: "profile",
+				Owner:            true,
+			},
+			expected: false,
+		},
+		{
+			name: "O2O same type recursive not owner",
+			relation: &Relation{
+				Type:             O2O,
+				SourceSchemaName: "user",
+				SourceFieldName:  "parent",
+				TargetSchemaName: "user",
+				TargetFieldName:  "child",
+				Owner:            false,
+			},
+			expected: true,
+		},
+		{
+			name: "O2O bidi",
+			relation: &Relation{
+				Type:             O2O,
+				SourceSchemaName: "user",
+				SourceFieldName:  "friend",
+				TargetSchemaName: "user",
+				TargetFieldName:  "friend",
+			},
+			expected: true,
+		},
+		{
+			name: "O2M not owner",
+			relation: &Relation{
+				Type:             O2M,
+				SourceSchemaName: "post",
+				TargetSchemaName: "user",
+				Owner:            false,
+			},
+			expected: true,
+		},
+		{
+			name: "O2M owner",
+			relation: &Relation{
+				Type:             O2M,
+				SourceSchemaName: "user",
+				TargetSchemaName: "post",
+				Owner:            true,
+			},
+			expected: false,
+		},
+		{
+			name: "M2M",
+			relation: &Relation{
+				Type:             M2M,
+				SourceSchemaName: "user",
+				TargetSchemaName: "group",
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.relation.HasFKs())
+		})
+	}
+}

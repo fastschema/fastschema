@@ -57,7 +57,7 @@ func (ss *SchemaService) Update(
 		return nil, err
 	}
 
-	if err = ss.app.Reload(c, &db.Migration{
+	if err = ss.app.Reload(c, &db.Changes{
 		RenameTables: su.updateData.RenameTables,
 		RenameFields: su.updateData.RenameFields,
 	}); err != nil {

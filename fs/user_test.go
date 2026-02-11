@@ -39,3 +39,28 @@ func TestUserIsRoot(t *testing.T) {
 	isRoot = u.IsRoot()
 	assert.True(t, isRoot, "Expected IsRoot to return true for user with a root role")
 }
+
+func TestUserSchema(t *testing.T) {
+	u := fs.User{}
+	schema := u.Schema()
+
+	assert.NotNil(t, schema, "Expected Schema to return a non-nil schema")
+	assert.NotNil(t, schema.DB, "Expected Schema.DB to be non-nil")
+	assert.NotNil(t, schema.DB.Indexes, "Expected Schema.DB.Indexes to be non-nil")
+	assert.Len(t, schema.DB.Indexes, 3, "Expected 3 database indexes")
+
+	// Verify index names
+	indexNames := make([]string, len(schema.DB.Indexes))
+	for i, idx := range schema.DB.Indexes {
+		indexNames[i] = idx.Name
+	}
+
+	assert.Contains(t, indexNames, "idx_user_provider_provider_id")
+	assert.Contains(t, indexNames, "idx_user_username")
+	assert.Contains(t, indexNames, "idx_user_email")
+
+	// Verify each index is unique
+	for _, idx := range schema.DB.Indexes {
+		assert.True(t, idx.Unique, "Expected index %s to be unique", idx.Name)
+	}
+}

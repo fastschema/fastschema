@@ -1,9 +1,12 @@
 package auth_test
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"testing"
 
+	"cloud.google.com/go/auth/credentials/idtoken"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/stretchr/testify/assert"
@@ -25,9 +28,9 @@ func TestGoogleLogin(t *testing.T) {
 	ga := createGoogleAuth()
 	_, err := ga.Login(mockContext)
 	assert.NoError(t, err)
-	assert.Contains(t, mockContext.rediectURL, "accounts.google.com/o/oauth2/auth")
-	assert.Contains(t, mockContext.rediectURL, "client_id")
-	assert.Contains(t, mockContext.rediectURL, "redirect_uri")
+	assert.Contains(t, mockContext.redirectURL, "accounts.google.com/o/oauth2/auth")
+	assert.Contains(t, mockContext.redirectURL, "client_id")
+	assert.Contains(t, mockContext.redirectURL, "redirect_uri")
 }
 
 func TestGoogleCallbackNoCode(t *testing.T) {
@@ -95,4 +98,50 @@ func TestGoogleAuthCallbackSuccess(t *testing.T) {
 	assert.Equal(t, "12345", user.ProviderID)
 	assert.Equal(t, "google", user.Provider)
 	assert.True(t, user.Active)
+}
+func TestGoogleVerifyIDToken(t *testing.T) {
+	ga := createGoogleAuth().(*auth.GoogleAuthProvider)
+
+	// Mocking the Context
+	mockContext := &mockContext{}
+
+	// Case 1: Empty Token
+	{
+		user, err := ga.VerifyIDToken(mockContext, fs.IDToken{IDToken: ""})
+		assert.ErrorContains(t, err, "id token is required")
+		assert.Nil(t, user)
+	}
+
+	// Case 2: Validation Error
+	{
+		ga.TokenValidator = func(ctx context.Context, idToken string, audience string) (*idtoken.Payload, error) {
+			return nil, errors.New("validation failed")
+		}
+		user, err := ga.VerifyIDToken(mockContext, fs.IDToken{IDToken: "invalid"})
+		assert.ErrorContains(t, err, "invalid id token")
+		assert.Nil(t, user)
+	}
+
+	// Case 3: Success
+	{
+		ga.TokenValidator = func(ctx context.Context, idToken string, audience string) (*idtoken.Payload, error) {
+			return &idtoken.Payload{
+				Subject: "12345",
+				Claims: map[string]interface{}{
+					"email":       "test@example.com",
+					"given_name":  "Test",
+					"family_name": "User",
+					"picture":     "http://example.com/pic.jpg",
+				},
+			}, nil
+		}
+		user, err := ga.VerifyIDToken(mockContext, fs.IDToken{IDToken: "valid"})
+		assert.NoError(t, err)
+		assert.NotNil(t, user)
+		assert.Equal(t, "12345", user.ProviderID)
+		assert.Equal(t, "test@example.com", user.Email)
+		assert.Equal(t, "Test", user.FirstName)
+		assert.Equal(t, "User", user.LastName)
+		assert.Equal(t, "http://example.com/pic.jpg", user.ProviderProfileImage)
+	}
 }

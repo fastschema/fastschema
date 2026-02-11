@@ -8,6 +8,7 @@ import (
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/restfulresolver"
@@ -18,12 +19,16 @@ import (
 type restfulResolverContext = restfulresolver.Context
 type mockContext struct {
 	*restfulResolverContext
-	rediectURL string
-	args       map[string]string
+	redirectURL string
+	args        map[string]string
+}
+
+func (m *mockContext) Logger() logger.Logger {
+	return logger.CreateMockLogger(true)
 }
 
 func (m *mockContext) Redirect(url string) error {
-	m.rediectURL = url
+	m.redirectURL = url
 	return nil
 }
 

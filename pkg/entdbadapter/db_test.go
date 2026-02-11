@@ -86,8 +86,8 @@ func TestAdapterReloadErrorTableNotFound(t *testing.T) {
 	// Create a new schema builder
 	newSchemaBuilder := createSchemaBuilder()
 
-	// Create a mock migration
-	migration := &db.Migration{
+	// Create a mock changes
+	changes := &db.Changes{
 		RenameTables: []*db.RenameItem{
 			{
 				Type:            "table",
@@ -106,7 +106,7 @@ func TestAdapterReloadErrorTableNotFound(t *testing.T) {
 	}
 
 	// Call the Reload function
-	_, err := adapter.Reload(context.Background(), newSchemaBuilder, migration, false)
+	_, err := adapter.Reload(context.Background(), newSchemaBuilder, changes, false)
 	assert.Error(t, err)
 }
 
@@ -114,8 +114,8 @@ func TestAdapterReloadError(t *testing.T) {
 	// Create a new schema builder
 	newSchemaBuilder := createSchemaBuilder()
 
-	// Create a mock migration
-	migration := &db.Migration{
+	// Create a mock changes
+	changes := &db.Changes{
 		RenameTables: []*db.RenameItem{
 			{
 				Type:            "table",
@@ -129,7 +129,7 @@ func TestAdapterReloadError(t *testing.T) {
 	// Create a mock adapter
 	adapter := createMockAdapter(t)
 	// Call the Reload function
-	_, err := adapter.Reload(context.Background(), newSchemaBuilder, migration, false)
+	_, err := adapter.Reload(context.Background(), newSchemaBuilder, changes, false)
 	require.Error(t, err)
 }
 
@@ -141,14 +141,14 @@ func TestAdapterReloadSuccess(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	// Invalid migration
-	_, err = dbClient.Reload(context.Background(), sb, &db.Migration{
+	// Invalid changes
+	_, err = dbClient.Reload(context.Background(), sb, &db.Changes{
 		RenameTables: []*db.RenameItem{{From: "notfound", To: "notfound2"}},
 	}, false, true)
 	require.Error(t, err)
 
 	// Success
-	_, err = dbClient.Reload(context.Background(), sb, &db.Migration{
+	_, err = dbClient.Reload(context.Background(), sb, &db.Changes{
 		RenameTables: []*db.RenameItem{{From: "users", To: "members"}},
 	}, false, true)
 	require.NoError(t, err)
@@ -156,7 +156,7 @@ func TestAdapterReloadSuccess(t *testing.T) {
 	// Error database connection
 	adapter := dbClient.(*Adapter)
 	adapter.config = &db.Config{}
-	_, err = dbClient.Reload(context.Background(), sb, &db.Migration{
+	_, err = dbClient.Reload(context.Background(), sb, &db.Changes{
 		RenameTables: []*db.RenameItem{{From: "users", To: "members"}},
 	}, false, true)
 	require.Error(t, err)

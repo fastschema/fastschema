@@ -15,6 +15,9 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
+var _ db.Client = (*Tx)(nil)
+var _ EntAdapter = (*Tx)(nil)
+
 // Tx hold the transaction and the schema manager.
 type Tx struct {
 	ctx    context.Context
@@ -81,7 +84,7 @@ func (tx *Tx) SetDriver(driver dialect.Driver) {
 
 func (tx *Tx) Migrate(
 	ctx context.Context,
-	migration *db.Migration,
+	changes *db.Changes,
 	disableForeignKeys bool,
 	appendEntTables ...*entSchema.Table,
 ) (err error) {
@@ -92,11 +95,11 @@ func (tx *Tx) Migrate(
 func (tx *Tx) Reload(
 	ctx context.Context,
 	newSchemaBuilder *schema.Builder,
-	migration *db.Migration,
+	changes *db.Changes,
 	disableForeignKeys bool,
 	enableMigrations ...bool,
 ) (db.Client, error) {
-	return tx.client.Reload(ctx, newSchemaBuilder, migration, disableForeignKeys, enableMigrations...)
+	return tx.client.Reload(ctx, newSchemaBuilder, changes, disableForeignKeys, enableMigrations...)
 }
 
 // SchemaBuilder returns the schema builder.
@@ -179,6 +182,11 @@ func (tx *Tx) IsTx() bool {
 // Tx returns the transaction.
 func (tx *Tx) Tx(ctx context.Context) (t db.Client, err error) {
 	return tx, nil
+}
+
+// GenerateMigrationFiles generates a diff for the transaction.
+func (tx *Tx) GenerateMigrationFiles(ctx context.Context, name string) error {
+	return nil
 }
 
 // TxDriver is the driver for transaction.

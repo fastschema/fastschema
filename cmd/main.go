@@ -40,14 +40,14 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					fs := utils.Must(fastschema.New(&fs.Config{
+					app := utils.Must(fastschema.New(&fs.Config{
 						Dir: c.Args().Get(0),
 					}))
 
 					return toolservice.Setup(
 						c.Context,
-						fs.DB(),
-						fs.Logger(),
+						app.DB(),
+						app.Logger(),
 						c.String("username"), c.String("email"), c.String("password"),
 					)
 				},
@@ -81,18 +81,132 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					fs := utils.Must(fastschema.New(&fs.Config{
+					app := utils.Must(fastschema.New(&fs.Config{
 						Dir: c.Args().Get(0),
 					}))
 
-					_ = toolservice.ResetAdminPassword(
+					return toolservice.ResetAdminPassword(
 						c.Context,
-						fs.DB(),
+						app.DB(),
 						c.String("password"),
 						c.Int("id"),
 					)
+				},
+			},
+			{
+				Name:  "migration",
+				Usage: "Manage database migrations",
+				Subcommands: []*cli.Command{
+					{
+						Name:  "create",
+						Usage: "Create empty migration files for custom SQL",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "name",
+								Aliases:  []string{"n"},
+								Usage:    "Migration name",
+								Required: true,
+							},
+						},
+						Action: func(c *cli.Context) error {
+							app := utils.Must(fastschema.New(&fs.Config{
+								Dir: c.Args().Get(0),
+							}))
 
-					return nil
+							_, err := toolservice.MigrationNew(
+								c.Context,
+								app.DB(),
+								c.String("name"),
+							)
+							return err
+						},
+					},
+					{
+						Name:  "generate",
+						Usage: "Generate migration from schema diff",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "name",
+								Aliases:  []string{"n"},
+								Usage:    "Migration name",
+								Required: true,
+							},
+						},
+						Action: func(c *cli.Context) error {
+							app := utils.Must(fastschema.New(&fs.Config{
+								Dir: c.Args().Get(0),
+							}))
+
+							return toolservice.MigrationGenerate(
+								c.Context,
+								app.DB(),
+								c.String("name"),
+							)
+						},
+					},
+					{
+						Name:  "up",
+						Usage: "Apply pending migrations",
+						Flags: []cli.Flag{
+							&cli.IntFlag{
+								Name:    "count",
+								Aliases: []string{"c"},
+								Usage:   "Number of migrations to apply (0 = all)",
+								Value:   0,
+							},
+						},
+						Action: func(c *cli.Context) error {
+							app := utils.Must(fastschema.New(&fs.Config{
+								Dir: c.Args().Get(0),
+							}))
+
+							_, err := toolservice.MigrationUp(
+								c.Context,
+								app.DB(),
+								c.Int("count"),
+							)
+							return err
+						},
+					},
+					{
+						Name:  "down",
+						Usage: "Roll back migrations",
+						Flags: []cli.Flag{
+							&cli.IntFlag{
+								Name:    "count",
+								Aliases: []string{"c"},
+								Usage:   "Number of migrations to roll back",
+								Value:   1,
+							},
+						},
+						Action: func(c *cli.Context) error {
+							app := utils.Must(fastschema.New(&fs.Config{
+								Dir: c.Args().Get(0),
+							}))
+
+							_, err := toolservice.MigrationDown(
+								c.Context,
+								app.DB(),
+								c.Int("count"),
+							)
+							return err
+						},
+					},
+					{
+						Name:  "status",
+						Usage: "Show migration status",
+						Action: func(c *cli.Context) error {
+							app := utils.Must(fastschema.New(&fs.Config{
+								Dir: c.Args().Get(0),
+							}))
+
+							_, _, err := toolservice.MigrationStatus(
+								c.Context,
+								app.DB(),
+							)
+							return err
+						},
+					},
 				},
 			},
 		},

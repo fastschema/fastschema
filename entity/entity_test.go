@@ -836,3 +836,93 @@ func TestBindEntity(t *testing.T) {
 	_, err = BindEntity[TestStruct](errEntity)
 	assert.Error(t, err)
 }
+
+// TestNewWithIDField tests the NewWithIDField constructor function.
+func TestNewWithIDField(t *testing.T) {
+	// Test with custom ID field and ID value
+	e := NewWithIDField("code", "proj-123")
+	assert.Equal(t, "code", e.GetIDField())
+	assert.Equal(t, "proj-123", e.ID())
+	assert.Equal(t, "proj-123", e.Get("code"))
+	assert.Equal(t, "proj-123", e.Get(FieldID))
+
+	// Test with custom ID field but no ID value
+	e2 := NewWithIDField("sku")
+	assert.Equal(t, "sku", e2.GetIDField())
+	assert.Nil(t, e2.ID())
+
+	// Test with empty field name (should default to "id")
+	e3 := NewWithIDField("", 42)
+	assert.Equal(t, FieldID, e3.GetIDField())
+	assert.Equal(t, 42, e3.ID())
+}
+
+// TestSetIDFieldEdgeCases tests edge cases for SetIDField.
+func TestSetIDFieldEdgeCases(t *testing.T) {
+	// Test nil entity receiver
+	var nilEntity *Entity
+	result := nilEntity.SetIDField("custom")
+	assert.Nil(t, result)
+
+	// Test empty field name defaults to FieldID
+	e := New()
+	e.SetIDField("custom")
+	assert.Equal(t, "custom", e.GetIDField())
+	e.SetIDField("")
+	assert.Equal(t, FieldID, e.GetIDField())
+}
+
+// TestGetIDFieldEdgeCases tests edge cases for GetIDField.
+func TestGetIDFieldEdgeCases(t *testing.T) {
+	// Test nil entity receiver
+	var nilEntity *Entity
+	assert.Equal(t, FieldID, nilEntity.GetIDField())
+
+	// Test entity with empty idField (should default to FieldID)
+	e := New()
+	// Manually clear the idField to test fallback
+	e.idField = ""
+	assert.Equal(t, FieldID, e.GetIDField())
+}
+
+// TestIDFallbackPath tests the ID() method's fallback behavior.
+func TestIDFallbackPath(t *testing.T) {
+	// Test when custom idField is set but value not found, falls back to FieldID
+	e := New()
+	e.idField = "custom_id"
+	e.Set(FieldID, 999) // Set only the default field
+	// ID() should first look for "custom_id", not find it, then fall back to "id"
+	assert.Equal(t, 999, e.ID())
+
+	// Test when neither custom field nor FieldID has value
+	e2 := New()
+	e2.idField = "custom_id"
+	assert.Nil(t, e2.ID())
+
+	// Test when idField equals FieldID (no fallback needed)
+	e3 := New()
+	e3.Set(FieldID, 123)
+	assert.Equal(t, 123, e3.ID())
+}
+
+// TestUnmarshalJSONEmptyArray tests unmarshaling an empty JSON array.
+func TestUnmarshalJSONEmptyArray(t *testing.T) {
+	entity := New()
+	err := entity.UnmarshalJSON([]byte(`{"items": []}`))
+	assert.NoError(t, err)
+	assert.Nil(t, entity.Get("items"))
+}
+
+// TestGetStringNonStringValue tests GetString with a non-string value.
+func TestGetStringNonStringValue(t *testing.T) {
+	entity := New()
+	entity.Set("count", 42)
+
+	// Should return empty string when value is not a string and no default
+	result := entity.GetString("count")
+	assert.Equal(t, "", result)
+
+	// Should return default when value is not a string
+	result = entity.GetString("count", "default")
+	assert.Equal(t, "default", result)
+}

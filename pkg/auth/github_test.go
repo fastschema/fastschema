@@ -25,9 +25,9 @@ func TestGithubLogin(t *testing.T) {
 	ga := createGithubAuth()
 	_, err := ga.Login(mockContext)
 	assert.NoError(t, err)
-	assert.Contains(t, mockContext.rediectURL, "github.com/login/oauth/authorize")
-	assert.Contains(t, mockContext.rediectURL, "client_id")
-	assert.Contains(t, mockContext.rediectURL, "redirect_uri")
+	assert.Contains(t, mockContext.redirectURL, "github.com/login/oauth/authorize")
+	assert.Contains(t, mockContext.redirectURL, "client_id")
+	assert.Contains(t, mockContext.redirectURL, "redirect_uri")
 }
 
 func TestGithubCallbackNoCode(t *testing.T) {
@@ -92,4 +92,13 @@ func TestGithubAuthCallbackSuccess(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 	assert.Equal(t, "testuser", user.Username)
+}
+
+func TestGithubVerifyIDToken(t *testing.T) {
+	ga := createGithubAuth()
+
+	// Case 1: Not implemented
+	user, err := ga.VerifyIDToken(nil, fs.IDToken{})
+	assert.ErrorContains(t, err, "not implemented")
+	assert.Nil(t, user)
 }

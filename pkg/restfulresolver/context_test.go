@@ -250,6 +250,83 @@ func TestContextMethods(t *testing.T) {
 	assert.Equal(t, "send", utils.Must(utils.ReadCloserToString(resp.Body)))
 }
 
+func TestContextMiscMethods(t *testing.T) {
+	server := restfulresolver.New(restfulresolver.Config{
+		Logger: logger.CreateMockLogger(true),
+	})
+	server.Get("/test", func(c *restfulresolver.Context) error {
+		// Test Deadline, Done, Err, Value from fasthttp.RequestCtx
+		deadline, ok := c.Deadline()
+		assert.False(t, ok)                       // No deadline set
+		assert.True(t, deadline.IsZero())         // Zero value
+		assert.Nil(t, c.Done())                   // No cancellation
+		assert.Nil(t, c.Err())                    // No error
+		assert.Nil(t, c.Value("nonexistent_key")) // No value for key
+
+		return c.JSON(fs.Map{"status": "ok"})
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	resp, err := server.Test(req)
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestContextBodyParserAndFormValue(t *testing.T) {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Post("/test", func(c *restfulresolver.Context) error {
+		// Test BodyParser
+		var data map[string]any
+		err := c.BodyParser(&data)
+		assert.NoError(t, err)
+		assert.Equal(t, "test", data["name"])
+		return c.JSON(data)
+	})
+	server.Post("/form", func(c *restfulresolver.Context) error {
+		// Test FormValue
+		name := c.FormValue("name")
+		defaultValue := c.FormValue("missing", "default")
+		return c.JSON(fs.Map{"name": name, "default": defaultValue})
+	})
+
+	// Test BodyParser
+	req := httptest.NewRequest("POST", "/test", bytes.NewReader([]byte(`{"name":"test"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := server.Test(req)
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	// Test FormValue
+	body := new(bytes.Buffer)
+	mw := multipart.NewWriter(body)
+	mw.WriteField("name", "formvalue")
+	mw.Close()
+	req = httptest.NewRequest("POST", "/form", body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err = server.Test(req)
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestContextAuthTokenXAuthHeader(t *testing.T) {
+	server := restfulresolver.New(restfulresolver.Config{})
+	server.Get("/test", func(c *restfulresolver.Context) error {
+		return c.JSON(fs.Map{"token": c.AuthToken()})
+	})
+
+	// Test X-Auth-Token header (separate path from Authorization)
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-Auth-Token", "xauthtoken")
+	resp, err := server.Test(req)
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), "xauthtoken")
+}
+
 func createTestImage(t *testing.T) string {
 	tmpFilePath := t.TempDir() + "/image.png"
 	img := image.NewRGBA(image.Rect(0, 0, 100, 100))

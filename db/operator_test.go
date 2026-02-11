@@ -303,6 +303,90 @@ func TestLike(t *testing.T) {
 	}
 }
 
+func TestNotLike(t *testing.T) {
+	tests := []struct {
+		field string
+		value string
+		want  *Predicate
+	}{
+		{"field1", "abc", &Predicate{Field: "field1", Operator: OpNotLike, Value: "abc"}},
+		{"field2", "%def%", &Predicate{Field: "field2", Operator: OpNotLike, Value: "%def%"}},
+		{"field3", "", &Predicate{Field: "field3", Operator: OpNotLike, Value: ""}},
+	}
+
+	for _, tt := range tests {
+		if got := NotLike(tt.field, tt.value); !predicatesEqual(got, tt.want) {
+			t.Errorf("NotLike(%q, %q) = %v, want %v", tt.field, tt.value, got, tt.want)
+		}
+	}
+}
+
+func TestContainsOperators(t *testing.T) {
+	// Test Contains
+	containsTests := []struct {
+		field string
+		value string
+		want  *Predicate
+	}{
+		{"field1", "abc", &Predicate{Field: "field1", Operator: OpContains, Value: "abc"}},
+		{"field2", "substring", &Predicate{Field: "field2", Operator: OpContains, Value: "substring"}},
+	}
+
+	for _, tt := range containsTests {
+		if got := Contains(tt.field, tt.value); !predicatesEqual(got, tt.want) {
+			t.Errorf("Contains(%q, %q) = %v, want %v", tt.field, tt.value, got, tt.want)
+		}
+	}
+
+	// Test NotContains
+	notContainsTests := []struct {
+		field string
+		value string
+		want  *Predicate
+	}{
+		{"field1", "abc", &Predicate{Field: "field1", Operator: OpNotContains, Value: "abc"}},
+		{"field2", "substring", &Predicate{Field: "field2", Operator: OpNotContains, Value: "substring"}},
+	}
+
+	for _, tt := range notContainsTests {
+		if got := NotContains(tt.field, tt.value); !predicatesEqual(got, tt.want) {
+			t.Errorf("NotContains(%q, %q) = %v, want %v", tt.field, tt.value, got, tt.want)
+		}
+	}
+
+	// Test ContainsFold (case-insensitive)
+	containsFoldTests := []struct {
+		field string
+		value string
+		want  *Predicate
+	}{
+		{"field1", "ABC", &Predicate{Field: "field1", Operator: OpContainsFold, Value: "ABC"}},
+		{"field2", "MixedCase", &Predicate{Field: "field2", Operator: OpContainsFold, Value: "MixedCase"}},
+	}
+
+	for _, tt := range containsFoldTests {
+		if got := ContainsFold(tt.field, tt.value); !predicatesEqual(got, tt.want) {
+			t.Errorf("ContainsFold(%q, %q) = %v, want %v", tt.field, tt.value, got, tt.want)
+		}
+	}
+
+	// Test NotContainsFold (case-insensitive)
+	notContainsFoldTests := []struct {
+		field string
+		value string
+		want  *Predicate
+	}{
+		{"field1", "ABC", &Predicate{Field: "field1", Operator: OpNotContainsFold, Value: "ABC"}},
+		{"field2", "MixedCase", &Predicate{Field: "field2", Operator: OpNotContainsFold, Value: "MixedCase"}},
+	}
+
+	for _, tt := range notContainsFoldTests {
+		if got := NotContainsFold(tt.field, tt.value); !predicatesEqual(got, tt.want) {
+			t.Errorf("NotContainsFold(%q, %q) = %v, want %v", tt.field, tt.value, got, tt.want)
+		}
+	}
+}
+
 func TestIn(t *testing.T) {
 	tests := []struct {
 		field  string

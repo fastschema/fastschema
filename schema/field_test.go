@@ -545,3 +545,42 @@ func TestFieldGetterSetter(t *testing.T) {
 		assert.NoError(t, field.Init())
 	}
 }
+
+func TestIsValidValuePointerDereferencing(t *testing.T) {
+	field := &Field{Type: TypeInt}
+
+	// Test with pointer to int
+	intVal := 42
+	ptrVal := &intVal
+	assert.True(t, field.IsValidValue(ptrVal))
+
+	// Test with double pointer
+	ptrPtrVal := &ptrVal
+	assert.True(t, field.IsValidValue(ptrPtrVal))
+
+	// Test with nil pointer - the pointer itself is nil so value check
+	// At the top level, an interface holding (*int)(nil) is not nil itself
+	// so IsNil check in Reflect will break the loop
+	var nilPtr *int = nil
+	// When passed to IsValidValue, reflect.ValueOf(nilPtr).IsNil() == true
+	// so the loop breaks without dereferencing, value remains as (*int)(nil)
+	// This goes through the nil check at line 125: if value == nil -> true
+	// But interface containing nil pointer is not == nil
+	assert.False(t, field.IsValidValue(nilPtr))
+}
+
+func TestIsValidValueEnumNotFound(t *testing.T) {
+	field := &Field{
+		Type: TypeEnum,
+		Enums: []*FieldEnum{
+			{Value: "active", Label: "Active"},
+			{Value: "inactive", Label: "Inactive"},
+		},
+	}
+
+	// Enum value exists
+	assert.True(t, field.IsValidValue("active"))
+
+	// Enum value does not exist
+	assert.False(t, field.IsValidValue("deleted"))
+}

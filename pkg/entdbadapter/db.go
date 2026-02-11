@@ -97,7 +97,12 @@ func NewEntClient(
 		return adapter, nil
 	}
 
-	if !config.IgnoreMigration {
+	// Handle migration based on mode
+	// - MigrationMode="manual": skip auto-migration, user runs CLI commands
+	// - MigrationMode="auto" or "": apply migrations automatically (default)
+	shouldMigrate := config.MigrationMode != "manual"
+
+	if shouldMigrate {
 		if err = entAdapter.Migrate(context.Background(), nil, config.DisableForeignKeys); err != nil {
 			return nil, err
 		}
@@ -109,14 +114,20 @@ func NewEntClient(
 func (d *Adapter) Reload(
 	ctx context.Context,
 	newSchemaBuilder *schema.Builder,
-	migration *db.Migration,
+	changes *db.Changes,
 	disableForeignKeys bool,
 	enableMigrations ...bool,
 ) (_ db.Client, err error) {
 	enableMigrations = append(enableMigrations, true)
 	renamedEntTables := make([]*entSchema.Table, 0)
 	newConfig := d.config.Clone()
-	newConfig.IgnoreMigration = !enableMigrations[0]
+
+	if !enableMigrations[0] {
+		newConfig.MigrationMode = "manual"
+	} else {
+		newConfig.MigrationMode = "auto"
+	}
+
 	newAdapter, err := NewClient(newConfig, newSchemaBuilder)
 	if err != nil {
 		return nil, err
@@ -140,8 +151,8 @@ func (d *Adapter) Reload(
 	// and add the old junction table to the tables list to help Ent know about it
 	// Ent will then know about the old junction table and be able to rename it's columns.
 
-	if migration != nil && len(migration.RenameTables) > 0 {
-		for _, renameTable := range migration.RenameTables {
+	if changes != nil && len(changes.RenameTables) > 0 {
+		for _, renameTable := range changes.RenameTables {
 			if !renameTable.IsJunctionTable {
 				continue
 			}
@@ -189,7 +200,7 @@ func (d *Adapter) Reload(
 		return nil, fmt.Errorf("invalid adapter, want EntAdapter, got %T", newAdapter)
 	}
 
-	if err = newEntAdapter.Migrate(ctx, migration, disableForeignKeys, renamedEntTables...); err != nil {
+	if err = newEntAdapter.Migrate(ctx, changes, disableForeignKeys, renamedEntTables...); err != nil {
 		return nil, err
 	}
 

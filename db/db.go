@@ -129,8 +129,7 @@ type RenameItem struct {
 	SchemaNamespace string `json:"schema_namespace,omitempty"`  // use in rename column: The schema name of the column
 }
 
-type Migration struct {
-	Dir          string
+type Changes struct {
 	RenameTables []*RenameItem
 	RenameFields []*RenameItem
 }
@@ -145,7 +144,7 @@ type Config struct {
 	Logger             logger.Logger `json:"-"`
 	LogQueries         bool          `json:"log_queries"`
 	MigrationDir       string        `json:"migration_dir"`
-	IgnoreMigration    bool          `json:"ignore_migration"`
+	MigrationMode      string        `json:"migration_mode"` // "auto" or "manual"
 	DisableForeignKeys bool          `json:"disable_foreign_keys"`
 	UseSoftDeletes     bool          `json:"use_soft_deletes"`
 	Hooks              func() *Hooks `json:"-"`
@@ -162,7 +161,7 @@ func (c *Config) Clone() *Config {
 		Logger:             c.Logger,
 		LogQueries:         c.LogQueries,
 		MigrationDir:       c.MigrationDir,
-		IgnoreMigration:    c.IgnoreMigration,
+		MigrationMode:      c.MigrationMode,
 		DisableForeignKeys: c.DisableForeignKeys,
 		Hooks:              c.Hooks,
 	}
@@ -197,13 +196,16 @@ type Client interface {
 	Reload(
 		ctx context.Context,
 		newSchemaBuilder *schema.Builder,
-		migration *Migration,
+		migration *Changes,
 		disableForeignKeys bool,
 		enableMigrations ...bool,
 	) (Client, error)
 	DB() *sql.DB
 	Config() *Config
 	Hooks() *Hooks
+
+	// GenerateMigrationFiles compares current database state with schema and generates migration SQL
+	GenerateMigrationFiles(ctx context.Context, name string) error
 }
 
 type Model interface {

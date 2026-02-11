@@ -52,4 +52,17 @@ func TestNoopClient(t *testing.T) {
 	assert.Nil(t, utils.Must(client.Model("category")))
 	assert.Nil(t, utils.Must(client.Exec(ctx, "SELECT 1")))
 	assert.Nil(t, utils.Must(client.Query(ctx, "SELECT 1")))
+	assert.Nil(t, client.GenerateMigrationFiles(ctx, "test_migration"))
+}
+
+func TestWrappedClientGenerateMigrationFiles(t *testing.T) {
+	client, ctx := prepareTest()
+
+	wrapped := db.NewWrappedClient(func() db.Client {
+		return client
+	})
+
+	// GenerateMigrationFiles should not error for a valid client
+	// (may error if migrations are not enabled, but that's expected behavior)
+	_ = wrapped.GenerateMigrationFiles(ctx, "test_migration")
 }

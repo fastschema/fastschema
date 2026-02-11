@@ -77,12 +77,12 @@ func (ga *GithubAuthProvider) WithResources(resource *fs.Resource) {
 
 func (ga *GithubAuthProvider) Login(c fs.Context) (_ any, err error) {
 	state := utils.RandomString(16) // should replace with a cookie from context
-	rediectURL := ga.oauth.AuthCodeURL(
+	redirectURL := ga.oauth.AuthCodeURL(
 		state,
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("scope", "user:email"),
 	)
-	return nil, c.Redirect(rediectURL)
+	return nil, c.Redirect(redirectURL)
 }
 
 func (ga *GithubAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {

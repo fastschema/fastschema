@@ -342,16 +342,16 @@ func TestSchemaServiceUpdateRenameNormalField(t *testing.T) {
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,
 		},
-		reloadFn: func(migrations *db.Migration) error {
+		reloadFn: func(changes *db.Changes) error {
 			if !checkMigration {
 				return nil
 			}
-			assert.Len(t, migrations.RenameFields, 1)
-			assert.Equal(t, "column", migrations.RenameFields[0].Type)
-			assert.Equal(t, "description", migrations.RenameFields[0].From)
-			assert.Equal(t, "desc", migrations.RenameFields[0].To)
-			assert.Equal(t, "blog", migrations.RenameFields[0].SchemaName)
-			assert.Equal(t, "blogs", migrations.RenameFields[0].SchemaNamespace)
+			assert.Len(t, changes.RenameFields, 1)
+			assert.Equal(t, "column", changes.RenameFields[0].Type)
+			assert.Equal(t, "description", changes.RenameFields[0].From)
+			assert.Equal(t, "desc", changes.RenameFields[0].To)
+			assert.Equal(t, "blog", changes.RenameFields[0].SchemaName)
+			assert.Equal(t, "blogs", changes.RenameFields[0].SchemaNamespace)
 
 			return nil
 		},
@@ -390,17 +390,17 @@ func TestSchemaServiceUpdateRenameO2MRelationField(t *testing.T) {
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,
 		},
-		reloadFn: func(migrations *db.Migration) error {
+		reloadFn: func(changes *db.Changes) error {
 			if !checkMigration {
 				return nil
 			}
 
-			assert.Len(t, migrations.RenameFields, 1)
-			assert.Equal(t, "column", migrations.RenameFields[0].Type)
-			assert.Equal(t, "category_id", migrations.RenameFields[0].From)
-			assert.Equal(t, "main_category_id", migrations.RenameFields[0].To)
-			assert.Equal(t, "blog", migrations.RenameFields[0].SchemaName)
-			assert.Equal(t, "blogs", migrations.RenameFields[0].SchemaNamespace)
+			assert.Len(t, changes.RenameFields, 1)
+			assert.Equal(t, "column", changes.RenameFields[0].Type)
+			assert.Equal(t, "category_id", changes.RenameFields[0].From)
+			assert.Equal(t, "main_category_id", changes.RenameFields[0].To)
+			assert.Equal(t, "blog", changes.RenameFields[0].SchemaName)
+			assert.Equal(t, "blogs", changes.RenameFields[0].SchemaNamespace)
 
 			return nil
 		},
@@ -439,25 +439,25 @@ func TestSchemaServiceUpdateRenameM2MRelationField(t *testing.T) {
 			"blog": testBlogJSON,
 			"tag":  testTagJSON,
 		},
-		reloadFn: func(migrations *db.Migration) error {
+		reloadFn: func(changes *db.Changes) error {
 			if !checkMigration {
 				return nil
 			}
 
-			assert.Len(t, migrations.RenameFields, 1)
-			assert.Equal(t, "column", migrations.RenameFields[0].Type)
-			assert.Equal(t, "categories", migrations.RenameFields[0].From)
-			assert.Equal(t, "cats", migrations.RenameFields[0].To)
-			assert.Equal(t, "blogs_categories", migrations.RenameFields[0].SchemaName)
-			assert.Equal(t, "blogs_categories", migrations.RenameFields[0].SchemaNamespace)
+			assert.Len(t, changes.RenameFields, 1)
+			assert.Equal(t, "column", changes.RenameFields[0].Type)
+			assert.Equal(t, "categories", changes.RenameFields[0].From)
+			assert.Equal(t, "cats", changes.RenameFields[0].To)
+			assert.Equal(t, "blogs_categories", changes.RenameFields[0].SchemaName)
+			assert.Equal(t, "blogs_categories", changes.RenameFields[0].SchemaNamespace)
 
-			assert.Len(t, migrations.RenameTables, 1)
-			assert.Equal(t, "table", migrations.RenameTables[0].Type)
-			assert.Equal(t, "blogs_categories", migrations.RenameTables[0].From)
-			assert.Equal(t, "blogs_cats", migrations.RenameTables[0].To)
-			assert.Equal(t, true, migrations.RenameTables[0].IsJunctionTable)
-			assert.Equal(t, "", migrations.RenameTables[0].SchemaName)
-			assert.Equal(t, "", migrations.RenameTables[0].SchemaNamespace)
+			assert.Len(t, changes.RenameTables, 1)
+			assert.Equal(t, "table", changes.RenameTables[0].Type)
+			assert.Equal(t, "blogs_categories", changes.RenameTables[0].From)
+			assert.Equal(t, "blogs_cats", changes.RenameTables[0].To)
+			assert.Equal(t, true, changes.RenameTables[0].IsJunctionTable)
+			assert.Equal(t, "", changes.RenameTables[0].SchemaName)
+			assert.Equal(t, "", changes.RenameTables[0].SchemaNamespace)
 
 			return nil
 		},

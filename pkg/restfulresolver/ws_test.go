@@ -245,3 +245,22 @@ func TestWSHooksSuccess(t *testing.T) {
 	defer conn.Close()
 	assert.NoError(t, err)
 }
+
+// TestWSHandlerError tests the handler error path in WSResourceHandler
+func TestWSHandlerError(t *testing.T) {
+	wsResources := []*fs.Resource{
+		fs.WS("/realtime/error", func(c fs.Context, _ any) (any, error) {
+			return nil, fmt.Errorf("handler error")
+		}),
+	}
+
+	server := createTestApp(t, wsResources, nil)
+	defer func() {
+		assert.NoError(t, server.Shutdown())
+	}()
+
+	conn, resp, err := fhws.DefaultDialer.Dial("ws://localhost:55555/api/realtime/error", nil)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	defer conn.Close()
+}

@@ -567,3 +567,377 @@ func TestNewSchemaFromMap(t *testing.T) {
 	assert.False(t, schema.Fields[2].Unique)
 	assert.False(t, schema.Fields[2].Sortable)
 }
+
+func TestMergeSchemas(t *testing.T) {
+	t.Run("merge namespace override", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "original",
+			LabelFieldName: "name",
+		}
+		source := &Schema{
+			Name:      "test",
+			Namespace: "overridden",
+		}
+		MergeSchemas(target, source)
+		assert.Equal(t, "overridden", target.Namespace)
+	})
+
+	t.Run("skip namespace if same", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "same",
+			LabelFieldName: "name",
+		}
+		source := &Schema{
+			Name:      "test",
+			Namespace: "same",
+		}
+		MergeSchemas(target, source)
+		assert.Equal(t, "same", target.Namespace)
+	})
+
+	t.Run("merge label field", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "original",
+		}
+		source := &Schema{
+			LabelFieldName: "overridden",
+		}
+		MergeSchemas(target, source)
+		assert.Equal(t, "overridden", target.LabelFieldName)
+	})
+
+	t.Run("merge primary field", func(t *testing.T) {
+		target := &Schema{
+			Name:             "test",
+			Namespace:        "ns",
+			LabelFieldName:   "name",
+			PrimaryFieldName: "",
+		}
+		source := &Schema{
+			PrimaryFieldName: "custom_id",
+		}
+		MergeSchemas(target, source)
+		assert.Equal(t, "custom_id", target.PrimaryFieldName)
+	})
+
+	t.Run("merge disable timestamp", func(t *testing.T) {
+		target := &Schema{
+			Name:             "test",
+			Namespace:        "ns",
+			LabelFieldName:   "name",
+			DisableTimestamp: false,
+		}
+		source := &Schema{
+			DisableTimestamp: true,
+		}
+		MergeSchemas(target, source)
+		assert.True(t, target.DisableTimestamp)
+	})
+
+	t.Run("merge settings", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			Settings:       nil,
+		}
+		newSettings := &SchemaSettings{
+			Form: &SchemaFormSettings{ActiveView: "custom"},
+		}
+		source := &Schema{
+			Settings: newSettings,
+		}
+		MergeSchemas(target, source)
+		assert.Equal(t, newSettings, target.Settings)
+	})
+
+	t.Run("merge existing fields", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			Fields: []*Field{
+				{Name: "name", Type: TypeString, Label: "Original Label"},
+			},
+		}
+		source := &Schema{
+			Fields: []*Field{
+				{Name: "name", Type: TypeString, Label: "New Label", Sortable: true},
+			},
+		}
+		MergeSchemas(target, source)
+		assert.Equal(t, "New Label", target.Field("name").Label)
+		assert.True(t, target.Field("name").Sortable)
+	})
+
+	t.Run("skip merge for system fields", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			Fields: []*Field{
+				{Name: "id", Type: TypeUint64, Label: "ID", IsSystemField: true},
+			},
+		}
+		source := &Schema{
+			Fields: []*Field{
+				{Name: "id", Type: TypeUint64, Label: "Custom ID", IsSystemField: true},
+			},
+		}
+		MergeSchemas(target, source)
+		// System field should not be merged
+		assert.Equal(t, "ID", target.Field("id").Label)
+	})
+
+	t.Run("add new non-system fields", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			Fields: []*Field{
+				{Name: "name", Type: TypeString, Label: "Name"},
+			},
+		}
+		source := &Schema{
+			Fields: []*Field{
+				{Name: "description", Type: TypeText, Label: "Description"},
+			},
+		}
+		MergeSchemas(target, source)
+		assert.NotNil(t, target.Field("description"))
+		assert.Equal(t, "Description", target.Field("description").Label)
+	})
+
+	t.Run("skip adding system fields from source", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			Fields:         []*Field{},
+		}
+		source := &Schema{
+			Fields: []*Field{
+				{Name: "created_at", Type: TypeTime, Label: "Created At", IsSystemField: true},
+			},
+		}
+		MergeSchemas(target, source)
+		// System field should not be added
+		assert.Nil(t, target.Field("created_at"))
+	})
+
+	t.Run("merge DB indexes - add new", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			DB:             nil,
+		}
+		source := &Schema{
+			DB: &SchemaDB{
+				Indexes: []*SchemaDBIndex{
+					{Name: "idx_name", Columns: []string{"name"}},
+				},
+			},
+		}
+		MergeSchemas(target, source)
+		assert.NotNil(t, target.DB)
+		assert.Len(t, target.DB.Indexes, 1)
+		assert.Equal(t, "idx_name", target.DB.Indexes[0].Name)
+	})
+
+	t.Run("merge DB indexes - skip existing", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			DB: &SchemaDB{
+				Indexes: []*SchemaDBIndex{
+					{Name: "idx_name", Columns: []string{"name"}, Unique: false},
+				},
+			},
+		}
+		source := &Schema{
+			DB: &SchemaDB{
+				Indexes: []*SchemaDBIndex{
+					{Name: "idx_name", Columns: []string{"name"}, Unique: true}, // Different config
+					{Name: "idx_email", Columns: []string{"email"}},
+				},
+			},
+		}
+		MergeSchemas(target, source)
+		assert.Len(t, target.DB.Indexes, 2)
+		// Original index should not be modified
+		assert.False(t, target.DB.Indexes[0].Unique)
+		// New index should be added
+		assert.Equal(t, "idx_email", target.DB.Indexes[1].Name)
+	})
+
+	t.Run("merge DB indexes - nil source indexes", func(t *testing.T) {
+		target := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			DB: &SchemaDB{
+				Indexes: []*SchemaDBIndex{
+					{Name: "idx_name", Columns: []string{"name"}},
+				},
+			},
+		}
+		source := &Schema{
+			DB: &SchemaDB{
+				Indexes: nil,
+			},
+		}
+		MergeSchemas(target, source)
+		// Target indexes should remain unchanged
+		assert.Len(t, target.DB.Indexes, 1)
+	})
+}
+
+func TestPrimaryKeyName(t *testing.T) {
+	t.Run("returns cached primaryField", func(t *testing.T) {
+		s := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			primaryField:   "cached_pk",
+		}
+		assert.Equal(t, "cached_pk", s.PrimaryKeyName())
+	})
+
+	t.Run("returns PrimaryFieldName when set", func(t *testing.T) {
+		s := &Schema{
+			Name:             "test",
+			Namespace:        "ns",
+			LabelFieldName:   "name",
+			PrimaryFieldName: "custom_pk",
+		}
+		assert.Equal(t, "custom_pk", s.PrimaryKeyName())
+	})
+
+	t.Run("returns id when field exists", func(t *testing.T) {
+		s := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			Fields: []*Field{
+				{Name: entity.FieldID, Type: TypeUint64},
+			},
+		}
+		assert.Equal(t, entity.FieldID, s.PrimaryKeyName())
+	})
+
+	t.Run("returns empty when no primary field", func(t *testing.T) {
+		s := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			Fields:         []*Field{},
+		}
+		assert.Equal(t, "", s.PrimaryKeyName())
+	})
+}
+
+func TestPrimaryField(t *testing.T) {
+	t.Run("returns nil when no primary key", func(t *testing.T) {
+		s := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			Fields:         []*Field{},
+		}
+		assert.Nil(t, s.PrimaryField())
+	})
+
+	t.Run("returns field when exists", func(t *testing.T) {
+		s := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			primaryField:   "custom_id",
+			Fields: []*Field{
+				{Name: "custom_id", Type: TypeUint64},
+			},
+		}
+		f := s.PrimaryField()
+		assert.NotNil(t, f)
+		assert.Equal(t, "custom_id", f.Name)
+	})
+}
+
+func TestEnsurePrimaryFieldEdgeCases(t *testing.T) {
+	t.Run("custom primary field not found", func(t *testing.T) {
+		s := &Schema{
+			Name:             "test",
+			Namespace:        "ns",
+			LabelFieldName:   "name",
+			PrimaryFieldName: "nonexistent",
+			Fields: []*Field{
+				{Name: "name", Type: TypeString, Label: "Name"},
+			},
+		}
+		err := s.Init(false)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "primary field 'nonexistent' is not found")
+	})
+
+	t.Run("disable ID column with no candidate", func(t *testing.T) {
+		s := &Schema{
+			Name:           "test",
+			Namespace:      "ns",
+			LabelFieldName: "name",
+			Fields: []*Field{
+				{Name: "name", Type: TypeString},
+			},
+		}
+		// Should succeed - no error when disableIDColumn is true
+		err := s.Init(true)
+		assert.NoError(t, err)
+		assert.Equal(t, "", s.primaryField)
+	})
+}
+
+func TestApplyPrimaryFieldDefaultsEdgeCases(t *testing.T) {
+	t.Run("non-integer type disables increment", func(t *testing.T) {
+		s := &Schema{
+			Name:             "test",
+			Namespace:        "ns",
+			LabelFieldName:   "slug",
+			PrimaryFieldName: "slug",
+			Fields: []*Field{
+				{Name: "slug", Type: TypeString, Label: "Slug"},
+			},
+		}
+		err := s.Init(false)
+		assert.NoError(t, err)
+		slugField := s.Field("slug")
+		assert.NotNil(t, slugField)
+		assert.False(t, slugField.DB.Increment)
+		assert.Equal(t, DBPrimaryKey, slugField.DB.Key)
+	})
+
+	t.Run("signed integer primary key", func(t *testing.T) {
+		s := &Schema{
+			Name:             "test",
+			Namespace:        "ns",
+			LabelFieldName:   "name",
+			PrimaryFieldName: "legacy_id",
+			Fields: []*Field{
+				{Name: "legacy_id", Type: TypeInt64, Label: "Legacy ID"},
+				{Name: "name", Type: TypeString, Label: "Name"},
+			},
+		}
+		err := s.Init(false)
+		assert.NoError(t, err)
+		pkField := s.Field("legacy_id")
+		assert.NotNil(t, pkField)
+		// Should not have UNSIGNED for signed int
+		assert.NotEqual(t, "UNSIGNED", pkField.DB.Attr)
+		// Should have increment for integer
+		assert.True(t, pkField.DB.Increment)
+	})
+}

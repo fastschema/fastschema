@@ -187,6 +187,61 @@ func TestCreateFieldPredicate(t *testing.T) {
 			value:       utils.Must(entity.NewEntityFromJSON(`{"$like": 1}`)),
 			expectError: "filter error: invalid value for field name.$like (string) = 1 (float64)",
 		},
+		// NotLike operator tests
+		{
+			field:        "name",
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$notlike": "test%"}`)),
+			expectResult: []*Predicate{NotLike("name", "test%")},
+		},
+		{
+			field:       "name",
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$notlike": 123}`)),
+			expectError: "filter error: invalid value for field name.$notlike (string) = 123 (float64)",
+		},
+		// Contains operator tests
+		{
+			field:        "name",
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$contains": "substr"}`)),
+			expectResult: []*Predicate{Contains("name", "substr")},
+		},
+		{
+			field:       "name",
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$contains": 123}`)),
+			expectError: "filter error: invalid value for field name.$contains (string) = 123 (float64)",
+		},
+		// NotContains operator tests
+		{
+			field:        "name",
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$notcontains": "substr"}`)),
+			expectResult: []*Predicate{NotContains("name", "substr")},
+		},
+		{
+			field:       "name",
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$notcontains": 123}`)),
+			expectError: "filter error: invalid value for field name.$notcontains (string) = 123 (float64)",
+		},
+		// ContainsFold operator tests (case-insensitive)
+		{
+			field:        "name",
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$containsfold": "SUBSTR"}`)),
+			expectResult: []*Predicate{ContainsFold("name", "SUBSTR")},
+		},
+		{
+			field:       "name",
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$containsfold": 123}`)),
+			expectError: "filter error: invalid value for field name.$containsfold (string) = 123 (float64)",
+		},
+		// NotContainsFold operator tests (case-insensitive)
+		{
+			field:        "name",
+			value:        utils.Must(entity.NewEntityFromJSON(`{"$notcontainsfold": "SUBSTR"}`)),
+			expectResult: []*Predicate{NotContainsFold("name", "SUBSTR")},
+		},
+		{
+			field:       "name",
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$notcontainsfold": 123}`)),
+			expectError: "filter error: invalid value for field name.$notcontainsfold (string) = 123 (float64)",
+		},
 		{
 			field:        "age",
 			value:        utils.Must(entity.NewEntityFromJSON(`{"$in": [1, 2, 3]}`)),
@@ -233,6 +288,12 @@ func TestCreateFieldPredicate(t *testing.T) {
 			field:       "age",
 			value:       "five",
 			expectError: "filter error: invalid value for field age (uint) = five (string)",
+		},
+		// Invalid operator test
+		{
+			field:       "name",
+			value:       utils.Must(entity.NewEntityFromJSON(`{"$invalid": "test"}`)),
+			expectError: "filter error: invalid operator $invalid for field name",
 		},
 	}
 
@@ -523,4 +584,93 @@ func TestCreatePredicatesFromFilterMap(t *testing.T) {
 			assert.Equal(t, tt.expectResult, actual)
 		})
 	}
+}
+
+func TestCreatePredicatesFromRelationFilter(t *testing.T) {
+	b := &schema.Builder{}
+
+	// Add all schemas needed for relations
+	modelSchema := &schema.Schema{}
+	assert.Nil(t, json.Unmarshal([]byte(modelSchemaJSON), modelSchema))
+	assert.NoError(t, modelSchema.Init(false))
+	b.AddSchema(modelSchema)
+
+	carSchema := &schema.Schema{}
+	assert.Nil(t, json.Unmarshal([]byte(carSchemaJSON), carSchema))
+	assert.NoError(t, carSchema.Init(false))
+	b.AddSchema(carSchema)
+
+	userSchema := &schema.Schema{}
+	assert.Nil(t, json.Unmarshal([]byte(userSchemaJSON), userSchema))
+	assert.NoError(t, userSchema.Init(false))
+	b.AddSchema(userSchema)
+
+	assert.NoError(t, b.Init())
+
+	t.Run("nil filter returns nil", func(t *testing.T) {
+		result, err := CreatePredicatesFromRelationFilter(b, userSchema, nil)
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("valid filter", func(t *testing.T) {
+		filter := map[string]any{"name": "test"}
+		result, err := CreatePredicatesFromRelationFilter(b, userSchema, filter)
+		assert.NoError(t, err)
+		assert.Equal(t, []*Predicate{EQ("name", "test")}, result)
+	})
+
+	t.Run("filter with operators", func(t *testing.T) {
+		filter := map[string]any{"age": map[string]any{"$gt": 18}}
+		result, err := CreatePredicatesFromRelationFilter(b, userSchema, filter)
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, "age", result[0].Field)
+		assert.Equal(t, OpGT, result[0].Operator)
+	})
+}
+
+func TestCreateRelationFieldPredicates(t *testing.T) {
+	// Test implicit PK filtering through createObjectPredicates
+	// This tests the createRelationFieldPredicates function indirectly
+	b := &schema.Builder{}
+
+	// Add all schemas needed for relations
+	modelSchema := &schema.Schema{}
+	assert.Nil(t, json.Unmarshal([]byte(modelSchemaJSON), modelSchema))
+	assert.NoError(t, modelSchema.Init(false))
+	b.AddSchema(modelSchema)
+
+	carSchema := &schema.Schema{}
+	assert.Nil(t, json.Unmarshal([]byte(carSchemaJSON), carSchema))
+	assert.NoError(t, carSchema.Init(false))
+	b.AddSchema(carSchema)
+
+	userSchema := &schema.Schema{}
+	assert.Nil(t, json.Unmarshal([]byte(userSchemaJSON), userSchema))
+	assert.NoError(t, userSchema.Init(false))
+	b.AddSchema(userSchema)
+
+	assert.NoError(t, b.Init())
+
+	// Test relation field with direct value (implicit PK filter)
+	t.Run("relation field with direct value", func(t *testing.T) {
+		filter := `{"cars": 1}`
+		result, err := CreatePredicatesFromFilterObject(b, userSchema, filter)
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, "cars", result[0].Field)
+		assert.Equal(t, OpEQ, result[0].Operator)
+		assert.Equal(t, float64(1), result[0].Value)
+	})
+
+	// Test relation field with $in operator
+	t.Run("relation field with $in operator", func(t *testing.T) {
+		filter := `{"cars": {"$in": [1, 2, 3]}}`
+		result, err := CreatePredicatesFromFilterObject(b, userSchema, filter)
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, "cars", result[0].Field)
+		assert.Equal(t, OpIN, result[0].Operator)
+	})
 }

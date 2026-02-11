@@ -135,7 +135,7 @@ type testApp struct {
 	db        db.Client
 	disks     []fs.Disk
 	schemaDir string
-	reloadFn  func(*db.Migration) error
+	reloadFn  func(*db.Changes) error
 }
 
 func (s *testApp) Schema(name string) *schema.Schema {
@@ -158,12 +158,12 @@ func (s testApp) Disk(names ...string) fs.Disk {
 	return s.disks[0]
 }
 
-func (s *testApp) Reload(ctx context.Context, migration *db.Migration) error {
+func (s *testApp) Reload(ctx context.Context, changes *db.Changes) error {
 	s.sb = utils.Must(schema.NewBuilderFromDir(s.schemaDir))
 	s.db = utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), s.sb))
 
 	if s.reloadFn != nil {
-		return s.reloadFn(migration)
+		return s.reloadFn(changes)
 	}
 
 	return nil
@@ -172,7 +172,7 @@ func (s *testApp) Reload(ctx context.Context, migration *db.Migration) error {
 type testSchemaSeviceConfig struct {
 	extraSchemas map[string]string
 	schemaDir    string
-	reloadFn     func(*db.Migration) error
+	reloadFn     func(*db.Changes) error
 }
 
 func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
@@ -180,7 +180,7 @@ func createSchemaService(t *testing.T, config *testSchemaSeviceConfig) (
 	*schemaservice.SchemaService,
 	*restfulresolver.Server,
 ) {
-	var reloadFn func(*db.Migration) error
+	var reloadFn func(*db.Changes) error
 	schemaDir := t.TempDir()
 	schemas := map[string]string{
 		"category": testCategoryJSON,

@@ -274,7 +274,7 @@ func (a *App) Mailers() []fs.Mailer {
 	return a.mailClients
 }
 
-func (a *App) Reload(ctx context.Context, migration *db.Migration) (err error) {
+func (a *App) Reload(ctx context.Context, dbChanges *db.Changes) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -282,7 +282,7 @@ func (a *App) Reload(ctx context.Context, migration *db.Migration) (err error) {
 		return err
 	}
 
-	newDB, err := a.DB().Reload(ctx, a.schemaBuilder, migration, a.config.DBConfig.DisableForeignKeys)
+	newDB, err := a.DB().Reload(ctx, a.schemaBuilder, dbChanges, a.config.DBConfig.DisableForeignKeys)
 	if err != nil {
 		return err
 	}

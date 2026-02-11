@@ -41,7 +41,7 @@ type App interface {
 	SystemSchemas() []any
 	DB() db.Client
 	Resources() *ResourcesManager
-	Reload(ctx context.Context, migration *db.Migration) (err error)
+	Reload(ctx context.Context, dbChanges *db.Changes) (err error)
 	Logger() logger.Logger
 	UpdateCache(ctx context.Context) error
 	Roles() []*Role

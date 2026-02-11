@@ -20,6 +20,9 @@ import (
 	"github.com/fastschema/fastschema/schema"
 )
 
+var _ db.Client = (*Adapter)(nil)
+var _ EntAdapter = (*Adapter)(nil)
+
 // Adapter is the ent adapter for app.Client
 type Adapter struct {
 	config        *db.Config

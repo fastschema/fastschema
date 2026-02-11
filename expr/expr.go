@@ -9,14 +9,22 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
+// Program is a typed wrapper around the expr VM program.
+// It holds the compiled expression and ensures type safety for execution.
 type Program[ArgsType any, ResultType any] struct {
 	*vm.Program
 }
 
+// Config holds configuration options for expression execution,
+// such as database access.
 type Config struct {
 	DB func() DBLike
 }
 
+// Compile parses and compiles the given expression string into a Program.
+//
+//	program: The source code of the expression.
+//	sampleArgs: Optional instance of ArgsType to aid in type inference during compilation.
 func Compile[ArgsType any, ResultType any](
 	program string,
 	sampleArgs ...ArgsType,
@@ -44,6 +52,7 @@ func Compile[ArgsType any, ResultType any](
 	return &Program[ArgsType, ResultType]{Program: p}, nil
 }
 
+// Run executes the compiled program with the given context and arguments.
 func (p *Program[ArgsType, ResultType]) Run(
 	ctx context.Context,
 	args ArgsType,
@@ -59,13 +68,12 @@ func (p *Program[ArgsType, ResultType]) Run(
 }
 
 func ResolveReturnType(resultType any) expr.Option {
-	dereferecedType := utils.GetDereferencedType(resultType)
-
-	if dereferecedType == nil {
+	dereferencedType := utils.GetDereferencedType(resultType)
+	if dereferencedType == nil {
 		return expr.AsAny()
 	}
 
-	switch dereferecedType.Kind() {
+	switch dereferencedType.Kind() {
 	case reflect.Bool:
 		return expr.AsBool()
 	case reflect.Int:
@@ -76,9 +84,6 @@ func ResolveReturnType(resultType any) expr.Option {
 		return expr.AsFloat64()
 	default:
 		reflectType := reflect.TypeOf(resultType)
-		if reflectType == nil {
-			return expr.AsAny()
-		}
 		return expr.AsKind(reflectType.Kind())
 	}
 }

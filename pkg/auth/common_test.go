@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"net/mail"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,18 +18,38 @@ import (
 )
 
 type MockMailer struct {
-	sent int
-	err  error
+	mu        sync.Mutex
+	sent      int
+	err       error
+	SentMails []*fs.Mail
 }
 
 const testKey = "rLnWcTEFhTNEeEenhnfZEJahGaTrLnWa"
 
 func (m *MockMailer) Send(mail *fs.Mail, froms ...mail.Address) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.err != nil {
 		return m.err
 	}
 	m.sent++
+	m.SentMails = append(m.SentMails, mail)
 	return nil
+}
+
+// GetSentMails returns a thread-safe copy of sent mails
+func (m *MockMailer) GetSentMails() []*fs.Mail {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]*fs.Mail{}, m.SentMails...)
+}
+
+// Reset clears sent mails thread-safely
+func (m *MockMailer) Reset() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.SentMails = nil
+	m.sent = 0
 }
 
 func (m *MockMailer) Name() string {

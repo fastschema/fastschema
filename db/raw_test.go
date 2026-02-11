@@ -32,10 +32,16 @@ func TestRawQuery(t *testing.T) {
 	assert.Equal(t, uint64(5), rows[0].ID)
 	assert.Equal(t, "category 5", rows[0].Name)
 
-	// Case 3: Success scan to entity
+	// Case 3: Success scan to entity pointer
 	entities, err := db.Query[*entity.Entity](ctx, client, "SELECT * FROM categories WHERE id > ?", 1)
 	assert.NoError(t, err)
 	assert.Len(t, entities, 4)
+
+	// Case 4: Success scan to entity value (non-pointer)
+	entitiesValue, err := db.Query[entity.Entity](ctx, client, "SELECT * FROM categories WHERE id = ?", 3)
+	assert.NoError(t, err)
+	assert.Len(t, entitiesValue, 1)
+	assert.Equal(t, "category 3", entitiesValue[0].Get("name"))
 }
 
 func TestExec(t *testing.T) {

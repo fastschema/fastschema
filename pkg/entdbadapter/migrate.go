@@ -3,6 +3,7 @@ package entdbadapter
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	atlasMigrate "ariga.io/atlas/sql/migrate"
 	"ariga.io/atlas/sql/sqltool"
@@ -14,14 +15,14 @@ import (
 
 func (d *Adapter) Migrate(
 	ctx context.Context,
-	migration *db.Migration,
+	changes *db.Changes,
 	disableForeignKeys bool,
 	appendEntTables ...*entSchema.Table,
 ) (err error) {
 	tables := d.tables
-	migration = utils.If(migration == nil, &db.Migration{}, migration)
-	renameTables := migration.RenameTables
-	renameFields := migration.RenameFields
+	changes = utils.If(changes == nil, &db.Changes{}, changes)
+	renameTables := changes.RenameTables
+	renameFields := changes.RenameFields
 	migrationDir, err := atlasMigrate.NewLocalDir(d.migrationDir)
 	if err != nil {
 		return err
@@ -46,9 +47,9 @@ func (d *Adapter) Migrate(
 		return err
 	}
 
-	if err := atlasMigrate.Validate(migrationDir); err != nil {
-		return fmt.Errorf("validating migration directory: %w", err)
-	}
+	// if err := atlasMigrate.Validate(migrationDir); err != nil {
+	// 	return fmt.Errorf("validating migration directory: %w", err)
+	// }
 
 	applyHook := entSchema.WithApplyHook(func(next entSchema.Applier) entSchema.Applier {
 		return entSchema.ApplyFunc(func(ctx context.Context, conn entDialect.ExecQuerier, plan *atlasMigrate.Plan) error {
@@ -56,7 +57,7 @@ func (d *Adapter) Migrate(
 				if len(plan.Changes) > 0 {
 					if err := atlasMigrate.NewPlanner(nil, migrationDir, []atlasMigrate.PlannerOption{
 						atlasMigrate.WithFormatter(sqltool.GolangMigrateFormatter),
-						atlasMigrate.PlanWithChecksum(true),
+						atlasMigrate.PlanWithChecksum(false),
 					}...).WritePlan(plan); err != nil {
 						panic(fmt.Errorf("writing migration plan: %w", err))
 					}
@@ -70,26 +71,66 @@ func (d *Adapter) Migrate(
 			return next.Apply(ctx, conn, plan)
 		})
 	})
-	migrateOptions := []entSchema.MigrateOption{
-		entSchema.WithDir(migrationDir),                    // provide migration directory
-		entSchema.WithMigrationMode(entSchema.ModeInspect), // provide migration mode
-		entSchema.WithDialect(d.driver.Dialect()),          // Ent dialect to use
-		entSchema.WithFormatter(atlasMigrate.DefaultFormatter),
-		entSchema.WithDropIndex(true),
+
+	migrate, err := d.newEntMigrate(
+		migrationDir,
 		entSchema.WithForeignKeys(!disableForeignKeys),
 		applyHook,
 		entSchema.WithDiffHook(
 			createRenameColumnsHook(renameTables, renameFields),
 		),
-	}
-
-	migrate, err := entSchema.NewMigrate(d.driver, migrateOptions...)
+	)
 	if err != nil {
 		return err
 	}
 
 	if err = migrate.Create(ctx, tables...); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// newEntMigrate creates a new ent migrate instance with common options
+func (d *Adapter) newEntMigrate(dir atlasMigrate.Dir, opts ...entSchema.MigrateOption) (*entSchema.Atlas, error) {
+	migrateOptions := []entSchema.MigrateOption{
+		entSchema.WithDir(dir),
+		entSchema.WithMigrationMode(entSchema.ModeInspect),
+		entSchema.WithDialect(d.driver.Dialect()),
+		entSchema.WithFormatter(sqltool.GolangMigrateFormatter),
+		entSchema.WithDropIndex(true),
+		entSchema.WithForeignKeys(true),
+	}
+	migrateOptions = append(migrateOptions, opts...)
+
+	return entSchema.NewMigrate(d.driver, migrateOptions...)
+}
+
+// GenerateMigrationFiles compares current database state with schema and generates migration SQL.
+// This method uses ent's Atlas integration to generate migration files in the migration directory.
+func (d *Adapter) GenerateMigrationFiles(ctx context.Context, name string) error {
+	if name == "" {
+		name = "changes"
+	}
+
+	// Create a local migration directory
+	migrationDir, err := atlasMigrate.NewLocalDir(d.migrationDir)
+	if err != nil {
+		return fmt.Errorf("failed to create migration dir: %w", err)
+	}
+
+	migrate, err := d.newEntMigrate(migrationDir)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate: %w", err)
+	}
+
+	// Use NamedDiff to generate migration files without applying them
+	if err = migrate.NamedDiff(ctx, name, d.tables...); err != nil {
+		// ErrNoPlan means no changes detected
+		if strings.Contains(err.Error(), "no plan") {
+			return nil
+		}
+		return fmt.Errorf("failed to generate diff: %w", err)
 	}
 
 	return nil

@@ -11,23 +11,26 @@ import (
 
 // RoleAdmin is the admin role
 var RoleAdmin = &Role{
-	ID:   1,
-	Name: "Admin",
-	Root: true,
+	ID:     1,
+	Name:   "Admin",
+	Root:   true,
+	System: true,
 }
 
 // RoleUser is the user role
 var RoleUser = &Role{
-	ID:   2,
-	Name: "User",
-	Root: false,
+	ID:     2,
+	Name:   "User",
+	Root:   false,
+	System: true,
 }
 
 // RoleGuest is the guest role
 var RoleGuest = &Role{
-	ID:   3,
-	Name: "Guest",
-	Root: false,
+	ID:     3,
+	Name:   "Guest",
+	Root:   false,
+	System: true,
 }
 
 // Role is a struct that contains the role data
@@ -37,6 +40,7 @@ type Role struct {
 	Name        string        `json:"name,omitempty"`
 	Description string        `json:"description,omitempty" fs:"optional"`
 	Root        bool          `json:"root,omitempty" fs:"optional"`
+	System      bool          `json:"system,omitempty" fs:"optional"`
 	Users       []*User       `json:"users,omitempty" fs.relation:"{'type':'m2m','schema':'user','field':'roles','owner':true}"`
 	Permissions []*Permission `json:"permissions,omitempty" fs.relation:"{'type':'o2m','schema':'permission','field':'role','owner':true}"`
 

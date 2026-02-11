@@ -269,3 +269,31 @@ func TestNewRestResolverStart(t *testing.T) {
 	err := restResolver.Start(":8080")
 	assert.NoError(t, err)
 }
+
+// TestNewRestResolverStaticRootDir tests static file serving with RootDir (not RootFS) and nil Config
+func TestNewRestResolverStaticRootDir(t *testing.T) {
+	resourceManager := fs.NewResourcesManager()
+
+	staticDir := t.TempDir()
+	utils.WriteFile(staticDir+"/file.txt", "rootdir content")
+
+	// Test with RootDir (not RootFS) and Config = nil to cover lines 62-77
+	staticFSs := []*fs.StaticFs{{
+		BasePath: "/files",
+		RootDir:  staticDir,
+		Config:   nil, // deliberately nil to test the config == nil branch
+	}}
+
+	restResolver := restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
+		ResourceManager: resourceManager,
+		Logger:          logger.CreateMockLogger(true),
+		StaticFSs:       staticFSs,
+	})
+
+	req := httptest.NewRequest("GET", "/files/file.txt", nil)
+	resp, err := restResolver.Server().App.Test(req)
+	assert.NoError(t, err)
+	defer closeResponse(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, "rootdir content", utils.Must(utils.ReadCloserToString(resp.Body)))
+}

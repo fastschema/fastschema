@@ -78,3 +78,28 @@ func TestConfigClone(t *testing.T) {
 	assert.Equal(t, config.Hooks.PreResolve, clone.Hooks.PreResolve)
 	assert.Equal(t, config.Hooks.PostResolve, clone.Hooks.PostResolve)
 }
+
+func TestConfigCloneWithRolePermissionSettings(t *testing.T) {
+	config := &fs.Config{
+		Dir:     "/path/to/dir",
+		AppName: "TestApp",
+		RolePermissionSettings: &fs.RolePermissionSettingsConfig{
+			Roles: []*fs.RoleConfig{
+				{
+					Name: "Admin",
+					Permissions: []*fs.Permission{
+						{Resource: "users", Value: "allow"},
+					},
+				},
+			},
+		},
+	}
+
+	clone := config.Clone()
+
+	assert.NotNil(t, clone.RolePermissionSettings)
+	assert.Len(t, clone.RolePermissionSettings.Roles, 1)
+	assert.Equal(t, "Admin", clone.RolePermissionSettings.Roles[0].Name)
+	assert.Len(t, clone.RolePermissionSettings.Roles[0].Permissions, 1)
+	assert.Equal(t, "users", clone.RolePermissionSettings.Roles[0].Permissions[0].Resource)
+}

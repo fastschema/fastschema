@@ -100,23 +100,10 @@ func (a *App) createResources() {
 func (a *App) ResourcesList() []*fs.Resource {
 	schemas := a.DB().SchemaBuilder().Schemas()
 	resources := a.resources.Clone()
-	apiResources := []*fs.Resource{}
-	contentResource := &fs.Resource{}
 	apiGroup := resources.Find("api")
-	if apiGroup != nil {
-		apiResources = apiGroup.Resources()
-	}
-
-	apiGroup.Print()
-	for _, r := range apiResources {
-		if r.Name() == "content" {
-			contentResource = r
-			apiGroup.Remove(r.Name())
-		}
-		if r.Name() == "realtime" {
-			apiGroup.Remove(r.Name())
-		}
-	}
+	contentResource := apiGroup.Find("api.content")
+	apiGroup.Remove("content")
+	apiGroup.Remove("realtime")
 
 	contentGroup := apiGroup.Group("content")
 	realtimeContentGroup := apiGroup.Group("realtime").Group("content")

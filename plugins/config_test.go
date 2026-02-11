@@ -136,7 +136,6 @@ func TestConfigSet(t *testing.T) {
 				pass: 'test',
 				log_queries: true,
 				migration_dir: 'migrations',
-				ignore_migration: true,
 				disable_foreign_keys: true,
 				use_soft_deletes: true
 			},
@@ -187,7 +186,6 @@ func TestConfigSet(t *testing.T) {
 	assert.Equal(t, "test", appConfig.DBConfig.Pass)
 	assert.Equal(t, true, appConfig.DBConfig.LogQueries)
 	assert.Equal(t, "migrations", appConfig.DBConfig.MigrationDir)
-	assert.Equal(t, true, appConfig.DBConfig.IgnoreMigration)
 	assert.Equal(t, true, appConfig.DBConfig.DisableForeignKeys)
 	assert.Equal(t, true, appConfig.DBConfig.UseSoftDeletes)
 

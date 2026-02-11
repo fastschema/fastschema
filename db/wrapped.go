@@ -62,11 +62,11 @@ func (n *WrappedClient) SchemaBuilder() *schema.Builder {
 func (n *WrappedClient) Reload(
 	ctx context.Context,
 	newSchemaBuilder *schema.Builder,
-	migration *Migration,
+	changes *Changes,
 	disableForeignKeys bool,
 	enableMigrations ...bool,
 ) (Client, error) {
-	return n.client().Reload(ctx, newSchemaBuilder, migration, disableForeignKeys, enableMigrations...)
+	return n.client().Reload(ctx, newSchemaBuilder, changes, disableForeignKeys, enableMigrations...)
 }
 
 func (n *WrappedClient) DB() *sql.DB {
@@ -79,6 +79,10 @@ func (n *WrappedClient) Config() *Config {
 
 func (n *WrappedClient) Hooks() *Hooks {
 	return n.client().Hooks()
+}
+
+func (n *WrappedClient) GenerateMigrationFiles(ctx context.Context, name string) error {
+	return n.client().GenerateMigrationFiles(ctx, name)
 }
 
 // NoopClient implements the Client interface with no-op methods.
@@ -129,7 +133,7 @@ func (n *NoopClient) SchemaBuilder() *schema.Builder {
 func (n *NoopClient) Reload(
 	ctx context.Context,
 	newSchemaBuilder *schema.Builder,
-	migration *Migration,
+	migration *Changes,
 	disableForeignKeys bool,
 	enableMigrations ...bool,
 ) (Client, error) {
@@ -145,5 +149,9 @@ func (n *NoopClient) Config() *Config {
 }
 
 func (n *NoopClient) Hooks() *Hooks {
+	return nil
+}
+
+func (n *NoopClient) GenerateMigrationFiles(ctx context.Context, name string) error {
 	return nil
 }

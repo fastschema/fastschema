@@ -159,3 +159,41 @@ func TestTxClose(t *testing.T) {
 	assert.Nil(t, err2)
 	assert.NoError(t, tx.Close())
 }
+
+func TestTxDriver_ID_NonDebugTx(t *testing.T) {
+	// Test TxDriver.ID() when dialectTx is not a *dialect.DebugTx
+	sb := createTestSchemaBuilder(t)
+	mdb, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	client := utils.Must(NewEntClient(&db.Config{
+		Driver: "sqlmock",
+	}, sb, dialectSql.OpenDB(dialect.MySQL, mdb)))
+
+	mock.ExpectBegin()
+
+	tx := createTx(t, client, sb)
+	txDriver := tx.driver.(*TxDriver)
+
+	// Wrap the dialectTx in a custom type that's not *dialect.DebugTx
+	type customTx struct {
+		dialect.Tx
+	}
+	txDriver.dialectTx = customTx{txDriver.dialectTx}
+
+	// Should return empty string when not a DebugTx
+	id := txDriver.ID()
+	assert.Equal(t, "", id)
+}
+
+func TestTx_GenerateMigrationFiles(t *testing.T) {
+	// Test that GenerateMigrationFiles is a no-op that returns nil
+	sb := createTestSchemaBuilder(t)
+	client := utils.Must(NewTestClient(
+		utils.Must(os.MkdirTemp("", "migrations")),
+		sb,
+	))
+	tx := createTx(t, client, sb)
+
+	err := tx.GenerateMigrationFiles(context.Background(), "test_migration")
+	assert.NoError(t, err)
+}

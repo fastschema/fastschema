@@ -50,8 +50,9 @@ func (gu *GoogleUser) ToFSUser() *fs.User {
 }
 
 type GoogleAuthProvider struct {
-	oauth       *oauth2.Config
-	userInfoURL string
+	oauth          *oauth2.Config
+	userInfoURL    string
+	TokenValidator func(context.Context, string, string) (*idtoken.Payload, error)
 }
 
 func NewGoogleAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
@@ -73,6 +74,7 @@ func NewGoogleAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, 
 				"https://www.googleapis.com/auth/userinfo.profile",
 			},
 		},
+		TokenValidator: idtoken.Validate,
 	}
 
 	accessTokenUrl := fs.MapValue(config, "access_token_url", "")
@@ -116,7 +118,7 @@ func (as *GoogleAuthProvider) VerifyIDToken(c fs.Context, t fs.IDToken) (_ *fs.U
 		return nil, errors.New("id token is required")
 	}
 
-	payload, err := idtoken.Validate(c, t.IDToken, as.oauth.ClientID)
+	payload, err := as.TokenValidator(c, t.IDToken, as.oauth.ClientID)
 	if err != nil {
 		c.Logger().Errorf("invalid id token: %v", err)
 		return nil, errors.New("invalid id token")

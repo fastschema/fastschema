@@ -396,7 +396,7 @@ func TestFastschemaReload(t *testing.T) {
 	assert.NoError(t, a.Reload(context.Background(), nil))
 
 	// Reload error because of invalid migration
-	assert.Error(t, a.Reload(context.Background(), &db.Migration{
+	assert.Error(t, a.Reload(context.Background(), &db.Changes{
 		RenameTables: []*db.RenameItem{{
 			From: "invalid",
 			To:   "invalid",

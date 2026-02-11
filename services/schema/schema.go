@@ -10,7 +10,7 @@ import (
 
 type AppLike interface {
 	DB() db.Client
-	Reload(ctx context.Context, migration *db.Migration) error
+	Reload(ctx context.Context, changes *db.Changes) error
 	SchemaBuilder() *schema.Builder
 	Disk(names ...string) fs.Disk
 	SystemSchemas() []any
