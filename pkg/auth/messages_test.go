@@ -5,11 +5,12 @@ import (
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/auth"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateActivationEmail(t *testing.T) {
-	user := &fs.User{ID: 123}
+	user := &fs.User{ID: uuid.MustParse("00000000-0000-0000-0000-000000000001")}
 	mailer := &MockMailer{}
 
 	// Create error (invalid key)
@@ -38,7 +39,7 @@ func TestCreateActivationEmail(t *testing.T) {
 }
 
 func TestCreateRecoveryEmail(t *testing.T) {
-	user := &fs.User{ID: 123}
+	user := &fs.User{ID: uuid.MustParse("00000000-0000-0000-0000-000000000001")}
 	mailer := &MockMailer{}
 
 	// Create error (invalid key)

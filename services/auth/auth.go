@@ -8,6 +8,7 @@ import (
 	"github.com/fastschema/fastschema/expr"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/auth"
+	"github.com/google/uuid"
 )
 
 var providerNames = strings.Join(fs.AuthProviders(), ", ")
@@ -166,7 +167,7 @@ func (as *AuthService) AuthUserCan(c fs.Context, user *fs.User, resourceID strin
 	return false
 }
 
-func (as *AuthService) GetRolesFromIDs(ids []uint64) []*fs.Role {
+func (as *AuthService) GetRolesFromIDs(ids []uuid.UUID) []*fs.Role {
 	result := []*fs.Role{}
 	roles := as.Roles()
 
@@ -181,7 +182,7 @@ func (as *AuthService) GetRolesFromIDs(ids []uint64) []*fs.Role {
 	return result
 }
 
-func (as *AuthService) GetPermission(roleID uint64, resource string) *fs.Permission {
+func (as *AuthService) GetPermission(roleID uuid.UUID, resource string) *fs.Permission {
 	matchedRole := &fs.Role{
 		ID:          roleID,
 		Permissions: []*fs.Permission{},

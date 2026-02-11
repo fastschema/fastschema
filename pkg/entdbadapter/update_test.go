@@ -16,6 +16,7 @@ import (
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -224,7 +225,7 @@ func TestUpdateNodes(t *testing.T) {
 					WithArgs(1, 2, 3).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `cards` SET `sub_owner_id` = ? WHERE `id` = ? AND `sub_owner_id` IS NULL")).
-					WithArgs(1, 2).
+					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 			},
 		},
@@ -238,21 +239,21 @@ func TestUpdateNodes(t *testing.T) {
 				},
 				"$add": {
 					"room": { "id": 2 },
-					"parent": { "id": 2 }
+					"parent": { "id": "00000000-0000-0000-0000-000000000002" }
 				}
 			}`,
-			Predicates:  []*db.Predicate{db.EQ("id", 1)},
+			Predicates:  []*db.Predicate{db.EQ("id", testUserUUID1)},
 			Transaction: true,
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users` WHERE `users`.`id` = ?")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).
-						AddRow(1))
+						AddRow(testUserUUID1))
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `workplace_id` = NULL, `parent_id` = ?, `room_id` = ?, `updated_at` = NOW() WHERE `id` = ?")).
-					WithArgs(2, 2, 1).
+					WithArgs(testUserUUID2, 2, testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `cars` SET `owner_id` = NULL WHERE `owner_id` = ?")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -262,35 +263,35 @@ func TestUpdateNodes(t *testing.T) {
 			InputJSON: `{
 				"$clear": {
 					"partner": true,
-					"spouse": { "id": 2 }
+					"spouse": { "id": "00000000-0000-0000-0000-000000000002" }
 				},
 				"$add": {
-					"spouse": { "id": 3 }
+					"spouse": { "id": "00000000-0000-0000-0000-000000000003" }
 				}
 			}`,
-			Predicates:  []*db.Predicate{db.EQ("id", 1)},
+			Predicates:  []*db.Predicate{db.EQ("id", testUserUUID1)},
 			Transaction: true,
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users` WHERE `users`.`id` = ?")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).
-						AddRow(1))
+						AddRow(testUserUUID1))
 				// Clear the "partner" from 1's column, and set "spouse 3".
 				// "spouse 2" is implicitly removed when setting a different foreign-key.
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `partner_id` = NULL, `spouse_id` = ?, `updated_at` = NOW() WHERE `id` = ?")).
-					WithArgs(3, 1).
+					WithArgs(testUserUUID3, testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				// Clear the "partner_id" column from previous 1's partner.
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `partner_id` = NULL WHERE `partner_id` = ?")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				// Clear "spouse 1" from 3's column.
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `spouse_id` = NULL WHERE `id` = ? AND `spouse_id` = ?")).
-					WithArgs(2, 1).
+					WithArgs(testUserUUID2, testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				// Set 3's column to point "spouse 1".
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `spouse_id` = ? WHERE `id` = ? AND `spouse_id` IS NULL")).
-					WithArgs(1, 3).
+					WithArgs(testUserUUID1, testUserUUID3).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -300,50 +301,50 @@ func TestUpdateNodes(t *testing.T) {
 			InputJSON: `{
 				"$clear": {
 					"blocking": true,
-					"friends": { "id": 2 },
+					"friends": { "id": "00000000-0000-0000-0000-000000000002" },
 					"groups": [ { "id": 3 }, { "id": 7 } ],
 					"following": true,
 					"comments": true
 				},
 				"$add": {
-					"friends": [ { "id": 3 }, { "id": 4 } ],
+					"friends": [ { "id": "00000000-0000-0000-0000-000000000003" }, { "id": "00000000-0000-0000-0000-000000000004" } ],
 					"groups": [ { "id": 5 }, { "id": 6 }, { "id": 7 } ]
 				}
 			}`,
-			Predicates:  []*db.Predicate{db.EQ("id", 1)},
+			Predicates:  []*db.Predicate{db.EQ("id", testUserUUID1)},
 			Transaction: true,
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users` WHERE `users`.`id` = ?")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).
-						AddRow(1))
+						AddRow(testUserUUID1))
 				// Clear all blocked users.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `blockers_blocking` WHERE `blockers` = ?")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				// Clear comment responders.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `comments_responder` WHERE `responder` = ?")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				// Clear all user following.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `followers_following` WHERE `followers` = ?")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 2))
 				// Clear user friends.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `friends_user` WHERE (`friends` = ? AND `user` = ?) OR (`user` = ? AND `friends` = ?)")).
-					WithArgs(1, 2, 1, 2).
+					WithArgs(testUserUUID1, testUserUUID2, testUserUUID1, testUserUUID2).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				// Remove user groups.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `groups_users` WHERE `users` = ? AND `groups` IN (?, ?)")).
-					WithArgs(1, 3, 7).
+					WithArgs(testUserUUID1, 3, 7).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				// Add new friends.
 				mock.ExpectExec(utils.EscapeQuery("INSERT INTO `friends_user` (`friends`, `user`) VALUES (?, ?), (?, ?), (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `friends` = `friends_user`.`friends`, `user` = `friends_user`.`user`")).
-					WithArgs(1, 3, 3, 1, 1, 4, 4, 1).
+					WithArgs(testUserUUID1, testUserUUID3, testUserUUID3, testUserUUID1, testUserUUID1, uuid.MustParse("00000000-0000-0000-0000-000000000004"), uuid.MustParse("00000000-0000-0000-0000-000000000004"), testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				// Add new groups.
 				mock.ExpectExec(utils.EscapeQuery("INSERT INTO `groups_users` (`groups`, `users`) VALUES (?, ?), (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `groups` = `groups_users`.`groups`, `users` = `groups_users`.`users`")).
-					WithArgs(5, 1, 6, 1, 7, 1).
+					WithArgs(5, testUserUUID1, 6, testUserUUID1, 7, testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -546,7 +547,7 @@ func TestUpdateNodesExtended(t *testing.T) {
 			InputJSON: `{
 				"$add": {
 					"parent": {
-						"id": 4
+						"id": "00000000-0000-0000-0000-000000000004"
 					},
 					"room": {
 						"id": 5
@@ -561,12 +562,12 @@ func TestUpdateNodesExtended(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users`")).
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).
-						AddRow(1))
+						AddRow(testUserUUID1))
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `workplace_id` = NULL, `parent_id` = ?, `room_id` = ?, `updated_at` = NOW() WHERE `id` = ?")).
-					WithArgs(4, 5, 1).
+					WithArgs(uuid.MustParse("00000000-0000-0000-0000-000000000004"), 5, testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 				mock.ExpectExec(utils.EscapeQuery("UPDATE `cars` SET `owner_id` = NULL WHERE `owner_id` = ?")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 			},
 			WantAffected: 1,
@@ -610,38 +611,43 @@ func TestUpdateNodesExtended(t *testing.T) {
 			InputJSON: `{
 				"$clear": {
 					"groups": [ { "id": 2 }, { "id": 3 } ],
-					"followers": [ { "id": 5 }, { "id": 6 } ],
-					"friends": [ { "id": 7 }, { "id": 8 } ]
+					"followers": [ { "id": "00000000-0000-0000-0000-000000000005" }, { "id": "00000000-0000-0000-0000-000000000006" } ],
+					"friends": [ { "id": "00000000-0000-0000-0000-000000000007" }, { "id": "00000000-0000-0000-0000-000000000008" } ]
 				},
 				"$add": {
 					"groups": [ { "id": 4 }, { "id": 5 } ],
-					"followers": [ { "id": 7 }, { "id": 8 } ],
+					"followers": [ { "id": "00000000-0000-0000-0000-000000000007" }, { "id": "00000000-0000-0000-0000-000000000008" } ]
 				}
 			}`,
 			Expect: func(mock sqlmock.Sqlmock) {
+				uuid1 := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+				uuid5 := uuid.MustParse("00000000-0000-0000-0000-000000000005")
+				uuid6 := uuid.MustParse("00000000-0000-0000-0000-000000000006")
+				uuid7 := uuid.MustParse("00000000-0000-0000-0000-000000000007")
+				uuid8 := uuid.MustParse("00000000-0000-0000-0000-000000000008")
 				// Get all node ids first.
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users`")).
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).
-						AddRow(1))
+						AddRow(uuid1))
 					// Clear user's followers.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `followers_following` WHERE `following` = ? AND `followers` IN (?, ?)")).
-					WithArgs(1, 5, 6).
+					WithArgs(uuid1, uuid5, uuid6).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 					// Clear user's friends.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `friends_user` WHERE (`friends` = ? AND `user` IN (?, ?)) OR (`user` = ? AND `friends` IN (?, ?))")).
-					WithArgs(1, 7, 8, 1, 7, 8).
+					WithArgs(uuid1, uuid7, uuid8, uuid1, uuid7, uuid8).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 				// Clear user's groups.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `groups_users` WHERE `users` = ? AND `groups` IN (?, ?)")).
-					WithArgs(1, 2, 3).
+					WithArgs(uuid1, 2, 3).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 					// Attach new friends to user.
 				mock.ExpectExec(utils.EscapeQuery("INSERT INTO `followers_following` (`followers`, `following`) VALUES (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `followers` = `followers_following`.`followers`, `following` = `followers_following`.`following`")).
-					WithArgs(7, 1, 8, 1).
+					WithArgs(uuid7, uuid1, uuid8, uuid1).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 				// Attach new groups to user.
 				mock.ExpectExec(utils.EscapeQuery("INSERT INTO `groups_users` (`groups`, `users`) VALUES (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `groups` = `groups_users`.`groups`, `users` = `groups_users`.`users`")).
-					WithArgs(4, 1, 5, 1).
+					WithArgs(4, uuid1, 5, uuid1).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 			},
 			WantAffected: 1,
@@ -652,40 +658,46 @@ func TestUpdateNodesExtended(t *testing.T) {
 			Transaction: true,
 			InputJSON: `{
 				"$clear": {
-					"followers": [ { "id": 5 }, { "id": 6 } ],
-					"friends": [ { "id": 7 }, { "id": 8 } ],
+					"followers": [ { "id": "00000000-0000-0000-0000-000000000005" }, { "id": "00000000-0000-0000-0000-000000000006" } ],
+					"friends": [ { "id": "00000000-0000-0000-0000-000000000007" }, { "id": "00000000-0000-0000-0000-000000000008" } ],
 					"groups": [ { "id": 2 }, { "id": 3 } ]
 				},
 				"$add": {
 					"groups": [ { "id": 4 }, { "id": 5 } ],
-					"followers": [ { "id": 7 }, { "id": 8 } ]
+					"followers": [ { "id": "00000000-0000-0000-0000-000000000007" }, { "id": "00000000-0000-0000-0000-000000000008" } ]
 				}
 			}`,
 			Expect: func(mock sqlmock.Sqlmock) {
+				uuid5 := uuid.MustParse("00000000-0000-0000-0000-000000000005")
+				uuid6 := uuid.MustParse("00000000-0000-0000-0000-000000000006")
+				uuid7 := uuid.MustParse("00000000-0000-0000-0000-000000000007")
+				uuid8 := uuid.MustParse("00000000-0000-0000-0000-000000000008")
+				uuid10 := uuid.MustParse("00000000-0000-0000-0000-000000000010")
+				uuid20 := uuid.MustParse("00000000-0000-0000-0000-000000000020")
 				// Get all node ids first.
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `id` FROM `users`")).
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).
-						AddRow(10).
-						AddRow(20))
+						AddRow(uuid10).
+						AddRow(uuid20))
 				// Clear user's followers.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `followers_following` WHERE `following` IN (?, ?) AND `followers` IN (?, ?)")).
-					WithArgs(10, 20, 5, 6).
+					WithArgs(uuid10, uuid20, uuid5, uuid6).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 					// Clear user's friends.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `friends_user` WHERE (`friends` IN (?, ?) AND `user` IN (?, ?)) OR (`user` IN (?, ?) AND `friends` IN (?, ?))")).
-					WithArgs(10, 20, 7, 8, 10, 20, 7, 8).
+					WithArgs(uuid10, uuid20, uuid7, uuid8, uuid10, uuid20, uuid7, uuid8).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 				// Clear user's groups.
 				mock.ExpectExec(utils.EscapeQuery("DELETE FROM `groups_users` WHERE `users` IN (?, ?) AND `groups` IN (?, ?)")).
-					WithArgs(10, 20, 2, 3).
+					WithArgs(uuid10, uuid20, 2, 3).
 					WillReturnResult(sqlmock.NewResult(0, 2))
 					// Attach new friends to user.
 				mock.ExpectExec(utils.EscapeQuery("INSERT INTO `followers_following` (`followers`, `following`) VALUES (?, ?), (?, ?), (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `followers` = `followers_following`.`followers`, `following` = `followers_following`.`following`")).
-					WithArgs(7, 10, 7, 20, 8, 10, 8, 20).
+					WithArgs(uuid7, uuid10, uuid7, uuid20, uuid8, uuid10, uuid8, uuid20).
 					WillReturnResult(sqlmock.NewResult(0, 4))
 				// Attach new groups to user.
 				mock.ExpectExec(utils.EscapeQuery("INSERT INTO `groups_users` (`groups`, `users`) VALUES (?, ?), (?, ?), (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `groups` = `groups_users`.`groups`, `users` = `groups_users`.`users`")).
-					WithArgs(4, 10, 4, 20, 5, 10, 5, 20).
+					WithArgs(4, uuid10, 4, uuid20, 5, uuid10, 5, uuid20).
 					WillReturnResult(sqlmock.NewResult(0, 4))
 			},
 			WantAffected: 2,

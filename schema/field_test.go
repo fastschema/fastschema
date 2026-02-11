@@ -199,12 +199,9 @@ func TestValidValue(t *testing.T) {
 }
 func TestFieldClone(t *testing.T) {
 	field := &Field{
-		Type:  TypeInt,
-		Name:  "age",
-		Label: "Age",
-		Renderer: &FieldRenderer{
-			Class: "number",
-		},
+		Type:          TypeInt,
+		Name:          "age",
+		Label:         "Age",
 		Size:          10,
 		IsMultiple:    false,
 		Unique:        true,
@@ -243,7 +240,6 @@ func TestFieldClone(t *testing.T) {
 	assert.Equal(t, field.Type, clonedField.Type)
 	assert.Equal(t, field.Name, clonedField.Name)
 	assert.Equal(t, field.Label, clonedField.Label)
-	assert.Equal(t, field.Renderer, clonedField.Renderer)
 	assert.Equal(t, field.Size, clonedField.Size)
 	assert.Equal(t, field.IsMultiple, clonedField.IsMultiple)
 	assert.Equal(t, field.Unique, clonedField.Unique)
@@ -434,12 +430,6 @@ func TestMergeFields(t *testing.T) {
 				Label: "Four",
 			},
 		},
-		Renderer: &FieldRenderer{
-			Class: "text",
-			Settings: map[string]any{
-				"rows": 5,
-			},
-		},
 	}
 
 	expectedField := &Field{
@@ -475,12 +465,6 @@ func TestMergeFields(t *testing.T) {
 				Label: "Four",
 			},
 		},
-		Renderer: &FieldRenderer{
-			Class: "text",
-			Settings: map[string]any{
-				"rows": 5,
-			},
-		},
 	}
 
 	MergeFields(f1, f2)
@@ -496,7 +480,6 @@ func TestMergeFields(t *testing.T) {
 	assert.Equal(t, expectedField.Sortable, f1.Sortable)
 	assert.Equal(t, expectedField.Filterable, f1.Filterable)
 	assert.Equal(t, expectedField.IsSystemField, f1.IsSystemField)
-	assert.Equal(t, expectedField.Renderer, f1.Renderer)
 
 	assert.Equal(t, expectedField.Relation.Type, f1.Relation.Type)
 	assert.Equal(t, expectedField.Relation.TargetSchemaName, f1.Relation.TargetSchemaName)

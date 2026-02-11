@@ -18,6 +18,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,13 +83,39 @@ func createTestEnv(t *testing.T, permSettings *fs.RolePermissionSettingsConfig) 
 
 	te := &testEnv{t: t, app: app, server: server}
 
-	// Setup admin user
+	// Setup admin user (this creates the system roles)
 	te.adminToken = te.setupAdmin()
+
+	// Update global role IDs from the database so that user creation can reference them
+	te.updateGlobalRoleIDs()
 
 	// Create and login regular user
 	te.userToken = te.createAndLoginUser("testuser", "test@local.ltd", "123")
 
 	return te
+}
+
+// updateGlobalRoleIDs fetches role IDs from the database and updates the global fs.Role* variables
+func (te *testEnv) updateGlobalRoleIDs() {
+	ctx := context.Background()
+	roleModel := utils.Must(te.app.DB().Model("role"))
+	allRoles := utils.Must(roleModel.Query().Get(ctx))
+
+	for _, role := range allRoles {
+		idValue := role.Get("id")
+		id, ok := idValue.(uuid.UUID)
+		if !ok {
+			continue
+		}
+		switch role.GetString("name") {
+		case fs.RoleAdmin.Name:
+			fs.RoleAdmin.ID = id
+		case fs.RoleUser.Name:
+			fs.RoleUser.ID = id
+		case fs.RoleGuest.Name:
+			fs.RoleGuest.ID = id
+		}
+	}
 }
 
 // setupAdmin sets up the app with admin user and returns admin token
@@ -138,13 +165,13 @@ func (te *testEnv) login(username, password string) string {
 }
 
 // addDBPermission adds a permission to the database and reloads cache
-func (te *testEnv) addDBPermission(resource, value string, roleID uint64) {
+func (te *testEnv) addDBPermission(resource, value string, roleID uuid.UUID) {
 	ctx := context.Background()
 	permissionModel := utils.Must(te.app.DB().Model("permission"))
 	_, err := permissionModel.CreateFromJSON(ctx, `{
 		"resource": "`+resource+`",
 		"value": "`+value+`",
-		"role_id": `+utils.If(roleID == 0, "2", string(rune('0'+roleID)))+`
+		"role_id": "`+roleID.String()+`"
 	}`)
 	require.NoError(te.t, err)
 	require.NoError(te.t, te.app.UpdateCache(ctx))

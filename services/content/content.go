@@ -3,6 +3,8 @@ package contentservice
 import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/fastschema/fastschema/schema"
 )
 
 type AppLike interface {
@@ -51,4 +53,21 @@ func (cs *ContentService) CreateResource(api *fs.Resource) {
 			Delete: "/:id",
 			Args:   fs.Args{"id": fs.CreateArg(fs.TypeUint64, "The content ID")},
 		}))
+}
+
+func parseIDArg(s *schema.Schema, rawID string) (any, error) {
+	if rawID == "" {
+		return nil, errors.BadRequest("missing id")
+	}
+
+	if s == nil {
+		return rawID, nil
+	}
+
+	idField := s.PrimaryField()
+	if idField == nil {
+		return rawID, nil
+	}
+
+	return schema.StringToFieldValue[any](idField, rawID)
 }

@@ -38,7 +38,7 @@ func TestNewBuilderFromSchemasErrorInvalidSchema(t *testing.T) {
 
 	builder, err := NewBuilderFromSchemas(dir, schemas, testcategory{}, testpost{})
 	assert.Nil(t, builder)
-	assert.Contains(t, err.Error(), "label_field is required")
+	assert.Contains(t, err.Error(), "Missing 'label_field'")
 }
 
 func TestNewBuilderFromSchemasErrorInvalidSystemSchema(t *testing.T) {
@@ -48,7 +48,7 @@ func TestNewBuilderFromSchemasErrorInvalidSystemSchema(t *testing.T) {
 
 func TestNewBuilderFromSchemasErrorDuplicateSchema(t *testing.T) {
 	_, err := NewBuilderFromSchemas(t.TempDir(), nil, testcategory{}, testpost{}, testcategory{})
-	assert.Contains(t, err.Error(), "testcategory already exists")
+	assert.Contains(t, err.Error(), "Duplicate system schema")
 }
 
 func TestNewBuilderFromSchemas(t *testing.T) {
@@ -461,7 +461,7 @@ func TestGetSchemasFromDirError(t *testing.T) {
 	// Case 2: Duplicate schema name
 	schemas, err = GetSchemasFromDir(t.TempDir(), Post{}, Post{})
 	assert.Nil(t, schemas)
-	assert.Contains(t, err.Error(), "system schema post already exists")
+	assert.Contains(t, err.Error(), "Duplicate system schema")
 }
 
 func TestGetSchemasFromDirExtendsSystemSchemas(t *testing.T) {
@@ -498,3 +498,220 @@ func TestFKUseExistedField(t *testing.T) {
 	assert.NotNil(t, relation)
 	assert.Equal(t, "cat_id", relation.SourceColumn)
 }
+
+// Tests for multi-error collection functions
+
+func TestBuilderErrorsType(t *testing.T) {
+	errs := &BuilderErrors{}
+
+	// Test empty errors
+	assert.False(t, errs.HasErrors())
+	assert.Equal(t, "", errs.Error())
+
+	// Test adding nil error (should be ignored)
+	errs.Add(nil)
+	assert.False(t, errs.HasErrors())
+
+	// Test adding actual errors
+	errs.Add(BuilderSchemaNotFoundError("test1", nil))
+	assert.True(t, errs.HasErrors())
+	assert.Equal(t, 1, len(errs.Errors))
+
+	errs.Add(BuilderSchemaNotFoundError("test2", nil))
+	assert.Equal(t, 2, len(errs.Errors))
+
+	// Test Error() joins messages
+	errString := errs.Error()
+	assert.Contains(t, errString, "test1")
+	assert.Contains(t, errString, "test2")
+}
+
+func TestNewBuilderFromSchemasCollectErrors_MultipleSchemaErrors(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create schemas with multiple different errors
+	schemas := map[string]*Schema{
+		"post": {
+			Name:      "post",
+			Namespace: "posts",
+			// Missing label_field
+			Fields: []*Field{
+				{
+					Name: "title",
+					Type: TypeString,
+				},
+			},
+		},
+		"comment": {
+			Name: "comment",
+			// Missing namespace
+			LabelFieldName: "text",
+			Fields: []*Field{
+				{
+					Name: "text",
+					Type: TypeString,
+				},
+			},
+		},
+	}
+
+	_, errs := NewBuilderFromSchemasCollectErrors(dir, schemas)
+
+	// Should have errors from both schemas
+	assert.True(t, errs.HasErrors())
+	assert.GreaterOrEqual(t, len(errs.Errors), 2, "Should collect errors from both schemas")
+
+	// Verify both types of errors are present
+	errString := errs.Error()
+	assert.Contains(t, errString, "label_field")
+	assert.Contains(t, errString, "namespace")
+}
+
+func TestNewBuilderFromSchemasCollectErrors_RelationErrors(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create schemas with multiple relation errors
+	schemas := map[string]*Schema{
+		"post": {
+			Name:           "post",
+			Namespace:      "posts",
+			LabelFieldName: "title",
+			Fields: []*Field{
+				{
+					Name: "title",
+					Type: TypeString,
+				},
+				{
+					Name: "author",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "nonexistent_user", // Error 1: schema doesn't exist
+						TargetFieldName:  "posts",
+						Type:             O2M,
+					},
+				},
+				{
+					Name: "category",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "nonexistent_category", // Error 2: schema doesn't exist
+						TargetFieldName:  "posts",
+						Type:             O2M,
+					},
+				},
+			},
+		},
+	}
+
+	_, errs := NewBuilderFromSchemasCollectErrors(dir, schemas)
+
+	// Should have errors for both missing relation targets
+	assert.True(t, errs.HasErrors())
+	assert.GreaterOrEqual(t, len(errs.Errors), 2, "Should collect errors from both relations")
+}
+
+func TestNewBuilderFromSchemasCollectErrors_ValidSchemas(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create valid schemas
+	schemas := map[string]*Schema{
+		"post": {
+			Name:           "post",
+			Namespace:      "posts",
+			LabelFieldName: "title",
+			Fields: []*Field{
+				{
+					Name: "title",
+					Type: TypeString,
+				},
+			},
+		},
+	}
+
+	builder, errs := NewBuilderFromSchemasCollectErrors(dir, schemas, testcategory{}, testpost{})
+
+	// Should have no errors
+	assert.False(t, errs.HasErrors())
+	assert.NotNil(t, builder)
+	assert.Equal(t, 3, len(builder.schemas)) // post + testcategory + testpost
+}
+
+func TestNewBuilderFromSchemasCollectErrors_DuplicateSystemSchema(t *testing.T) {
+	_, errs := NewBuilderFromSchemasCollectErrors(t.TempDir(), nil, testcategory{}, testpost{}, testcategory{})
+
+	// Should collect duplicate schema error
+	assert.True(t, errs.HasErrors())
+	assert.Contains(t, errs.Error(), "Duplicate system schema")
+}
+
+func TestInitCollectErrors_EmptySchemas(t *testing.T) {
+	builder := &Builder{
+		dir:       t.TempDir(),
+		schemas:   nil,
+		relations: []*Relation{},
+	}
+
+	errs := builder.InitCollectErrors()
+	assert.False(t, errs.HasErrors())
+	assert.NotNil(t, builder.schemas)
+}
+
+func TestCreateRelationsCollectErrors_MultipleErrors(t *testing.T) {
+	builder := &Builder{
+		dir: t.TempDir(),
+		schemas: map[string]*Schema{
+			"user": {
+				Name: "user",
+				Fields: []*Field{
+					{
+						Name: "role",
+						Type: TypeRelation,
+						Relation: &Relation{
+							TargetSchemaName: "invalid_role", // Error 1
+						},
+					},
+					{
+						Name: "profile",
+						Type: TypeRelation,
+						Relation: &Relation{
+							TargetSchemaName: "invalid_profile", // Error 2
+						},
+					},
+				},
+			},
+		},
+	}
+
+	errs := builder.CreateRelationsCollectErrors()
+
+	// Should collect both relation errors
+	assert.True(t, errs.HasErrors())
+	assert.GreaterOrEqual(t, len(errs.Errors), 2, "Should collect errors from both relation fields")
+}
+
+func TestCreateRelationsCollectErrors_BackRefErrors(t *testing.T) {
+	builder := &Builder{
+		dir: t.TempDir(),
+		relations: []*Relation{
+			{
+				Type:             O2M,
+				SourceSchemaName: "post",
+				Name:             "post.author-user.posts",
+				// Missing BackRef will cause error
+			},
+			{
+				Type:             O2M,
+				SourceSchemaName: "comment",
+				Name:             "comment.author-user.comments",
+				// Missing BackRef will cause error
+			},
+		},
+	}
+
+	errs := builder.CreateRelationsCollectErrors()
+
+	// Should collect both backref errors
+	assert.True(t, errs.HasErrors())
+	assert.GreaterOrEqual(t, len(errs.Errors), 2, "Should collect errors from both missing backrefs")
+}
+

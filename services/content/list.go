@@ -69,7 +69,7 @@ func (cs *ContentService) List(c fs.Context, _ any) (*Pagination, error) {
 		Select(columns...).
 		Limit(uint(c.ArgInt("limit", 10))).
 		Offset((page - 1) * limit).
-		Order(c.Arg("sort", "-id"))
+		Order(c.Arg("sort", "-"+model.Schema().PrimaryKeyName()))
 
 	// Apply relation options if provided
 	if relationOptions != nil {

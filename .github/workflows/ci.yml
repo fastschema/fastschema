@@ -37,7 +37,7 @@ jobs:
           MYSQL_DATABASE: fastschema
           MYSQL_ROOT_PASSWORD: 123
         ports:
-          - 33060:3306
+          - 3307:3306
         options: >-
           --health-cmd "mysqladmin ping -p123"
           --health-interval 10s
@@ -50,7 +50,7 @@ jobs:
           MYSQL_DATABASE: fastschema
           MYSQL_ROOT_PASSWORD: 123
         ports:
-          - 33061:3306
+          - 3308:3306
         options: >-
           --health-cmd "mysqladmin ping -p123"
           --health-interval 10s
@@ -63,7 +63,7 @@ jobs:
           MYSQL_DATABASE: fastschema
           MYSQL_ROOT_PASSWORD: 123
         ports:
-          - 33070:3306
+          - 3309:3306
         options: >-
           --health-cmd "mariadb-admin ping -h 127.0.0.1 -uroot -p123 --silent"
           --health-interval 10s
@@ -76,7 +76,7 @@ jobs:
           MYSQL_DATABASE: fastschema
           MYSQL_ROOT_PASSWORD: 123
         ports:
-          - 33071:3306
+          - 3310:3306
         options: >-
           --health-cmd "mariadb-admin ping -h 127.0.0.1 -uroot -p123 --silent"
           --health-interval 10s
@@ -89,7 +89,7 @@ jobs:
           MYSQL_DATABASE: fastschema
           MYSQL_ROOT_PASSWORD: 123
         ports:
-          - 33072:3306
+          - 3311:3306
         options: >-
           --health-cmd "mariadb-admin ping -h 127.0.0.1 -uroot -p123 --silent"
           --health-interval 10s
@@ -102,7 +102,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54320:5432
+          - 5433:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -114,7 +114,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54321:5432
+          - 5434:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -126,7 +126,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54322:5432
+          - 5435:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -138,7 +138,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54323:5432
+          - 5436:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -150,7 +150,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54324:5432
+          - 5437:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -162,7 +162,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54325:5432
+          - 5438:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -174,7 +174,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54326:5432
+          - 5439:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -186,7 +186,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54327:5432
+          - 5440:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -198,7 +198,7 @@ jobs:
           POSTGRES_DB: fastschema
           POSTGRES_PASSWORD: 123
         ports:
-          - 54328:5432
+          - 5441:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s

@@ -12,15 +12,15 @@ import (
 
 // UserClaims represents the minimal user data needed for JWT generation
 type UserClaims struct {
-	ID                   uint64   `json:"id,omitempty"`
-	Username             string   `json:"username,omitempty"`
-	Email                string   `json:"email,omitempty"`
-	FirstName            string   `json:"first_name,omitempty"`
-	LastName             string   `json:"last_name,omitempty"`
-	Active               bool     `json:"active,omitempty"`
-	Provider             string   `json:"provider,omitempty"`
-	ProviderProfileImage string   `json:"provider_profile_image,omitempty"`
-	RoleIDs              []uint64 `json:"role_ids,omitempty"`
+	ID                   uuid.UUID   `json:"id,omitempty"`
+	Username             string      `json:"username,omitempty"`
+	Email                string      `json:"email,omitempty"`
+	FirstName            string      `json:"first_name,omitempty"`
+	LastName             string      `json:"last_name,omitempty"`
+	Active               bool        `json:"active,omitempty"`
+	Provider             string      `json:"provider,omitempty"`
+	ProviderProfileImage string      `json:"provider_profile_image,omitempty"`
+	RoleIDs              []uuid.UUID `json:"role_ids,omitempty"`
 }
 
 // AccessTokenClaims represents the claims in an access token JWT
@@ -34,7 +34,7 @@ type AccessTokenClaims struct {
 type RefreshTokenClaims struct {
 	jwt.RegisteredClaims
 
-	UserID    uint64    `json:"uid"`
+	UserID    uuid.UUID `json:"uid"`
 	SessionID uuid.UUID `json:"sid"` // Session ID from database
 }
 
@@ -109,7 +109,7 @@ func GenerateAccessToken(
 
 // GenerateRefreshToken generates a new refresh token JWT with the given session ID
 func GenerateRefreshToken(
-	userID uint64,
+	userID uuid.UUID,
 	sessionID uuid.UUID,
 	key string,
 	expiresAt time.Time,
@@ -184,11 +184,9 @@ func ParseRefreshToken(tokenString, key string) (*RefreshTokenClaims, error) {
 
 // UserToJwtClaims converts an fs.User to jwt.UserClaims
 func UserToJwtClaims(user *fs.User) *UserClaims {
-	roleIDs := make([]uint64, 0)
+	roleIDs := make([]uuid.UUID, 0)
 	for _, role := range user.Roles {
-		if role.ID > 0 {
-			roleIDs = append(roleIDs, role.ID)
-		}
+		roleIDs = append(roleIDs, role.ID)
 	}
 
 	return &UserClaims{

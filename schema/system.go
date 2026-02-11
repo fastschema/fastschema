@@ -38,6 +38,7 @@ type SystemSchema struct {
 //			- DisableTimestamp
 //			- IsJunctionSchema
 //			- DB
+//			- Settings
 //		- Customize all field information, except `IsSystemField`:
 //			- Adding `Fields` ([]*Field) property to the returned schema to customize the fields.
 //			- Each field item contains data to customize schema field (partially or fully).
@@ -135,6 +136,14 @@ func (s *Schema) Customize() (_ *Schema, err error) {
 				return nil, fmt.Errorf("%s._=%s: invalid db format: %w", s.Name, dbTag, err)
 			}
 		}
+
+		// Customize settings property
+		settingsTag := sf.Tag.Get("fs.settings")
+		if settingsTag != "" {
+			if s.Settings, err = utils.ParseHJSON[*SchemaSettings]([]byte(settingsTag)); err != nil {
+				return nil, fmt.Errorf("%s._=%s: invalid settings format: %w", s.Name, settingsTag, err)
+			}
+		}
 	}
 
 	// Customize using the CustomizableSchema interface
@@ -168,6 +177,10 @@ func (s *Schema) Customize() (_ *Schema, err error) {
 
 		if customizedSchema.DB != nil {
 			s.DB = customizedSchema.DB
+		}
+
+		if customizedSchema.Settings != nil {
+			s.Settings = customizedSchema.Settings
 		}
 
 		// loop through the customizedSchema.Fields and update the matched schema field
@@ -282,7 +295,6 @@ func (s *Schema) CreateField(sf reflect.StructField) (*Field, error) {
 //	- E.g: `fs.relation="{'type': 'o2m', 'schema': 'post', 'field': 'categories', 'owner': true}"`
 //		- enums: Only for string fields. Tag fs.enums=hjson -> []*FieldEnum
 //		- relation: Tag fs.relation=hjson -> *Relation
-//		- renderer: Tag fs.renderer=hjson -> *Field.Renderer
 //		- db: Tag fs.db=hjson -> *FieldDB
 //
 // To extend other field properties, you can implement the CustomizableSchema interface.
@@ -359,19 +371,11 @@ func (s *Schema) ExtendFieldByTag(sf reflect.StructField, field *Field) error {
 			return fmt.Errorf("%s.%s=%s: invalid relation format: %w", s.Name, field.Name, relationTag, err)
 		}
 
-		field.Type = TypeRelation
-		field.Relation = relation
-	}
-
-	// Customize renderer property
-	rendererTag := sf.Tag.Get("fs.renderer")
-	if rendererTag != "" {
-		renderer, err := utils.ParseHJSON[*FieldRenderer]([]byte(rendererTag))
-		if err != nil {
-			return fmt.Errorf("%s.%s=%s: invalid renderer format: %w", s.Name, field.Name, rendererTag, err)
+		if field.Type != TypeFile {
+			field.Type = TypeRelation
 		}
 
-		field.Renderer = renderer
+		field.Relation = relation
 	}
 
 	// Customize DB property

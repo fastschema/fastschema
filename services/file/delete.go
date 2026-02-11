@@ -5,11 +5,12 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 )
 
-func (m *FileService) Delete(c fs.Context, fileIDs []uint64) (any, error) {
+func (m *FileService) Delete(c fs.Context, fileIDs []uuid.UUID) (any, error) {
 	conditions := []*db.Predicate{
-		db.In("id", utils.Map(fileIDs, func(id uint64) any {
+		db.In("id", utils.Map(fileIDs, func(id uuid.UUID) any {
 			return id
 		})),
 	}

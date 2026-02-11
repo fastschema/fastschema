@@ -2,9 +2,7 @@ package auth_test
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -76,14 +74,22 @@ func createOTPProvider(config *testAppConfig) *auth.OTPProvider {
 		config.key = testKey
 	}
 
+	var adminRoleID uuid.UUID
 	if config.createData {
 		roleModel, err := config.db.Model("role")
 		if err == nil {
 			// Check if roles exist
 			roles, _ := roleModel.Query().Count(context.Background())
 			if roles == 0 {
-				_, _ = roleModel.CreateFromJSON(context.Background(), `{"name": "admin"}`)
+				adminRoleIDRaw, _ := roleModel.CreateFromJSON(context.Background(), `{"name": "admin"}`)
+				adminRoleID = adminRoleIDRaw.(uuid.UUID)
 				_, _ = roleModel.CreateFromJSON(context.Background(), `{"name": "user"}`)
+			} else {
+				// Get the admin role ID from existing role
+				adminRole, _ := roleModel.Query().Where(db.EQ("name", "admin")).First(context.Background())
+				if adminRole != nil {
+					adminRoleID = adminRole.ID().(uuid.UUID)
+				}
 			}
 		}
 
@@ -95,7 +101,7 @@ func createOTPProvider(config *testAppConfig) *auth.OTPProvider {
 				"email": "active@site.local",
 				"provider": "local",
 				"active": true,
-				"roles": [{"id": 1}]
+				"roles": [{"id": "`+adminRoleID.String()+`"}]
 			}`)
 
 			_, _ = userModel.CreateFromJSON(context.Background(), `{
@@ -104,7 +110,7 @@ func createOTPProvider(config *testAppConfig) *auth.OTPProvider {
 				"email": "inactive@site.local",
 				"provider": "local",
 				"active": false,
-				"roles": [{"id": 1}]
+				"roles": [{"id": "`+adminRoleID.String()+`"}]
 			}`)
 		}
 	}
@@ -271,7 +277,7 @@ func TestOTPVerify(t *testing.T) {
 	activeUserID := activeUserEntity.ID
 	inactiveUserID := inactiveUserEntity.ID
 
-	createSession := func(userID uint64, otp string, attempts int, expiresAt time.Time) string {
+	createSession := func(userID uuid.UUID, otp string, attempts int, expiresAt time.Time) string {
 		otpHash := utils.Must(auth.HashOTP(otp))
 		sessionID := utils.Must(uuid.NewV7())
 		sessionModel, _ := config.db.Model("session")
@@ -311,7 +317,9 @@ func TestOTPVerify(t *testing.T) {
 		config = &testAppConfig{createData: true, mailer: mailer}
 		provider = createOTPProvider(config)
 		activeUserEntity, _ = db.Builder[*fs.User](config.db).Where(db.EQ("email", "active@site.local")).First(context.Background())
+		inactiveUserEntity, _ = db.Builder[*fs.User](config.db).Where(db.EQ("email", "inactive@site.local")).First(context.Background())
 		activeUserID = activeUserEntity.ID
+		inactiveUserID = inactiveUserEntity.ID
 	}
 
 	// Case 5: Session Expired
@@ -362,6 +370,11 @@ func TestOTPVerify(t *testing.T) {
 	// Case 8: User Not Found (Deleted after session created)
 	{
 		c := &otpMockContext{Context: context.Background()}
+		// Get role ID for user creation
+		roleModel, _ := config.db.Model("role")
+		roleEntity, _ := roleModel.Query(db.EQ("name", "admin")).First(context.Background())
+		roleIDValue := roleEntity.Get("id").(uuid.UUID)
+
 		// Create a user and delete it
 		userModel, _ := config.db.Model("user")
 		id, err := userModel.CreateFromJSON(context.Background(), `{
@@ -370,20 +383,17 @@ func TestOTPVerify(t *testing.T) {
 			"email": "todelete@site.local",
 			"provider": "local",
 			"active": true,
-			"roles": [{"id": 1}]
+			"roles": [{"id": "`+roleIDValue.String()+`"}]
 		}`)
 		require.NoError(t, err)
 
 		// Get ID safely
-		var userID uint64
-		if uID, ok := id.(uint64); ok {
+		var userID uuid.UUID
+		if uID, ok := id.(uuid.UUID); ok {
 			userID = uID
-		} else {
-			// fallback
-			s := fmt.Sprintf("%v", id)
-			var e error
-			userID, e = strconv.ParseUint(s, 10, 64)
-			require.NoError(t, e)
+		} else if uIDStr, ok := id.(string); ok {
+			userID, err = uuid.Parse(uIDStr)
+			require.NoError(t, err)
 		}
 
 		sessionID := createSession(userID, "123456", 0, time.Now().Add(5*time.Minute))

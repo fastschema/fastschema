@@ -15,6 +15,7 @@ import (
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,8 +54,8 @@ func TestMockCreateNode(t *testing.T) {
 			Schema:    "user",
 			InputJSON: `{ "name": "User 1", "age": 10 }`,
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`) VALUES (?, ?)")).
-					WithArgs("User 1", float64(10)).
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`, `id`) VALUES (?, ?, ?)")).
+					WithArgs("User 1", float64(10), sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -63,8 +64,8 @@ func TestMockCreateNode(t *testing.T) {
 			Schema:    "user",
 			InputJSON: `{ "name": "User 1", "json": {} }`,
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `json`) VALUES (?, ?)")).
-					WithArgs("User 1", []byte("{}")).
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `json`, `id`) VALUES (?, ?, ?)")).
+					WithArgs("User 1", []byte("{}"), sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -100,8 +101,8 @@ func TestMockCreateNodeHookError(t *testing.T) {
 			InputJSON:   `{ "name": "User 1", "age": 10 }`,
 			ExpectError: "post create hook: hook error",
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`) VALUES (?, ?)")).
-					WithArgs("User 1", float64(10)).
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`, `id`) VALUES (?, ?, ?)")).
+					WithArgs("User 1", float64(10), sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -120,7 +121,7 @@ func TestMockCreateNodeHookError(t *testing.T) {
 							dataCreate *entity.Entity,
 							id any,
 						) error {
-							assert.Greater(t, id, uint64(0))
+							assert.NotNil(t, id)
 							return errors.New("hook error")
 						},
 					},
@@ -167,36 +168,36 @@ func TestMockCreateNodeEdges(t *testing.T) {
 			InputJSON:   `{ "name": "User 1", "sub_card": { "id": 1 } }`,
 			Transaction: true,
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
-					WithArgs("User 1").
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `id`) VALUES (?, ?)")).
+					WithArgs("User 1", sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				m.ExpectExec(utils.EscapeQuery("UPDATE `cards` SET `sub_owner_id` = ? WHERE `id` = ? AND `sub_owner_id` IS NULL")).
-					WithArgs(1, 1).
+					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
 		{
 			Name:        "edges/o2o_two_types/inverse",
 			Schema:      "card",
-			InputJSON:   `{ "number": "0001", "owner": { "id": 2 } }`,
+			InputJSON:   `{ "number": "0001", "owner": { "id": "00000000-0000-0000-0000-000000000002" } }`,
 			Transaction: false,
 			Expect: func(m sqlmock.Sqlmock) {
 				m.ExpectExec(utils.EscapeQuery("INSERT INTO `cards` (`number`, `owner_id`) VALUES (?, ?)")).
-					WithArgs("0001", 2).
+					WithArgs("0001", uuid.MustParse("00000000-0000-0000-0000-000000000002")).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
 		{
 			Name:        "edges/o2o_same_types/bidi",
 			Schema:      "user",
-			InputJSON:   `{ "name": "User 1", "spouse": { "id": 2 } }`,
+			InputJSON:   `{ "name": "User 1", "spouse": { "id": "00000000-0000-0000-0000-000000000002" } }`,
 			Transaction: true,
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `spouse_id`) VALUES (?, ?)")).
-					WithArgs("User 1", 2).
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `spouse_id`, `id`) VALUES (?, ?, ?)")).
+					WithArgs("User 1", uuid.MustParse("00000000-0000-0000-0000-000000000002"), sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				m.ExpectExec(utils.EscapeQuery("UPDATE `users` SET `spouse_id` = ? WHERE `id` = ? AND `spouse_id` IS NULL")).
-					WithArgs(1, 2).
+					WithArgs(sqlmock.AnyArg(), uuid.MustParse("00000000-0000-0000-0000-000000000002")).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -234,11 +235,11 @@ func TestMockCreateNodeEdges(t *testing.T) {
 			InputJSON:   `{ "name": "User 1", "sub_pets": [{ "id": 1 }] }`,
 			Transaction: true,
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
-					WithArgs("User 1").
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `id`) VALUES (?, ?)")).
+					WithArgs("User 1", sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				m.ExpectExec(utils.EscapeQuery("UPDATE `pets` SET `sub_owner_id` = ? WHERE `id` = ? AND `sub_owner_id` IS NULL")).
-					WithArgs(1, 1).
+					WithArgs(sqlmock.AnyArg(), 1).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -248,22 +249,22 @@ func TestMockCreateNodeEdges(t *testing.T) {
 			InputJSON:   `{ "name": "User 1", "sub_pets": [{ "id": 1 }, { "id": 2 }, {"id": 3}] }`,
 			Transaction: true,
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
-					WithArgs("User 1").
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `id`) VALUES (?, ?)")).
+					WithArgs("User 1", sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				m.ExpectExec(utils.EscapeQuery("UPDATE `pets` SET `sub_owner_id` = ? WHERE `id` IN (?, ?, ?) AND `sub_owner_id` IS NULL")).
-					WithArgs(1, 1, 2, 3).
+					WithArgs(sqlmock.AnyArg(), 1, 2, 3).
 					WillReturnResult(sqlmock.NewResult(1, 3))
 			},
 		},
 		{
 			Name:        "edges/o2m_two_types/inverse",
 			Schema:      "pet",
-			InputJSON:   `{ "name": "Pet 1", "owner": { "id": 2 } }`,
+			InputJSON:   `{ "name": "Pet 1", "owner": { "id": "00000000-0000-0000-0000-000000000002" } }`,
 			Transaction: false,
 			Expect: func(m sqlmock.Sqlmock) {
 				m.ExpectExec(utils.EscapeQuery("INSERT INTO `pets` (`name`, `owner_id`) VALUES (?, ?)")).
-					WithArgs("Pet 1", 2).
+					WithArgs("Pet 1", uuid.MustParse("00000000-0000-0000-0000-000000000002")).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -309,14 +310,14 @@ func TestMockCreateNodeEdges(t *testing.T) {
 		{
 			Name:        "edges/m2m",
 			Schema:      "group",
-			InputJSON:   `{ "name": "GitHub", "users": [{ "id": 3 }] }`,
+			InputJSON:   `{ "name": "GitHub", "users": [{ "id": "00000000-0000-0000-0000-000000000003" }] }`,
 			Transaction: true,
 			Expect: func(m sqlmock.Sqlmock) {
 				m.ExpectExec(utils.EscapeQuery("INSERT INTO `groups` (`name`) VALUES (?)")).
 					WithArgs("GitHub").
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				m.ExpectExec(utils.EscapeQuery("INSERT INTO `groups_users` (`groups`, `users`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `groups` = `groups_users`.`groups`, `users` = `groups_users`.`users`")).
-					WithArgs(1, 3).
+					WithArgs(1, uuid.MustParse("00000000-0000-0000-0000-000000000003")).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -326,42 +327,42 @@ func TestMockCreateNodeEdges(t *testing.T) {
 			InputJSON:   `{ "name": "user01", "groups": [{ "id": 3 }] }`,
 			Transaction: true,
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
-					WithArgs("user01").
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `id`) VALUES (?, ?)")).
+					WithArgs("user01", sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				m.ExpectExec(utils.EscapeQuery("INSERT INTO `groups_users` (`groups`, `users`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `groups` = `groups_users`.`groups`, `users` = `groups_users`.`users`")).
-					WithArgs(3, 1).
+					WithArgs(3, sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
 		{
 			Name:        "edges/m2m/bidi",
 			Schema:      "user",
-			InputJSON:   `{ "name": "User 1", "friends": [{ "id": 3 }] }`,
+			InputJSON:   `{ "name": "User 1", "friends": [{ "id": "00000000-0000-0000-0000-000000000003" }] }`,
 			Transaction: true,
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
-					WithArgs("User 1").
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `id`) VALUES (?, ?)")).
+					WithArgs("User 1", sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				m.ExpectExec(utils.EscapeQuery("INSERT INTO `friends_user` (`friends`, `user`) VALUES (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `friends` = `friends_user`.`friends`, `user` = `friends_user`.`user`")).
-					WithArgs(1, 3, 3, 1).
+					WithArgs(sqlmock.AnyArg(), uuid.MustParse("00000000-0000-0000-0000-000000000003"), uuid.MustParse("00000000-0000-0000-0000-000000000003"), sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
 		{
 			Name:        "edges/m2m/bidi/batch",
 			Schema:      "user",
-			InputJSON:   `{ "name": "User 3", "friends": [{ "id": 1 }, { "id": 2 }], "groups": [{ "id": 1 }, { "id": 2 }] }`,
+			InputJSON:   `{ "name": "User 3", "friends": [{ "id": "00000000-0000-0000-0000-000000000001" }, { "id": "00000000-0000-0000-0000-000000000002" }], "groups": [{ "id": 1 }, { "id": 2 }] }`,
 			Transaction: true,
 			Expect: func(m sqlmock.Sqlmock) {
-				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
-					WithArgs("User 3").
+				m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `id`) VALUES (?, ?)")).
+					WithArgs("User 3", sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(3, 1))
 				m.ExpectExec(utils.EscapeQuery("INSERT INTO `friends_user` (`friends`, `user`) VALUES (?, ?), (?, ?), (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `friends` = `friends_user`.`friends`, `user` = `friends_user`.`user`")).
-					WithArgs(3, 1, 1, 3, 3, 2, 2, 3).
+					WithArgs(sqlmock.AnyArg(), uuid.MustParse("00000000-0000-0000-0000-000000000001"), uuid.MustParse("00000000-0000-0000-0000-000000000001"), sqlmock.AnyArg(), sqlmock.AnyArg(), uuid.MustParse("00000000-0000-0000-0000-000000000002"), uuid.MustParse("00000000-0000-0000-0000-000000000002"), sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				m.ExpectExec(utils.EscapeQuery("INSERT INTO `groups_users` (`groups`, `users`) VALUES (?, ?), (?, ?) ON DUPLICATE KEY UPDATE `groups` = `groups_users`.`groups`, `users` = `groups_users`.`users`")).
-					WithArgs(1, 3, 2, 3).
+					WithArgs(1, sqlmock.AnyArg(), 2, sqlmock.AnyArg()).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 		},
@@ -386,8 +387,8 @@ func TestMockCreateNodeWithRelationData(t *testing.T) {
 		// 	InputJSON: `{ "name": "pet 1", "owner": { "name": "User 2" } }`,
 		// 	Expect: func(m sqlmock.Sqlmock) {
 		// 		m.ExpectBegin()
-		// 		m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
-		// 			WithArgs("User 2").
+		// 		m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `id`) VALUES (?, ?)")).
+		// 			WithArgs("User 2", sqlmock.AnyArg()).
 		// 			WillReturnResult(sqlmock.NewResult(1, 1))
 		// 		m.ExpectExec(utils.EscapeQuery("INSERT INTO `pets` (`name`, `owner_id`) VALUES (?, ?)")).
 		// 			WithArgs("pet 1", 1).
@@ -401,8 +402,8 @@ func TestMockCreateNodeWithRelationData(t *testing.T) {
 		// 	InputJSON: `{ "number": "0001", "owner": { "name": "User 1" } }`,
 		// 	Expect: func(m sqlmock.Sqlmock) {
 		// 		m.ExpectBegin()
-		// 		m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`) VALUES (?)")).
-		// 			WithArgs("User 1").
+		// 		m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `id`) VALUES (?, ?)")).
+		// 			WithArgs("User 1", sqlmock.AnyArg()).
 		// 			WillReturnResult(sqlmock.NewResult(1, 1))
 		// 		m.ExpectExec(utils.EscapeQuery("INSERT INTO `cards` (`number`, `owner_id`) VALUES (?, ?)")).
 		// 			WithArgs("0001", 1).

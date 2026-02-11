@@ -17,6 +17,7 @@ import (
 	"github.com/fastschema/fastschema/schema"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func createOTPLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
@@ -32,7 +33,8 @@ func createOTPLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 
 	roleModel := utils.Must(config.db.Model("role"))
 	userModel := utils.Must(config.db.Model("user"))
-	utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "admin"}`))
+	adminRoleIDRaw := utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "admin"}`))
+	adminRoleID := adminRoleIDRaw.(uuid.UUID)
 	utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "user"}`))
 
 	if config.createData {
@@ -43,7 +45,7 @@ func createOTPLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 			"email": "inactive@site.local",
 			"provider": "local",
 			"active": false,
-			"roles": [{"id": 1}]
+			"roles": [{"id": "`+adminRoleID.String()+`"}]
 		}`))
 		// active user for recovery tests
 		utils.Must(userModel.CreateFromJSON(context.Background(), `{
@@ -52,7 +54,7 @@ func createOTPLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 			"email": "active@site.local",
 			"provider": "local",
 			"active": true,
-			"roles": [{"id": 1}]
+			"roles": [{"id": "`+adminRoleID.String()+`"}]
 		}`))
 	}
 
@@ -97,7 +99,9 @@ func TestLocalAuthOTPActivationRequest(t *testing.T) {
 			"POST", "/user/activate/send",
 			bytes.NewReader([]byte(`{"email": "invalid"}`)),
 		)
-		resp, _ := server.Test(req)
+		resp, err := server.Test(req, -1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 422, resp.StatusCode)
 	}
@@ -108,7 +112,9 @@ func TestLocalAuthOTPActivationRequest(t *testing.T) {
 			"POST", "/user/activate/send",
 			bytes.NewReader([]byte(`{"email": "nonexistent@site.local"}`)),
 		)
-		resp, _ := server.Test(req)
+		resp, err := server.Test(req, -1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 200, resp.StatusCode)
 		body := utils.Must(utils.ReadCloserToString(resp.Body))
@@ -122,7 +128,9 @@ func TestLocalAuthOTPActivationRequest(t *testing.T) {
 			"POST", "/user/activate/send",
 			bytes.NewReader([]byte(`{"email": "inactive@site.local"}`)),
 		)
-		resp, _ := server.Test(req)
+		resp, err := server.Test(req, -1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 200, resp.StatusCode)
 		body := utils.Must(utils.ReadCloserToString(resp.Body))
@@ -137,6 +145,11 @@ func TestLocalAuthOTPActivationVerify(t *testing.T) {
 	config := &testAppConfig{activation: "email", createData: true, mailer: mailer}
 	provider := createOTPLocalAuthProvider(config)
 
+	// Get the inactive user's ID from the database
+	inactiveUser, err := db.Builder[*fs.User](config.db).Where(db.EQ("email", "inactive@site.local")).First(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, inactiveUser)
+
 	// First, create an OTP session for the inactive user
 	sessionModel := utils.Must(config.db.Model("session"))
 	otp := "123456"
@@ -146,7 +159,7 @@ func TestLocalAuthOTPActivationVerify(t *testing.T) {
 
 	utils.Must(sessionModel.Create(context.Background(), entity.New().
 		Set("id", sessionUUID).
-		Set("user_id", uint64(1)). // inactive user
+		Set("user_id", inactiveUser.ID).
 		Set("type", string(fs.SessionTypeActivation)).
 		Set("status", string(fs.SessionStatusPendingOTP)).
 		Set("otp_hash", otpHash).
@@ -166,7 +179,9 @@ func TestLocalAuthOTPActivationVerify(t *testing.T) {
 			"POST", "/user/activate",
 			bytes.NewReader([]byte(`{"session_id": "invalid", "otp": "123456"}`)),
 		)
-		resp, _ := server.Test(req)
+		resp, err := server.Test(req, -1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 400, resp.StatusCode)
 	}
@@ -177,7 +192,9 @@ func TestLocalAuthOTPActivationVerify(t *testing.T) {
 			"POST", "/user/activate",
 			bytes.NewReader([]byte(`{"session_id": "`+sessionUUID.String()+`", "otp": "000000"}`)),
 		)
-		resp, _ := server.Test(req)
+		resp, err := server.Test(req, -1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 422, resp.StatusCode)
 		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), auth.MSG_OTP_INVALID)
@@ -194,7 +211,9 @@ func TestLocalAuthOTPActivationVerify(t *testing.T) {
 			"POST", "/user/activate",
 			bytes.NewReader([]byte(`{"session_id": "`+sessionUUID.String()+`", "otp": "`+otp+`"}`)),
 		)
-		resp, _ := server.Test(req)
+		resp, err := server.Test(req, -1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 200, resp.StatusCode)
 		assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"activation":"activated"`)
@@ -205,6 +224,11 @@ func TestLocalAuthOTPRecoveryFlow(t *testing.T) {
 	mailer := &MockMailer{}
 	config := &testAppConfig{activation: "email", createData: true, mailer: mailer}
 	provider := createOTPLocalAuthProvider(config)
+
+	// Get the active user's ID from the database
+	activeUser, err := db.Builder[*fs.User](config.db).Where(db.EQ("email", "active@site.local")).First(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, activeUser)
 
 	// Test recovery request
 	recoverServer := createServer(t, fs.Post(
@@ -219,7 +243,9 @@ func TestLocalAuthOTPRecoveryFlow(t *testing.T) {
 			"POST", "/user/recover",
 			bytes.NewReader([]byte(`{"email": "active@site.local"}`)),
 		)
-		resp, _ := recoverServer.Test(req)
+		resp, err := recoverServer.Test(req, -1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 200, resp.StatusCode)
 		body := utils.Must(utils.ReadCloserToString(resp.Body))
@@ -237,7 +263,7 @@ func TestLocalAuthOTPRecoveryFlow(t *testing.T) {
 
 	utils.Must(sessionModel.Create(context.Background(), entity.New().
 		Set("id", sessionUUID).
-		Set("user_id", uint64(2)). // active user
+		Set("user_id", activeUser.ID).
 		Set("type", string(fs.SessionTypeRecovery)).
 		Set("status", string(fs.SessionStatusPendingOTP)).
 		Set("otp_hash", otpHash).
@@ -258,7 +284,9 @@ func TestLocalAuthOTPRecoveryFlow(t *testing.T) {
 			"POST", "/user/recover/check",
 			bytes.NewReader([]byte(`{"session_id": "`+sessionID+`", "otp": "`+otp+`"}`)),
 		)
-		resp, _ := recoverCheckServer.Test(req)
+		resp, err := recoverCheckServer.Test(req, -1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 200, resp.StatusCode)
 		body := utils.Must(utils.ReadCloserToString(resp.Body))
@@ -278,7 +306,9 @@ func TestLocalAuthOTPRecoveryFlow(t *testing.T) {
 			"POST", "/user/recover/reset",
 			bytes.NewReader([]byte(`{"session_id": "`+sessionID+`", "password": "newpassword", "confirm_password": "newpassword"}`)),
 		)
-		resp, _ := resetServer.Test(req)
+		resp, err := resetServer.Test(req, -1)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		assert.Equal(t, 200, resp.StatusCode)
 	}
@@ -289,6 +319,11 @@ func TestLocalAuthOTPMaxAttempts(t *testing.T) {
 	config := &testAppConfig{activation: "email", createData: true, mailer: mailer}
 	provider := createOTPLocalAuthProvider(config)
 
+	// Get the inactive user's ID from the database
+	inactiveUser, err := db.Builder[*fs.User](config.db).Where(db.EQ("email", "inactive@site.local")).First(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, inactiveUser)
+
 	// Create a session with max attempts reached
 	sessionModel := utils.Must(config.db.Model("session"))
 	otp := "123456"
@@ -298,7 +333,7 @@ func TestLocalAuthOTPMaxAttempts(t *testing.T) {
 
 	utils.Must(sessionModel.Create(context.Background(), entity.New().
 		Set("id", sessionUUID).
-		Set("user_id", uint64(1)).
+		Set("user_id", inactiveUser.ID).
 		Set("type", string(fs.SessionTypeActivation)).
 		Set("status", string(fs.SessionStatusPendingOTP)).
 		Set("otp_hash", otpHash).
@@ -316,7 +351,9 @@ func TestLocalAuthOTPMaxAttempts(t *testing.T) {
 		"POST", "/user/activate",
 		bytes.NewReader([]byte(`{"session_id": "`+sessionUUID.String()+`", "otp": "`+otp+`"}`)),
 	)
-	resp, _ := server.Test(req)
+	resp, err := server.Test(req, -1)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 429, resp.StatusCode)
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), auth.MSG_OTP_MAX_ATTEMPTS)
@@ -327,6 +364,11 @@ func TestLocalAuthOTPExpired(t *testing.T) {
 	config := &testAppConfig{activation: "email", createData: true, mailer: mailer}
 	provider := createOTPLocalAuthProvider(config)
 
+	// Get the inactive user's ID from the database
+	inactiveUser, err := db.Builder[*fs.User](config.db).Where(db.EQ("email", "inactive@site.local")).First(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, inactiveUser)
+
 	// Create an expired session
 	sessionModel := utils.Must(config.db.Model("session"))
 	otp := "123456"
@@ -336,7 +378,7 @@ func TestLocalAuthOTPExpired(t *testing.T) {
 
 	utils.Must(sessionModel.Create(context.Background(), entity.New().
 		Set("id", sessionUUID).
-		Set("user_id", uint64(1)).
+		Set("user_id", inactiveUser.ID).
 		Set("type", string(fs.SessionTypeActivation)).
 		Set("status", string(fs.SessionStatusPendingOTP)).
 		Set("otp_hash", otpHash).
@@ -354,7 +396,9 @@ func TestLocalAuthOTPExpired(t *testing.T) {
 		"POST", "/user/activate",
 		bytes.NewReader([]byte(`{"session_id": "`+sessionUUID.String()+`", "otp": "`+otp+`"}`)),
 	)
-	resp, _ := server.Test(req)
+	resp, err := server.Test(req, -1)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 422, resp.StatusCode)
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), auth.MSG_OTP_EXPIRED)
@@ -365,6 +409,11 @@ func TestLocalAuthOTPInvalidatePreviousSessions(t *testing.T) {
 	config := &testAppConfig{activation: "email", createData: true, mailer: mailer}
 	provider := createOTPLocalAuthProvider(config)
 
+	// Get the inactive user's ID from the database
+	inactiveUser, err := db.Builder[*fs.User](config.db).Where(db.EQ("email", "inactive@site.local")).First(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, inactiveUser)
+
 	// Create an existing session
 	sessionModel := utils.Must(config.db.Model("session"))
 	otp := "123456"
@@ -374,7 +423,7 @@ func TestLocalAuthOTPInvalidatePreviousSessions(t *testing.T) {
 
 	utils.Must(sessionModel.Create(context.Background(), entity.New().
 		Set("id", oldSessionUUID).
-		Set("user_id", uint64(1)).
+		Set("user_id", inactiveUser.ID).
 		Set("type", string(fs.SessionTypeActivation)).
 		Set("status", string(fs.SessionStatusPendingOTP)).
 		Set("otp_hash", otpHash).
@@ -393,7 +442,9 @@ func TestLocalAuthOTPInvalidatePreviousSessions(t *testing.T) {
 		"POST", "/user/activate/send",
 		bytes.NewReader([]byte(`{"email": "inactive@site.local"}`)),
 	)
-	resp, _ := server.Test(req)
+	resp, err := server.Test(req, -1)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 

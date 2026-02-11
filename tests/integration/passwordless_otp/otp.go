@@ -18,6 +18,7 @@ import (
 	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	as "github.com/fastschema/fastschema/services/auth"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -178,12 +179,22 @@ func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig) *testAp
 	roleModel := utils.Must(dbc.Model("role"))
 	userModel := utils.Must(dbc.Model("user"))
 
-	// Create default roles
+	// Create default roles if they don't exist
 	for _, r := range []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest} {
-		_, _ = roleModel.Create(context.Background(), entity.New().
-			Set("name", r.Name).
-			Set("root", r.Root))
+		existing, _ := roleModel.Query(db.EQ("name", r.Name)).First(context.Background())
+		if existing == nil {
+			_, _ = roleModel.Create(context.Background(), entity.New().
+				Set("name", r.Name).
+				Set("root", r.Root))
+		}
 	}
+
+	// Get the User role ID
+	userRole, err := roleModel.Query(db.EQ("name", "User")).First(context.Background())
+	if err != nil {
+		t.Fatalf("failed to get User role: %v", err)
+	}
+	userRoleID := userRole.Get("id")
 
 	// Create test user with unique credentials
 	// Note: Email is stored in lowercase to match OTP provider's email normalization
@@ -196,7 +207,7 @@ func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig) *testAp
 		Set("provider", "local").
 		Set("provider_id", utils.RandomString(8)).
 		Set("active", true).
-		Set("roles", []*entity.Entity{entity.New(2)}))
+		Set("roles", []*entity.Entity{entity.New().Set("id", userRoleID)}))
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
 	}
@@ -219,7 +230,7 @@ func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig) *testAp
 			AuthConfig: authConfig,
 		},
 		testUser: &fs.User{
-			ID:       userID.(uint64),
+			ID:       userID.(uuid.UUID),
 			Username: username,
 			Email:    email,
 			Active:   true,

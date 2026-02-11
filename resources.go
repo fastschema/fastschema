@@ -9,13 +9,6 @@ import (
 	"github.com/fastschema/fastschema/services"
 )
 
-var ignoreContentSchemas = []string{
-	"user",
-	"role",
-	"permission",
-	"roles_users",
-}
-
 type AppConfig struct {
 	Version   string           `json:"version"`
 	Schemas   []*schema.Schema `json:"schemas"`
@@ -108,10 +101,6 @@ func (a *App) ResourcesList() []*fs.Resource {
 	contentGroup := apiGroup.Group("content")
 	realtimeContentGroup := apiGroup.Group("realtime").Group("content")
 	for _, schema := range schemas {
-		if utils.Contains(ignoreContentSchemas, schema.Name) || schema.IsJunctionSchema {
-			continue
-		}
-
 		schemaContentGroup := contentGroup.Group(schema.Name)
 		for _, r := range contentResource.Resources() {
 			schemaContentGroup.AddResource(r.Name(), nil, r.Meta().Clone())

@@ -41,6 +41,8 @@ func (ac *AppConfig) Set(config map[string]any) error {
 
 func (ac *AppConfig) AddSchemas(schemas ...*schema.Schema) {
 	for _, s := range schemas {
+		// Mark both schema and all its fields as system
+		s.MarkAsSystem()
 		ac.config.SystemSchemas = append(ac.config.SystemSchemas, s)
 	}
 }

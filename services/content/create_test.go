@@ -63,7 +63,7 @@ func TestContentServiceCreateUser(t *testing.T) {
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
-	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"id":1`)
+	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"id":"`)
 
 	// check if user is created
 	userModel := utils.Must(cs.DB().Model("user"))

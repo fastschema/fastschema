@@ -191,6 +191,14 @@ func httpResourceHandler(r *fs.Resource, hooks *fs.Hooks, methodHandler MethodDa
 			return c.JSON(c.result)
 		}
 
+		// Check for SSE streaming - when Content-Type is text/event-stream,
+		// the handler has already set up streaming via SetBodyStreamWriter,
+		// so we should not write any additional body content.
+		contentType := string(c.ctx.Response().Header.ContentType())
+		if contentType == "text/event-stream" {
+			return nil
+		}
+
 		// Send raw bytes
 		bytes, ok := c.result.Data.([]byte)
 		if ok {

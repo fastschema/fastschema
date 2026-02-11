@@ -28,12 +28,11 @@ type Field struct {
 	setterProgram *SetterProgram `json:"-"`                   // Compiled setter program
 	getterProgram *GetterProgram `json:"-"`                   // Compiled getter program
 	// Querier
-	Sortable   bool           `json:"sortable,omitempty"`   // Has a "sort" option in the tag.
-	Filterable bool           `json:"filterable,omitempty"` // Has a "filter" option in the tag.
-	Renderer   *FieldRenderer `json:"renderer,omitempty"`   // renderer of the field.
-	Enums      []*FieldEnum   `json:"enums,omitempty"`      // enum values.
-	Relation   *Relation      `json:"relation,omitempty"`   // relation of the field.
-	DB         *FieldDB       `json:"db,omitempty"`         // db config for the field.
+	Sortable   bool         `json:"sortable,omitempty"`   // Has a "sort" option in the tag.
+	Filterable bool         `json:"filterable,omitempty"` // Has a "filter" option in the tag.
+	Enums      []*FieldEnum `json:"enums,omitempty"`      // enum values.
+	Relation   *Relation    `json:"relation,omitempty"`   // relation of the field.
+	DB         *FieldDB     `json:"db,omitempty"`         // db config for the field.
 
 	// SystemField is field created from Go code, not from user schema.
 	IsSystemField bool `json:"is_system_field,omitempty"` // Is a system field.
@@ -47,12 +46,18 @@ func (f *Field) Init(schemaNames ...string) (err error) {
 		if len(schemaNames) == 0 {
 			return errors.New("schema names are required for file field")
 		}
-		f.Relation = &Relation{
-			Type:             utils.If(f.IsMultiple, M2M, O2M),
-			Owner:            false,
-			TargetSchemaName: "file",
-			TargetFieldName:  fmt.Sprintf("%s_%s", schemaNames[0], f.Name),
-			BackRef:          nil,
+
+		if f.Relation == nil {
+			f.Relation = &Relation{
+				Type:             utils.If(f.IsMultiple, M2M, O2M),
+				Owner:            false,
+				TargetSchemaName: "file",
+				BackRef:          nil,
+			}
+		}
+
+		if f.Relation.TargetFieldName == "" {
+			f.Relation.TargetFieldName = fmt.Sprintf("%s_%s", schemaNames[0], f.Name)
 		}
 	}
 
@@ -73,7 +78,6 @@ func (f *Field) Clone() *Field {
 		Type:          f.Type,
 		Name:          f.Name,
 		Label:         f.Label,
-		Renderer:      f.Renderer,
 		Size:          f.Size,
 		IsMultiple:    f.IsMultiple,
 		Unique:        f.Unique,
@@ -229,10 +233,6 @@ func MergeFields(f1, f2 *Field) {
 
 	if f2.Default != nil {
 		f1.Default = f2.Default
-	}
-
-	if f2.Renderer != nil {
-		f1.Renderer = f2.Renderer.Clone()
 	}
 
 	if f2.Enums != nil {

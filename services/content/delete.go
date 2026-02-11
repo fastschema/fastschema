@@ -5,21 +5,31 @@ import (
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
-	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/fastschema/fastschema/schema"
 )
 
-func isDeletable(id any, schemaName string) error {
-	if schemaName != "user" {
-		return nil
+// isRootUser checks if the given entity is a root user by checking if any of their roles have Root: true
+func isRootUser(e *entity.Entity) bool {
+	if e == nil {
+		return false
 	}
 
-	rootID, err := utils.AnyToUint[uint64](id)
-	if err == nil && rootID == 1 {
-		return errors.BadRequest("Cannot delete root user.")
+	rolesValue := e.Get("roles")
+	if rolesValue == nil {
+		return false
 	}
 
-	return nil
+	roles, ok := rolesValue.([]*entity.Entity)
+	if !ok {
+		return false
+	}
+
+	for _, role := range roles {
+		if root, ok := role.Get("root").(bool); ok && root {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (cs *ContentService) Delete(c fs.Context, _ any) (any, error) {
@@ -34,18 +44,28 @@ func (cs *ContentService) Delete(c fs.Context, _ any) (any, error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	if err := isDeletable(idValue, schemaName); err != nil {
-		return nil, err
+	primaryKeyName := model.Schema().PrimaryKeyName()
+	query := model.Query(db.EQ(primaryKeyName, idValue))
+	// For users, we need to select roles to check if they are root users
+	if schemaName == "user" {
+		query = query.Select("roles")
 	}
 
-	_, err = model.Query(db.EQ(entity.FieldID, idValue)).Only(c)
-
+	record, err := query.Only(c)
 	if err != nil {
-		e := utils.If(db.IsNotFound(err), errors.NotFound, errors.InternalServerError)
+		e := errors.NotFound
+		if !db.IsNotFound(err) {
+			e = errors.InternalServerError
+		}
 		return nil, e(err.Error())
 	}
 
-	if _, err := model.Mutation().Where(db.EQ(entity.FieldID, idValue)).Delete(c); err != nil {
+	// Check if trying to delete a root user
+	if schemaName == "user" && isRootUser(record) {
+		return nil, errors.BadRequest("Cannot delete root user.")
+	}
+
+	if _, err := model.Mutation().Where(db.EQ(primaryKeyName, idValue)).Delete(c); err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
@@ -68,7 +88,13 @@ func (cs *ContentService) BulkDelete(c fs.Context, _ any) (int, error) {
 		return 0, errors.BadRequest(err.Error())
 	}
 
-	records, err := model.Query(predicates...).Get(c)
+	query := model.Query(predicates...)
+	// For users, we need to select roles to check if they are root users
+	if schemaName == "user" {
+		query = query.Select("roles")
+	}
+
+	records, err := query.Get(c)
 	if err != nil {
 		return 0, errors.BadRequest(err.Error())
 	}
@@ -77,36 +103,22 @@ func (cs *ContentService) BulkDelete(c fs.Context, _ any) (int, error) {
 		return 0, nil
 	}
 
+	primaryKeyName := model.Schema().PrimaryKeyName()
 	ids := make([]any, 0, len(records))
 	for _, record := range records {
-		recordID := record.ID()
-		if err := isDeletable(recordID, schemaName); err != nil {
-			return 0, errors.InternalServerError("Cannot delete root user.")
+		// Check if trying to delete a root user
+		if schemaName == "user" && isRootUser(record) {
+			return 0, errors.BadRequest("Cannot delete root user.")
 		}
-		ids = append(ids, recordID)
+		ids = append(ids, record.ID())
 	}
 
-	recordDelete, err := model.Mutation().Where(db.In("id", ids)).Delete(c)
+	recordDelete, err := model.Mutation().
+		Where(db.In(primaryKeyName, ids)).
+		Delete(c)
 	if err != nil {
 		return 0, errors.InternalServerError(err.Error())
 	}
 
 	return recordDelete, nil
-}
-
-func parseIDArg(s *schema.Schema, rawID string) (any, error) {
-	if rawID == "" {
-		return nil, errors.BadRequest("missing id")
-	}
-
-	if s == nil {
-		return rawID, nil
-	}
-
-	idField := s.PrimaryField()
-	if idField == nil {
-		return rawID, nil
-	}
-
-	return schema.StringToFieldValue[any](idField, rawID)
 }

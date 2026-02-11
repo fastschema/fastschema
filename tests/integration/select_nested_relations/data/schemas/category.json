@@ -4,6 +4,16 @@
   "label_field": "name",
   "fields": [
     {
+      "name": "id",
+      "type": "uint64",
+      "label": "ID",
+      "db": {
+        "attr": "UNSIGNED",
+        "key": "PRI",
+        "increment": true
+      }
+    },
+    {
       "name": "name",
       "label": "Name",
       "type": "string",

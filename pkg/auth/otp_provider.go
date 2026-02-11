@@ -222,6 +222,7 @@ func (op *OTPProvider) VerifyOTP(c fs.Context, req *OTPVerify) (*fs.User, error)
 		Where(db.EQ("id", sessionUUID)).
 		Where(db.EQ("type", string(fs.SessionTypeOTPLogin))).
 		Where(db.EQ("status", string(fs.SessionStatusPendingOTP))).
+		Select("id", "user_id", "status", "otp_hash", "otp_attempts", "expires_at").
 		First(c)
 	if err != nil {
 		if db.IsNotFound(err) {

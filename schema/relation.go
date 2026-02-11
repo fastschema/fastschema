@@ -33,11 +33,16 @@ type Relation struct {
 	// (for O2O/O2M non-owner side)
 	// or the column referencing the target schema's PK
 	// in the M2M junction table.
-	SourceColumn string `json:"source_column"`
+	SourceColumn string `json:"source_column,omitempty"`
 	// TargetColumn optionally specifies the referenced column on the target schema
 	// for FK relations. For M2M relations it continues to describe the junction
 	// column that references the source schema's primary key.
-	TargetColumn string `json:"target_column"`
+	TargetColumn string `json:"target_column,omitempty"`
+
+	// sourceColumnUserDefined tracks if SourceColumn was explicitly set by user
+	sourceColumnUserDefined bool `json:"-"`
+	// targetColumnUserDefined tracks if TargetColumn was explicitly set by user
+	targetColumnUserDefined bool `json:"-"`
 
 	// JunctionTable is the junction table name for m2m relation
 	JunctionTable   string    `json:"junction_table,omitempty"`
@@ -76,6 +81,10 @@ func (r *Relation) Init(schema *Schema, relationSchema *Schema, f *Field) *Relat
 			}
 		}
 
+		// Track if user explicitly defined the columns before auto-generating
+		r.sourceColumnUserDefined = r.SourceColumn != ""
+		r.targetColumnUserDefined = r.TargetColumn != ""
+
 		sourceColumn := fmt.Sprintf("%s_%s", r.SourceFieldName, targetPrimary)
 		r.SourceColumn = utils.If(
 			r.SourceColumn == "",
@@ -110,13 +119,28 @@ func (r *Relation) Clone() *Relation {
 		TargetSchemaName: r.TargetSchemaName,
 		TargetFieldName:  r.TargetFieldName,
 
-		Type:         r.Type,
-		Owner:        r.Owner,
-		OnDelete:     r.OnDelete,
-		OnUpdate:     r.OnUpdate,
-		Optional:     r.Optional,
-		SourceColumn: r.SourceColumn,
-		TargetColumn: r.TargetColumn,
+		Type:     r.Type,
+		Owner:    r.Owner,
+		Optional: r.Optional,
+
+		sourceColumnUserDefined: r.sourceColumnUserDefined,
+		targetColumnUserDefined: r.targetColumnUserDefined,
+	}
+
+	// Only include OnDelete and OnUpdate if they are not the default "NO ACTION"
+	if r.OnDelete != NoAction {
+		newRelation.OnDelete = r.OnDelete
+	}
+	if r.OnUpdate != NoAction {
+		newRelation.OnUpdate = r.OnUpdate
+	}
+
+	// Only include SourceColumn and TargetColumn if user explicitly defined them
+	if r.sourceColumnUserDefined {
+		newRelation.SourceColumn = r.SourceColumn
+	}
+	if r.targetColumnUserDefined {
+		newRelation.TargetColumn = r.TargetColumn
 	}
 
 	return newRelation
@@ -234,22 +258,15 @@ func (r *Relation) CreateFKField(targetField *Field) (*Field, error) {
 }
 
 func NewRelationNodeError(schema *Schema, field *Field) error {
-	return fmt.Errorf(
-		"relation node %s.%s: '%s' is not found",
-		schema.Name,
-		field.Name,
-		field.Relation.TargetSchemaName,
-	)
+	return RelationTargetNotFoundError(schema.Name, field.Name, field.Relation.TargetSchemaName)
 }
 
 func NewRelationBackRefError(relation *Relation) error {
-	return fmt.Errorf(
-		"backref relation for %s.%s is not valid: '%s.%s', please check the 'field' property in the '%s.%s' relation definition",
+	return RelationBackRefError(
 		relation.SourceSchemaName,
 		relation.SourceFieldName,
 		relation.TargetSchemaName,
 		relation.TargetFieldName,
-		relation.TargetSchemaName,
-		relation.TargetFieldName,
+		relation.Type,
 	)
 }

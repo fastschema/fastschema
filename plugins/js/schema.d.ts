@@ -22,9 +22,10 @@ export interface FieldDB {
   key?: string;
 }
 
-export interface FieldRenderer {
-  class?: string;
-  settings?: Record<string, any>;
+export interface SchemaFormZoneField {
+  field: string;
+  renderer?: string;
+  options?: Record<string, any>;
 }
 
 export type FieldType = 'bool' | 'time' | 'json' | 'uuid' | 'bytes' | 'enum' | 'string' | 'text' | 'int' | 'int8' | 'int16' | 'int32' | 'int64' | 'uint' | 'uint8' | 'uint16' | 'uint32' | 'uint64' | 'float32' | 'float64' | 'relation' | 'file';
@@ -37,7 +38,6 @@ export interface Field {
   is_locked?: boolean;
   server_name?: string;
   label: string;
-  renderer?: FieldRenderer;
   size?: number;
   unique?: boolean;
   optional?: boolean;

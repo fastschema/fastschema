@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -140,12 +139,12 @@ func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation,
 
 		if _, err = db.Builder[*fs.User](tx).
 			Where(db.EQ("id", user.ID)).
-			Update(c, entity.New().Set("provider_id", strconv.FormatUint(user.ID, 10))); err != nil {
+			Update(c, entity.New().Set("provider_id", user.ID.String())); err != nil {
 			c.Logger().Errorf(MSG_USER_UPDATE_PROVIDER_ID_ERROR, err)
 			return ERR_SAVE_USER
 		}
 
-		user.ProviderID = strconv.FormatUint(user.ID, 10)
+		user.ProviderID = user.ID.String()
 		email, err := CreateActivationEmail(la, user)
 		if err != nil {
 			c.Logger().Errorf(MSG_CREATE_ACTIVATION_MAIL_ERROR, err)
@@ -164,7 +163,7 @@ func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation,
 }
 
 func (la *LocalProvider) Activate(c fs.Context, data *Confirmation) (*Activation, error) {
-	var userID uint64
+	var userID uuid.UUID
 	var err error
 
 	if data.IsTokenBased() {
@@ -421,11 +420,12 @@ func (la *LocalProvider) sendRecoveryOTP(c fs.Context, user *fs.User) (*Activati
 
 func (la *LocalProvider) RecoverCheck(c fs.Context, data *Confirmation) (*Activation, error) {
 	if data.IsTokenBased() {
+		var emptyUUID uuid.UUID
 		userID, err := ValidateConfirmationToken(data.Token, la.appKey())
 		if err != nil {
 			return nil, err
 		}
-		return &Activation{Activation: "valid", Verified: userID > 0}, nil
+		return &Activation{Activation: "valid", Verified: userID != emptyUUID}, nil
 	}
 
 	if data.IsOTPBased() {
@@ -445,7 +445,7 @@ func (la *LocalProvider) RecoverCheck(c fs.Context, data *Confirmation) (*Activa
 }
 
 func (la *LocalProvider) ResetPassword(c fs.Context, data *ResetPassword) (_ bool, err error) {
-	var userID uint64
+	var userID uuid.UUID
 
 	if data.Token != "" {
 		userID, err = ValidateConfirmationToken(data.Token, la.appKey())
@@ -486,7 +486,7 @@ func (la *LocalProvider) ResetPassword(c fs.Context, data *ResetPassword) (_ boo
 // invalidatePreviousSessions invalidates all pending OTP sessions for a user
 func (la *LocalProvider) invalidatePreviousSessions(
 	c fs.Context,
-	userID uint64,
+	userID uuid.UUID,
 	sessionType fs.SessionType,
 ) error {
 	_, err := db.Builder[*fs.Session](la.db()).
@@ -503,7 +503,7 @@ func (la *LocalProvider) invalidatePreviousSessions(
 // createOTPSession creates a new OTP session after invalidating previous ones
 func (la *LocalProvider) createOTPSession(
 	c fs.Context,
-	userID uint64,
+	userID uuid.UUID,
 	sessionType fs.SessionType,
 ) (sessionID string, otp string, err error) {
 	otpConfig := la.getOTPConfig()
@@ -566,13 +566,14 @@ func (la *LocalProvider) verifyOTPSession(
 	otp string,
 	sessionType fs.SessionType,
 	deleteOnSuccess bool,
-) (userID uint64, err error) {
+) (userID uuid.UUID, err error) {
 	otpConfig := la.getOTPConfig()
+	var emptyUUID uuid.UUID
 
 	// 1. Parse session UUID
 	sessionUUID, err := uuid.Parse(sessionID)
 	if err != nil {
-		return 0, ERR_INVALID_TOKEN
+		return emptyUUID, ERR_INVALID_TOKEN
 	}
 
 	// 2. Find session
@@ -583,22 +584,22 @@ func (la *LocalProvider) verifyOTPSession(
 		First(c)
 	if err != nil {
 		if db.IsNotFound(err) {
-			return 0, ERR_INVALID_TOKEN
+			return emptyUUID, ERR_INVALID_TOKEN
 		}
 		c.Logger().Errorf("Error finding OTP session: %v", err)
-		return 0, errors.InternalServerError("Error verifying OTP")
+		return emptyUUID, errors.InternalServerError("Error verifying OTP")
 	}
 
 	// 3. Check expiration
 	if session.ExpiresAt != nil && session.ExpiresAt.Before(time.Now()) {
 		la.markSessionInactive(c, session.ID)
-		return 0, ERR_OTP_EXPIRED
+		return emptyUUID, ERR_OTP_EXPIRED
 	}
 
 	// 4. Check max attempts
 	if session.OTPAttempts >= otpConfig.GetMaxAttempts() {
 		la.markSessionInactive(c, session.ID)
-		return 0, ERR_OTP_MAX_ATTEMPTS
+		return emptyUUID, ERR_OTP_MAX_ATTEMPTS
 	}
 
 	// 5. Verify OTP
@@ -607,7 +608,7 @@ func (la *LocalProvider) verifyOTPSession(
 		_, _ = db.Builder[*fs.Session](la.db()).
 			Where(db.EQ("id", session.ID)).
 			Update(c, entity.New().Set("otp_attempts", session.OTPAttempts+1))
-		return 0, ERR_OTP_INVALID
+		return emptyUUID, ERR_OTP_INVALID
 	}
 
 	// 6. Success - update or delete session
@@ -629,10 +630,11 @@ func (la *LocalProvider) getUserFromVerifiedSession(
 	c fs.Context,
 	sessionID string,
 	sessionType fs.SessionType,
-) (uint64, error) {
+) (uuid.UUID, error) {
+	var emptyUUID uuid.UUID
 	sessionUUID, err := uuid.Parse(sessionID)
 	if err != nil {
-		return 0, ERR_INVALID_TOKEN
+		return emptyUUID, ERR_INVALID_TOKEN
 	}
 
 	session, err := db.Builder[*fs.Session](la.db()).
@@ -642,15 +644,15 @@ func (la *LocalProvider) getUserFromVerifiedSession(
 		First(c)
 	if err != nil {
 		if db.IsNotFound(err) {
-			return 0, errors.BadRequest(MSG_OTP_VERIFICATION_REQUIRED)
+			return emptyUUID, errors.BadRequest(MSG_OTP_VERIFICATION_REQUIRED)
 		}
-		return 0, errors.InternalServerError("Error verifying session")
+		return emptyUUID, errors.InternalServerError("Error verifying session")
 	}
 
 	// Check expiration
 	if session.ExpiresAt != nil && session.ExpiresAt.Before(time.Now()) {
 		la.markSessionInactive(c, session.ID)
-		return 0, ERR_OTP_EXPIRED
+		return emptyUUID, ERR_OTP_EXPIRED
 	}
 
 	return session.UserID, nil

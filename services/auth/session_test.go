@@ -27,6 +27,7 @@ type testTokenApp struct {
 	authConfig *fs.AuthConfig
 	resources  *fs.ResourcesManager
 	resolver   *rr.RestfulResolver
+	testUserID uuid.UUID
 }
 
 func (s testTokenApp) JwtCustomClaimsFunc() fs.JwtCustomClaimsFunc {
@@ -67,22 +68,29 @@ func createTestTokenApp(t *testing.T, enableRefreshToken bool) *testTokenApp {
 	roleModel := utils.Must(dbc.Model("role"))
 	userModel := utils.Must(dbc.Model("user"))
 
+	var userRoleID uuid.UUID
 	for _, r := range []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest} {
-		utils.Must(roleModel.Create(context.Background(), entity.New().
+		roleID := utils.Must(roleModel.Create(context.Background(), entity.New().
 			Set("name", r.Name).
-			Set("root", r.Root),
+			Set("root", r.Root).
+			Set("system", r.System),
 		))
+		r.ID = roleID.(uuid.UUID)
+		if r.Name == fs.RoleUser.Name {
+			userRoleID = roleID.(uuid.UUID)
+		}
 	}
 
-	utils.Must(userModel.Create(context.Background(), entity.New().
+	testUserIDRaw := utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "testuser").
 		Set("email", "test@example.com").
 		Set("password", "testpassword").
 		Set("provider", "local").
 		Set("provider_id", "1").
 		Set("active", true).
-		Set("roles", []*entity.Entity{entity.New(2)}),
+		Set("roles", []*entity.Entity{entity.New(userRoleID)}),
 	))
+	testUserID := testUserIDRaw.(uuid.UUID)
 
 	utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "inactiveuser").
@@ -91,7 +99,7 @@ func createTestTokenApp(t *testing.T, enableRefreshToken bool) *testTokenApp {
 		Set("provider", "local").
 		Set("provider_id", "2").
 		Set("active", false).
-		Set("roles", []*entity.Entity{entity.New(2)}),
+		Set("roles", []*entity.Entity{entity.New(userRoleID)}),
 	))
 
 	authConfig := &fs.AuthConfig{
@@ -107,6 +115,7 @@ func createTestTokenApp(t *testing.T, enableRefreshToken bool) *testTokenApp {
 			AuthConfig: authConfig,
 		},
 		authConfig: authConfig,
+		testUserID: testUserID,
 	}
 
 	// Setup resources and resolver for context creation
@@ -224,7 +233,7 @@ func TestAuthServiceGenerateTokenPair(t *testing.T) {
 	authService := as.New(app)
 
 	user := &fs.User{
-		ID:       1,
+		ID:       uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 		Username: "testuser",
 		Email:    "test@example.com",
 		Active:   true,
@@ -258,7 +267,7 @@ func TestAuthServiceRefreshToken(t *testing.T) {
 	authService := as.New(app)
 
 	user := &fs.User{
-		ID:       1,
+		ID:       app.testUserID,
 		Username: "testuser",
 		Email:    "test@example.com",
 		Active:   true,
@@ -330,7 +339,7 @@ func TestAuthServiceRefreshTokenInvalid(t *testing.T) {
 		// Generate a valid token but don't store it in DB
 		// Using a non-existent session ID
 		sessionID := utils.Must(uuid.NewV7())
-		token, err := jwt.GenerateRefreshToken(1, sessionID, app.Key(), time.Now().Add(time.Hour))
+		token, err := jwt.GenerateRefreshToken(uuid.MustParse("00000000-0000-0000-0000-000000000001"), sessionID, app.Key(), time.Now().Add(time.Hour))
 		require.NoError(t, err)
 
 		_, err = authService.RefreshToken(ctx, &as.RefreshTokenRequest{
@@ -370,7 +379,7 @@ func TestAuthServiceLogout(t *testing.T) {
 	ctx := app.createMockContext(nil)
 
 	user := &fs.User{
-		ID:       1,
+		ID:       uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 		Username: "testuser",
 		Email:    "test@example.com",
 		Active:   true,
@@ -423,7 +432,7 @@ func TestAuthServiceLogoutAll(t *testing.T) {
 	authService := as.New(app)
 
 	user := &fs.User{
-		ID:       1,
+		ID:       uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 		Username: "testuser",
 		Email:    "test@example.com",
 		Active:   true,
@@ -473,6 +482,12 @@ func TestAuthServiceCleanupExpiredSessions(t *testing.T) {
 	authService := as.New(app)
 	ctx := app.createMockContext(nil)
 
+	// Get a user ID from the database
+	user, err := db.Builder[*fs.User](app.db).First(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, user)
+	testUserID := user.ID
+
 	// Create some sessions - some expired, some not
 	now := time.Now()
 	expiredTime := now.Add(-1 * time.Hour)
@@ -482,7 +497,7 @@ func TestAuthServiceCleanupExpiredSessions(t *testing.T) {
 	expiredSessionID := uuid.Must(uuid.NewV7())
 	expiredSession, err := db.Builder[*fs.Session](app.db).Create(ctx, entity.New().
 		Set("id", expiredSessionID).
-		Set("user_id", uint64(1)).
+		Set("user_id", testUserID).
 		Set("ip_address", "127.0.0.1").
 		Set("status", string(fs.SessionStatusActive)).
 		Set("expires_at", expiredTime))
@@ -492,7 +507,7 @@ func TestAuthServiceCleanupExpiredSessions(t *testing.T) {
 	validSessionID := uuid.Must(uuid.NewV7())
 	validSession, err := db.Builder[*fs.Session](app.db).Create(ctx, entity.New().
 		Set("id", validSessionID).
-		Set("user_id", uint64(1)).
+		Set("user_id", testUserID).
 		Set("ip_address", "127.0.0.1").
 		Set("status", string(fs.SessionStatusActive)).
 		Set("expires_at", validTime))

@@ -562,9 +562,9 @@ func TestEdgeLoadingErrors(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `pets` WHERE `pets`.`owner_id` IN (?)")).
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnError(errors.New("database error"))
 			},
 			ExpectError: "database error",

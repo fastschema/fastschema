@@ -69,8 +69,10 @@ func TestRelation(t *testing.T) {
 	assert.Equal(t, relation.SourceColumn, fkField.Name)
 	assert.Equal(t, idField.Type, fkField.Type)
 
-	assert.Equal(t, "relation node post.owner: 'user' is not found", NewRelationNodeError(schema, field).Error())
-	assert.Equal(t, "backref relation for post.owner is not valid: 'user.id', please check the 'field' property in the 'user.id' relation definition", NewRelationBackRefError(relation).Error())
+	assert.Contains(t, NewRelationNodeError(schema, field).Error(), "[REL-001]")
+	assert.Contains(t, NewRelationNodeError(schema, field).Error(), "Target schema 'user' does not exist")
+	assert.Contains(t, NewRelationBackRefError(relation).Error(), "[REL-002]")
+	assert.Contains(t, NewRelationBackRefError(relation).Error(), "Back-reference field 'id' not found")
 }
 
 func TestRelationClone(t *testing.T) {

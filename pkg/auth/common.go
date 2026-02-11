@@ -10,6 +10,7 @@ import (
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 )
 
 func SendConfirmationEmail(la *LocalProvider, logger logger.Logger, mail *fs.Mail) {
@@ -41,14 +42,15 @@ func CreateConfirmationURL(baseURL, appKey string, user *fs.User) (string, error
 	}
 }
 
-func ValidateConfirmationToken(token, key string) (uint64, error) {
+func ValidateConfirmationToken(token, key string) (uuid.UUID, error) {
+	var emptyUUID uuid.UUID
 	if token == "" {
-		return 0, ERR_INVALID_TOKEN
+		return emptyUUID, ERR_INVALID_TOKEN
 	}
 
 	parsed, err := utils.ParseConfirmationToken(token, key)
 	if err != nil {
-		return 0, err
+		return emptyUUID, err
 	}
 
 	if time.Now().UnixMicro() > parsed.Exp {

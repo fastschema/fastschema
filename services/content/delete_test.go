@@ -32,16 +32,25 @@ func TestContentServiceDelete(t *testing.T) {
 	blogID := utils.Must(blogModel.CreateFromJSON(context.Background(), `{"name": "test blog"}`))
 
 	// Case 3: success
-	req = httptest.NewRequest("DELETE", fmt.Sprintf("/content/blog/%d", blogID), nil)
+	req = httptest.NewRequest("DELETE", fmt.Sprintf("/content/blog/%v", blogID), nil)
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 }
 
 func TestContentServiceDeleteRootUser(t *testing.T) {
-	_, server := createContentService(t)
+	cs, server := createContentService(t)
 
-	req := httptest.NewRequest("DELETE", "/content/user/1", nil)
+	// Create a role with root: true
+	roleModel := utils.Must(cs.DB().Model("role"))
+	roleID := utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "Admin", "root": true}`))
+
+	// Create a user with the root role
+	userModel := utils.Must(cs.DB().Model("user"))
+	userID := utils.Must(userModel.CreateFromJSON(context.Background(), fmt.Sprintf(`{"username": "admin", "provider": "local", "roles": [{"id": "%v"}]}`, roleID)))
+
+	// Try to delete the root user - should fail
+	req := httptest.NewRequest("DELETE", fmt.Sprintf("/content/user/%v", userID), nil)
 	resp := utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
@@ -73,16 +82,23 @@ func TestContentServiceBulkDelete(t *testing.T) {
 
 	blogModel := utils.Must(cs.DB().Model("blog"))
 	utils.Must(blogModel.CreateFromJSON(context.Background(), `{"name": "test blog"}`))
+
+	// Create a role with root: true
+	roleModel := utils.Must(cs.DB().Model("role"))
+	roleID := utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "Admin", "root": true}`))
+
+	// Create a user with the root role
 	userModel := utils.Must(cs.DB().Model("user"))
-	utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "admin", "provider": "local"}`))
+	utils.Must(userModel.CreateFromJSON(context.Background(), fmt.Sprintf(`{"username": "admin", "provider": "local", "roles": [{"id": "%v"}]}`, roleID)))
 
 	// Case 4: delete fail with root user
 	filterUser := url.QueryEscape(`{"username":{"$like":"%admin%"}}`)
 	req = httptest.NewRequest("DELETE", "/content/user/delete?filter="+filterUser, nil)
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 500, resp.StatusCode)
+	assert.Equal(t, 400, resp.StatusCode)
 	assert.Contains(t, utils.Must(utils.ReadCloserToString(resp.Body)), `"message":"Cannot delete root user."`)
+
 
 	// Case 5: delete success
 	req = httptest.NewRequest("DELETE", "/content/blog/delete?filter="+filter, nil)
@@ -97,7 +113,7 @@ func TestContentServiceBulkDeleteFail(t *testing.T) {
 	tagModel := utils.Must(cs.DB().Model("tag"))
 	tagID := utils.Must(tagModel.CreateFromJSON(context.Background(), `{"name": "test tag"}`))
 	blogModel := utils.Must(cs.DB().Model("blog"))
-	blogJSON := fmt.Sprintf(`{"name": "test blog", "tags_id": %d}`, tagID)
+	blogJSON := fmt.Sprintf(`{"name": "test blog", "tags": [{"id": %d}]}`, tagID)
 	utils.Must(blogModel.CreateFromJSON(context.Background(), blogJSON))
 
 	// Case 6: fail to delete

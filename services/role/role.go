@@ -37,16 +37,16 @@ func (rs *RoleService) CreateResource(api *fs.Resource) {
 		Add(fs.NewResource("export", rs.Export, &fs.Meta{Get: "/export"})). // Must be before /:id
 		Add(fs.NewResource("detail", rs.Detail, &fs.Meta{
 			Get:  "/:id",
-			Args: fs.Args{"id": fs.CreateArg(fs.TypeUint64, "The role ID")},
+			Args: fs.Args{"id": fs.CreateArg(fs.TypeUUID, "The role ID")},
 		})).
 		Add(fs.NewResource("create", rs.Create, &fs.Meta{Post: "/"})).
 		Add(fs.NewResource("update", rs.Update, &fs.Meta{
 			Put:  "/:id",
-			Args: fs.Args{"id": fs.CreateArg(fs.TypeUint64, "The role ID")},
+			Args: fs.Args{"id": fs.CreateArg(fs.TypeUUID, "The role ID")},
 		})).
 		Add(fs.NewResource("delete", rs.Delete, &fs.Meta{
 			Delete: "/:id",
-			Args:   fs.Args{"id": fs.CreateArg(fs.TypeUint64, "The role ID")},
+			Args:   fs.Args{"id": fs.CreateArg(fs.TypeUUID, "The role ID")},
 		}))
 }
 
@@ -67,7 +67,9 @@ func updateRolePermissions(
 
 	// Update permissions
 	for _, permission := range updated {
-		permissionEntity := entity.New().Set("value", permission.Value)
+		permissionEntity := entity.New().
+			Set("value", permission.Value).
+			Set("modifier", permission.Modifier)
 		if _, err := db.Update[*fs.Permission](ctx, tx, permissionEntity, []*db.Predicate{
 			db.EQ("role_id", existingRole.ID),
 			db.EQ("resource", permission.Resource),
@@ -81,6 +83,7 @@ func updateRolePermissions(
 		permissionEntity := entity.New().
 			Set("resource", permission.Resource).
 			Set("value", permission.Value).
+			Set("modifier", permission.Modifier).
 			Set("role_id", existingRole.ID)
 
 		if _, err := db.Create[*fs.Permission](ctx, tx, permissionEntity); err != nil {

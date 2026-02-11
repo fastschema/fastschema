@@ -5,6 +5,16 @@
   "primary_field": "id",
   "fields": [
     {
+      "name": "id",
+      "type": "uint64",
+      "label": "ID",
+      "db": {
+        "attr": "UNSIGNED",
+        "key": "PRI",
+        "increment": true
+      }
+    },
+    {
       "name": "title",
       "label": "Title",
       "type": "string"

@@ -45,6 +45,15 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ any, err err
 		Edges:  []*sqlgraph.EdgeSpec{},
 	}
 
+	// Set the ID value in the spec so that sqlgraph.CreateNode can use it
+	// for edge updates and proper insert
+	pkField := m.model.schema.PrimaryField()
+	if pkField != nil {
+		if idValue := e.Get(pkField.Name); idValue != nil {
+			createSpec.ID.Value = idValue
+		}
+	}
+
 	entAdapter, ok := m.client.(EntAdapter)
 	if !ok {
 		return nil, errors.New("client is not an ent adapter")
@@ -58,6 +67,11 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ any, err err
 		c, err = m.model.Column(fieldName)
 		if err != nil {
 			return nil, fmt.Errorf("column error: %w", err)
+		}
+
+		// Skip the primary key field - it's handled via createSpec.ID
+		if pkField != nil && fieldName == pkField.Name {
+			continue
 		}
 
 		// Non-relation fields
@@ -90,7 +104,6 @@ func (m *Mutation) Create(ctx context.Context, e *entity.Entity) (_ any, err err
 		return nil, err
 	}
 
-	pkField := m.model.schema.PrimaryField()
 	insertedID := createSpec.ID.Value
 	if insertedID == nil && pkField != nil {
 		insertedID = e.Get(pkField.Name)

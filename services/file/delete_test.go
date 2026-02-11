@@ -15,24 +15,24 @@ import (
 func TestFileServiceDeleteErrorNotFound(t *testing.T) {
 	ms, server := createFileService(t)
 	userModel := utils.Must(ms.DB().Model("user"))
-	_ = utils.Must(userModel.CreateFromJSON(context.Background(), `{
+	userID := utils.Must(userModel.CreateFromJSON(context.Background(), `{
 		"username": "test",
 		"password": "test",
 		"provider": "local"
 	}`))
 
 	fileModel := utils.Must(ms.DB().Model("file"))
-	fileID := utils.Must(fileModel.CreateFromJSON(context.Background(), `{
+	fileID := utils.Must(fileModel.CreateFromJSON(context.Background(), fmt.Sprintf(`{
 		"disk": "local_test",
 		"path": "some/path/test.txt",
 		"name": "test.txt",
 		"size": 1,
 		"type": "text/plain",
-		"user_id": 1
-	}`))
+		"user_id": "%v"
+	}`, userID)))
 
 	// Case 1: success
-	req := httptest.NewRequest("DELETE", "/file", bytes.NewReader([]byte(fmt.Sprintf(`[%d]`, fileID))))
+	req := httptest.NewRequest("DELETE", "/file", bytes.NewReader([]byte(fmt.Sprintf(`["%v"]`, fileID))))
 	resp := utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 500, resp.StatusCode)
@@ -41,20 +41,20 @@ func TestFileServiceDeleteErrorNotFound(t *testing.T) {
 func TestFileServiceDelete(t *testing.T) {
 	ms, server := createFileService(t)
 	userModel := utils.Must(ms.DB().Model("user"))
-	_ = utils.Must(userModel.CreateFromJSON(context.Background(), `{
+	userID := utils.Must(userModel.CreateFromJSON(context.Background(), `{
 		"username": "test",
 		"password": "test",
 		"provider": "local"
 	}`))
 	fileModel := utils.Must(ms.DB().Model("file"))
-	fileID := utils.Must(fileModel.CreateFromJSON(context.Background(), `{
+	fileID := utils.Must(fileModel.CreateFromJSON(context.Background(), fmt.Sprintf(`{
 		"disk": "local_test",
 		"path": "some/path/test.txt",
 		"name": "test.txt",
 		"size": 1,
 		"type": "text/plain",
-		"user_id": 1
-	}`))
+		"user_id": "%v"
+	}`, userID)))
 
 	testFile := &fs.File{
 		Disk:   "local_test",
@@ -69,7 +69,7 @@ func TestFileServiceDelete(t *testing.T) {
 	assert.Equal(t, "http://localhost:3000/files/some/path/test.txt", result.URL)
 
 	// Case 1: success
-	req := httptest.NewRequest("DELETE", "/file", bytes.NewReader([]byte(fmt.Sprintf(`[%d]`, fileID))))
+	req := httptest.NewRequest("DELETE", "/file", bytes.NewReader([]byte(fmt.Sprintf(`["%v"]`, fileID))))
 	resp := utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)

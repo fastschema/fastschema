@@ -14,6 +14,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	rs "github.com/fastschema/fastschema/services/role"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,6 +25,7 @@ type TestApp struct {
 	roleService *rs.RoleService
 	roleModel   db.Model
 	server      *rr.Server
+	roleIDMap   map[string]uuid.UUID
 }
 
 func (s TestApp) DB() db.Client {
@@ -63,25 +65,28 @@ func createTestApp() *TestApp {
 	userModel := utils.Must(db.Model("user"))
 	appRoles := []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest}
 
+	roleIDMap := make(map[string]uuid.UUID)
 	for _, r := range appRoles {
-		utils.Must(roleModel.Create(context.Background(), entity.New().
+		roleID := utils.Must(roleModel.Create(context.Background(), entity.New().
 			Set("name", r.Name).
-			Set("root", r.Root),
+			Set("root", r.Root).
+			Set("system", r.System),
 		))
+		roleIDMap[r.Name] = roleID.(uuid.UUID)
 	}
 
 	utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "adminuser").
 		Set("password", "adminuser").
 		Set("provider", "local").
-		Set("roles", []*entity.Entity{entity.New(1)}),
+		Set("roles", []*entity.Entity{entity.New(roleIDMap[fs.RoleAdmin.Name])}),
 	))
 
 	utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "normaluser").
 		Set("password", "normaluser").
 		Set("provider", "local").
-		Set("roles", []*entity.Entity{entity.New(2)}),
+		Set("roles", []*entity.Entity{entity.New(roleIDMap[fs.RoleUser.Name])}),
 	))
 
 	// There are three resources in this test: content.list, content.detail and content.meta
@@ -92,18 +97,19 @@ func createTestApp() *TestApp {
 	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "content.blog.list").
 		Set("value", fs.PermissionTypeAllow.String()).
-		Set("role_id", fs.RoleUser.ID),
+		Set("role_id", roleIDMap[fs.RoleUser.Name]),
 	))
 	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "content.blog.detail").
 		Set("value", fs.PermissionTypeDeny.String()).
-		Set("role_id", fs.RoleUser.ID),
+		Set("role_id", roleIDMap[fs.RoleUser.Name]),
 	))
 
 	testApp := &TestApp{
 		sb:        sb,
 		db:        db,
 		roleModel: roleModel,
+		roleIDMap: roleIDMap,
 	}
 
 	testApp.roleService = rs.New(testApp)

@@ -10,13 +10,14 @@ import (
 
 	"github.com/fastschema/fastschema/expr"
 	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/google/uuid"
 )
 
 // Permission is a struct that contains the permission data
 type Permission struct {
 	mu          sync.Mutex
-	ID          int                              `json:"id,omitempty"`
-	RoleID      uint64                           `json:"role_id,omitempty"`
+	ID          uuid.UUID                        `json:"id,omitempty" fs:"type=uuid"`
+	RoleID      uuid.UUID                        `json:"role_id,omitempty"`
 	Resource    string                           `json:"resource,omitempty"`
 	Value       string                           `json:"value,omitempty"`
 	Modifier    string                           `json:"modifier,omitempty" fs:"type=json;optional"`

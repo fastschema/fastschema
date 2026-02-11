@@ -21,7 +21,7 @@ type Schema struct {
 	Namespace        string          `json:"namespace"`
 	LabelFieldName   string          `json:"label_field"`
 	PrimaryFieldName string          `json:"primary_field,omitempty"`
-	DisableTimestamp bool            `json:"disable_timestamp"`
+	DisableTimestamp bool            `json:"disable_timestamp,omitempty"`
 	Fields           []*Field        `json:"fields"`
 	IsSystemSchema   bool            `json:"is_system_schema,omitempty"`
 	IsJunctionSchema bool            `json:"is_junction_schema,omitempty"`
@@ -133,16 +133,23 @@ func (s *Schema) Init(disableIDColumn bool) error {
 
 // Clone returns a copy of the schema.
 func (s *Schema) Clone() *Schema {
+	var dbColumnsCopy []string
+	if s.dbColumns != nil {
+		dbColumnsCopy = make([]string, len(s.dbColumns))
+		copy(dbColumnsCopy, s.dbColumns)
+	}
+
 	clone := &Schema{
 		Name:             s.Name,
 		Namespace:        s.Namespace,
 		LabelFieldName:   s.LabelFieldName,
 		PrimaryFieldName: s.PrimaryFieldName,
 		DisableTimestamp: s.DisableTimestamp,
-		dbColumns:        s.dbColumns,
+		dbColumns:        dbColumnsCopy,
 		IsSystemSchema:   s.IsSystemSchema,
 		IsJunctionSchema: s.IsJunctionSchema,
-		Settings:         s.Settings,
+		DB:               s.DB.Clone(),
+		Settings:         s.Settings.Clone(),
 		primaryField:     s.primaryField,
 	}
 
@@ -151,6 +158,15 @@ func (s *Schema) Clone() *Schema {
 	}
 
 	return clone
+}
+
+// MarkAsSystem marks the schema and all its fields as system.
+// This is used for plugin schemas where base fields should be treated as system fields.
+func (s *Schema) MarkAsSystem() {
+	s.IsSystemSchema = true
+	for _, f := range s.Fields {
+		f.IsSystemField = true
+	}
 }
 
 // MergeSchemas merges the source schema into the target schema.
@@ -278,31 +294,33 @@ func (s *Schema) PrimaryKeyName() string {
 
 // Validate inspects the fields of the schema for validation errors.
 func (s *Schema) Validate() error {
-	var schemaErrors []string
+	var schemaErrors []error
 	if s.Name == "" {
-		schemaErrors = append(schemaErrors, "name is required")
+		schemaErrors = append(schemaErrors, SchemaNameRequiredError())
 	}
 	if s.LabelFieldName == "" {
-		schemaErrors = append(schemaErrors, "label_field is required")
+		schemaErrors = append(schemaErrors, SchemaLabelFieldRequiredError(s.Name))
 	}
 
 	if s.Namespace == "" {
-		schemaErrors = append(schemaErrors, "namespace is required")
+		schemaErrors = append(schemaErrors, SchemaNamespaceRequiredError(s.Name))
 	}
 
-	// if len(s.Fields) == 0 {
-	// 	schemaErrors = append(schemaErrors, "fields is required")
-	// }
-
 	hasLabelField := false
+	var stringFields []string // Collect string/text fields for suggestions
 
-	for _, field := range s.Fields {
+	for i, field := range s.Fields {
 		if s.LabelFieldName == field.Name {
 			hasLabelField = true
 		}
 
+		// Collect string/text fields for suggestions
+		if field.Type == TypeString || field.Type == TypeText {
+			stringFields = append(stringFields, field.Name)
+		}
+
 		if field.Name == "" {
-			schemaErrors = append(schemaErrors, fmt.Sprintf("field %s: name is required", field.Name))
+			schemaErrors = append(schemaErrors, FieldNameRequiredError(s.Name, i))
 		}
 
 		if field.Label == "" {
@@ -311,46 +329,60 @@ func (s *Schema) Validate() error {
 
 		if !field.Type.IsRelationType() && field.Type != TypeEnum {
 			if !field.Type.Valid() {
-				schemaErrors = append(schemaErrors, fmt.Sprintf("field %s: invalid field type %s", field.Name, field.Type))
+				schemaErrors = append(schemaErrors, FieldInvalidTypeError(s.Name, field.Name, field.Type.String()))
 			}
 		}
 
 		if field.Type == TypeEnum && len(field.Enums) == 0 {
-			schemaErrors = append(schemaErrors, fmt.Sprintf("field %s: enums values is required", field.Name))
+			schemaErrors = append(schemaErrors, FieldEnumRequiredError(s.Name, field.Name))
 		}
 
-		if field.Type.IsRelationType() {
+		if field.Type.IsRelationType() && !field.Type.IsFileType() {
 			relation := field.Relation
 			if relation == nil {
-				schemaErrors = append(schemaErrors, fmt.Sprintf("field %s: relation is required", field.Name))
+				schemaErrors = append(schemaErrors, FieldRelationRequiredError(s.Name, field.Name))
 				break
 			}
 
 			if relation.TargetSchemaName == "" {
-				schemaErrors = append(schemaErrors, fmt.Sprintf("field %s: relation schema is required", field.Name))
+				schemaErrors = append(schemaErrors, FieldRelationSchemaRequiredError(s.Name, field.Name))
 			}
 
 			if relation.Type == RelationInvalid {
-				schemaErrors = append(schemaErrors, fmt.Sprintf("field %s: relation type is required", field.Name))
+				schemaErrors = append(schemaErrors, FieldRelationTypeRequiredError(s.Name, field.Name))
 			}
 
-			if relation.Type == M2M && relation.TargetFieldName == "" {
-				schemaErrors = append(schemaErrors, fmt.Sprintf("field %s: m2m relation ref field name is required", field.Name))
+			if relation.TargetFieldName == "" {
+				schemaErrors = append(schemaErrors, FieldRelationFieldRequiredError(s.Name, field.Name))
 			}
 		}
 
 		if field.Type == TypeInvalid {
-			schemaErrors = append(schemaErrors, fmt.Sprintf("field %s: type is invalid", field.Name))
+			schemaErrors = append(schemaErrors, FieldTypeInvalidError(s.Name, field.Name))
 		}
 	}
 
 	// If schema is system schema, skip checking label field
+	// "id" is always present (auto-created by ensurePrimaryField) but isn't in Fields yet when Validate() runs
+	if s.LabelFieldName == "id" {
+		hasLabelField = true
+	}
 	if !s.IsSystemSchema && s.LabelFieldName != "" && !hasLabelField {
-		schemaErrors = append(schemaErrors, fmt.Sprintf("label field '%s' is not found", s.LabelFieldName))
+		// Check if this is extending a system schema (user, role, file)
+		isSystemSchemaExtension := s.Name == "user" || s.Name == "role" || s.Name == "file"
+		if isSystemSchemaExtension {
+			schemaErrors = append(schemaErrors, SchemaLabelFieldSystemSchemaError(s.Name, s.LabelFieldName))
+		} else {
+			schemaErrors = append(schemaErrors, SchemaLabelFieldNotFoundError(s.Name, s.LabelFieldName, stringFields))
+		}
 	}
 
 	if len(schemaErrors) > 0 {
-		return fmt.Errorf("schema validation error: [%s] %s", s.Name, strings.Join(schemaErrors, "\n "))
+		var errorMessages []string
+		for _, err := range schemaErrors {
+			errorMessages = append(errorMessages, err.Error())
+		}
+		return fmt.Errorf("schema validation error: [%s]\n%s", s.Name, strings.Join(errorMessages, "\n"))
 	}
 
 	return nil
@@ -406,12 +438,10 @@ func ErrFieldNotFound(schemaName, fieldName string) error {
 func defaultIDField() *Field {
 	idField := &Field{
 		Name:  entity.FieldID,
-		Type:  TypeUint64,
+		Type:  TypeUUID,
 		Label: "ID",
 		DB: &FieldDB{
-			Attr:      "UNSIGNED",
-			Key:       DBPrimaryKey,
-			Increment: true,
+			Key: DBPrimaryKey,
 		},
 		IsSystemField: true,
 	}
@@ -427,7 +457,7 @@ func applyPrimaryFieldDefaults(field *Field, autoCreated bool) {
 	}
 
 	if field.Type == TypeInvalid {
-		field.Type = TypeUint64
+		field.Type = TypeUUID
 	}
 
 	dbProvided := field.DB != nil

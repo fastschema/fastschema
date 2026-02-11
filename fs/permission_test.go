@@ -9,6 +9,7 @@ import (
 	"github.com/fastschema/fastschema/expr"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -212,9 +213,12 @@ func TestPermission(t *testing.T) {
 	updatedAt := time.Now()
 	deletedAt := time.Now()
 
+	testRoleID := uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	testPermID := utils.Must(uuid.NewV7())
+
 	p := fs.Permission{
-		ID:        1,
-		RoleID:    2,
+		ID:        testPermID,
+		RoleID:    testRoleID,
 		Resource:  "resource",
 		Value:     "value",
 		Role:      &fs.Role{Name: "role"},
@@ -223,8 +227,8 @@ func TestPermission(t *testing.T) {
 		DeletedAt: &deletedAt,
 	}
 
-	assert.Equal(t, 1, p.ID)
-	assert.Equal(t, uint64(2), p.RoleID)
+	assert.Equal(t, testPermID, p.ID)
+	assert.Equal(t, testRoleID, p.RoleID)
 	assert.Equal(t, "resource", p.Resource)
 	assert.Equal(t, "value", p.Value)
 	assert.Equal(t, &fs.Role{Name: "role"}, p.Role)

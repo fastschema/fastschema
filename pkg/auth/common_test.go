@@ -14,6 +14,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -123,7 +124,7 @@ func TestSendConfirmationEmail(t *testing.T) {
 	}
 }
 func TestCreateConfirmationUrl(t *testing.T) {
-	user := &fs.User{ID: 123}
+	user := &fs.User{ID: uuid.MustParse("00000000-0000-0000-0000-000000000001")}
 
 	// Invalid key size
 	{
@@ -152,32 +153,34 @@ func TestValidateConfirmationToken(t *testing.T) {
 		userID, err := auth.ValidateConfirmationToken("", testKey)
 		assert.Error(t, err)
 		assert.Equal(t, auth.ERR_INVALID_TOKEN, err)
-		assert.Equal(t, uint64(0), userID)
+		assert.Equal(t, uuid.UUID{}, userID)
 	}
 
 	// Invalid token
 	{
 		userID, err := auth.ValidateConfirmationToken("invalidToken", testKey)
 		assert.Error(t, err)
-		assert.Equal(t, uint64(0), userID)
+		assert.Equal(t, uuid.UUID{}, userID)
 	}
 
 	// Expired token
 	{
+		testUserID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 		expiresAt := time.Now().Add(-time.Hour)
-		expiredToken, _ := utils.CreateConfirmationToken(123, testKey, expiresAt)
+		expiredToken, _ := utils.CreateConfirmationToken(testUserID, testKey, expiresAt)
 		userID, err := auth.ValidateConfirmationToken(expiredToken, testKey)
 		assert.Error(t, err)
 		assert.Equal(t, auth.ERR_TOKEN_EXPIRED, err)
-		assert.Equal(t, uint64(123), userID)
+		assert.Equal(t, testUserID, userID)
 	}
 
 	// Valid token
 	{
-		validToken, _ := utils.CreateConfirmationToken(123, testKey)
+		testUserID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+		validToken, _ := utils.CreateConfirmationToken(testUserID, testKey)
 		userID, err := auth.ValidateConfirmationToken(validToken, testKey)
 		assert.NoError(t, err)
-		assert.Equal(t, uint64(123), userID)
+		assert.Equal(t, testUserID, userID)
 	}
 }
 
@@ -290,7 +293,7 @@ func TestValidateRegisterData(t *testing.T) {
 			name: "user exists",
 			db: &MockDBClient{
 				model: &MockDBModel{
-					entities: []*entity.Entity{entity.New(5)},
+					entities: []*entity.Entity{entity.New(uuid.MustParse("00000000-0000-0000-0000-000000000005"))},
 				},
 			},
 			args: args{

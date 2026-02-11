@@ -1,12 +1,14 @@
 package db
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	h "github.com/fastschema/fastschema/tests/integration/helpers"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,15 +55,15 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 				user22ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2 2", "username": "user22", "provider": "local"}`))
-				h.AssertUint64ID(t, user22ID)
+				h.AssertID(t, user22ID)
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user2ID)
+				h.AssertID(t, user2ID)
 				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
-				h.AssertUint64ID(t, user3ID)
+				h.AssertID(t, user3ID)
 				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local"}`))
-				h.AssertUint64ID(t, user4ID)
+				h.AssertID(t, user4ID)
 				return []*entity.Entity{
 					utils.Must(m.Query(db.EQ("id", user22ID)).First(h.Ctx())),
 					utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx())),
@@ -79,7 +81,7 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "age": 10, "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 				return []*entity.Entity{entity.New(user1ID).Set("name", "User 1")}
 			},
 		},
@@ -96,14 +98,14 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				group2ID := utils.Must(utils.Must(client.Model("group")).CreateFromJSON(h.Ctx(), `{"name": "Group 2"}`))
 				h.AssertUint64ID(t, group2ID)
 
-				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "groups": [{"id": 1}], "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
-				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 2", "groups": [{"id": 2}], "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user2ID)
+				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 1", "groups": [{"id": %v}], "username": "user1", "provider": "local"}`, group1ID)))
+				h.AssertID(t, user1ID)
+				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 2", "groups": [{"id": %v}], "username": "user2", "provider": "local"}`, group2ID)))
+				h.AssertID(t, user2ID)
 
-				car1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Car 1", "owner": {"id": 1}}`))
+				car1ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Car 1", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, car1ID)
-				car2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Car 2", "owner": {"id": 2}}`))
+				car2ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Car 2", "owner": {"id": %s}}`, h.ToJSONID(user2ID))))
 				h.AssertUint64ID(t, car2ID)
 
 				car2 := utils.Must(m.Query(db.EQ("id", car2ID)).First(h.Ctx()))
@@ -121,10 +123,10 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users", "pets"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
-				pet1ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				h.AssertID(t, user1ID)
+				pet1ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Pet 1", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, pet1ID)
-				pet2ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				pet2ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Pet 2", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, pet2ID)
 				return []*entity.Entity{entity.New(user1ID).Set("name", "User 1").Set("pets", []*entity.Entity{
 					utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet1ID)).First(h.Ctx())),
@@ -143,15 +145,15 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users", "pets"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
-				pet1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				h.AssertID(t, user1ID)
+				pet1ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Pet 1", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, pet1ID)
-				pet2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				pet2ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Pet 2", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, pet2ID)
 				user1 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user1ID)).First(h.Ctx()))
 				return []*entity.Entity{
-					entity.New(pet1ID).Set("name", "Pet 1").Set("owner_id", uint64(1)).Set("owner", user1),
-					entity.New(pet2ID).Set("name", "Pet 2").Set("owner_id", uint64(1)).Set("owner", user1),
+					entity.New(pet1ID).Set("name", "Pet 1").Set("owner_id", user1ID).Set("owner", user1),
+					entity.New(pet2ID).Set("name", "Pet 2").Set("owner_id", user1ID).Set("owner", user1),
 				}
 			},
 		},
@@ -210,20 +212,16 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			},
 		},
 		{
-			Name:    "Query_with_edges_O2O_two_types",
-			Schema:  "user",
-			Columns: []string{"name", "card", "sub_card"},
-			Filter: `{
-				"id": {
-					"$in": [1, 2]
-				}
-			}`,
+			Name:        "Query_with_edges_O2O_two_types",
+			Schema:      "user",
+			Columns:     []string{"name", "card", "sub_card"},
 			ClearTables: []string{"users", "cards"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
-				card1ID := utils.Must(utils.Must(client.Model("card")).CreateFromJSON(h.Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
+				h.AssertID(t, user1ID)
+				h.AssertID(t, user2ID)
+				card1ID := utils.Must(utils.Must(client.Model("card")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"number": "1234", "owner": {"id": %s}, "sub_owner": {"id": %s}}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID))))
 				h.AssertUint64ID(t, card1ID)
 				card1 := utils.Must(utils.Must(client.Model("card")).Query(db.EQ("id", card1ID)).First(h.Ctx()))
 				return []*entity.Entity{
@@ -233,23 +231,19 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			},
 		},
 		{
-			Name:    "Query_with_edges_O2O_two_types_reverse",
-			Schema:  "card",
-			Columns: []string{"number", "owner", "sub_owner"},
-			Filter: `{
-				"id": {
-					"$in": [1, 2]
-				}
-			}`,
+			Name:        "Query_with_edges_O2O_two_types_reverse",
+			Schema:      "card",
+			Columns:     []string{"number", "owner", "sub_owner"},
 			ClearTables: []string{"users", "cards"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
+				h.AssertID(t, user2ID)
 
-				card1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
+				card1ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"number": "1234", "owner": {"id": %s}, "sub_owner": {"id": %s}}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID))))
 				h.AssertUint64ID(t, card1ID)
-				card2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"number": "5678", "owner": {"id": 2}}`))
+				card2ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"number": "5678", "owner": {"id": %s}}`, h.ToJSONID(user2ID))))
 
 				user1 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user1ID)).First(h.Ctx()))
 				user2 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", user2ID)).First(h.Ctx()))
@@ -257,14 +251,15 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				return []*entity.Entity{
 					entity.New(card1ID).
 						Set("number", "1234").
-						Set("owner_id", uint64(1)).
-						Set("sub_owner_id", uint64(2)).
+						Set("owner_id", user1ID).
+						Set("sub_owner_id", user2ID).
 						Set("owner", user1).
-						Set("sub_owner_id", uint64(2)).
+						Set("sub_owner_id", user2ID).
 						Set("sub_owner", user2),
 					entity.New(card2ID).
 						Set("number", "5678").
-						Set("owner_id", uint64(2)).
+						Set("owner_id", user2ID).
+						Set("sub_owner_id", uuid.Nil).
 						Set("owner", user2),
 				}
 			},
@@ -342,9 +337,9 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user2ID)
+				h.AssertID(t, user2ID)
 
 				a1 := utils.Must(m.Mutation().Where(db.EQ("id", user1ID)).Update(h.Ctx(), entity.New().Set("spouse_id", user2ID)))
 				assert.Equal(t, 1, a1)
@@ -353,8 +348,8 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				assert.Equal(t, 1, a2)
 
 				return []*entity.Entity{
-					entity.New(user1ID).Set("name", "User 1").Set("spouse_id", uint64(2)).Set("spouse", utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx()))),
-					entity.New(user2ID).Set("name", "User 2").Set("spouse_id", uint64(1)).Set("spouse", utils.Must(m.Query(db.EQ("id", user1ID)).First(h.Ctx()))),
+					entity.New(user1ID).Set("name", "User 1").Set("spouse_id", user2ID).Set("spouse", utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx()))),
+					entity.New(user2ID).Set("name", "User 2").Set("spouse_id", user1ID).Set("spouse", utils.Must(m.Query(db.EQ("id", user1ID)).First(h.Ctx()))),
 				}
 			},
 		},
@@ -373,13 +368,13 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				group3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Group 3"}`))
 				h.AssertUint64ID(t, group3ID)
 
-				user1ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local", "groups": [{"id": 1}]}`))
-				h.AssertUint64ID(t, user1ID)
-				user2ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "groups": [{"id": 1}, {"id": 2}]}`))
-				h.AssertUint64ID(t, user2ID)
+				user1ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 1", "username": "user1", "provider": "local", "groups": [{"id": %v}]}`, group1ID)))
+				h.AssertID(t, user1ID)
+				user2ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 2", "username": "user2", "provider": "local", "groups": [{"id": %v}, {"id": %v}]}`, group1ID, group2ID)))
+				h.AssertID(t, user2ID)
 
 				user3ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
-				h.AssertUint64ID(t, user3ID)
+				h.AssertID(t, user3ID)
 
 				user1 := utils.Must(userModel.Query(db.EQ("id", user1ID)).First(h.Ctx()))
 				user2 := utils.Must(userModel.Query(db.EQ("id", user2ID)).First(h.Ctx()))
@@ -404,17 +399,17 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				groupModel := utils.Must(client.Model("group"))
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user2ID)
+				h.AssertID(t, user2ID)
 
 				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
-				h.AssertUint64ID(t, user3ID)
+				h.AssertID(t, user3ID)
 
-				group1ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), `{"name": "Group 1", "users": [{"id": 1}]}`))
+				group1ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Group 1", "users": [{"id": %s}]}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, group1ID)
 
-				group2ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), `{"name": "Group 2", "users": [{"id": 1}, {"id": 2}]}`))
+				group2ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Group 2", "users": [{"id": %s}, {"id": %s}]}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID))))
 				h.AssertUint64ID(t, group2ID)
 
 				group3ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), `{"name": "Group 3"}`))
@@ -443,19 +438,19 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Order:       []string{"id"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user2ID)
+				h.AssertID(t, user2ID)
 
 				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
-				h.AssertUint64ID(t, user3ID)
+				h.AssertID(t, user3ID)
 
 				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local"}`))
-				h.AssertUint64ID(t, user4ID)
+				h.AssertID(t, user4ID)
 
 				user5ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 5", "username": "user5", "provider": "local"}`))
-				h.AssertUint64ID(t, user5ID)
+				h.AssertID(t, user5ID)
 
 				_, err := m.Mutation().Where(db.EQ("id", user1ID)).Update(h.Ctx(), entity.New(user1ID).Set("following", []*entity.Entity{
 					entity.New(user2ID),
@@ -503,19 +498,19 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Order:       []string{"id"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 
-				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "following": [{"id": 1}]}`))
-				h.AssertUint64ID(t, user2ID)
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 2", "username": "user2", "provider": "local", "following": [{"id": %s}]}`, h.ToJSONID(user1ID))))
+				h.AssertID(t, user2ID)
 
-				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "following": [{"id": 1}, {"id": 2}]}`))
-				h.AssertUint64ID(t, user3ID)
+				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 3", "username": "user3", "provider": "local", "following": [{"id": %s}, {"id": %s}]}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID))))
+				h.AssertID(t, user3ID)
 
-				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "following": [{"id": 1}, {"id": 2}, {"id": 3}]}`))
-				h.AssertUint64ID(t, user4ID)
+				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 4", "username": "user4", "provider": "local", "following": [{"id": %s}, {"id": %s}, {"id": %s}]}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID), h.ToJSONID(user3ID))))
+				h.AssertID(t, user4ID)
 
 				user5ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 5", "username": "user5", "provider": "local"}`))
-				h.AssertUint64ID(t, user5ID)
+				h.AssertID(t, user5ID)
 
 				user2 := utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx()))
 				user3 := utils.Must(m.Query(db.EQ("id", user3ID)).First(h.Ctx()))
@@ -547,22 +542,22 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Order:       []string{"id"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 
-				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "friends": [{"id": 1}]}`))
-				h.AssertUint64ID(t, user2ID)
+				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 2", "username": "user2", "provider": "local", "friends": [{"id": %s}]}`, h.ToJSONID(user1ID))))
+				h.AssertID(t, user2ID)
 
-				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "friends": [{"id": 1}, {"id": 2}]}`))
-				h.AssertUint64ID(t, user3ID)
+				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 3", "username": "user3", "provider": "local", "friends": [{"id": %s}, {"id": %s}]}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID))))
+				h.AssertID(t, user3ID)
 
-				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "friends": [{"id": 1}]}`))
-				h.AssertUint64ID(t, user4ID)
+				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 4", "username": "user4", "provider": "local", "friends": [{"id": %s}]}`, h.ToJSONID(user1ID))))
+				h.AssertID(t, user4ID)
 
-				user5ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 5", "username": "user5", "provider": "local", "friends": [{"id": 4}]}`))
-				h.AssertUint64ID(t, user5ID)
+				user5ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 5", "username": "user5", "provider": "local", "friends": [{"id": %s}]}`, h.ToJSONID(user4ID))))
+				h.AssertID(t, user5ID)
 
 				user6ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 6", "username": "user6", "provider": "local"}`))
-				h.AssertUint64ID(t, user6ID)
+				h.AssertID(t, user6ID)
 
 				user1 := utils.Must(m.Query(db.EQ("id", user1ID)).First(h.Ctx()))
 				user2 := utils.Must(m.Query(db.EQ("id", user2ID)).First(h.Ctx()))
@@ -596,23 +591,19 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			},
 		},
 		{
-			Name:    "Query_with_edges_O2O_fields",
-			Schema:  "user",
-			Columns: []string{"name", "card.number", "sub_card.number"},
-			Filter: `{
-				"id": {
-					"$in": [1, 2]
-				}
-			}`,
+			Name:        "Query_with_edges_O2O_fields",
+			Schema:      "user",
+			Columns:     []string{"name", "card.number", "sub_card.number"},
 			ClearTables: []string{"users", "cards"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
-				card1ID := utils.Must(utils.Must(client.Model("card")).CreateFromJSON(h.Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
+				h.AssertID(t, user1ID)
+				h.AssertID(t, user2ID)
+				card1ID := utils.Must(utils.Must(client.Model("card")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"number": "1234", "owner": {"id": %s}, "sub_owner": {"id": %s}}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID))))
 				h.AssertUint64ID(t, card1ID)
-				card1 := entity.New(card1ID).Set("number", "1234").Set("owner_id", uint64(1))
-				card1Sub := entity.New(card1ID).Set("number", "1234").Set("sub_owner_id", uint64(2))
+				card1 := entity.New(card1ID).Set("number", "1234").Set("owner_id", user1ID)
+				card1Sub := entity.New(card1ID).Set("number", "1234").Set("sub_owner_id", user2ID)
 				return []*entity.Entity{
 					entity.New(user1ID).Set("name", "User 1").Set("card", card1),
 					entity.New(user2ID).Set("name", "User 2").Set("sub_card", card1Sub),
@@ -620,23 +611,19 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			},
 		},
 		{
-			Name:    "Query_with_edges_O2O_reverse_fields",
-			Schema:  "card",
-			Columns: []string{"number", "owner.name", "owner.age", "sub_owner.name", "sub_owner.age"},
-			Filter: `{
-				"id": {
-					"$in": [1, 2]
-				}
-			}`,
+			Name:        "Query_with_edges_O2O_reverse_fields",
+			Schema:      "card",
+			Columns:     []string{"number", "owner.name", "owner.age", "sub_owner.name", "sub_owner.age"},
 			ClearTables: []string{"users", "cards"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "age": 5, "provider": "local"}`))
 				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "age": 8, "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
+				h.AssertID(t, user2ID)
 
-				card1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"number": "1234", "owner": {"id": 1}, "sub_owner": {"id": 2}}`))
+				card1ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"number": "1234", "owner": {"id": %s}, "sub_owner": {"id": %s}}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID))))
 				h.AssertUint64ID(t, card1ID)
-				card2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"number": "5678", "owner": {"id": 2}}`))
+				card2ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"number": "5678", "owner": {"id": %s}}`, h.ToJSONID(user2ID))))
 
 				user1 := entity.New(user1ID).Set("name", "User 1").Set("age", uint(5))
 				user2 := entity.New(user2ID).Set("name", "User 2").Set("age", uint(8))
@@ -644,12 +631,12 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				return []*entity.Entity{
 					entity.New(card1ID).
 						Set("number", "1234").
-						Set("owner_id", uint64(1)).
-						Set("sub_owner_id", uint64(2)).
+						Set("owner_id", user1ID).
+						Set("sub_owner_id", user2ID).
 						Set("owner", user1).
-						Set("sub_owner_id", uint64(2)).
+						Set("sub_owner_id", user2ID).
 						Set("sub_owner", user2),
-					entity.New(card2ID).Set("number", "5678").Set("owner_id", uint64(2)).Set("owner", user2),
+					entity.New(card2ID).Set("number", "5678").Set("owner_id", user2ID).Set("sub_owner_id", uuid.Nil).Set("owner", user2),
 				}
 			},
 		},
@@ -665,10 +652,10 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			Order:       []string{"id"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
-				pet1ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				h.AssertID(t, user1ID)
+				pet1ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Pet 1", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, pet1ID)
-				pet2ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				pet2ID := utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Pet 2", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, pet2ID)
 
 				pet1 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", pet1ID)).First(h.Ctx()))
@@ -680,11 +667,11 @@ func DBQueryNode(t *testing.T, client db.Client) {
 						entity.New(pet1ID).
 							Set("name", "Pet 1").
 							Set("created_at", pet1.Get("created_at")).
-							Set("owner_id", uint64(1)),
+							Set("owner_id", user1ID),
 						entity.New(pet2ID).
 							Set("name", "Pet 2").
 							Set("created_at", pet2.Get("created_at")).
-							Set("owner_id", uint64(1)),
+							Set("owner_id", user1ID),
 					}),
 				}
 			},
@@ -701,10 +688,10 @@ func DBQueryNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users", "pets"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) []*entity.Entity {
 				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "age": 8, "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
-				pet1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Pet 1", "owner": {"id": 1}}`))
+				h.AssertID(t, user1ID)
+				pet1ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Pet 1", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, pet1ID)
-				pet2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Pet 2", "owner": {"id": 1}}`))
+				pet2ID := utils.Must(m.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Pet 2", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 				h.AssertUint64ID(t, pet2ID)
 				user1 := entity.New(user1ID).
 					Set("name", "User 1").
@@ -712,11 +699,11 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				return []*entity.Entity{
 					entity.New(pet1ID).
 						Set("name", "Pet 1").
-						Set("owner_id", uint64(1)).
+						Set("owner_id", user1ID).
 						Set("owner", user1),
 					entity.New(pet2ID).
 						Set("name", "Pet 2").
-						Set("owner_id", uint64(1)).
+						Set("owner_id", user1ID).
 						Set("owner", user1),
 				}
 			},
@@ -737,13 +724,13 @@ func DBQueryNode(t *testing.T, client db.Client) {
 				group3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "Group 3"}`))
 				h.AssertUint64ID(t, group3ID)
 
-				user1ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "age": 8, "provider": "local", "groups": [{"id": 1}]}`))
-				h.AssertUint64ID(t, user1ID)
-				user2ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "age": 5, "provider": "local", "groups": [{"id": 1}, {"id": 2}]}`))
-				h.AssertUint64ID(t, user2ID)
+				user1ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 1", "username": "user1", "age": 8, "provider": "local", "groups": [{"id": %v}]}`, group1ID)))
+				h.AssertID(t, user1ID)
+				user2ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 2", "username": "user2", "age": 5, "provider": "local", "groups": [{"id": %v}, {"id": %v}]}`, group1ID, group2ID)))
+				h.AssertID(t, user2ID)
 
 				user3ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local"}`))
-				h.AssertUint64ID(t, user3ID)
+				h.AssertID(t, user3ID)
 
 				return []*entity.Entity{
 					entity.New(group1ID).
@@ -785,10 +772,10 @@ func DBCountNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) int {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user2ID)
+				h.AssertID(t, user2ID)
 
 				return 2
 			},
@@ -798,52 +785,52 @@ func DBCountNode(t *testing.T, client db.Client) {
 			Schema:      "user",
 			ClearTables: []string{"users"},
 			Filter: `{
-				"id": {
-					"$gt": 1
+				"username": {
+					"$like": "user%"
 				}
 			}`,
 			Prepare: func(t *testing.T, client db.Client, m db.Model) int {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local"}`))
-				h.AssertUint64ID(t, user2ID)
+				h.AssertID(t, user2ID)
 
-				return 1
+				return 2
 			},
 		},
 		{
 			Name:   "Count_with_columns",
 			Schema: "user",
 			Filter: `{
-					"id": {
-						"$gt": 1
+					"username": {
+						"$like": "user%"
 					}
 				}`,
 			Column:      "status",
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) int {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local", "status": "offline"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "status": "online"}`))
-				h.AssertUint64ID(t, user2ID)
+				h.AssertID(t, user2ID)
 
 				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "status": "offline"}`))
-				h.AssertUint64ID(t, user3ID)
+				h.AssertID(t, user3ID)
 
 				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "status": "online"}`))
-				h.AssertUint64ID(t, user4ID)
+				h.AssertID(t, user4ID)
 
-				return 3
+				return 4
 			},
 		},
 		{
 			Name:   "Count_with_column_and_unique",
 			Schema: "user",
 			Filter: `{
-					"id": {
-						"$gt": 1
+					"username": {
+						"$like": "user%"
 					}
 				}`,
 			Unique:      true,
@@ -851,16 +838,16 @@ func DBCountNode(t *testing.T, client db.Client) {
 			ClearTables: []string{"users"},
 			Prepare: func(t *testing.T, client db.Client, m db.Model) int {
 				user1ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 1", "username": "user1", "provider": "local", "status": "offline"}`))
-				h.AssertUint64ID(t, user1ID)
+				h.AssertID(t, user1ID)
 
 				user2ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "status": "online"}`))
-				h.AssertUint64ID(t, user2ID)
+				h.AssertID(t, user2ID)
 
 				user3ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 3", "username": "user3", "provider": "local", "status": "offline"}`))
-				h.AssertUint64ID(t, user3ID)
+				h.AssertID(t, user3ID)
 
 				user4ID := utils.Must(m.CreateFromJSON(h.Ctx(), `{"name": "User 4", "username": "user4", "provider": "local", "status": "online"}`))
-				h.AssertUint64ID(t, user4ID)
+				h.AssertID(t, user4ID)
 
 				return 2
 			},

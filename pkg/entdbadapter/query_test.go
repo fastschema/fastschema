@@ -333,12 +333,12 @@ func TestCount(t *testing.T) {
 			Name:   "Count_with_filter",
 			Schema: "user",
 			Filter: `{
-				"id": {
+				"age": {
 					"$gt": 1
 				}
 			}`,
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(`users`.`id`) FROM `users` WHERE `users`.`id` > ?")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(`users`.`id`) FROM `users` WHERE `users`.`age` > ?")).
 					WithArgs(float64(1)).
 					WillReturnRows(mock.NewRows([]string{"count"}).AddRow(11))
 			},
@@ -348,13 +348,13 @@ func TestCount(t *testing.T) {
 			Name:   "Count_with_columns",
 			Schema: "user",
 			Filter: `{
-				"id": {
+				"age": {
 					"$gt": 1
 				}
 			}`,
 			Column: "name",
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(`users`.`name`) FROM `users` WHERE `users`.`id` > ?")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(`users`.`name`) FROM `users` WHERE `users`.`age` > ?")).
 					WithArgs(float64(1)).
 					WillReturnRows(mock.NewRows([]string{"count"}).AddRow(11))
 			},
@@ -364,13 +364,13 @@ func TestCount(t *testing.T) {
 			Name:   "Count_with_unique",
 			Schema: "user",
 			Filter: `{
-				"id": {
+				"age": {
 					"$gt": 1
 				}
 			}`,
 			Unique: true,
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(DISTINCT `users`.`id`) FROM `users` WHERE `users`.`id` > ?")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(DISTINCT `users`.`id`) FROM `users` WHERE `users`.`age` > ?")).
 					WithArgs(float64(1)).
 					WillReturnRows(mock.NewRows([]string{"count"}).AddRow(11))
 			},
@@ -380,14 +380,14 @@ func TestCount(t *testing.T) {
 			Name:   "Count_with_column_and_unique",
 			Schema: "user",
 			Filter: `{
-				"id": {
+				"age": {
 					"$gt": 1
 				}
 			}`,
 			Column: "status",
 			Unique: true,
 			Expect: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(DISTINCT `users`.`status`) FROM `users` WHERE `users`.`id` > ?")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT COUNT(DISTINCT `users`.`status`) FROM `users` WHERE `users`.`age` > ?")).
 					WithArgs(float64(1)).
 					WillReturnRows(mock.NewRows([]string{"count"}).AddRow(11))
 			},
@@ -412,12 +412,12 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Doe"))
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Doe"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John"),
-				entity.New(2).Set("name", "Doe"),
+				entity.New(testUserUUID1).Set("name", "John"),
+				entity.New(testUserUUID2).Set("name", "Doe"),
 			},
 		},
 		{
@@ -432,10 +432,10 @@ func TestQuery(t *testing.T) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`age` > ?")).
 					WithArgs(float64(5)).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John"),
+				entity.New(testUserUUID1).Set("name", "John"),
 			},
 		},
 		{
@@ -482,10 +482,10 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John"),
+				entity.New(testUserUUID1).Set("name", "John"),
 			},
 		},
 		{
@@ -498,7 +498,7 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 			},
 			ExpectError: "column user.invalid not found",
 		},
@@ -533,18 +533,18 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `pets` WHERE `pets`.`owner_id` IN (?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(1, "Pet 1", uint64(1)).
-						AddRow(2, "Pet 2", uint64(1)).
-						AddRow(3, "Pet 3", uint64(1)))
+						AddRow(1, "Pet 1", testUserUUID1).
+						AddRow(2, "Pet 2", testUserUUID1).
+						AddRow(3, "Pet 3", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(1).Set("name", "Pet 1").Set("owner_id", uint64(1)),
-					entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(1)),
-					entity.New(3).Set("name", "Pet 3").Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Pet 1").Set("owner_id", testUserUUID1),
+					entity.New(2).Set("name", "Pet 2").Set("owner_id", testUserUUID1),
+					entity.New(3).Set("name", "Pet 3").Set("owner_id", testUserUUID1),
 				}),
 			},
 		},
@@ -559,29 +559,29 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `pets`.`id`, `pets`.`name`, `pets`.`owner_id` FROM `pets`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(1, "Pet 1", uint64(1)).
-						AddRow(2, "Pet 2", uint64(1)).
-						AddRow(3, "Pet 3", uint64(2)))
+						AddRow(1, "Pet 1", testUserUUID1).
+						AddRow(2, "Pet 2", testUserUUID1).
+						AddRow(3, "Pet 3", testUserUUID2))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane"))
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(1).
 					Set("name", "Pet 1").
-					Set("owner_id", uint64(1)).
-					Set("owner", entity.New(1).
+					Set("owner_id", testUserUUID1).
+					Set("owner", entity.New(testUserUUID1).
 						Set("name", "John")),
 				entity.New(2).
 					Set("name", "Pet 2").
-					Set("owner_id", uint64(1)).
-					Set("owner", entity.New(1).
+					Set("owner_id", testUserUUID1).
+					Set("owner", entity.New(testUserUUID1).
 						Set("name", "John")),
 				entity.New(3).
 					Set("name", "Pet 3").
-					Set("owner_id", uint64(2)).
-					Set("owner", entity.New(2).
+					Set("owner_id", testUserUUID2).
+					Set("owner", entity.New(testUserUUID2).
 						Set("name", "Jane")),
 			},
 		},
@@ -631,16 +631,16 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane"))
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane"))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cards` WHERE `cards`.`owner_id` IN (?, ?)")).
-					WithArgs(1, 2).
+					WithArgs(testUserUUID1, testUserUUID2).
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
-						AddRow(1, "1234", 1))
+						AddRow(1, "1234", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("card", entity.New(1).Set("number", "1234").Set("owner_id", 1)),
-				entity.New(2).Set("name", "Jane"),
+				entity.New(testUserUUID1).Set("name", "John").Set("card", entity.New(1).Set("number", "1234").Set("owner_id", testUserUUID1)),
+				entity.New(testUserUUID2).Set("name", "Jane"),
 			},
 		},
 		{
@@ -650,15 +650,15 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `cards`.`id`, `cards`.`number`, `cards`.`owner_id` FROM `cards`")).
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
-						AddRow(1, "1234", 1).
-						AddRow(2, "5678", 2))
+						AddRow(1, "1234", testUserUUID1).
+						AddRow(2, "5678", testUserUUID2))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("number", "1234").Set("owner_id", 1).Set("owner", entity.New(1).Set("name", "John")),
-				entity.New(2).Set("number", "5678").Set("owner_id", 2),
+				entity.New(1).Set("number", "1234").Set("owner_id", testUserUUID1).Set("owner", entity.New(testUserUUID1).Set("name", "John")),
+				entity.New(2).Set("number", "5678").Set("owner_id", testUserUUID2),
 			},
 		},
 		{
@@ -705,17 +705,17 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name`, `users`.`spouse_id` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "spouse_id"}).
-						AddRow(1, "John", 2).
-						AddRow(2, "Jane", 1))
+						AddRow(testUserUUID1, "John", testUserUUID2).
+						AddRow(testUserUUID2, "Jane", testUserUUID1))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?, ?)")).
-					WithArgs(2, 1).
+					WithArgs(testUserUUID2, testUserUUID1).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "spouse_id"}).
-						AddRow(2, "Jane", 1).
-						AddRow(1, "John", 2))
+						AddRow(testUserUUID2, "Jane", testUserUUID1).
+						AddRow(testUserUUID1, "John", testUserUUID2))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("spouse_id", 2).Set("spouse", entity.New(2).Set("name", "Jane").Set("spouse_id", 1)),
-				entity.New(2).Set("name", "Jane").Set("spouse_id", 1).Set("spouse", entity.New(1).Set("name", "John").Set("spouse_id", 2)),
+				entity.New(testUserUUID1).Set("name", "John").Set("spouse_id", testUserUUID2).Set("spouse", entity.New(testUserUUID2).Set("name", "Jane").Set("spouse_id", testUserUUID1)),
+				entity.New(testUserUUID2).Set("name", "Jane").Set("spouse_id", testUserUUID1).Set("spouse", entity.New(testUserUUID1).Set("name", "John").Set("spouse_id", testUserUUID2)),
 			},
 		},
 		{
@@ -727,20 +727,20 @@ func TestQuery(t *testing.T) {
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
 						AddRow(11, "Group 11").
 						AddRow(22, "Group 22"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`groups` AS groups_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `groups_users` AS `t1` ON `t1`.`users` = `users`.`id` WHERE `t1`.`groups` IN (?, ?) ORDER BY `users`.`id` ASC")).
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`groups` AS groups_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`bio`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `groups_users` AS `t1` ON `t1`.`users` = `users`.`id` WHERE `t1`.`groups` IN (?, ?) ORDER BY `users`.`id` ASC")).
 					WithArgs(11, 22).
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
-						AddRow(11, 1, "John").
-						AddRow(11, 2, "Jane").
-						AddRow(22, 3, "Bob"))
+						AddRow(11, testUserUUID1, "John").
+						AddRow(11, testUserUUID2, "Jane").
+						AddRow(22, testUserUUID3, "Bob"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
-					entity.New(1).Set("name", "John"),
-					entity.New(2).Set("name", "Jane"),
+					entity.New(testUserUUID1).Set("name", "John"),
+					entity.New(testUserUUID2).Set("name", "Jane"),
 				}),
 				entity.New(22).Set("name", "Group 22").Set("users", []*entity.Entity{
-					entity.New(3).Set("name", "Bob"),
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
 			},
 		},
@@ -751,25 +751,25 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane").
-						AddRow(3, "Bob"))
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane").
+						AddRow(testUserUUID3, "Bob"))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`users` AS users_id, `groups`.`id`, `groups`.`name`, `groups`.`created_at`, `groups`.`updated_at`, `groups`.`deleted_at` FROM `groups` JOIN `groups_users` AS `t1` ON `t1`.`groups` = `groups`.`id` WHERE `t1`.`users` IN (?, ?, ?) ORDER BY `groups`.`id` ASC")).
-					WithArgs(1, 2, 3).
+					WithArgs(testUserUUID1, testUserUUID2, testUserUUID3).
 					WillReturnRows(mock.NewRows([]string{"users_id", "id", "name"}).
-						AddRow(1, 11, "Group 11").
-						AddRow(1, 22, "Group 22").
-						AddRow(2, 11, "Group 11"))
+						AddRow(testUserUUID1, 11, "Group 11").
+						AddRow(testUserUUID1, 22, "Group 22").
+						AddRow(testUserUUID2, 11, "Group 11"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("groups", []*entity.Entity{
+				entity.New(testUserUUID1).Set("name", "John").Set("groups", []*entity.Entity{
 					entity.New(11).Set("name", "Group 11"),
 					entity.New(22).Set("name", "Group 22"),
 				}),
-				entity.New(2).Set("name", "Jane").Set("groups", []*entity.Entity{
+				entity.New(testUserUUID2).Set("name", "Jane").Set("groups", []*entity.Entity{
 					entity.New(11).Set("name", "Group 11"),
 				}),
-				entity.New(3).Set("name", "Bob").Set("groups", []*entity.Entity{}),
+				entity.New(testUserUUID3).Set("name", "Bob").Set("groups", []*entity.Entity{}),
 			},
 		},
 		{
@@ -779,25 +779,25 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane").
-						AddRow(3, "Bob"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`followers` AS followers_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`following` = `users`.`id` WHERE `t1`.`followers` IN (?, ?, ?) ORDER BY `users`.`id` ASC")).
-					WithArgs(1, 2, 3).
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane").
+						AddRow(testUserUUID3, "Bob"))
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`followers` AS followers_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`bio`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`following` = `users`.`id` WHERE `t1`.`followers` IN (?, ?, ?) ORDER BY `users`.`id` ASC")).
+					WithArgs(testUserUUID1, testUserUUID2, testUserUUID3).
 					WillReturnRows(mock.NewRows([]string{"followers_id", "id", "name"}).
-						AddRow(1, 2, "Jane").
-						AddRow(1, 3, "Bob").
-						AddRow(2, 3, "Bob"))
+						AddRow(testUserUUID1, testUserUUID2, "Jane").
+						AddRow(testUserUUID1, testUserUUID3, "Bob").
+						AddRow(testUserUUID2, testUserUUID3, "Bob"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("following", []*entity.Entity{
-					entity.New(2).Set("name", "Jane"),
-					entity.New(3).Set("name", "Bob"),
+				entity.New(testUserUUID1).Set("name", "John").Set("following", []*entity.Entity{
+					entity.New(testUserUUID2).Set("name", "Jane"),
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
-				entity.New(2).Set("name", "Jane").Set("following", []*entity.Entity{
-					entity.New(3).Set("name", "Bob"),
+				entity.New(testUserUUID2).Set("name", "Jane").Set("following", []*entity.Entity{
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
-				entity.New(3).Set("name", "Bob").Set("following", []*entity.Entity{}),
+				entity.New(testUserUUID3).Set("name", "Bob").Set("following", []*entity.Entity{}),
 			},
 		},
 		{
@@ -807,25 +807,25 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane").
-						AddRow(3, "Bob"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`following` AS following_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`followers` = `users`.`id` WHERE `t1`.`following` IN (?, ?, ?) ORDER BY `users`.`id` ASC")).
-					WithArgs(1, 2, 3).
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane").
+						AddRow(testUserUUID3, "Bob"))
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`following` AS following_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`bio`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `followers_following` AS `t1` ON `t1`.`followers` = `users`.`id` WHERE `t1`.`following` IN (?, ?, ?) ORDER BY `users`.`id` ASC")).
+					WithArgs(testUserUUID1, testUserUUID2, testUserUUID3).
 					WillReturnRows(mock.NewRows([]string{"following_id", "id", "name"}).
-						AddRow(1, 2, "Jane").
-						AddRow(1, 3, "Bob").
-						AddRow(2, 3, "Bob"))
+						AddRow(testUserUUID1, testUserUUID2, "Jane").
+						AddRow(testUserUUID1, testUserUUID3, "Bob").
+						AddRow(testUserUUID2, testUserUUID3, "Bob"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("followers", []*entity.Entity{
-					entity.New(2).Set("name", "Jane"),
-					entity.New(3).Set("name", "Bob"),
+				entity.New(testUserUUID1).Set("name", "John").Set("followers", []*entity.Entity{
+					entity.New(testUserUUID2).Set("name", "Jane"),
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
-				entity.New(2).Set("name", "Jane").Set("followers", []*entity.Entity{
-					entity.New(3).Set("name", "Bob"),
+				entity.New(testUserUUID2).Set("name", "Jane").Set("followers", []*entity.Entity{
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
-				entity.New(3).Set("name", "Bob").Set("followers", []*entity.Entity{}),
+				entity.New(testUserUUID3).Set("name", "Bob").Set("followers", []*entity.Entity{}),
 			},
 		},
 		{
@@ -835,25 +835,25 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane").
-						AddRow(3, "Bob"))
-				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`friends` AS friends_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`bio`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `friends_user` AS `t1` ON `t1`.`user` = `users`.`id` WHERE `t1`.`user` IN (?, ?, ?) ORDER BY `users`.`id` ASC")).
-					WithArgs(1, 2, 3).
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane").
+						AddRow(testUserUUID3, "Bob"))
+				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`friends` AS friends_id, `users`.`id`, `users`.`username`, `users`.`email`, `users`.`first_name`, `users`.`last_name`, `users`.`bio`, `users`.`password`, `users`.`active`, `users`.`provider`, `users`.`provider_id`, `users`.`provider_username`, `users`.`provider_profile_image`, `users`.`spouse_id`, `users`.`partner_id`, `users`.`workplace_id`, `users`.`room_id`, `users`.`parent_id`, `users`.`created_at`, `users`.`updated_at`, `users`.`deleted_at`, `users`.`name`, `users`.`status`, `users`.`approved`, `users`.`age`, `users`.`json`, `users`.`deleted` FROM `users` JOIN `friends_user` AS `t1` ON `t1`.`user` = `users`.`id` WHERE `t1`.`user` IN (?, ?, ?) ORDER BY `users`.`id` ASC")).
+					WithArgs(testUserUUID1, testUserUUID2, testUserUUID3).
 					WillReturnRows(mock.NewRows([]string{"friends_id", "id", "name"}).
-						AddRow(1, 2, "Jane").
-						AddRow(1, 3, "Bob").
-						AddRow(2, 3, "Bob"))
+						AddRow(testUserUUID1, testUserUUID2, "Jane").
+						AddRow(testUserUUID1, testUserUUID3, "Bob").
+						AddRow(testUserUUID2, testUserUUID3, "Bob"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("friends", []*entity.Entity{
-					entity.New(2).Set("name", "Jane"),
-					entity.New(3).Set("name", "Bob"),
+				entity.New(testUserUUID1).Set("name", "John").Set("friends", []*entity.Entity{
+					entity.New(testUserUUID2).Set("name", "Jane"),
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
-				entity.New(2).Set("name", "Jane").Set("friends", []*entity.Entity{
-					entity.New(3).Set("name", "Bob"),
+				entity.New(testUserUUID2).Set("name", "Jane").Set("friends", []*entity.Entity{
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
-				entity.New(3).Set("name", "Bob").Set("friends", []*entity.Entity{}),
+				entity.New(testUserUUID3).Set("name", "Bob").Set("friends", []*entity.Entity{}),
 			},
 		},
 		{
@@ -863,16 +863,16 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane"))
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane"))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `cards`.`id`, `cards`.`number`, `cards`.`owner_id` FROM `cards` WHERE `cards`.`owner_id` IN (?, ?)")).
-					WithArgs(1, 2).
+					WithArgs(testUserUUID1, testUserUUID2).
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
-						AddRow(1, "1234", 1))
+						AddRow(1, "1234", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("card", entity.New(1).Set("number", "1234").Set("owner_id", 1)),
-				entity.New(2).Set("name", "Jane"),
+				entity.New(testUserUUID1).Set("name", "John").Set("card", entity.New(1).Set("number", "1234").Set("owner_id", testUserUUID1)),
+				entity.New(testUserUUID2).Set("name", "Jane"),
 			},
 		},
 		{
@@ -882,15 +882,15 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `cards`.`id`, `cards`.`number`, `cards`.`owner_id` FROM `cards`")).
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
-						AddRow(1, "1234", 1).
-						AddRow(2, "5678", 2))
+						AddRow(1, "1234", testUserUUID1).
+						AddRow(2, "5678", testUserUUID2))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name`, `users`.`age` FROM `users` WHERE `users`.`id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "age"}).
-						AddRow(1, "John", 8))
+						AddRow(testUserUUID1, "John", 8))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("number", "1234").Set("owner_id", 1).Set("owner", entity.New(1).Set("name", "John").Set("age", 8)),
-				entity.New(2).Set("number", "5678").Set("owner_id", 2),
+				entity.New(1).Set("number", "1234").Set("owner_id", testUserUUID1).Set("owner", entity.New(testUserUUID1).Set("name", "John").Set("age", 8)),
+				entity.New(2).Set("number", "5678").Set("owner_id", testUserUUID2),
 			},
 		},
 		{
@@ -905,18 +905,18 @@ func TestQuery(t *testing.T) {
 				createdAt := utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `pets`.`id`, `pets`.`name`, `pets`.`created_at`, `pets`.`owner_id` FROM `pets` WHERE `pets`.`owner_id` IN (?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "created_at", "owner_id"}).
-						AddRow(1, "Pet 1", createdAt, uint64(1)).
-						AddRow(2, "Pet 2", createdAt, uint64(1)).
-						AddRow(3, "Pet 3", createdAt, uint64(1)))
+						AddRow(1, "Pet 1", createdAt, testUserUUID1).
+						AddRow(2, "Pet 2", createdAt, testUserUUID1).
+						AddRow(3, "Pet 3", createdAt, testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(1).Set("name", "Pet 1").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", uint64(1)),
-					entity.New(2).Set("name", "Pet 2").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", uint64(1)),
-					entity.New(3).Set("name", "Pet 3").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Pet 1").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", testUserUUID1),
+					entity.New(2).Set("name", "Pet 2").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", testUserUUID1),
+					entity.New(3).Set("name", "Pet 3").Set("created_at", utils.Must(time.Parse(time.RFC3339, "2006-01-02T15:04:05Z"))).Set("owner_id", testUserUUID1),
 				}),
 			},
 		},
@@ -932,18 +932,18 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `pets`.`id`, `pets`.`name`, `pets`.`owner_id` FROM `pets`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(1, "Pet 1", uint64(1)).
-						AddRow(2, "Pet 2", uint64(1)).
-						AddRow(3, "Pet 3", uint64(2)))
+						AddRow(1, "Pet 1", testUserUUID1).
+						AddRow(2, "Pet 2", testUserUUID1).
+						AddRow(3, "Pet 3", testUserUUID2))
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name`, `users`.`age` FROM `users` WHERE `users`.`id` IN (?, ?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "age"}).
-						AddRow(1, "John", 5).
-						AddRow(2, "Jane", 8))
+						AddRow(testUserUUID1, "John", 5).
+						AddRow(testUserUUID2, "Jane", 8))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "Pet 1").Set("owner_id", 1).Set("owner", entity.New(1).Set("name", "John").Set("age", 5)),
-				entity.New(2).Set("name", "Pet 2").Set("owner_id", 1).Set("owner", entity.New(1).Set("name", "John").Set("age", 5)),
-				entity.New(3).Set("name", "Pet 3").Set("owner_id", 2).Set("owner", entity.New(2).Set("name", "Jane").Set("age", 8)),
+				entity.New(1).Set("name", "Pet 1").Set("owner_id", testUserUUID1).Set("owner", entity.New(testUserUUID1).Set("name", "John").Set("age", 5)),
+				entity.New(2).Set("name", "Pet 2").Set("owner_id", testUserUUID1).Set("owner", entity.New(testUserUUID1).Set("name", "John").Set("age", 5)),
+				entity.New(3).Set("name", "Pet 3").Set("owner_id", testUserUUID2).Set("owner", entity.New(testUserUUID2).Set("name", "Jane").Set("age", 8)),
 			},
 		},
 		{
@@ -958,17 +958,17 @@ func TestQuery(t *testing.T) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `t1`.`groups` AS groups_id, `users`.`id`, `users`.`name`, `users`.`age` FROM `users` JOIN `groups_users` AS `t1` ON `t1`.`users` = `users`.`id` WHERE `t1`.`groups` IN (?, ?) ORDER BY `users`.`id` ASC")).
 					WithArgs(11, 22).
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
-						AddRow(11, 1, "John").
-						AddRow(11, 2, "Jane").
-						AddRow(22, 3, "Bob"))
+						AddRow(11, testUserUUID1, "John").
+						AddRow(11, testUserUUID2, "Jane").
+						AddRow(22, testUserUUID3, "Bob"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
-					entity.New(1).Set("name", "John"),
-					entity.New(2).Set("name", "Jane"),
+					entity.New(testUserUUID1).Set("name", "John"),
+					entity.New(testUserUUID2).Set("name", "Jane"),
 				}),
 				entity.New(22).Set("name", "Group 22").Set("users", []*entity.Entity{
-					entity.New(3).Set("name", "Bob"),
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
 			},
 		},
@@ -985,24 +985,24 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane"))
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane"))
 				// O2M owner with limit uses window function
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY .owner_id.").
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(1, "Pet 1", uint64(1)).
-						AddRow(2, "Pet 2", uint64(1)).
-						AddRow(3, "Pet 3", uint64(2)).
-						AddRow(4, "Pet 4", uint64(2)))
+						AddRow(1, "Pet 1", testUserUUID1).
+						AddRow(2, "Pet 2", testUserUUID1).
+						AddRow(3, "Pet 3", testUserUUID2).
+						AddRow(4, "Pet 4", testUserUUID2))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(1).Set("name", "Pet 1").Set("owner_id", uint64(1)),
-					entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Pet 1").Set("owner_id", testUserUUID1),
+					entity.New(2).Set("name", "Pet 2").Set("owner_id", testUserUUID1),
 				}),
-				entity.New(2).Set("name", "Jane").Set("pets", []*entity.Entity{
-					entity.New(3).Set("name", "Pet 3").Set("owner_id", uint64(2)),
-					entity.New(4).Set("name", "Pet 4").Set("owner_id", uint64(2)),
+				entity.New(testUserUUID2).Set("name", "Jane").Set("pets", []*entity.Entity{
+					entity.New(3).Set("name", "Pet 3").Set("owner_id", testUserUUID2),
+					entity.New(4).Set("name", "Pet 4").Set("owner_id", testUserUUID2),
 				}),
 			},
 		},
@@ -1016,17 +1016,17 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				// O2M owner with offset uses window function
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY .owner_id.").
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(2, "Pet 2", uint64(1)).
-						AddRow(3, "Pet 3", uint64(1)))
+						AddRow(2, "Pet 2", testUserUUID1).
+						AddRow(3, "Pet 3", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(1)),
-					entity.New(3).Set("name", "Pet 3").Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(2).Set("name", "Pet 2").Set("owner_id", testUserUUID1),
+					entity.New(3).Set("name", "Pet 3").Set("owner_id", testUserUUID1),
 				}),
 			},
 		},
@@ -1040,17 +1040,17 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				// O2M owner with limit+offset uses window function
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY .owner_id.").
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(2, "Pet 2", uint64(1)).
-						AddRow(3, "Pet 3", uint64(1)))
+						AddRow(2, "Pet 2", testUserUUID1).
+						AddRow(3, "Pet 3", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(1)),
-					entity.New(3).Set("name", "Pet 3").Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(2).Set("name", "Pet 2").Set("owner_id", testUserUUID1),
+					entity.New(3).Set("name", "Pet 3").Set("owner_id", testUserUUID1),
 				}),
 			},
 		},
@@ -1064,19 +1064,19 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				// O2M owner with only sort (no limit/offset) uses regular query with ORDER BY
 				mock.ExpectQuery("SELECT \\* FROM .pets. WHERE .pets...owner_id. IN \\(\\?\\) ORDER BY .pets...id. DESC").
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(3, "Zebra", uint64(1)).
-						AddRow(2, "Cat", uint64(1)).
-						AddRow(1, "Alpha", uint64(1)))
+						AddRow(3, "Zebra", testUserUUID1).
+						AddRow(2, "Cat", testUserUUID1).
+						AddRow(1, "Alpha", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(3).Set("name", "Zebra").Set("owner_id", uint64(1)),
-					entity.New(2).Set("name", "Cat").Set("owner_id", uint64(1)),
-					entity.New(1).Set("name", "Alpha").Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(3).Set("name", "Zebra").Set("owner_id", testUserUUID1),
+					entity.New(2).Set("name", "Cat").Set("owner_id", testUserUUID1),
+					entity.New(1).Set("name", "Alpha").Set("owner_id", testUserUUID1),
 				}),
 			},
 		},
@@ -1092,16 +1092,16 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				// O2M owner with filter applies WHERE clause
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `pets` WHERE `pets`.`owner_id` IN (?) AND `pets`.`name` LIKE ?")).
-					WithArgs(1, "%Dog%").
+					WithArgs(testUserUUID1, "%Dog%").
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(1, "Dog", uint64(1)))
+						AddRow(1, "Dog", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(1).Set("name", "Dog").Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Dog").Set("owner_id", testUserUUID1),
 				}),
 			},
 		},
@@ -1118,17 +1118,17 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `pets`.`id`, `pets`.`name`, `pets`.`owner_id` FROM `pets`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(1, "Pet 1", uint64(1)).
-						AddRow(2, "Pet 2", uint64(2)))
+						AddRow(1, "Pet 1", testUserUUID1).
+						AddRow(2, "Pet 2", testUserUUID2))
 				// O2M non-owner (M2O) - no window function, just regular query with ORDER BY
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?, ?) ORDER BY `users`.`name` DESC")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(2, "Jane").
-						AddRow(1, "John"))
+						AddRow(testUserUUID2, "Jane").
+						AddRow(testUserUUID1, "John"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "Pet 1").Set("owner_id", uint64(1)).Set("owner", entity.New(1).Set("name", "John")),
-				entity.New(2).Set("name", "Pet 2").Set("owner_id", uint64(2)).Set("owner", entity.New(2).Set("name", "Jane")),
+				entity.New(1).Set("name", "Pet 1").Set("owner_id", testUserUUID1).Set("owner", entity.New(testUserUUID1).Set("name", "John")),
+				entity.New(2).Set("name", "Pet 2").Set("owner_id", testUserUUID2).Set("owner", entity.New(testUserUUID2).Set("name", "Jane")),
 			},
 		},
 		{
@@ -1141,14 +1141,14 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `pets`.`id`, `pets`.`name`, `pets`.`owner_id` FROM `pets`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(1, "Pet 1", uint64(1)))
+						AddRow(1, "Pet 1", testUserUUID1))
 				// O2M non-owner with limit - no window function (single item per parent)
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`id` IN (?)")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "Pet 1").Set("owner_id", uint64(1)).Set("owner", entity.New(1).Set("name", "John")),
+				entity.New(1).Set("name", "Pet 1").Set("owner_id", testUserUUID1).Set("owner", entity.New(testUserUUID1).Set("name", "John")),
 			},
 		},
 		// =============================================================================
@@ -1164,18 +1164,18 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane"))
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane"))
 				// O2O with sort - no window function (single item per parent)
 				mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `cards` WHERE `cards`.`owner_id` IN (?, ?) ORDER BY `cards`.`number` DESC")).
-					WithArgs(1, 2).
+					WithArgs(testUserUUID1, testUserUUID2).
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
-						AddRow(2, "9999", 2).
-						AddRow(1, "1234", 1))
+						AddRow(2, "9999", testUserUUID2).
+						AddRow(1, "1234", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("card", entity.New(1).Set("number", "1234").Set("owner_id", 1)),
-				entity.New(2).Set("name", "Jane").Set("card", entity.New(2).Set("number", "9999").Set("owner_id", 2)),
+				entity.New(testUserUUID1).Set("name", "John").Set("card", entity.New(1).Set("number", "1234").Set("owner_id", testUserUUID1)),
+				entity.New(testUserUUID2).Set("name", "Jane").Set("card", entity.New(2).Set("number", "9999").Set("owner_id", testUserUUID2)),
 			},
 		},
 		// =============================================================================
@@ -1196,19 +1196,19 @@ func TestQuery(t *testing.T) {
 				// M2M with limit uses window function
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY").
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
-						AddRow(11, 1, "John").
-						AddRow(11, 2, "Jane").
-						AddRow(22, 3, "Bob").
-						AddRow(22, 4, "Alice"))
+						AddRow(11, testUserUUID1, "John").
+						AddRow(11, testUserUUID2, "Jane").
+						AddRow(22, testUserUUID3, "Bob").
+						AddRow(22, uuid.MustParse("00000000-0000-0000-0000-000000000004"), "Alice"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
-					entity.New(1).Set("name", "John"),
-					entity.New(2).Set("name", "Jane"),
+					entity.New(testUserUUID1).Set("name", "John"),
+					entity.New(testUserUUID2).Set("name", "Jane"),
 				}),
 				entity.New(22).Set("name", "Group 22").Set("users", []*entity.Entity{
-					entity.New(3).Set("name", "Bob"),
-					entity.New(4).Set("name", "Alice"),
+					entity.New(testUserUUID3).Set("name", "Bob"),
+					entity.New(uuid.MustParse("00000000-0000-0000-0000-000000000004")).Set("name", "Alice"),
 				}),
 			},
 		},
@@ -1226,13 +1226,13 @@ func TestQuery(t *testing.T) {
 				// M2M with sort only - no window function, uses regular query with ORDER BY
 				mock.ExpectQuery("SELECT .* FROM `users` JOIN `groups_users` AS `t1` ON .* ORDER BY `users`.`name` DESC").
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
-						AddRow(11, 2, "Zack").
-						AddRow(11, 1, "Alice"))
+						AddRow(11, testUserUUID2, "Zack").
+						AddRow(11, testUserUUID1, "Alice"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
-					entity.New(2).Set("name", "Zack"),
-					entity.New(1).Set("name", "Alice"),
+					entity.New(testUserUUID2).Set("name", "Zack"),
+					entity.New(testUserUUID1).Set("name", "Alice"),
 				}),
 			},
 		},
@@ -1252,11 +1252,11 @@ func TestQuery(t *testing.T) {
 				// M2M with filter applies WHERE clause
 				mock.ExpectQuery("SELECT .* FROM `users` JOIN `groups_users` AS `t1` ON .* WHERE .* AND `users`.`name` LIKE").
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
-						AddRow(11, 1, "John"))
+						AddRow(11, testUserUUID1, "John"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
-					entity.New(1).Set("name", "John"),
+					entity.New(testUserUUID1).Set("name", "John"),
 				}),
 			},
 		},
@@ -1278,13 +1278,13 @@ func TestQuery(t *testing.T) {
 				// M2M with limit+offset+sort uses window function with ordering
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*DESC").
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
-						AddRow(11, 2, "Jane").
-						AddRow(11, 3, "Bob"))
+						AddRow(11, testUserUUID2, "Jane").
+						AddRow(11, testUserUUID3, "Bob"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
-					entity.New(2).Set("name", "Jane"),
-					entity.New(3).Set("name", "Bob"),
+					entity.New(testUserUUID2).Set("name", "Jane"),
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
 			},
 		},
@@ -1306,17 +1306,17 @@ func TestQuery(t *testing.T) {
 				// M2M with filter + limit uses window function with WHERE clause
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*\\)\\) AS .row_num. FROM .users. JOIN .groups_users. AS .t1. ON .* WHERE .* AND .users...name. LIKE").
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
-						AddRow(11, 1, "John").
-						AddRow(11, 2, "Bob").
-						AddRow(22, 3, "Doe"))
+						AddRow(11, testUserUUID1, "John").
+						AddRow(11, testUserUUID2, "Bob").
+						AddRow(22, testUserUUID3, "Doe"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
-					entity.New(1).Set("name", "John"),
-					entity.New(2).Set("name", "Bob"),
+					entity.New(testUserUUID1).Set("name", "John"),
+					entity.New(testUserUUID2).Set("name", "Bob"),
 				}),
 				entity.New(22).Set("name", "Group 22").Set("users", []*entity.Entity{
-					entity.New(3).Set("name", "Doe"),
+					entity.New(testUserUUID3).Set("name", "Doe"),
 				}),
 			},
 		},
@@ -1338,13 +1338,13 @@ func TestQuery(t *testing.T) {
 				// M2M with filter + sort + limit uses window function with WHERE and ORDER BY
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*DESC\\)\\) AS .row_num. FROM .users. JOIN .groups_users. AS .t1. ON .* WHERE .* AND .users...name. LIKE").
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
-						AddRow(11, 2, "Tony").
-						AddRow(11, 1, "John"))
+						AddRow(11, testUserUUID2, "Tony").
+						AddRow(11, testUserUUID1, "John"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
-					entity.New(2).Set("name", "Tony"),
-					entity.New(1).Set("name", "John"),
+					entity.New(testUserUUID2).Set("name", "Tony"),
+					entity.New(testUserUUID1).Set("name", "John"),
 				}),
 			},
 		},
@@ -1367,13 +1367,13 @@ func TestQuery(t *testing.T) {
 				// M2M with filter + sort + limit + offset uses window function
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*DESC\\)\\) AS .row_num. FROM .users. JOIN .groups_users. AS .t1. ON .* WHERE .* AND .users...name. LIKE").
 					WillReturnRows(mock.NewRows([]string{"groups_id", "id", "name"}).
-						AddRow(11, 1, "John").
-						AddRow(11, 3, "Bob"))
+						AddRow(11, testUserUUID1, "John").
+						AddRow(11, testUserUUID3, "Bob"))
 			},
 			ExpectEntities: []*entity.Entity{
 				entity.New(11).Set("name", "Group 11").Set("users", []*entity.Entity{
-					entity.New(1).Set("name", "John"),
-					entity.New(3).Set("name", "Bob"),
+					entity.New(testUserUUID1).Set("name", "John"),
+					entity.New(testUserUUID3).Set("name", "Bob"),
 				}),
 			},
 		},
@@ -1390,22 +1390,22 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane"))
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane"))
 				// O2M owner with filter + limit uses window function with WHERE clause
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*\\)\\) AS .row_num. FROM .pets. WHERE .pets...owner_id. IN .* AND .pets...name. LIKE").
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(1, "Dog", uint64(1)).
-						AddRow(2, "Frog", uint64(1)).
-						AddRow(3, "HotDog", uint64(2)))
+						AddRow(1, "Dog", testUserUUID1).
+						AddRow(2, "Frog", testUserUUID1).
+						AddRow(3, "HotDog", testUserUUID2))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(1).Set("name", "Dog").Set("owner_id", uint64(1)),
-					entity.New(2).Set("name", "Frog").Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Dog").Set("owner_id", testUserUUID1),
+					entity.New(2).Set("name", "Frog").Set("owner_id", testUserUUID1),
 				}),
-				entity.New(2).Set("name", "Jane").Set("pets", []*entity.Entity{
-					entity.New(3).Set("name", "HotDog").Set("owner_id", uint64(2)),
+				entity.New(testUserUUID2).Set("name", "Jane").Set("pets", []*entity.Entity{
+					entity.New(3).Set("name", "HotDog").Set("owner_id", testUserUUID2),
 				}),
 			},
 		},
@@ -1423,17 +1423,17 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				// O2M owner with filter + sort + limit uses window function
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*\\)\\) AS .row_num. FROM .pets. WHERE .pets...owner_id. IN .* AND .pets...name. LIKE").
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(2, "Frog", uint64(1)).
-						AddRow(1, "Dog", uint64(1)))
+						AddRow(2, "Frog", testUserUUID1).
+						AddRow(1, "Dog", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(2).Set("name", "Frog").Set("owner_id", uint64(1)),
-					entity.New(1).Set("name", "Dog").Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(2).Set("name", "Frog").Set("owner_id", testUserUUID1),
+					entity.New(1).Set("name", "Dog").Set("owner_id", testUserUUID1),
 				}),
 			},
 		},
@@ -1452,15 +1452,15 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				// O2M owner with filter + sort + limit + offset uses window function
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY.*ORDER BY.*\\)\\) AS .row_num. FROM .pets. WHERE .pets...owner_id. IN .* AND .pets...name. LIKE").
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
-						AddRow(1, "Dog", uint64(1)))
+						AddRow(1, "Dog", testUserUUID1))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("pets", []*entity.Entity{
-					entity.New(1).Set("name", "Dog").Set("owner_id", uint64(1)),
+				entity.New(testUserUUID1).Set("name", "John").Set("pets", []*entity.Entity{
+					entity.New(1).Set("name", "Dog").Set("owner_id", testUserUUID1),
 				}),
 			},
 		},
@@ -1477,19 +1477,19 @@ func TestQuery(t *testing.T) {
 			Expect: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John").
-						AddRow(2, "Jane"))
+						AddRow(testUserUUID1, "John").
+						AddRow(testUserUUID2, "Jane"))
 				// M2M reverse with limit uses window function
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY").
 					WillReturnRows(mock.NewRows([]string{"users_id", "id", "name"}).
-						AddRow(1, 11, "Group 11").
-						AddRow(2, 22, "Group 22"))
+						AddRow(testUserUUID1, 11, "Group 11").
+						AddRow(testUserUUID2, 22, "Group 22"))
 			},
 			ExpectEntities: []*entity.Entity{
-				entity.New(1).Set("name", "John").Set("groups", []*entity.Entity{
+				entity.New(testUserUUID1).Set("name", "John").Set("groups", []*entity.Entity{
 					entity.New(11).Set("name", "Group 11"),
 				}),
-				entity.New(2).Set("name", "Jane").Set("groups", []*entity.Entity{
+				entity.New(testUserUUID2).Set("name", "Jane").Set("groups", []*entity.Entity{
 					entity.New(22).Set("name", "Group 22"),
 				}),
 			},
@@ -1510,12 +1510,12 @@ func TestQuery(t *testing.T) {
 				mock.MatchExpectationsInOrder(false)
 				mock.ExpectQuery(utils.EscapeQuery("SELECT `users`.`id`, `users`.`name` FROM `users`")).
 					WillReturnRows(mock.NewRows([]string{"id", "name"}).
-						AddRow(1, "John"))
+						AddRow(testUserUUID1, "John"))
 				// card: O2O with sort - no window function
 				mock.ExpectQuery("SELECT \\* FROM `cards` WHERE `cards`.`owner_id` IN \\(\\?\\) ORDER BY `cards`.`number` ASC").
-					WithArgs(1).
+					WithArgs(testUserUUID1).
 					WillReturnRows(mock.NewRows([]string{"id", "number", "owner_id"}).
-						AddRow(1, "1234", 1))
+						AddRow(1, "1234", testUserUUID1))
 				// pets: O2M with limit uses window function
 				mock.ExpectQuery("SELECT .* FROM \\(SELECT .*, \\(ROW_NUMBER\\(\\) OVER \\(PARTITION BY").
 					WillReturnRows(mock.NewRows([]string{"id", "name", "owner_id"}).
@@ -1559,10 +1559,15 @@ func TestFirstOnly(t *testing.T) {
 		Driver: "sqlmock",
 	}, sb, dialectSql.OpenDB(dialect.MySQL, d)))
 
+	uuid1 := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	uuid3 := uuid.MustParse("00000000-0000-0000-0000-000000000003")
+	uuid4 := uuid.MustParse("00000000-0000-0000-0000-000000000004")
+	uuid44 := uuid.MustParse("00000000-0000-0000-0000-000000000044")
+
 	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ? LIMIT 1")).
 		WithArgs("user1").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}).
-			AddRow(1, "user1"))
+			AddRow(uuid1, "user1"))
 	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ? LIMIT 1")).
 		WithArgs("user2").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}))
@@ -1570,13 +1575,13 @@ func TestFirstOnly(t *testing.T) {
 	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ?")).
 		WithArgs("user3").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}).
-			AddRow(3, "user3"))
+			AddRow(uuid3, "user3"))
 
 	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ?")).
 		WithArgs("user4").
 		WillReturnRows(mock.NewRows([]string{"id", "name"}).
-			AddRow(4, "user4").
-			AddRow(44, "user44"))
+			AddRow(uuid4, "user4").
+			AddRow(uuid44, "user44"))
 
 	mock.ExpectQuery(utils.EscapeQuery("SELECT * FROM `users` WHERE `users`.`name` = ?")).
 		WithArgs("user5").

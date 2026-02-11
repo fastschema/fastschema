@@ -20,35 +20,31 @@ func TestSchema(t *testing.T) {
 	assert.NoError(t, s.Init(false))
 	assert.NoError(t, s.Init(false))
 	assert.True(t, s.initialized)
-	assert.Equal(t, &Field{
-		Name:  entity.FieldID,
-		Type:  TypeUint64,
-		Label: "ID",
-		DB: &FieldDB{
-			Attr:      "UNSIGNED",
-			Key:       DBPrimaryKey,
-			Increment: true,
-		},
-		Unique:        true,
-		Filterable:    true,
-		Sortable:      true,
-		IsSystemField: true,
-		Immutable:     true,
-	}, s.Field(entity.FieldID))
+	idField := s.Field(entity.FieldID)
+	assert.NotNil(t, idField)
+	assert.Equal(t, entity.FieldID, idField.Name)
+	assert.Equal(t, TypeUUID, idField.Type)
+	assert.Equal(t, "ID", idField.Label)
+	assert.Equal(t, DBPrimaryKey, idField.DB.Key)
+	assert.True(t, idField.Unique)
+	assert.True(t, idField.Filterable)
+	assert.True(t, idField.Sortable)
+	assert.True(t, idField.Immutable)
 	assert.True(t, len(s.dbColumns) > 0)
 
 	assert.NotNil(t, s.Field(entity.FieldCreatedAt))
 	assert.NotNil(t, s.Field(entity.FieldUpdatedAt))
 	assert.NotNil(t, s.Field(entity.FieldDeletedAt))
 
-	s2, err := NewSchemaFromJSONFile("../tests/integration/db/data/schemas/user.json")
+	s2, err := NewSchemaFromJSONFile("../tests/integration/db/data/schemas/car.json")
 	assert.NoError(t, err)
-	assert.Equal(t, "user", s2.Name)
+	assert.Equal(t, "car", s2.Name)
 
 	s2.DisableTimestamp = true
 	assert.NoError(t, s2.Init(true))
+	// ID field should still exist when explicitly defined, even with disableIDColumn
 	f := s2.Field(entity.FieldID)
-	assert.Nil(t, f)
+	assert.NotNil(t, f)
 }
 
 func TestSchemaClone(t *testing.T) {
@@ -338,25 +334,25 @@ func TestSchemaValidate(t *testing.T) {
 	s.Name = ""
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "name is required")
+	assert.Contains(t, err.Error(), "Missing 'name' property")
 
 	s.Name = "user"
 	s.LabelFieldName = ""
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "label_field is required")
+	assert.Contains(t, err.Error(), "Missing 'label_field' property")
 
 	s.LabelFieldName = "name"
 	s.Namespace = ""
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "namespace is required")
+	assert.Contains(t, err.Error(), "Missing 'namespace' property")
 
 	s.Namespace = "schema"
 	s.Fields = []*Field{}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "label field 'name' is not found")
+	assert.Contains(t, err.Error(), "label_field 'name' is invalid for system schema")
 
 	// Test missing field name
 	s.Fields = []*Field{
@@ -368,7 +364,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "field : name is required")
+	assert.Contains(t, err.Error(), "Field is missing 'name' property")
 
 	// Test missing field label
 	s.Fields = []*Field{
@@ -397,7 +393,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "field field1: invalid field type invalid")
+	assert.Contains(t, err.Error(), "Invalid type 'invalid'")
 
 	// Test missing enum values
 	s.Fields = []*Field{
@@ -409,7 +405,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "field field1: enums values is required")
+	assert.Contains(t, err.Error(), "Enum type requires 'enums' array")
 
 	// Test missing relation
 	s.Fields = []*Field{
@@ -421,7 +417,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "field field1: relation is required")
+	assert.Contains(t, err.Error(), "Relation type requires 'relation' object")
 
 	// Test missing relation schema
 	s.Fields = []*Field{
@@ -437,7 +433,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "field field1: relation schema is required")
+	assert.Contains(t, err.Error(), "relation.schema is required")
 
 	// Test missing relation type
 	s.Fields = []*Field{
@@ -453,7 +449,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "field field1: relation type is required")
+	assert.Contains(t, err.Error(), "relation.type is required")
 
 	// Test missing m2m relation ref field name
 	s.Fields = []*Field{
@@ -467,10 +463,15 @@ func TestSchemaValidate(t *testing.T) {
 				TargetFieldName:  "",
 			},
 		},
+		{
+			Name:  "name",
+			Type:  TypeString,
+			Label: "Name",
+		},
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "field field1: m2m relation ref field name is required")
+	assert.Contains(t, err.Error(), "relation.field is required")
 
 	// Test invalid field type
 	s.Fields = []*Field{
@@ -479,16 +480,21 @@ func TestSchemaValidate(t *testing.T) {
 			Type:  TypeInvalid,
 			Label: "label1",
 		},
+		{
+			Name:  "name",
+			Type:  TypeString,
+			Label: "Name",
+		},
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "field field1: type is invalid")
+	assert.Contains(t, err.Error(), "Type is invalid or missing")
 
 	// Test missing label field
 	s.LabelFieldName = "nonexistent"
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "label field 'nonexistent' is not found")
+	assert.Contains(t, err.Error(), "label_field 'nonexistent' is invalid for system schema")
 }
 
 func TestErrFieldNotFound(t *testing.T) {
@@ -940,4 +946,37 @@ func TestApplyPrimaryFieldDefaultsEdgeCases(t *testing.T) {
 		// Should have increment for integer
 		assert.True(t, pkField.DB.Increment)
 	})
+}
+
+func TestSchemaFormZoneFieldClone(t *testing.T) {
+	// Case 1: nil SchemaFormZoneField
+	var f *SchemaFormZoneField
+	assert.Nil(t, f.Clone())
+
+	// Case 2: SchemaFormZoneField with options
+	field := &SchemaFormZoneField{
+		Field:    "name",
+		Renderer: "text",
+		Options: map[string]any{
+			"rows": 5,
+		},
+	}
+	cloned := field.Clone()
+	assert.NotNil(t, cloned)
+	assert.Equal(t, field.Field, cloned.Field)
+	assert.Equal(t, field.Renderer, cloned.Renderer)
+	assert.Equal(t, field.Options, cloned.Options)
+
+	// Ensure options are deep copied
+	cloned.Options["rows"] = 10
+	assert.Equal(t, 5, field.Options["rows"])
+
+	// Case 3: SchemaFormZoneField without options
+	fieldNoOpts := &SchemaFormZoneField{
+		Field:    "title",
+		Renderer: "input",
+	}
+	clonedNoOpts := fieldNoOpts.Clone()
+	assert.NotNil(t, clonedNoOpts)
+	assert.Nil(t, clonedNoOpts.Options)
 }

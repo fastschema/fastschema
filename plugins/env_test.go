@@ -58,14 +58,15 @@ const asyncResourceErrorThrow = async () => {
 
 const dbquery = (ctx) => {
 	const tx = $db().Tx(ctx);
+	const roleUUID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
 	// Create role with executing raw SQL
 	const createdRole1 = tx.Exec(
 		ctx,
-		'INSERT INTO roles (name) VALUES (?)',
-		['testrole1'],
+		'INSERT INTO roles (id, name) VALUES (?, ?)',
+		[roleUUID, 'testrole1'],
 	);
-	const createdRole1Id = createdRole1.LastInsertId();
+	const createdRole1Id = roleUUID;
 
 	// Query role with executing raw SQL
 	const queriedRoles = tx.Query(
@@ -97,8 +98,8 @@ const dbquery = (ctx) => {
 	// Builder methods
 	const builder = tx.Builder('role')
 		.Where({
-			id: {
-				$gt: 1, // id > 1
+			name: {
+				$like: 'testrole%', // name LIKE 'testrole%'
 			}
 		})
 		.Limit(1)
@@ -109,16 +110,16 @@ const dbquery = (ctx) => {
 	const firstFilteredRole = builder.First(ctx);
 
 	// Query only one role
-	const onlyRole = tx.Builder('role').Where({ id: createdRole2.Get('id') }).Only(ctx);
+	const onlyRole = tx.Builder('role').Where({ name: 'testrole2' }).Only(ctx);
 
 	// Update via builder
-	tx.Builder('role').Where({ id: createdRole3.Get('id') }).Update(ctx, { name: 'updatedrole3' });
+	tx.Builder('role').Where({ name: 'testrole3' }).Update(ctx, { name: 'updatedrole3' });
 
 	// Delete via builder
 	tx.Builder('role').Where({ id: createdRole1Id }).Delete(ctx);
 
 	// Verify update and delete
-	const updatedRole3 = tx.Builder('role').Where({ id: createdRole3.Get('id') }).Only(ctx);
+	const updatedRole3 = tx.Builder('role').Where({ name: 'updatedrole3' }).Only(ctx);
 	try {
 		tx.Builder('role').Where({ id: createdRole1Id }).Only(ctx);
 	} catch (error) {
@@ -126,19 +127,19 @@ const dbquery = (ctx) => {
 	}
 
 	// Query role
-	const roles = tx.Builder('role').Where({ id: 2 }).Get(ctx);
+	const roles = tx.Builder('role').Where({ name: 'testrole2' }).Get(ctx);
 
 	tx.Commit();
 
 	// Another transaction to test rollback
 	const tx2 = $db().Tx(ctx);
-	const roleToDelete = tx2.Builder('role').Where({ id: createdRole2.Get('id') }).Only(ctx);
-	tx2.Builder('role').Where({ id: roleToDelete.Get('id') }).Delete(ctx);
+	const roleToDelete = tx2.Builder('role').Where({ name: 'testrole2' }).Only(ctx);
+	tx2.Builder('role').Where({ name: 'testrole2' }).Delete(ctx);
 	tx2.Rollback();
 
 	// Verify rollback
-	const rolledBackRole = $db().Builder('role').Where({ id: createdRole2.Get('id') }).Only(ctx);
-	if (rolledBackRole.Get('id') !== createdRole2.Get('id')) {
+	const rolledBackRole = $db().Builder('role').Where({ name: 'testrole2' }).Only(ctx);
+	if (rolledBackRole.Get('name') !== roleToDelete.Get('name')) {
 		throw new Error('Rollback failed: role was deleted');
 	}
 

@@ -297,8 +297,8 @@ func (a *App) createDisks() (err error) {
 		a.config.StorageConfig.Disks = []*fs.DiskConfig{{
 			Name:       "public",
 			Driver:     "local",
-			PublicPath: "/",
-			BaseURL:    a.config.BaseURL + "/",
+			PublicPath: "/files",
+			BaseURL:    a.config.BaseURL + "/files",
 			Root:       a.publicDir,
 		}}
 	}

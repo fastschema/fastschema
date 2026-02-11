@@ -9,6 +9,7 @@ import (
 	"cloud.google.com/go/auth/credentials/idtoken"
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -44,7 +45,7 @@ func (gu *GoogleUser) ToFSUser() *fs.User {
 		FirstName: gu.GivenName,
 		LastName:  gu.FamilyName,
 		Active:    true,
-		RoleIDs:   []uint64{fs.RoleUser.ID},
+		RoleIDs:   []uuid.UUID{fs.RoleUser.ID},
 		Roles:     []*fs.Role{fs.RoleUser},
 	}
 }

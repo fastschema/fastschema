@@ -102,10 +102,15 @@ func createTestOTPApp(t *testing.T, otpEnabled bool) *testOTPApp {
 	// Create default roles
 	roleModel := utils.Must(dbc.Model("role"))
 	for _, r := range []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest} {
-		utils.Must(roleModel.Create(context.Background(), entity.New().
+		roleID := utils.Must(roleModel.Create(context.Background(), entity.New().
 			Set("name", r.Name).
-			Set("root", r.Root),
+			Set("root", r.Root).
+			Set("system", r.System),
 		))
+		// Set fs.RoleUser.ID so that user creation with roles can reference it
+		if r.Name == fs.RoleUser.Name {
+			fs.RoleUser.ID = roleID.(uuid.UUID)
+		}
 	}
 
 	authConfig := &fs.AuthConfig{

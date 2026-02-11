@@ -9,28 +9,28 @@ import (
 
 func (cs *ContentService) Update(c fs.Context, _ any) (*entity.Entity, error) {
 	schemaName := c.Arg("schema")
-	id := c.ArgInt("id")
 	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
-	pkField := model.Schema().PrimaryField()
-	pkName := entity.FieldID
-	if pkField != nil && pkField.Name != "" {
-		pkName = pkField.Name
+
+	idValue, err := parseIDArg(model.Schema(), c.Arg("id"))
+	if err != nil {
+		return nil, errors.NotFound(err.Error())
 	}
 
+	pkName := model.Schema().PrimaryKeyName()
 	entity, err := c.Payload()
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
-	entity.SetIDField(pkName)
 
-	if _, err := model.Mutation().Where(db.EQ(pkName, id)).Update(c, entity); err != nil {
+	entity.SetIDField(pkName)
+	if _, err := model.Mutation().Where(db.EQ(pkName, idValue)).Update(c, entity); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	if err := entity.SetID(id); err != nil {
+	if err := entity.SetID(idValue); err != nil {
 		return nil, errors.InternalServerError(err.Error())
 	}
 

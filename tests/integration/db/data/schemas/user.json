@@ -10,6 +10,14 @@
   },
   "fields": [
     {
+      "name": "id",
+      "label": "ID",
+      "type": "uuid",
+      "db": {
+        "key": "PRI"
+      }
+    },
+    {
       "name": "name",
       "label": "Name",
       "type": "string",

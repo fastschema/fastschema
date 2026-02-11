@@ -4,17 +4,19 @@ import (
 	"time"
 
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 )
 
 // User is a struct that contains user data
 type User struct {
-	_         any    `json:"-" fs:"label_field=username"`
-	ID        uint64 `json:"id,omitempty"`
-	Username  string `json:"username,omitempty" fs:"optional;sortable"`
-	Email     string `json:"email,omitempty" fs:"optional;sortable"`
-	FirstName string `json:"first_name,omitempty" fs:"optional;sortable"`
-	LastName  string `json:"last_name,omitempty" fs:"optional;sortable"`
-	Password  string `json:"password,omitempty" fs:"optional" fs.setter:"$args.Exist && $args.Value != '' ? $hash($args.Value) : $undefined" fs.getter:"$context.Value('keeppassword') == 'true' ? $args.Value : $undefined"`
+	_         any       `json:"-" fs:"label_field=username"`
+	ID        uuid.UUID `json:"id,omitempty" fs:"type=uuid"`
+	Username  string    `json:"username,omitempty" fs:"optional;sortable"`
+	Email     string    `json:"email,omitempty" fs:"optional;sortable"`
+	FirstName string    `json:"first_name,omitempty" fs:"optional;sortable"`
+	LastName  string    `json:"last_name,omitempty" fs:"optional;sortable"`
+	Bio       string    `json:"bio,omitempty" fs:"optional"`
+	Password  string    `json:"password,omitempty" fs:"optional" fs.setter:"$args.Exist && $args.Value != '' ? $hash($args.Value) : $undefined" fs.getter:"$context.Value('keeppassword') == 'true' ? $args.Value : $undefined"`
 
 	Active               bool   `json:"active,omitempty" fs:"optional;sortable"`
 	Provider             string `json:"provider,omitempty" fs:"optional"`
@@ -22,9 +24,12 @@ type User struct {
 	ProviderUsername     string `json:"provider_username,omitempty" fs:"optional"`
 	ProviderProfileImage string `json:"provider_profile_image,omitempty" fs:"optional"`
 
-	RoleIDs []uint64 `json:"role_ids,omitempty"`
-	Roles   []*Role  `json:"roles,omitempty" fs.relation:"{'type':'m2m','schema':'role','field':'users','owner':false}"`
-	Files   []*File  `json:"files,omitempty" fs.relation:"{'type':'o2m','schema':'file','field':'user','owner':true}"`
+	AvatarID *uuid.UUID `json:"avatar_id,omitempty" fs:"type=uuid;optional;filterable"`
+	Avatar   *File      `json:"avatar,omitempty" fs:"type=file;optional" fs.relation:"{'type':'o2m','schema':'file','field':'users','owner':false,'source_column':'avatar_id'}"`
+
+	RoleIDs []uuid.UUID `json:"role_ids,omitempty"`
+	Roles   []*Role     `json:"roles,omitempty" fs.relation:"{'type':'m2m','schema':'role','field':'users','owner':false}"`
+	Files   []*File     `json:"files,omitempty" fs.relation:"{'type':'o2m','schema':'file','field':'owner','owner':true}"`
 
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`

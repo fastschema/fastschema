@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -172,12 +173,12 @@ func Decrypt(encryptedString string, key string) (string, error) {
 }
 
 type ConfirmationData struct {
-	UserID uint64 `json:"user_id"`
-	Exp    int64  `json:"exp"`
+	UserID uuid.UUID `json:"user_id"`
+	Exp    int64     `json:"exp"`
 }
 
 func CreateConfirmationToken(
-	userID uint64,
+	userID uuid.UUID,
 	key string,
 	expiresAt ...time.Time,
 ) (string, error) {
@@ -189,7 +190,7 @@ func CreateConfirmationToken(
 	}
 
 	activationToken, err := Encrypt(
-		fmt.Sprintf("%d_%d", userID, exp.UnixMicro()),
+		fmt.Sprintf("%s_%d", userID.String(), exp.UnixMicro()),
 		key,
 	)
 	if err != nil {
@@ -210,7 +211,7 @@ func ParseConfirmationToken(token, key string) (*ConfirmationData, error) {
 		return nil, errors.BadRequest("Invalid token")
 	}
 
-	userID, err := strconv.ParseUint(parts[0], 10, 64)
+	userID, err := uuid.Parse(parts[0])
 	if err != nil {
 		return nil, errors.BadRequest("Invalid token")
 	}

@@ -9,21 +9,25 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 )
 
 func (rs *RoleService) Update(c fs.Context, _ any) (_ *fs.Role, err error) {
-	id := c.ArgInt("id")
+	id, err := uuid.Parse(c.Arg("id"))
+	if err != nil {
+		return nil, errors.BadRequest("Invalid role ID")
+	}
 	updateRoleData, err := c.Payload()
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	return rs.UpdateRole(c, uint64(id), updateRoleData)
+	return rs.UpdateRole(c, id, updateRoleData)
 }
 
 func (rs *RoleService) UpdateRole(
 	c context.Context,
-	id uint64,
+	id uuid.UUID,
 	updateRoleData *entity.Entity,
 ) (_ *fs.Role, err error) {
 	tx, err := rs.DB().Tx(c)

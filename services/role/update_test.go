@@ -3,6 +3,7 @@ package roleservice_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http/httptest"
 	"testing"
 
@@ -14,20 +15,22 @@ import (
 
 func TestRoleServiceUpdate(t *testing.T) {
 	testApp := createTestApp()
+	userRoleID := testApp.roleIDMap[fs.RoleUser.Name]
+
 	// Case 1: Invalid Payload
-	req := httptest.NewRequest("PUT", "/api/role/2", nil)
+	req := httptest.NewRequest("PUT", fmt.Sprintf("/api/role/%v", userRoleID), nil)
 	resp := utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 400, resp.StatusCode)
 
 	// Case 2: Invalid ID
-	req = httptest.NewRequest("PUT", "/api/role/9999", bytes.NewReader([]byte(`{"name": "user role"}`)))
+	req = httptest.NewRequest("PUT", "/api/role/00000000-0000-0000-0000-000000009999", bytes.NewReader([]byte(`{"name": "user role"}`)))
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 404, resp.StatusCode)
 
 	// Case 3: Valid Payload, update role only
-	req = httptest.NewRequest("PUT", "/api/role/2", bytes.NewReader([]byte(`{"name": "user role"}`)))
+	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/role/%v", userRoleID), bytes.NewReader([]byte(`{"name": "user role"}`)))
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
@@ -35,7 +38,7 @@ func TestRoleServiceUpdate(t *testing.T) {
 	assert.Contains(t, response, `"user role"`)
 
 	// Case 4: Role rule compile error
-	req = httptest.NewRequest("PUT", "/api/role/2", bytes.NewReader([]byte(`{
+	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/role/%v", userRoleID), bytes.NewReader([]byte(`{
 		"name": "user role",
 		"rule": "invalid rule"
 	}`)))
@@ -44,7 +47,7 @@ func TestRoleServiceUpdate(t *testing.T) {
 	assert.Equal(t, 500, resp.StatusCode)
 
 	// Case 5: Permission compile error
-	req = httptest.NewRequest("PUT", "/api/role/2", bytes.NewReader([]byte(`{
+	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/role/%v", userRoleID), bytes.NewReader([]byte(`{
 		"name": "user role",
 		"permissions": [
 			{
@@ -63,7 +66,7 @@ func TestRoleServiceUpdate(t *testing.T) {
 	// 	- Remove content.blog.detail
 	// 	- Add content.blog.meta, content.blog.view
 	//  - Update content.blog.list rule to $context.User().ID < 2
-	req = httptest.NewRequest("PUT", "/api/role/2", bytes.NewReader([]byte(`{
+	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/role/%v", userRoleID), bytes.NewReader([]byte(`{
 		"name": "user role",
 		"permissions": [
 			{
@@ -86,7 +89,7 @@ func TestRoleServiceUpdate(t *testing.T) {
 
 	userRole := utils.Must(
 		db.Builder[*fs.Role](testApp.db).
-			Where(db.EQ("id", 2)).
+			Where(db.EQ("id", userRoleID)).
 			Select("permissions").
 			First(context.Background()),
 	)

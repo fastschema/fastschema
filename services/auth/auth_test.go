@@ -18,6 +18,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	as "github.com/fastschema/fastschema/services/auth"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -149,7 +150,7 @@ func createTestApp(t *testing.T) *testApp {
 	roleModel := utils.Must(dbc.Model("role"))
 	userModel := utils.Must(dbc.Model("user"))
 	seniorityRole := &fs.Role{
-		ID:   4,
+		ID:   uuid.MustParse("00000000-0000-0000-0000-000000000004"),
 		Name: "seniority",
 		Root: false,
 		Rule: `let userId = $context.User().ID;
@@ -164,45 +165,54 @@ func createTestApp(t *testing.T) *testApp {
 		seniorityRole,
 	}
 
+	roleIDMap := make(map[string]uuid.UUID)
 	for _, r := range appRoles {
-		utils.Must(roleModel.Create(context.Background(), entity.New().
+		roleID := utils.Must(roleModel.Create(context.Background(), entity.New().
 			Set("name", r.Name).
 			Set("root", r.Root).
+			Set("system", r.System).
 			Set("rule", r.Rule),
 		))
+		roleIDMap[r.Name] = roleID.(uuid.UUID)
 	}
 
-	utils.Must(userModel.Create(context.Background(), entity.New().
+	// Set global role IDs so that JWT claims and other code can reference them correctly
+	fs.RoleAdmin.ID = roleIDMap[fs.RoleAdmin.Name]
+	fs.RoleUser.ID = roleIDMap[fs.RoleUser.Name]
+	fs.RoleGuest.ID = roleIDMap[fs.RoleGuest.Name]
+	seniorityRole.ID = roleIDMap[seniorityRole.Name]
+
+	adminUserID := utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "adminuser").
 		Set("password", "adminuser").
 		Set("provider", "local").
 		Set("active", true).
-		Set("roles", []*entity.Entity{entity.New(1)}),
-	))
+		Set("roles", []*entity.Entity{entity.New(roleIDMap[fs.RoleAdmin.Name])}),
+	)).(uuid.UUID)
 
-	utils.Must(userModel.Create(context.Background(), entity.New().
+	normalUserID := utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "normaluser").
 		Set("password", "normaluser").
 		Set("provider", "local").
 		Set("active", true).
-		Set("roles", []*entity.Entity{entity.New(2)}),
-	))
+		Set("roles", []*entity.Entity{entity.New(roleIDMap[fs.RoleUser.Name])}),
+	)).(uuid.UUID)
 
-	utils.Must(userModel.Create(context.Background(), entity.New().
+	inactiveUserID := utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "inactiveuser").
 		Set("password", "inactiveuser").
 		Set("provider", "local").
 		Set("active", false).
-		Set("roles", []*entity.Entity{entity.New(2)}),
-	))
+		Set("roles", []*entity.Entity{entity.New(roleIDMap[fs.RoleUser.Name])}),
+	)).(uuid.UUID)
 
-	utils.Must(userModel.Create(context.Background(), entity.New().
+	seniorityUserID := utils.Must(userModel.Create(context.Background(), entity.New().
 		Set("username", "seniorityuser").
 		Set("password", "seniorityuser").
 		Set("provider", "local").
 		Set("active", true).
-		Set("roles", []*entity.Entity{entity.New(4)}),
-	))
+		Set("roles", []*entity.Entity{entity.New(roleIDMap[seniorityRole.Name])}),
+	)).(uuid.UUID)
 
 	// There are three resources in this test: content.list, content.detail and content.meta
 	// We set role user to have permission to "allow" for content.list but, "deny" for content.detail
@@ -214,21 +224,21 @@ func createTestApp(t *testing.T) *testApp {
 	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "api.content.blog.list").
 		Set("value", fs.PermissionTypeAllow.String()).
-		Set("role_id", fs.RoleUser.ID),
+		Set("role_id", roleIDMap[fs.RoleUser.Name]),
 	))
 
 	// Role user should not have access to api.content.blog.detail
 	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "api.content.blog.detail").
 		Set("value", fs.PermissionTypeDeny.String()).
-		Set("role_id", fs.RoleUser.ID),
+		Set("role_id", roleIDMap[fs.RoleUser.Name]),
 	))
 
 	// Role seniority should have access to api.content.blog.list
 	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "api.content.blog.list").
 		Set("value", fs.PermissionTypeAllow.String()).
-		Set("role_id", seniorityRole.ID),
+		Set("role_id", roleIDMap[seniorityRole.Name]),
 	))
 
 	// Realtime permissions for role user
@@ -236,14 +246,14 @@ func createTestApp(t *testing.T) *testApp {
 	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "api.realtime.content.blog.list").
 		Set("value", fs.PermissionTypeAllow.String()).
-		Set("role_id", fs.RoleUser.ID),
+		Set("role_id", roleIDMap[fs.RoleUser.Name]),
 	))
 
 	// Role user should not have access to api.realtime.content.blog.update
 	utils.Must(permissionModel.Create(context.Background(), entity.New().
 		Set("resource", "api.realtime.content.blog.update").
 		Set("value", fs.PermissionTypeDeny.String()).
-		Set("role_id", fs.RoleUser.ID),
+		Set("role_id", roleIDMap[fs.RoleUser.Name]),
 	))
 
 	localProvider := utils.Must(auth.NewLocalAuthProvider(fs.Map{}, ""))
@@ -255,39 +265,39 @@ func createTestApp(t *testing.T) *testApp {
 			"local":            localProvider,
 		},
 		adminUser: &fs.User{
-			ID:       1,
+			ID:       adminUserID,
 			Username: "adminuser",
 			Active:   true,
 			Roles:    []*fs.Role{fs.RoleAdmin},
-			RoleIDs:  []uint64{1},
+			RoleIDs:  []uuid.UUID{roleIDMap[fs.RoleAdmin.Name]},
 		},
 		normalUser: &fs.User{
-			ID:       2,
+			ID:       normalUserID,
 			Username: "normaluser",
 			Active:   true,
 			Roles:    []*fs.Role{fs.RoleUser},
-			RoleIDs:  []uint64{2},
+			RoleIDs:  []uuid.UUID{roleIDMap[fs.RoleUser.Name]},
 		},
 		inactiveUser: &fs.User{
-			ID:       3,
+			ID:       inactiveUserID,
 			Username: "inactiveuser",
 			Active:   false,
 			Roles:    []*fs.Role{fs.RoleUser},
-			RoleIDs:  []uint64{2},
+			RoleIDs:  []uuid.UUID{roleIDMap[fs.RoleUser.Name]},
 		},
 		seniorityUser: &fs.User{
-			ID:       4,
+			ID:       seniorityUserID,
 			Username: "seniorityuser",
 			Active:   true,
 			Roles:    []*fs.Role{seniorityRole},
-			RoleIDs:  []uint64{4},
+			RoleIDs:  []uuid.UUID{roleIDMap[seniorityRole.Name]},
 		},
 		notFoundUser: &fs.User{
-			ID:       5,
+			ID:       uuid.MustParse("00000000-0000-0000-0000-000000000099"),
 			Username: "notfounduser",
 			Active:   true,
 			Roles:    []*fs.Role{fs.RoleUser},
-			RoleIDs:  []uint64{2},
+			RoleIDs:  []uuid.UUID{roleIDMap[fs.RoleUser.Name]},
 		},
 	}
 

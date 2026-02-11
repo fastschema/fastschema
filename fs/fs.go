@@ -5,6 +5,8 @@ import (
 	"io"
 	"mime/multipart"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const TraceID = "trace_id"
@@ -38,17 +40,18 @@ type Disk interface {
 // File holds the file data
 type File struct {
 	_         any        `json:"-" fs:"namespace=files;label_field=name"`
-	ID        uint64     `json:"id,omitempty"`
+	ID        uuid.UUID  `json:"id,omitempty" fs:"type=uuid"`
 	Disk      string     `json:"disk,omitempty"`
-	Name      string     `json:"name,omitempty"`
-	Path      string     `json:"path,omitempty"`
-	Type      string     `json:"type,omitempty"`
-	Size      uint64     `json:"size,omitempty"`
-	UserID    uint64     `json:"user_id,omitempty"`
-	User      *User      `json:"user,omitempty" fs.relation:"{'type':'o2m','schema':'user','field':'files','owner':false,'source_column':'user_id'}"`
+	Name      string     `json:"name,omitempty" fs:"sortable;filterable"`
+	Path      string     `json:"path,omitempty" fs:"sortable;filterable"`
+	Type      string     `json:"type,omitempty" fs:"sortable;filterable"`
+	Size      uint64     `json:"size,omitempty" fs:"sortable;filterable"`
 	URL       string     `json:"url,omitempty" fs:"-"`
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	CreatedAt *time.Time `json:"created_at,omitempty" fs:"sortable;filterable"`
+	OwnerID   uuid.UUID  `json:"owner_id,omitempty" fs:"type=uuid;sortable;filterable"`
+	Owner     *User      `json:"owner,omitempty" fs.relation:"{'type':'o2m','schema':'user','field':'files','owner':false,'source_column':'owner_id'}"`
+	Users     []*User    `json:"users,omitempty" fs.relation:"{'type':'o2m','schema':'user','field':'avatar','owner':true}"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty" fs:"sortable;filterable"`
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	Reader    io.Reader  `json:"-"`
 }

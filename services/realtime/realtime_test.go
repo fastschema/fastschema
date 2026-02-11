@@ -40,6 +40,12 @@ func createTestApp(t *testing.T) (*testApp, *rs.RealtimeService) {
 		"label_field": "name",
 		"fields": [
 			{
+				"type": "uint64",
+				"name": "id",
+				"label": "ID",
+				"db": {"attr": "UNSIGNED", "key": "PRIMARY", "increment": true}
+			},
+			{
 				"type": "string",
 				"name": "name",
 				"label": "Name",

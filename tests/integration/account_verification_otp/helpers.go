@@ -18,6 +18,7 @@ import (
 	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	as "github.com/fastschema/fastschema/services/auth"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -185,12 +186,20 @@ func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig, verific
 	roleModel := utils.Must(dbc.Model("role"))
 	userModel := utils.Must(dbc.Model("user"))
 
-	// Create default roles
+	// Create default roles if they don't exist
 	for _, r := range []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest} {
-		_, _ = roleModel.Create(context.Background(), entity.New().
-			Set("name", r.Name).
-			Set("root", r.Root))
+		existing, _ := roleModel.Query(db.EQ("name", r.Name)).First(context.Background())
+		if existing == nil {
+			_, _ = roleModel.Create(context.Background(), entity.New().
+				Set("name", r.Name).
+				Set("root", r.Root))
+		}
 	}
+
+	// Get the User role ID
+	userRole, err := roleModel.Query(db.EQ("name", "User")).First(context.Background())
+	require.NoError(t, err)
+	userRoleID := userRole.Get("id")
 
 	// Create inactive user for activation tests
 	inactiveUsername := "inactiveuser" + utils.RandomString(8)
@@ -202,7 +211,7 @@ func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig, verific
 		Set("provider", "local").
 		Set("provider_id", utils.RandomString(8)).
 		Set("active", false).
-		Set("roles", []*entity.Entity{entity.New(2)}))
+		Set("roles", []*entity.Entity{entity.New().Set("id", userRoleID)}))
 	require.NoError(t, err)
 
 	// Create active user for recovery tests
@@ -215,7 +224,7 @@ func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig, verific
 		Set("provider", "local").
 		Set("provider_id", utils.RandomString(8)).
 		Set("active", true).
-		Set("roles", []*entity.Entity{entity.New(2)}))
+		Set("roles", []*entity.Entity{entity.New().Set("id", userRoleID)}))
 	require.NoError(t, err)
 
 	mailer := NewMockMailer()
@@ -236,14 +245,14 @@ func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig, verific
 			AuthConfig: authConfig,
 		},
 		inactiveUser: &fs.User{
-			ID:       inactiveUserID.(uint64),
+			ID:       inactiveUserID.(uuid.UUID),
 			Username: inactiveUsername,
 			Email:    inactiveEmail,
 			Active:   false,
 			Roles:    []*fs.Role{fs.RoleUser},
 		},
 		activeUser: &fs.User{
-			ID:       activeUserID.(uint64),
+			ID:       activeUserID.(uuid.UUID),
 			Username: activeUsername,
 			Email:    activeEmail,
 			Active:   true,

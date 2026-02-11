@@ -7,11 +7,11 @@ import (
 
 	"github.com/fastschema/fastschema/expr"
 	"github.com/fastschema/fastschema/pkg/errors"
+	"github.com/google/uuid"
 )
 
 // RoleAdmin is the admin role
 var RoleAdmin = &Role{
-	ID:     1,
 	Name:   "Admin",
 	Root:   true,
 	System: true,
@@ -19,7 +19,6 @@ var RoleAdmin = &Role{
 
 // RoleUser is the user role
 var RoleUser = &Role{
-	ID:     2,
 	Name:   "User",
 	Root:   false,
 	System: true,
@@ -27,7 +26,6 @@ var RoleUser = &Role{
 
 // RoleGuest is the guest role
 var RoleGuest = &Role{
-	ID:     3,
 	Name:   "Guest",
 	Root:   false,
 	System: true,
@@ -36,7 +34,7 @@ var RoleGuest = &Role{
 // Role is a struct that contains the role data
 type Role struct {
 	_           any           `json:"-" fs:"label_field=name"`
-	ID          uint64        `json:"id,omitempty"`
+	ID          uuid.UUID     `json:"id,omitempty" fs:"type=uuid"`
 	Name        string        `json:"name,omitempty"`
 	Description string        `json:"description,omitempty" fs:"optional"`
 	Root        bool          `json:"root,omitempty" fs:"optional"`

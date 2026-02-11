@@ -18,6 +18,7 @@ import (
 	u "github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,11 +56,70 @@ func IDUint64(t *testing.T, value any) uint64 {
 	return id
 }
 
+// AssertUint64ID asserts that the value is a valid uint64 ID (for non-system schemas).
 func AssertUint64ID(t *testing.T, value any) {
 	t.Helper()
 	id, err := utils.AnyToInt[int64](value)
 	assert.NoError(t, err)
 	assert.Greater(t, id, int64(0))
+}
+
+// AssertID asserts that the value is a valid ID (either UUID or uint64).
+func AssertID(t *testing.T, value any) {
+	t.Helper()
+	// Check if it's a UUID
+	if uuidVal, ok := value.(uuid.UUID); ok {
+		assert.NotEqual(t, uuid.Nil, uuidVal)
+		return
+	}
+	// Check if it's a string that can be parsed as UUID
+	if strVal, ok := value.(string); ok {
+		if _, err := uuid.Parse(strVal); err == nil {
+			return
+		}
+	}
+	// Otherwise, check if it's a uint64
+	id, err := utils.AnyToInt[int64](value)
+	assert.NoError(t, err)
+	assert.Greater(t, id, int64(0))
+}
+
+// ToJSONID converts an ID to its JSON representation.
+// For UUIDs, returns a quoted string like `"abc-def"`.
+// For integers, returns the number like `123`.
+func ToJSONID(id any) string {
+	if uuidVal, ok := id.(uuid.UUID); ok {
+		return `"` + uuidVal.String() + `"`
+	}
+	if strVal, ok := id.(string); ok {
+		if _, err := uuid.Parse(strVal); err == nil {
+			return `"` + strVal + `"`
+		}
+	}
+	return fmt.Sprintf("%v", id)
+}
+
+// IsZeroID checks if an ID is zero/nil.
+// For UUIDs, returns true if it's uuid.Nil.
+// For integers, returns true if it's 0.
+func IsZeroID(id any) bool {
+	if id == nil {
+		return true
+	}
+	if uuidVal, ok := id.(uuid.UUID); ok {
+		return uuidVal == uuid.Nil
+	}
+	if strVal, ok := id.(string); ok {
+		if parsed, err := uuid.Parse(strVal); err == nil {
+			return parsed == uuid.Nil
+		}
+		return strVal == "" || strVal == "0"
+	}
+	// Check for integer types
+	if intVal, err := utils.AnyToInt[int64](id); err == nil {
+		return intVal == 0
+	}
+	return false
 }
 
 func IsMySQLFamily(name string) bool {
@@ -200,7 +260,7 @@ func NewSQLiteClient(t *testing.T, name, dbPath, migrationDir string, sb *schema
 		Driver:       "sqlite",
 		Name:         dbPath,
 		MigrationDir: migrationDir,
-		LogQueries:   false,
+		LogQueries:   true,
 	}, sb))
 	t.Cleanup(func() { _ = client.Close() })
 	return DBClient{Name: name, C: client}

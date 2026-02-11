@@ -13,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -65,8 +66,8 @@ func TestModelCreate(t *testing.T) {
 		createMockClient,
 		sb,
 		func(m sqlmock.Sqlmock) {
-			m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`) VALUES (?, ?)")).
-				WithArgs("John", float64(30)).
+			m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`, `id`) VALUES (?, ?, ?)")).
+				WithArgs("John", float64(30), sqlmock.AnyArg()).
 				WillReturnResult(sqlmock.NewResult(1, 1))
 		},
 		false,
@@ -78,7 +79,7 @@ func TestModelCreate(t *testing.T) {
 	assert.NoError(t, err)
 	id, err := model.Create(context.Background(), entity)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), id)
+	assert.IsType(t, uuid.UUID{}, id)
 }
 
 func TestModelCreateFromJson(t *testing.T) {
@@ -97,8 +98,8 @@ func TestModelCreateFromJson(t *testing.T) {
 		createMockClient,
 		sb,
 		func(m sqlmock.Sqlmock) {
-			m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`) VALUES (?, ?)")).
-				WithArgs("John", float64(30)).
+			m.ExpectExec(utils.EscapeQuery("INSERT INTO `users` (`name`, `age`, `id`) VALUES (?, ?, ?)")).
+				WithArgs("John", float64(30), sqlmock.AnyArg()).
 				WillReturnResult(sqlmock.NewResult(1, 1))
 		},
 		false,
@@ -113,5 +114,5 @@ func TestModelCreateFromJson(t *testing.T) {
 
 	id, err := model.CreateFromJSON(context.Background(), `{"name": "John", "age": 30}`)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), id)
+	assert.IsType(t, uuid.UUID{}, id)
 }

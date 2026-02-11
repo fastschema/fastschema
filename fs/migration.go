@@ -5,7 +5,7 @@ import "time"
 // Migration tracks applied database migrations
 type Migration struct {
 	_         any       `json:"-" fs:"namespace=migrations;label_field=version"`
-	ID        uint64    `json:"id,omitempty"`
+	ID        uint64    `json:"id,omitempty" fs:"type=uuid"`
 	Version   string    `json:"version" fs:"unique"`          // Timestamp: "20251212093000"
 	Name      string    `json:"name,omitempty" fs:"optional"` // Human-readable name
 	AppliedAt time.Time `json:"applied_at"`

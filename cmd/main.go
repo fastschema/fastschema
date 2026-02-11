@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"sort"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	toolservice "github.com/fastschema/fastschema/services/tool"
+	"github.com/google/uuid"
 	"github.com/urfave/cli/v2"
 )
 
@@ -76,8 +78,7 @@ func main() {
 					&cli.StringFlag{
 						Name:    "id",
 						Aliases: []string{"i"},
-						Usage:   "Admin user id",
-						Value:   "1",
+						Usage:   "Admin user id (UUID)",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -85,11 +86,21 @@ func main() {
 						Dir: c.Args().Get(0),
 					}))
 
+					idStr := c.String("id")
+					if idStr == "" {
+						return fmt.Errorf("admin user id is required")
+					}
+
+					id, err := uuid.Parse(idStr)
+					if err != nil {
+						return fmt.Errorf("invalid admin user id: %w", err)
+					}
+
 					return toolservice.ResetAdminPassword(
 						c.Context,
 						app.DB(),
 						c.String("password"),
-						c.Int("id"),
+						id,
 					)
 				},
 			},

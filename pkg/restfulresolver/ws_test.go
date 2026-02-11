@@ -11,6 +11,7 @@ import (
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/gofiber/contrib/websocket"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,11 +22,11 @@ func TestNewWSClient(t *testing.T) {
 }
 
 var adminUser = &fs.User{
-	ID:       1,
+	ID:       uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 	Username: "adminuser",
 	Active:   true,
 	Roles:    []*fs.Role{fs.RoleAdmin},
-	RoleIDs:  []uint64{1},
+	RoleIDs:  []uuid.UUID{uuid.MustParse("00000000-0000-0000-0000-000000000001")},
 }
 
 func createTestApp(t *testing.T, wsResources []*fs.Resource, getHooks func() *fs.Hooks) *restfulresolver.Server {

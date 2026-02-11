@@ -8,6 +8,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 func (as *AuthService) ParseUser(c fs.Context) error {
@@ -52,12 +53,13 @@ func (as *AuthService) Authorize(c fs.Context) error {
 		resourceID = fmt.Sprintf("api.realtime.content.%s.%s", c.Arg("schema"), c.Arg("event", "*"))
 	}
 
+	var emptyUUID uuid.UUID
 	user := c.User()
 	if user == nil {
 		user = &fs.User{
-			ID:       0,
+			ID:       emptyUUID,
 			Username: "",
-			Roles:    as.GetRolesFromIDs([]uint64{fs.RoleGuest.ID}),
+			Roles:    as.GetRolesFromIDs([]uuid.UUID{fs.RoleGuest.ID}),
 		}
 	}
 
@@ -72,7 +74,7 @@ func (as *AuthService) Authorize(c fs.Context) error {
 	}
 
 	// Disallow inactive users.
-	if user.ID > 0 && !user.Active {
+	if user.ID != emptyUUID && !user.Active {
 		return errors.Forbidden("User is inactive")
 	}
 
@@ -81,7 +83,7 @@ func (as *AuthService) Authorize(c fs.Context) error {
 	}
 
 	return utils.If(
-		user.ID > 0,
+		user.ID != emptyUUID,
 		errors.Forbidden("Forbidden"),
 		errors.Unauthorized("Unauthorized"),
 	)

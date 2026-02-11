@@ -12,6 +12,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -178,7 +179,7 @@ func TestLocalAuthActivation(t *testing.T) {
 	}
 
 	// Case 2: Success
-	token := utils.Must(utils.CreateConfirmationToken(1, config.key))
+	token := utils.Must(utils.CreateConfirmationToken(config.user01ID, config.key))
 	{
 		req := httptest.NewRequest("POST", "/user/activate?token="+token, bytes.NewReader([]byte(`{"token": "`+token+`"}`)))
 		resp, _ := server.Test(req)
@@ -248,7 +249,8 @@ func TestLocalAuthSendActivationLink(t *testing.T) {
 	// Case 3: Token user is not found
 	{
 		expiredTime := time.Now().Add(-time.Hour * 48)
-		token := utils.Must(utils.CreateConfirmationToken(123, config.key, expiredTime))
+		nonExistentUserID := uuid.MustParse("00000000-0000-0000-0000-000000999999")
+		token := utils.Must(utils.CreateConfirmationToken(nonExistentUserID, config.key, expiredTime))
 		req := httptest.NewRequest(
 			"POST", "/user/activate/send",
 			bytes.NewReader([]byte(`{"token": "`+token+`"}`)),
@@ -262,7 +264,7 @@ func TestLocalAuthSendActivationLink(t *testing.T) {
 	// Case 4: Success
 	{
 		expiredTime := time.Now().Add(-time.Hour * 48)
-		token := utils.Must(utils.CreateConfirmationToken(1, config.key, expiredTime))
+		token := utils.Must(utils.CreateConfirmationToken(config.user01ID, config.key, expiredTime))
 		req := httptest.NewRequest(
 			"POST", "/user/activate/send",
 			bytes.NewReader([]byte(`{"token": "`+token+`"}`)),
@@ -370,7 +372,7 @@ func TestLocalAuthRecoverCheck(t *testing.T) {
 
 	// Case 2: Success
 	{
-		token := utils.Must(utils.CreateConfirmationToken(1, config.key))
+		token := utils.Must(utils.CreateConfirmationToken(config.user01ID, config.key))
 		req := httptest.NewRequest(
 			"POST", "/user/recover/check",
 			bytes.NewReader([]byte(`{"token": "`+token+`"}`)),
@@ -404,7 +406,7 @@ func TestLocalAuthResetPassword(t *testing.T) {
 
 	// Case 2: Invalid password (not match)
 	{
-		token := utils.Must(utils.CreateConfirmationToken(1, config.key))
+		token := utils.Must(utils.CreateConfirmationToken(config.user01ID, config.key))
 		req := httptest.NewRequest(
 			"POST", "/user/recover/reset",
 			bytes.NewReader([]byte(`{"token": "`+token+`", "password": "123", "confirm_password": "1234"}`)),
@@ -417,7 +419,7 @@ func TestLocalAuthResetPassword(t *testing.T) {
 
 	// Case 3: Success
 	{
-		token := utils.Must(utils.CreateConfirmationToken(1, config.key))
+		token := utils.Must(utils.CreateConfirmationToken(config.user01ID, config.key))
 		req := httptest.NewRequest(
 			"POST", "/user/recover/reset",
 			bytes.NewReader([]byte(`{"token": "`+token+`", "password": "123", "confirm_password": "123"}`)),
@@ -429,7 +431,7 @@ func TestLocalAuthResetPassword(t *testing.T) {
 
 	// Case 4: Update password failed
 	{
-		token := utils.Must(utils.CreateConfirmationToken(1, config.key))
+		token := utils.Must(utils.CreateConfirmationToken(config.user01ID, config.key))
 		assert.NoError(t, config.db.Close())
 		req := httptest.NewRequest(
 			"POST", "/user/recover/reset",

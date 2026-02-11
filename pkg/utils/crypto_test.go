@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -125,7 +126,7 @@ func TestDecrypt(t *testing.T) {
 
 func TestCreateConfirmationToken(t *testing.T) {
 	// Test case 1: Valid token creation
-	userID := uint64(12345)
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000012345")
 	key := "0123456789abcdef" // 16 bytes key for AES-128
 	token, err := CreateConfirmationToken(userID, key)
 	assert.NoError(t, err)
@@ -144,7 +145,7 @@ func TestCreateConfirmationToken(t *testing.T) {
 }
 func TestParseConfirmationToken(t *testing.T) {
 	// Test case 1: Valid token
-	userID := uint64(12345)
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000012345")
 	key := "0123456789abcdef" // 16 bytes key for AES-128
 	expirationTime := time.Now().Add(time.Hour * 24)
 	token, err := CreateConfirmationToken(userID, key, expirationTime)

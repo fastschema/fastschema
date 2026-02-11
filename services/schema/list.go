@@ -4,8 +4,15 @@ import (
 	"sort"
 
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 )
+
+var ignoreContentSchemas = []string{
+	// "permission",
+	"migration",
+	"session",
+}
 
 func (ss *SchemaService) List(c fs.Context, _ any) ([]*schema.Schema, error) {
 	schemas := ss.app.SchemaBuilder().Schemas()
@@ -21,5 +28,19 @@ func (ss *SchemaService) List(c fs.Context, _ any) ([]*schema.Schema, error) {
 		schemas[i], schemas[j] = schemas[j], schemas[i]
 	}
 
-	return schemas, nil
+	// Clone schemas to filter out auto-generated fields
+	clonedSchemas := make([]*schema.Schema, 0, len(schemas))
+	for _, s := range schemas {
+		if utils.Contains(ignoreContentSchemas, s.Name) || s.IsJunctionSchema {
+			continue
+		}
+
+		clonedSchemas = append(clonedSchemas, s.Clone())
+		// Filter out system fields
+		// clonedSchemas[i].Fields = utils.Filter(clonedSchemas[i].Fields, func(field *schema.Field) bool {
+		// 	return !field.IsSystemField
+		// })
+	}
+
+	return clonedSchemas, nil
 }

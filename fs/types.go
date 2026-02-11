@@ -37,9 +37,9 @@ var SystemSchemaTypes = []any{
 
 type Arg struct {
 	Type        ArgType `json:"type"`
-	Required    bool    `json:"required"`
-	Description string  `json:"description"`
-	Example     any     `json:"example"`
+	Required    bool    `json:"required,omitempty"`
+	Description string  `json:"description,omitempty"`
+	Example     any     `json:"example,omitempty"`
 }
 
 type Args map[string]Arg

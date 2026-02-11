@@ -21,6 +21,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -423,14 +424,19 @@ func TestFastschemaUpdateCache(t *testing.T) {
 	assert.NoError(t, a.UpdateCache(ctx))
 
 	// Error compile role rule
-	rs1, err := a.DB().Exec(ctx, "INSERT INTO roles (id, name, rule) VALUES (1, 'testrole', 'invalid')")
+	role1ID := utils.Must(uuid.NewV7())
+	_, err = a.DB().Exec(ctx, fmt.Sprintf(
+		"INSERT INTO roles (id, name, rule) VALUES ('%s', 'testrole', 'invalid')",
+		role1ID.String(),
+	))
 	assert.NoError(t, err)
 	assert.Error(t, a.UpdateCache(ctx))
 
 	// Error compile permission value
-	_, err = a.DB().Exec(ctx, "UPDATE roles SET rule = NULL WHERE id = ?", utils.Must(rs1.LastInsertId()))
+	_, err = a.DB().Exec(ctx, "UPDATE roles SET rule = NULL WHERE id = ?", role1ID)
 	assert.NoError(t, err)
-	_, err = a.DB().Exec(ctx, "INSERT INTO permissions (role_id, resource, value) VALUES (?, 'testpermission', 'invalid')", utils.Must(rs1.LastInsertId()))
+	permissionID := utils.Must(uuid.NewV7())
+	_, err = a.DB().Exec(ctx, "INSERT INTO permissions (id, role_id, resource, value) VALUES (?, ?, 'testpermission', 'invalid')", permissionID.String(), role1ID)
 	assert.NoError(t, err)
 	assert.Error(t, a.UpdateCache(ctx))
 
@@ -661,7 +667,7 @@ func TestFastschemaResources(t *testing.T) {
 		"email":"admin@local.ltd",
 		"password":"123"
 	}`)))
-	resp = utils.Must(server.Test(req))
+	resp = utils.Must(server.Test(req, -1))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 200, resp.StatusCode)
 

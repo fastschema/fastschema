@@ -173,39 +173,33 @@ func TestCreateSchemaFieldTagRelation(t *testing.T) {
 	assert.Equal(t, expectedFields, ss.Fields)
 }
 
-func TestCreateSchemaFieldTagRenderer(t *testing.T) {
-	// Case 1: Invalid renderer
+func TestCreateSchemaSettingsTag(t *testing.T) {
+	// Case 1: Invalid settings
 	type Category1 struct {
-		Name string `json:"name" fs.renderer:"indalid"`
+		_ any `fs.settings:"indalid"`
 	}
 
 	ss, err := schema.CreateSchema(Category1{})
 	assert.Nil(t, ss)
-	assert.Contains(t, err.Error(), "invalid renderer format")
+	assert.Contains(t, err.Error(), "invalid settings format")
 
 	// Case 2: Success
 	type Category2 struct {
-		Name string `json:"name" fs.renderer:"{'class': 'TitleRenderer', 'settings': {'size': 255}}"`
+		_    any    `fs.settings:"{'form':{'active_view':'default','views':{'default':{'main':[{'field':'name','renderer':'text'}]}}}}"`
+		Name string `json:"name"`
 	}
 
 	ss, err = schema.CreateSchema(Category2{})
 	assert.NoError(t, err)
-	expectedFields := []*schema.Field{
-		{
-			IsSystemField: true,
-			Type:          schema.TypeString,
-			Name:          "name",
-			Label:         "Name",
-			Renderer: &schema.FieldRenderer{
-				Class: "TitleRenderer",
-				Settings: map[string]any{
-					"size": float64(255),
-				},
-			},
-		},
-	}
-
-	assert.Equal(t, expectedFields, ss.Fields)
+	assert.NotNil(t, ss.Settings)
+	assert.NotNil(t, ss.Settings.Form)
+	assert.Equal(t, "default", ss.Settings.Form.ActiveView)
+	assert.NotNil(t, ss.Settings.Form.Views)
+	assert.NotNil(t, ss.Settings.Form.Views["default"])
+	assert.NotNil(t, ss.Settings.Form.Views["default"]["main"])
+	assert.Len(t, ss.Settings.Form.Views["default"]["main"], 1)
+	assert.Equal(t, "name", ss.Settings.Form.Views["default"]["main"][0].Field)
+	assert.Equal(t, "text", ss.Settings.Form.Views["default"]["main"][0].Renderer)
 }
 
 func TestCreateSchemaFieldTagDB(t *testing.T) {
@@ -342,7 +336,7 @@ func TestCreateSchemaFieldTagError(t *testing.T) {
 	}
 	ss, err = schema.CreateSchema(Category7{})
 	assert.Nil(t, ss)
-	assert.Contains(t, err.Error(), "relation type is required")
+	assert.Contains(t, err.Error(), "relation.type is required")
 }
 
 func TestCreateSchemaWithSimpleField(t *testing.T) {

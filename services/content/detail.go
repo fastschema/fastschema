@@ -3,7 +3,6 @@ package contentservice
 import (
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
@@ -12,11 +11,15 @@ import (
 )
 
 func (cs *ContentService) Detail(c fs.Context, _ any) (*entity.Entity, error) {
-	id := c.ArgInt("id")
 	schemaName := c.Arg("schema")
 	model, err := cs.DB().Model(schemaName)
 	if err != nil {
 		return nil, errors.BadRequest(err.Error())
+	}
+
+	idValue, err := parseIDArg(model.Schema(), c.Arg("id"))
+	if err != nil {
+		return nil, errors.NotFound(err.Error())
 	}
 
 	columns := []string{}
@@ -30,9 +33,9 @@ func (cs *ContentService) Detail(c fs.Context, _ any) (*entity.Entity, error) {
 		return nil, errors.BadRequest(err.Error())
 	}
 
-	spew.Dump(relationOptions)
-
-	query := model.Query(db.EQ("id", id)).Select(columns...)
+	query := model.
+		Query(db.EQ(model.Schema().PrimaryKeyName(), idValue)).
+		Select(columns...)
 
 	// Apply relation options if provided
 	if relationOptions != nil {

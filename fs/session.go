@@ -33,7 +33,7 @@ const (
 type Session struct {
 	_              any        `json:"-" fs:"label_field=id"`
 	ID             uuid.UUID  `json:"id" fs:"type=uuid;filterable;sortable"`
-	UserID         uint64     `json:"user_id,omitempty"`
+	UserID         uuid.UUID  `json:"user_id,omitempty" fs:"type=uuid"`
 	DeviceInfo     string     `json:"device_info,omitempty" fs:"size=512;optional"`
 	IPAddress      string     `json:"ip_address,omitempty" fs:"optional"`
 	LastActivityAt *time.Time `json:"last_activity_at,omitempty" fs:"optional"`

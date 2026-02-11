@@ -13,13 +13,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Test UUIDs for consistent testing
+var (
+	testUserID1 = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	testUserID2 = uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	testRoleID1 = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	testRoleID2 = uuid.MustParse("00000000-0000-0000-0000-000000000002")
+)
+
 func TestGenerateAccessToken(t *testing.T) {
 	userClaims := &jwt.UserClaims{
-		ID:       1,
+		ID:       testUserID1,
 		Username: "testuser",
 		Email:    "test@example.com",
 		Active:   true,
-		RoleIDs:  []uint64{2},
+		RoleIDs:  []uuid.UUID{testRoleID2},
 	}
 	key := "test-secret-key-32-characters!!"
 	expiresAt := time.Now().Add(time.Hour)
@@ -32,11 +40,11 @@ func TestGenerateAccessToken(t *testing.T) {
 
 func TestGenerateAccessTokenDefaultExpiration(t *testing.T) {
 	userClaims := &jwt.UserClaims{
-		ID:       1,
+		ID:       testUserID1,
 		Username: "testuser",
 		Email:    "test@example.com",
 		Active:   true,
-		RoleIDs:  []uint64{2},
+		RoleIDs:  []uuid.UUID{testRoleID2},
 	}
 	key := "test-secret-key-32-characters!!"
 
@@ -51,7 +59,7 @@ func TestGenerateAccessTokenDefaultExpiration(t *testing.T) {
 
 func TestGenerateAccessTokenMissingKey(t *testing.T) {
 	userClaims := &jwt.UserClaims{
-		ID:       1,
+		ID:       testUserID1,
 		Username: "testuser",
 	}
 
@@ -61,11 +69,11 @@ func TestGenerateAccessTokenMissingKey(t *testing.T) {
 
 func TestGenerateAccessTokenWithCustomClaims(t *testing.T) {
 	userClaims := &jwt.UserClaims{
-		ID:       1,
+		ID:       testUserID1,
 		Username: "testuser",
 		Email:    "test@example.com",
 		Active:   true,
-		RoleIDs:  []uint64{2},
+		RoleIDs:  []uuid.UUID{testRoleID2},
 	}
 	key := "test-secret-key-32-characters!!"
 	expiresAt := time.Now().Add(time.Hour)
@@ -80,7 +88,7 @@ func TestGenerateAccessTokenWithCustomClaims(t *testing.T) {
 }
 
 func TestGenerateRefreshToken(t *testing.T) {
-	userID := uint64(1)
+	userID := testUserID1
 	sessionID := utils.Must(uuid.NewV7())
 	key := "test-secret-key-32-characters!!"
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
@@ -91,7 +99,7 @@ func TestGenerateRefreshToken(t *testing.T) {
 }
 
 func TestGenerateRefreshTokenMissingKey(t *testing.T) {
-	userID := uint64(1)
+	userID := testUserID1
 	sessionID := utils.Must(uuid.NewV7())
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
@@ -101,11 +109,11 @@ func TestGenerateRefreshTokenMissingKey(t *testing.T) {
 
 func TestParseAccessToken(t *testing.T) {
 	userClaims := &jwt.UserClaims{
-		ID:       1,
+		ID:       testUserID1,
 		Username: "testuser",
 		Email:    "test@example.com",
 		Active:   true,
-		RoleIDs:  []uint64{2},
+		RoleIDs:  []uuid.UUID{testRoleID2},
 	}
 	key := "test-secret-key-32-characters!!"
 	expiresAt := time.Now().Add(time.Hour)
@@ -131,7 +139,7 @@ func TestParseAccessTokenInvalid(t *testing.T) {
 }
 
 func TestParseRefreshToken(t *testing.T) {
-	userID := uint64(1)
+	userID := testUserID1
 	sessionID := utils.Must(uuid.NewV7())
 	key := "test-secret-key-32-characters!!"
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
@@ -179,7 +187,7 @@ func TestTokenPair(t *testing.T) {
 
 func TestUserToJwtClaims(t *testing.T) {
 	user := &fs.User{
-		ID:                   1,
+		ID:                   testUserID1,
 		Username:             "testuser",
 		Email:                "test@example.com",
 		FirstName:            "Test",
@@ -188,8 +196,8 @@ func TestUserToJwtClaims(t *testing.T) {
 		Provider:             "local",
 		ProviderProfileImage: "http://example.com/image.jpg",
 		Roles: []*fs.Role{
-			{ID: 1, Name: "admin"},
-			{ID: 2, Name: "user"},
+			{ID: testRoleID1, Name: "admin"},
+			{ID: testRoleID2, Name: "user"},
 		},
 	}
 
@@ -203,12 +211,12 @@ func TestUserToJwtClaims(t *testing.T) {
 	assert.Equal(t, user.Active, claims.Active)
 	assert.Equal(t, user.Provider, claims.Provider)
 	assert.Equal(t, user.ProviderProfileImage, claims.ProviderProfileImage)
-	assert.Equal(t, []uint64{1, 2}, claims.RoleIDs)
+	assert.Equal(t, []uuid.UUID{testRoleID1, testRoleID2}, claims.RoleIDs)
 }
 
 func TestJwtClaimsToUser(t *testing.T) {
 	claims := &jwt.UserClaims{
-		ID:                   1,
+		ID:                   testUserID1,
 		Username:             "testuser",
 		Email:                "test@example.com",
 		FirstName:            "Test",
@@ -216,7 +224,7 @@ func TestJwtClaimsToUser(t *testing.T) {
 		Active:               true,
 		Provider:             "local",
 		ProviderProfileImage: "http://example.com/image.jpg",
-		RoleIDs:              []uint64{1, 2},
+		RoleIDs:              []uuid.UUID{testRoleID1, testRoleID2},
 	}
 
 	user := jwt.JwtClaimsToUser(claims)

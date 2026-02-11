@@ -13,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	ms "github.com/fastschema/fastschema/services/file"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,7 +49,7 @@ func createFileService(t *testing.T) (*ms.FileService, *rr.Server) {
 	}))
 	resources := fs.NewResourcesManager()
 	resources.Middlewares = append(resources.Middlewares, func(c fs.Context) error {
-		c.Local("user", &fs.User{ID: 1})
+		c.Local("user", &fs.User{ID: uuid.MustParse("00000000-0000-0000-0000-000000000001")})
 		return c.Next()
 	})
 	resources.Group("file").

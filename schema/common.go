@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
-	"maps"
 	"reflect"
 	"slices"
 	"time"
@@ -15,26 +13,6 @@ import (
 type FieldEnum struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
-}
-
-// FieldRenderer define the renderer of a field
-type FieldRenderer struct {
-	Class    string         `json:"class,omitempty"`    // renderer class name
-	Settings map[string]any `json:"settings,omitempty"` // renderer settings.
-}
-
-func (fr *FieldRenderer) Clone() *FieldRenderer {
-	if fr == nil {
-		return nil
-	}
-
-	settings := make(map[string]any)
-	maps.Copy(settings, fr.Settings)
-
-	return &FieldRenderer{
-		Class:    fr.Class,
-		Settings: settings,
-	}
 }
 
 // FieldDB define the db config for a field
@@ -52,8 +30,15 @@ func (f *FieldEnum) Clone() *FieldEnum {
 	}
 }
 
-func (f *FieldDB) Clone() *FieldDB {
+func (f *FieldDB) IsEmpty() bool {
 	if f == nil {
+		return true
+	}
+	return f.Attr == "" && f.Collation == "" && !f.Increment && f.Key == 0
+}
+
+func (f *FieldDB) Clone() *FieldDB {
+	if f == nil || f.IsEmpty() {
 		return nil
 	}
 
@@ -260,6 +245,10 @@ func (t FieldType) IsRelationType() bool {
 	return t == TypeRelation || t == TypeFile
 }
 
+func (t FieldType) IsFileType() bool {
+	return t == TypeFile
+}
+
 // String returns the string representation of a type.
 func (t FieldType) String() string {
 	if t < endFieldTypes {
@@ -320,7 +309,7 @@ func (t *FieldType) UnmarshalJSON(b []byte) error {
 	*t = stringToFieldTypes[fieldType] // If the string can't be found, it will be set to the zero value: 'invalid'
 
 	if *t == TypeInvalid {
-		return fmt.Errorf("invalid field type %q", fieldType)
+		return FieldTypeParseError(fieldType)
 	}
 
 	return nil

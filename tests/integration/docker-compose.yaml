@@ -1,7 +1,6 @@
-version: "3.7"
+version: '3.7'
 
 services:
-
   mysql8:
     platform: linux/amd64
     image: mysql:8
@@ -11,7 +10,7 @@ services:
     healthcheck:
       test: mysqladmin ping -p123
     ports:
-      - 33060:3306
+      - 3307:3306
   mysql9:
     platform: linux/amd64
     image: mysql:9
@@ -21,7 +20,7 @@ services:
     healthcheck:
       test: mysqladmin ping -p123
     ports:
-      - 33061:3306
+      - 3308:3306
 
   mariadb10:
     platform: linux/amd64
@@ -32,7 +31,7 @@ services:
     healthcheck:
       test: mysqladmin ping -p123
     ports:
-      - 33070:3306
+      - 3309:3306
 
   mariadb11:
     platform: linux/amd64
@@ -41,12 +40,22 @@ services:
       MYSQL_DATABASE: fastschema
       MYSQL_ROOT_PASSWORD: 123
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-p123", "--silent"]
+      test:
+        [
+          'CMD',
+          'mariadb-admin',
+          'ping',
+          '-h',
+          '127.0.0.1',
+          '-uroot',
+          '-p123',
+          '--silent',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - 33071:3306
+      - 3310:3306
 
   mariadb12:
     platform: linux/amd64
@@ -55,12 +64,22 @@ services:
       MYSQL_DATABASE: fastschema
       MYSQL_ROOT_PASSWORD: 123
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-p123", "--silent"]
+      test:
+        [
+          'CMD',
+          'mariadb-admin',
+          'ping',
+          '-h',
+          '127.0.0.1',
+          '-uroot',
+          '-p123',
+          '--silent',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - 33072:3306
+      - 3311:3306
 
   postgres10:
     platform: linux/amd64
@@ -71,7 +90,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54320:5432
+      - 5433:5432
 
   postgres11:
     platform: linux/amd64
@@ -82,7 +101,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54321:5432
+      - 5434:5432
 
   postgres12:
     platform: linux/amd64
@@ -93,7 +112,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54322:5432
+      - 5435:5432
 
   postgres13:
     platform: linux/amd64
@@ -104,7 +123,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54323:5432
+      - 5436:5432
 
   postgres14:
     platform: linux/amd64
@@ -115,7 +134,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54324:5432
+      - 5437:5432
 
   postgres15:
     platform: linux/amd64
@@ -126,7 +145,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54325:5432
+      - 5438:5432
 
   postgres16:
     platform: linux/amd64
@@ -137,7 +156,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54326:5432
+      - 5439:5432
 
   postgres17:
     platform: linux/amd64
@@ -148,7 +167,7 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54327:5432
+      - 5440:5432
 
   postgres18:
     platform: linux/amd64
@@ -159,4 +178,4 @@ services:
     healthcheck:
       test: pg_isready -U postgres
     ports:
-      - 54328:5432
+      - 5441:5432

@@ -36,7 +36,10 @@ func (m *Mutation) Update(ctx context.Context, e *entity.Entity) (affected int, 
 	if m.client != nil {
 		hooks := m.client.Hooks()
 		if len(hooks.PostDBUpdate) > 0 {
-			originalEntities, err = m.model.Query(*m.predicates...).Select("id").Get(ctx)
+			originalEntities, err = m.model.
+				Query(*m.predicates...).
+				Select(m.model.Schema().PrimaryKeyName()).
+				Get(ctx)
 			if err != nil {
 				return 0, err
 			}

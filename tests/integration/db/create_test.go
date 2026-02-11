@@ -107,57 +107,49 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				car1 := utils.Must(utils.Must(client.Model("car")).Query(db.EQ("id", car1ID)).Only(h.Ctx()))
 				assert.Equal(t, uint64(1), car1.ID())
 				utils.Must(utils.Must(client.Model("car")).CreateFromJSON(h.Ctx(), `{"name": "Car 2"}`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 1", "username": "user1", "provider": "local", "car": {"id": %d} }`, 1)))
-				utils.Must(utils.Must(client.Model("card")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"number": "1234567890", "owner": {"id": %d}}`, 1)))
+				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 1", "username": "user1", "provider": "local", "car": {"id": %d} }`, 1)))
+				utils.Must(utils.Must(client.Model("card")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"number": "1234567890", "owner": {"id": %s}}`, h.ToJSONID(user1ID))))
 			},
 			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				entity, err := m.Query(db.EQ("id", e.ID())).Only(h.Ctx())
 				assert.NoError(t, err)
-				assert.Equal(t, uint64(2), entity.ID())
+				h.AssertID(t, entity.ID())
 				assert.Equal(t, "User 2", entity.Get("name"))
 			},
 		},
 		{
-			Name:   "edges/o2o_two_types/inverse",
-			Schema: "card",
-			InputJSON: `{
-				"number": "0001",
-				"owner": {
-					"id": 2
-					}
-				}`,
+			Name:        "edges/o2o_two_types/inverse",
+			Schema:      "card",
+			InputJSON:   `{}`,
 			ClearTables: []string{"users", "cards"},
-			Prepare: func(t *testing.T) {
+			Run: func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				createdEntityID := utils.Must(model.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"number": "0001", "owner": {"id": %s}}`, h.ToJSONID(user2ID))))
+				return model.Query(db.EQ("id", createdEntityID)).First(h.Ctx())
 			},
 			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				entity := utils.Must(m.Query(db.EQ("id", e.ID())).Only(h.Ctx()))
 				assert.Equal(t, uint64(1), entity.ID())
 				assert.Equal(t, "0001", entity.Get("number"))
-				assert.Equal(t, uint64(2), entity.Get("owner_id"))
+				h.AssertID(t, entity.Get("owner_id"))
 			},
 		},
 		{
-			Name:   "edges/o2o_same_types/bidi",
-			Schema: "user",
-			InputJSON: `{
-				"name": "User 3",
-				"username": "user3",
-				"provider": "local",
-				"spouse": {
-					"id": 2
-				}
-			}`,
+			Name:        "edges/o2o_same_types/bidi",
+			Schema:      "user",
+			InputJSON:   `{}`,
 			ClearTables: []string{"users"},
-			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+			Run: func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
+				utils.Must(model.CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				user2ID := utils.Must(model.CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				createdEntityID := utils.Must(model.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 3", "username": "user3", "provider": "local", "spouse": {"id": %s}}`, h.ToJSONID(user2ID))))
+				return model.Query(db.EQ("id", createdEntityID)).First(h.Ctx())
 			},
 			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
-				user2 := utils.Must(m.Query(db.EQ("id", 2)).Only(h.Ctx()))
+				user2 := utils.Must(m.Query(db.EQ("name", "User 2")).Only(h.Ctx()))
 				user3 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(h.Ctx()))
-				assert.Equal(t, uint64(3), user3.ID())
+				h.AssertID(t, user3.ID())
 				assert.Equal(t, user2.ID(), user3.Get("spouse_id"))
 				assert.Equal(t, user3.ID(), user2.Get("spouse_id"))
 			},
@@ -207,76 +199,60 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			},
 		},
 		{
-			Name:   "edges/o2m_two_types",
-			Schema: "user",
-			InputJSON: `{
-				"name": "User 2",
-				"username": "user2",
-				"provider": "local",
-				"sub_pets": [
-					{
-						"id": 1
-					}
-				]
-			}`,
+			Name:        "edges/o2m_two_types",
+			Schema:      "user",
+			InputJSON:   `{}`,
 			ClearTables: []string{"users", "pets"},
-			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
-				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{ "name": "Pet 1", "owner_id": 1 }`))
+			Run: func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
+				user1ID := utils.Must(model.CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{ "name": "Pet 1", "owner": {"id": %s} }`, h.ToJSONID(user1ID))))
+				createdEntityID := utils.Must(model.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "sub_pets": [{"id": 1}]}`))
+				return model.Query(db.EQ("id", createdEntityID)).First(h.Ctx())
 			},
 			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				pet1 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", 1)).Only(h.Ctx()))
 				user2 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(h.Ctx()))
-				assert.Equal(t, uint64(2), user2.ID())
+				h.AssertID(t, user2.ID())
 				assert.Equal(t, pet1.Get("sub_owner_id"), user2.ID())
 				assert.Equal(t, "User 2", user2.Get("name"))
 			},
 		},
 		{
-			Name:   "edges/o2m_two_types/multiple",
-			Schema: "user",
-			InputJSON: `{
-				"name": "User 2",
-				"username": "user2",
-				"provider": "local",
-				"sub_pets": [
-					{ "id": 1 },
-					{ "id": 2 }
-				]
-			}`,
+			Name:        "edges/o2m_two_types/multiple",
+			Schema:      "user",
+			InputJSON:   `{}`,
 			ClearTables: []string{"users", "pets"},
-			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
-				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{ "name": "Pet 1", "owner_id": 1 }`))
-				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), `{ "name": "Pet 2", "owner_id": 1 }`))
+			Run: func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
+				user1ID := utils.Must(model.CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{ "name": "Pet 1", "owner": {"id": %s} }`, h.ToJSONID(user1ID))))
+				utils.Must(utils.Must(client.Model("pet")).CreateFromJSON(h.Ctx(), fmt.Sprintf(`{ "name": "Pet 2", "owner": {"id": %s} }`, h.ToJSONID(user1ID))))
+				createdEntityID := utils.Must(model.CreateFromJSON(h.Ctx(), `{"name": "User 2", "username": "user2", "provider": "local", "sub_pets": [{"id": 1}, {"id": 2}]}`))
+				return model.Query(db.EQ("id", createdEntityID)).First(h.Ctx())
 			},
 			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				user2 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(h.Ctx()))
 				pet1 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", 1)).Only(h.Ctx()))
 				pet2 := utils.Must(utils.Must(client.Model("pet")).Query(db.EQ("id", 2)).Only(h.Ctx()))
 
-				assert.Equal(t, uint64(2), user2.ID())
+				h.AssertID(t, user2.ID())
 				assert.Equal(t, pet1.Get("sub_owner_id"), user2.ID())
 				assert.Equal(t, pet2.Get("sub_owner_id"), user2.ID())
 			},
 		},
 		{
-			Name:   "edges/o2m_two_types/inverse",
-			Schema: "pet",
-			InputJSON: `{
-				"name": "Pet 1",
-				"owner": {
-					"id": 2
-				}
-			}`,
+			Name:        "edges/o2m_two_types/inverse",
+			Schema:      "pet",
+			InputJSON:   `{}`,
 			ClearTables: []string{"users", "pets"},
-			Prepare: func(t *testing.T) {
+			Run: func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
 				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				createdEntityID := utils.Must(model.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Pet 1", "owner": {"id": %s}}`, h.ToJSONID(user2ID))))
+				return model.Query(db.EQ("id", createdEntityID)).First(h.Ctx())
 			},
 			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				pet1 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(h.Ctx()))
-				user2 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("id", 2)).Only(h.Ctx()))
+				user2 := utils.Must(utils.Must(client.Model("user")).Query(db.EQ("name", "User 2")).Only(h.Ctx()))
 
 				assert.Equal(t, uint64(1), pet1.ID())
 				assert.Equal(t, pet1.Get("owner_id"), user2.ID())
@@ -372,19 +348,15 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 			},
 		},
 		{
-			Name:   "edges/m2m",
-			Schema: "group",
-			InputJSON: `{
-				"name": "Group 1",
-				"users": [
-					{ "id": 1 },
-					{ "id": 2 }
-				]
-			}`,
+			Name:        "edges/m2m",
+			Schema:      "group",
+			InputJSON:   `{}`,
 			ClearTables: []string{"users", "groups", "groups_users"},
-			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+			Run: func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
+				user1ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				user2ID := utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				createdEntityID := utils.Must(model.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "Group 1", "users": [{"id": %s}, {"id": %s}]}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID))))
+				return model.Query(db.EQ("id", createdEntityID)).First(h.Ctx())
 			},
 			Expect: func(t *testing.T, m db.Model, groupEntity *entity.Entity) {
 				group1 := utils.Must(m.Query(db.EQ("id", groupEntity.ID())).Only(h.Ctx()))
@@ -395,7 +367,7 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 
 				assert.Equal(t, uint64(1), group1.ID())
 				assert.Equal(t, "Group 1", group1.Get("name"))
-				assert.Equal(t, userIDs, []any{uint64(1), uint64(2)})
+				assert.Len(t, userIDs, 2)
 			},
 		},
 		{
@@ -423,26 +395,20 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				})
 
 				assert.Equal(t, "User 1", user1.Get("name"))
-				assert.Equal(t, uint64(1), user1.ID())
+				h.AssertID(t, user1.ID())
 				assert.Equal(t, groupIDs, []any{uint64(1), uint64(2)})
 			},
 		},
 		{
-			Name:   "edges/m2m/bidi",
-			Schema: "user",
-			InputJSON: `{
-				"name": "User 3",
-				"username": "user3",
-				"provider": "local",
-				"friends": [
-					{ "id": 1 },
-					{ "id": 2 }
-				]
-			}`,
+			Name:        "edges/m2m/bidi",
+			Schema:      "user",
+			InputJSON:   `{}`,
 			ClearTables: []string{"users", "friends_user"},
-			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+			Run: func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
+				user1ID := utils.Must(model.CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				user2ID := utils.Must(model.CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				createdEntityID := utils.Must(model.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 3", "username": "user3", "provider": "local", "friends": [{"id": %s}, {"id": %s}]}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID))))
+				return model.Query(db.EQ("id", createdEntityID)).First(h.Ctx())
 			},
 			Expect: func(t *testing.T, m db.Model, userEntity *entity.Entity) {
 				user3 := utils.Must(m.Query(db.EQ("id", userEntity.ID())).Only(h.Ctx()))
@@ -454,32 +420,24 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 				})
 
 				assert.Equal(t, "User 3", user3.Get("name"))
-				assert.Equal(t, friendIDs, []any{uint64(1), uint64(2)})
-				assert.Equal(t, uint64(3), user3.ID())
+				assert.Len(t, friendIDs, 2)
+				h.AssertID(t, user3.ID())
 			},
 		},
 		{
-			Name:   "edges/m2m/bidi/batch",
-			Schema: "user",
-			InputJSON: `{
-				"name": "User 3",
-				"username": "user3",
-				"provider": "local",
-				"friends": [
-					{ "id": 1 },
-					{ "id": 2 }
-				],
-				"groups": [
-					{ "id": 1 },
-					{ "id": 2 }
-				]
-			}`,
+			Name:        "edges/m2m/bidi/batch",
+			Schema:      "user",
+			InputJSON:   `{}`,
 			ClearTables: []string{"users", "groups", "groups_users", "friends_user"},
-			Prepare: func(t *testing.T) {
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
-				utils.Must(utils.Must(client.Model("user")).CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
-				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(h.Ctx(), `{ "name": "Group 1" }`))
-				utils.Must(utils.Must(client.Model("group")).CreateFromJSON(h.Ctx(), `{ "name": "Group 2" }`))
+			Run: func(model db.Model, e *entity.Entity) (*entity.Entity, error) {
+				userModel := utils.Must(client.Model("user"))
+				groupModel := utils.Must(client.Model("group"))
+				user1ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{ "name": "User 1", "username": "user1", "provider": "local" }`))
+				user2ID := utils.Must(userModel.CreateFromJSON(h.Ctx(), `{ "name": "User 2", "username": "user2", "provider": "local" }`))
+				group1ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), `{ "name": "Group 1" }`))
+				group2ID := utils.Must(groupModel.CreateFromJSON(h.Ctx(), `{ "name": "Group 2" }`))
+				createdEntityID := utils.Must(model.CreateFromJSON(h.Ctx(), fmt.Sprintf(`{"name": "User 3", "username": "user3", "provider": "local", "friends": [{"id": %s}, {"id": %s}], "groups": [{"id": %v}, {"id": %v}]}`, h.ToJSONID(user1ID), h.ToJSONID(user2ID), group1ID, group2ID)))
+				return model.Query(db.EQ("id", createdEntityID)).First(h.Ctx())
 			},
 			Expect: func(t *testing.T, m db.Model, e *entity.Entity) {
 				user3 := utils.Must(m.Query(db.EQ("id", e.ID())).Only(h.Ctx()))
@@ -495,9 +453,9 @@ func DBCreateNodeEdges(t *testing.T, client db.Client) {
 					return gu.Get("groups")
 				})
 
-				assert.Equal(t, uint64(3), user3.ID())
+				h.AssertID(t, user3.ID())
 				assert.Equal(t, "User 3", user3.Get("name"))
-				assert.Equal(t, friendIDs, []any{uint64(1), uint64(2)})
+				assert.Len(t, friendIDs, 2)
 				assert.Equal(t, groupIDs, []any{uint64(1), uint64(2)})
 			},
 		},

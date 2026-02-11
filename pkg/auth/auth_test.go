@@ -14,6 +14,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 )
 
 type restfulResolverContext = restfulresolver.Context
@@ -76,6 +77,9 @@ type testAppConfig struct {
 	db         db.Client
 	createData bool
 	activation string
+	// Track created user IDs for testing
+	user01ID uuid.UUID
+	user02ID uuid.UUID
 }
 
 func createLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
@@ -92,24 +96,30 @@ func createLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 		config.db = utils.Must(entdbadapter.NewTestClient(migrationsDir, sb))
 		roleModel := utils.Must(config.db.Model("role"))
 		userModel := utils.Must(config.db.Model("user"))
-		utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "admin"}`))
-		utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "user"}`))
-		utils.Must(userModel.CreateFromJSON(context.Background(), `{
+		adminRoleIDRaw := utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "admin"}`))
+		adminRoleID := adminRoleIDRaw.(uuid.UUID)
+		userRoleIDRaw := utils.Must(roleModel.CreateFromJSON(context.Background(), `{"name": "User"}`))
+		userRoleID := userRoleIDRaw.(uuid.UUID)
+		// Update the global fs.RoleUser.ID so that Register.Entity() can reference it
+		fs.RoleUser.ID = userRoleID
+		user01IDRaw := utils.Must(userModel.CreateFromJSON(context.Background(), `{
 			"username": "user01",
 			"password": "user01",
 			"email": "user01@site.local",
 			"provider": "local",
 			"active": false,
-			"roles": [{"id": 1}]
+			"roles": [{"id": "`+adminRoleID.String()+`"}]
 	}`))
-		utils.Must(userModel.CreateFromJSON(context.Background(), `{
+		config.user01ID = user01IDRaw.(uuid.UUID)
+		user02IDRaw := utils.Must(userModel.CreateFromJSON(context.Background(), `{
 			"username": "user02",
 			"password": "user02",
 			"email": "user02@site.local",
 			"provider": "local",
 			"active": true,
-			"roles": [{"id": 1}]
+			"roles": [{"id": "`+adminRoleID.String()+`"}]
 	}`))
+		config.user02ID = user02IDRaw.(uuid.UUID)
 	}
 
 	authProvider := utils.Must(auth.NewLocalAuthProvider(fs.Map{

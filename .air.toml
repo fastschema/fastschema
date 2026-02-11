@@ -1,3 +1,5 @@
+#:schema https://raw.githubusercontent.com/SchemaStore/schemastore/e67783bd9a9c334d2ddfc64729354f3b99fb1a9c/src/schemas/json/air-verse-air.json
+
 root = "."
 testdata_dir = "testdata"
 tmp_dir = "data/tmp"
@@ -11,7 +13,7 @@ delay = 1
 exclude_dir = [
   "tests",
   ".git",
-  # "data",
+  "docs",
   "data/backup",
   "data/logs",
   "data/migrations",
@@ -44,7 +46,7 @@ follow_symlink = false
 include_dir = []
 include_ext = ["go", "tpl", "tmpl", "html", "js"]
 include_file = []
-kill_delay = "0s"
+kill_delay = 0
 log = "build-errors.log"
 poll = false
 poll_interval = 0

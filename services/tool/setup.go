@@ -11,6 +11,7 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/utils"
+	"github.com/google/uuid"
 )
 
 func Setup(
@@ -72,7 +73,11 @@ func Setup(
 }
 
 func CreateRole(ctx context.Context, dbc db.Client, roleData *fs.Role) (*fs.Role, error) {
-	return db.Create[*fs.Role](ctx, dbc, entity.New().
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate UUIDv7 for role: %w", err)
+	}
+	return db.Create[*fs.Role](ctx, dbc, entity.New(id.String()).
 		Set("name", roleData.Name).
 		Set("description", roleData.Description).
 		Set("root", roleData.Root))
@@ -81,7 +86,7 @@ func CreateRole(ctx context.Context, dbc db.Client, roleData *fs.Role) (*fs.Role
 func ResetAdminPassword(ctx context.Context,
 	dbClient db.Client,
 	password string,
-	id int,
+	id uuid.UUID,
 ) (err error) {
 	defer func() {
 		if r := recover(); r != nil {

@@ -465,7 +465,7 @@ func testOTPVerifyAndAccessProtectedResource(dbc db.Client) func(t *testing.T) {
 		var data map[string]any
 		require.NoError(t, json.Unmarshal(apiResp.Data, &data))
 		assert.Equal(t, "protected resource", data["message"])
-		assert.Equal(t, float64(app.testUser.ID), data["user_id"])
+		assert.Equal(t, app.testUser.ID.String(), data["user_id"])
 	}
 }
 
@@ -916,6 +916,10 @@ func testOTPDifferentProviderUser(dbc db.Client) func(t *testing.T) {
 
 		// Create a user with Google provider (lowercase email)
 		userModel := utils.Must(dbc.Model("user"))
+		roleModel := utils.Must(dbc.Model("role"))
+		userRole, err := roleModel.Query(db.EQ("name", "User")).First(context.Background())
+		require.NoError(t, err)
+		userRoleID := userRole.Get("id")
 		randomSuffix := utils.RandomString(8)
 		googleEmail := strings.ToLower("google" + randomSuffix + "@example.com")
 		googleUserID, err := userModel.Create(context.Background(), entity.New().
@@ -924,7 +928,7 @@ func testOTPDifferentProviderUser(dbc db.Client) func(t *testing.T) {
 			Set("provider", "google").
 			Set("provider_id", "google_"+randomSuffix). // Use unique provider_id
 			Set("active", true).
-			Set("roles", []*entity.Entity{entity.New(2)}))
+			Set("roles", []*entity.Entity{entity.New().Set("id", userRoleID)}))
 		require.NoError(t, err)
 
 		// Request OTP for Google user

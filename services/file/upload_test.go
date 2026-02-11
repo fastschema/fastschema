@@ -74,7 +74,8 @@ func TestFileServiceUpload(t *testing.T) {
 
 	// Case 2: Error due to invalid file
 	userModel := utils.Must(ms.DB().Model("user"))
-	assert.True(t, utils.Must(userModel.CreateFromJSON(context.Background(), `{"username": "test", "password": "123", "provider": "local"}`)) != nil)
+	// Create user with the same UUID that the middleware uses
+	assert.True(t, utils.Must(userModel.CreateFromJSON(context.Background(), `{"id": "00000000-0000-0000-0000-000000000001", "username": "test", "password": "123", "provider": "local"}`)) != nil)
 
 	req = httptest.NewRequest("POST", "/file/upload", body)
 	req.Header.Add("Content-Type", mw.FormDataContentType())

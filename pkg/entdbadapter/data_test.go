@@ -15,8 +15,16 @@ import (
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+// Test UUID constants for user IDs
+var (
+	testUserUUID1 = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	testUserUUID2 = uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	testUserUUID3 = uuid.MustParse("00000000-0000-0000-0000-000000000003")
 )
 
 type MockTestCreateData struct {

@@ -10,8 +10,9 @@ import (
 const SchemaIDOnlyName = "Schema.IDOnly"
 const SchemaCreate = "Create"
 
+// IDOnlySchema accepts both UUID strings and integer IDs
 var IDOnlySchema = ogen.NewSchema().AddRequiredProperties(
-	PrimitiveToOgenTypeMaps[reflect.Uint64]().ToProperty("id"),
+	ogen.String().SetFormat("uuid").ToProperty("id"),
 )
 
 var UintMinValue int64 = 0

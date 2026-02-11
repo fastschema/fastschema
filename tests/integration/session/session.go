@@ -14,6 +14,7 @@ import (
 	rr "github.com/fastschema/fastschema/pkg/restfulresolver"
 	"github.com/fastschema/fastschema/pkg/utils"
 	as "github.com/fastschema/fastschema/services/auth"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -110,10 +111,14 @@ func createTestApp(t *testing.T, dbc db.Client) *testApp {
 	roleModel := utils.Must(dbc.Model("role"))
 	userModel := utils.Must(dbc.Model("user"))
 
+	var userRoleID uuid.UUID
 	for _, r := range []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest} {
-		_, _ = roleModel.Create(context.Background(), entity.New().
+		roleID, _ := roleModel.Create(context.Background(), entity.New().
 			Set("name", r.Name).
 			Set("root", r.Root))
+		if r.Name == fs.RoleUser.Name {
+			userRoleID = roleID.(uuid.UUID)
+		}
 	}
 
 	// Create test user with unique credentials
@@ -126,7 +131,7 @@ func createTestApp(t *testing.T, dbc db.Client) *testApp {
 		Set("provider", "local").
 		Set("provider_id", utils.RandomString(8)).
 		Set("active", true).
-		Set("roles", []*entity.Entity{entity.New(2)}))
+		Set("roles", []*entity.Entity{entity.New(userRoleID)}))
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
 	}
@@ -144,7 +149,7 @@ func createTestApp(t *testing.T, dbc db.Client) *testApp {
 			AuthConfig: authConfig,
 		},
 		testUser: &fs.User{
-			ID:       userID.(uint64),
+			ID:       userID.(uuid.UUID),
 			Username: username,
 			Email:    email,
 			Active:   true,

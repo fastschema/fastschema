@@ -13,6 +13,7 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	toolservice "github.com/fastschema/fastschema/services/tool"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -102,19 +103,23 @@ func TestResetAdminPasswordSuccess(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
+	// Find the admin user to get their UUID
+	userModel := utils.Must(entDB.Model("user"))
+	adminUser := utils.Must(userModel.Query(db.EQ("username", "admin")).First(context.Background()))
+	adminID := adminUser.ID().(uuid.UUID)
+
 	// Reset password
 	err = toolservice.ResetAdminPassword(
 		context.Background(),
 		entDB,
 		"newpassword",
-		1,
+		adminID,
 	)
 	assert.NoError(t, err)
 
 	// Verify password change
-	userModel := utils.Must(entDB.Model("user"))
 	ctx := context.WithValue(context.Background(), "keeppassword", "true")
-	adminUser := utils.Must(userModel.Query(db.EQ("id", 1)).First(ctx))
+	adminUser = utils.Must(userModel.Query(db.EQ("id", adminID)).First(ctx))
 	checkPassword := utils.CheckHash("newpassword", adminUser.GetString("password"))
 	assert.NoError(t, checkPassword)
 }
@@ -135,12 +140,17 @@ func TestResetAdminPasswordEmptyPassword(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
+	// Find the admin user to get their UUID
+	userModel := utils.Must(entDB.Model("user"))
+	adminUser := utils.Must(userModel.Query(db.EQ("username", "admin")).First(context.Background()))
+	adminID := adminUser.ID().(uuid.UUID)
+
 	// Attempt to reset password with empty password
 	err = toolservice.ResetAdminPassword(
 		context.Background(),
 		entDB,
 		"",
-		1,
+		adminID,
 	)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "password cannot be empty")
@@ -151,12 +161,12 @@ func TestResetAdminPasswordUserNotFound(t *testing.T) {
 	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), fs.SystemSchemaTypes...))
 	entDB := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 
-	// Attempt to reset password for non-existent user
+	// Attempt to reset password for non-existent user (random UUID)
 	err := toolservice.ResetAdminPassword(
 		context.Background(),
 		entDB,
 		"newpassword",
-		999,
+		uuid.New(),
 	)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot find admin user. Please setup the app first")
@@ -168,7 +178,7 @@ func TestResetAdminPasswordUserNotAdmin(t *testing.T) {
 	entDB := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 
 	// Setup initial non-admin user
-	utils.Must(db.Create[*fs.User](context.Background(), entDB, fs.Map{
+	regularUser := utils.Must(db.Create[*fs.User](context.Background(), entDB, fs.Map{
 		"username": "user",
 		"email":    "user@local.ltd",
 		"provider": "local",
@@ -182,7 +192,7 @@ func TestResetAdminPasswordUserNotAdmin(t *testing.T) {
 		context.Background(),
 		entDB,
 		"newpassword",
-		1,
+		regularUser.ID,
 	)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "user is not an admin")

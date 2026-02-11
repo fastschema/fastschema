@@ -15,7 +15,7 @@ import (
 )
 
 type TestListItem struct {
-	ID   int    `json:"id"`
+	ID   any    `json:"id"`
 	Name string `json:"name"`
 }
 
@@ -97,7 +97,7 @@ func TestContentServiceList(t *testing.T) {
 	assert.Equal(t, uint(4), paginatedData.LastPage)
 	assert.Len(t, paginatedData.Items, 3)
 	assert.Equal(t, "test blog 10", paginatedData.Items[0].Name)
-	assert.Equal(t, 10, paginatedData.Items[0].ID)
+	assert.Equal(t, float64(10), paginatedData.Items[0].ID)
 
 	// Case 4: list success with filter id less than 5
 	req = httptest.NewRequest("GET", `/content/blog?filter={"id":{"$lt":5}}&sort=id`, nil)
@@ -114,7 +114,7 @@ func TestContentServiceList(t *testing.T) {
 	assert.Equal(t, uint(1), paginatedData.LastPage)
 	assert.Len(t, paginatedData.Items, 4)
 	assert.Equal(t, "test blog 1", paginatedData.Items[0].Name)
-	assert.Equal(t, 1, paginatedData.Items[0].ID)
+	assert.Equal(t, float64(1), paginatedData.Items[0].ID)
 
 	// Case 5: list user with default select fields
 	req = httptest.NewRequest("GET", "/content/user", nil)

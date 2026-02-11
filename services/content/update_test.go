@@ -35,7 +35,7 @@ func TestContentServiceUpdate(t *testing.T) {
 	// Case 3: blog entity has invalid field
 	req = httptest.NewRequest(
 		"PUT",
-		fmt.Sprintf("/content/blog/%d", blogID),
+		fmt.Sprintf("/content/blog/%v", blogID),
 		bytes.NewReader([]byte(`{"invalid": "test blog"}`)),
 	)
 	resp = utils.Must(server.Test(req))
@@ -50,7 +50,7 @@ func TestContentServiceUpdate(t *testing.T) {
 	// Case 4: update success
 	req = httptest.NewRequest(
 		"PUT",
-		fmt.Sprintf("/content/blog/%d", blogID),
+		fmt.Sprintf("/content/blog/%v", blogID),
 		bytes.NewReader([]byte(`{"name": "updated name"}`)),
 	)
 	resp = utils.Must(server.Test(req))
@@ -69,7 +69,7 @@ func TestContentServiceUpdate(t *testing.T) {
 	// Case 5: update user without password
 	req = httptest.NewRequest(
 		"PUT",
-		fmt.Sprintf("/content/user/%d", userID),
+		fmt.Sprintf("/content/user/%v", userID),
 		bytes.NewReader([]byte(`{"username": "updatedusername"}`)),
 	)
 	resp = utils.Must(server.Test(req))
@@ -80,7 +80,7 @@ func TestContentServiceUpdate(t *testing.T) {
 	// Case 6: update user with password
 	req = httptest.NewRequest(
 		"PUT",
-		fmt.Sprintf("/content/user/%d", userID),
+		fmt.Sprintf("/content/user/%v", userID),
 		bytes.NewReader([]byte(`{"username": "updated", "password": "updatedpassword"}`)),
 	)
 	resp = utils.Must(server.Test(req))

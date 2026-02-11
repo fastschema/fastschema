@@ -380,7 +380,7 @@ func testAccessProtectedResourceViaHTTP(dbc db.Client) func(t *testing.T) {
 		var data map[string]any
 		require.NoError(t, json.Unmarshal(apiResp.Data, &data))
 		assert.Equal(t, "protected resource", data["message"])
-		assert.Equal(t, float64(app.testUser.ID), data["user_id"])
+		assert.Equal(t, app.testUser.ID.String(), data["user_id"])
 
 		// Access with invalid token - should fail
 		req = httptest.NewRequest("GET", "/api/protected", nil)

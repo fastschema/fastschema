@@ -110,21 +110,6 @@ func TestFieldTypeStructType(t *testing.T) {
 	}
 }
 
-func TestFieldRendererClone(t *testing.T) {
-	// Case 1: nil FieldRenderer
-	var fr *FieldRenderer
-	assert.Nil(t, fr.Clone())
-
-	// Case 2: FieldRenderer with settings
-	field := &FieldRenderer{
-		Class: "class",
-		Settings: map[string]any{
-			"key": "value",
-		},
-	}
-	assert.NotNil(t, field.Clone())
-}
-
 func TestFieldTypeFromReflectType(t *testing.T) {
 	// Case 1: Nil type
 	ft := FieldTypeFromReflectType(nil)
