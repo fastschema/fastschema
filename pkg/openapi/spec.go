@@ -5,8 +5,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/ogen-go/ogen"
+
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 type TypeToOgenConfig struct {

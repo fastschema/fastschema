@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fastschema/fastschema/schema"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/fastschema/fastschema/schema"
 )
 
 func createField(fieldType schema.FieldType, name, label string) *schema.Field {
@@ -496,8 +497,8 @@ func TestCreateSchemaCustomizeSchemaUseTag(t *testing.T) {
 	assert.Equal(t, "slug", ss.LabelFieldName)
 	assert.True(t, ss.DisableTimestamp)
 	assert.True(t, ss.IsJunctionSchema)
-	assert.Equal(t, &schema.SchemaDB{
-		Indexes: []*schema.SchemaDBIndex{
+	assert.Equal(t, &schema.DB{
+		Indexes: []*schema.DBIndex{
 			{
 				Name:    "idx_name_slug",
 				Unique:  true,
@@ -519,8 +520,8 @@ func (c CustomizeMethod) Schema() *schema.Schema {
 		LabelFieldName:   "slug",
 		DisableTimestamp: true,
 		IsJunctionSchema: true,
-		DB: &schema.SchemaDB{
-			Indexes: []*schema.SchemaDBIndex{
+		DB: &schema.DB{
+			Indexes: []*schema.DBIndex{
 				{
 					Name:    "idx_name_slug",
 					Unique:  true,
@@ -547,8 +548,8 @@ func TestCreateSchemaCustomizeSchemaUseMethod(t *testing.T) {
 	assert.True(t, ss.DisableTimestamp)
 	assert.True(t, ss.IsJunctionSchema)
 	assert.Equal(t, int64(255), ss.Fields[0].Size)
-	assert.Equal(t, &schema.SchemaDB{
-		Indexes: []*schema.SchemaDBIndex{
+	assert.Equal(t, &schema.DB{
+		Indexes: []*schema.DBIndex{
 			{
 				Name:    "idx_name_slug",
 				Unique:  true,

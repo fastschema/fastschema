@@ -1,0 +1,23 @@
+name: pet
+namespace: pets
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+  unique: true
+- name: owner
+  label: Owner
+  type: relation
+  relation:
+    type: o2m
+    schema: user
+    field: pets
+- name: sub_owner
+  label: Sub Owner
+  type: relation
+  optional: true
+  relation:
+    type: o2m
+    schema: user
+    field: sub_pets

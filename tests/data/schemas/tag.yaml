@@ -1,0 +1,16 @@
+name: tag
+namespace: tags
+label_field: name
+fields:
+  - name: name
+    label: Name
+    type: string
+    sortable: true
+  - name: blogs
+    label: Blogs
+    type: relation
+    relation:
+      schema: blog
+      field: tags
+      type: o2m
+      owner: true

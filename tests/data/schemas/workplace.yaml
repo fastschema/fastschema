@@ -1,0 +1,17 @@
+name: workplace
+namespace: workplaces
+label_field: name
+fields:
+- name: name
+  label: Name
+  type: string
+  unique: true
+- name: users
+  label: Users
+  type: relation
+  optional: true
+  relation:
+    type: o2m
+    schema: user
+    field: workplace
+    owner: true

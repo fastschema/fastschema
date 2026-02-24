@@ -3,16 +3,17 @@ package schemaservice
 import (
 	"fmt"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 func (ss *SchemaService) Create(c fs.Context, newSchemaData *schema.Schema) (*schema.Schema, error) {
-	schemaFile := fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), newSchemaData.Name)
+	schemaFile := fmt.Sprintf("%s/%s.yaml", ss.app.SchemaBuilder().Dir(), newSchemaData.Name)
 	updateSchemas := map[string]*schema.Schema{}
 
 	if utils.IsFileExists(schemaFile) {
@@ -88,7 +89,7 @@ func (ss *SchemaService) Create(c fs.Context, newSchemaData *schema.Schema) (*sc
 
 	// update the related schemas
 	for _, schema := range updateSchemas {
-		if err := schema.SaveToFile(fmt.Sprintf("%s/%s.json", ss.app.SchemaBuilder().Dir(), schema.Name)); err != nil {
+		if err := schema.SaveToFile(fmt.Sprintf("%s/%s.yaml", ss.app.SchemaBuilder().Dir(), schema.Name)); err != nil {
 			return nil, errors.InternalServerError("could not save schema")
 		}
 	}

@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/fastschema/fastschema/pkg/utils"
 )
 
 type testcategory struct {
@@ -85,13 +86,13 @@ func TestNewBuilderFromDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	invalidSchemaJSONFile1 := filepath.Join(tmpDir, "invalid2.json")
-	utils.WriteFile(invalidSchemaJSONFile1, "{}")
+	invalidSchemaYAMLFile1 := filepath.Join(tmpDir, "invalid2.yaml")
+	utils.WriteFile(invalidSchemaYAMLFile1, "name: invalid")
 	_, err = NewBuilderFromDir(tmpDir, testcategory{}, testpost{})
 	assert.Error(t, err)
 
-	invalidSchemaJSONFile2 := filepath.Join(tmpDir, "invalid1.json")
-	utils.WriteFile(invalidSchemaJSONFile2, "{")
+	invalidSchemaYAMLFile2 := filepath.Join(tmpDir, "invalid1.yaml")
+	utils.WriteFile(invalidSchemaYAMLFile2, "name:")
 	_, err = NewBuilderFromDir(tmpDir, testcategory{}, testpost{})
 	assert.Error(t, err)
 
@@ -182,7 +183,7 @@ func TestSaveToDir(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Check if the schema files are saved correctly
-	schemaFile := filepath.Join(tmpDir, "user.json")
+	schemaFile := filepath.Join(tmpDir, "user.yaml")
 	_, err = os.Stat(schemaFile)
 	assert.False(t, os.IsNotExist(err))
 }
@@ -212,7 +213,7 @@ func TestSaveToDirNonExistent(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Check if the schema files are saved correctly
-	schemaFile := filepath.Join(tmpDir, "nonexistent", "user.json")
+	schemaFile := filepath.Join(tmpDir, "nonexistent", "user.yaml")
 	_, err = os.Stat(schemaFile)
 	assert.False(t, os.IsNotExist(err))
 }
@@ -286,7 +287,7 @@ func TestBuilderSchemaFile(t *testing.T) {
 	}
 
 	name := "user"
-	expectedFile := "/path/to/directory/user.json"
+	expectedFile := "/path/to/directory/user.yaml"
 	actualFile := builder.SchemaFile(name)
 
 	assert.Equal(t, expectedFile, actualFile)

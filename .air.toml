@@ -6,6 +6,7 @@ tmp_dir = "data/tmp"
 args_bin = []
 cmd = "go build --ldflags '-X github.com/fastschema/fastschema.Version=dev' -o ./data/tmp/fastschema.exe ./cmd/"
 bin = "./data/tmp/fastschema.exe"
+entrypoint = "./data/tmp/fastschema.exe"
 full_bin = ""
 delay = 1
 exclude_dir = [

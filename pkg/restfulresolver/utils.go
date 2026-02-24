@@ -3,11 +3,12 @@ package restfulresolver
 import (
 	"maps"
 
+	"github.com/gofiber/fiber/v2"
+
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/logger"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/gofiber/fiber/v2"
 )
 
 type MethodData struct {
@@ -22,12 +23,12 @@ func TransformHandlers(
 ) []fiber.Handler {
 	var fiberHandlers []fiber.Handler
 
-	for i := range handlers {
-		func(r *fs.Resource, i int) {
+	for _, h := range handlers {
+		func(r *fs.Resource) {
 			fiberHandlers = append(fiberHandlers, func(c *fiber.Ctx) error {
-				return handlers[i](CreateContext(r, c, l))
+				return h(CreateContext(r, c, l))
 			})
-		}(r, i)
+		}(r)
 	}
 
 	return fiberHandlers
@@ -59,7 +60,7 @@ func TransformMiddlewares(inputs []fs.Middleware) []Handler {
 	return middlewares
 }
 
-func CreateContext(r *fs.Resource, c *fiber.Ctx, logger logger.Logger, wsClients ...fs.WSClient) *Context {
+func CreateContext(r *fs.Resource, c *fiber.Ctx, logger logger.Logger) *Context {
 	args := make(map[string]string)
 	allParams := c.AllParams()
 	queries := c.Queries()

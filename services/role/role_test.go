@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/fs"
@@ -14,7 +16,6 @@ import (
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	rs "github.com/fastschema/fastschema/services/role"
-	"github.com/stretchr/testify/assert"
 )
 
 type TestApp struct {
@@ -44,19 +45,15 @@ func (s TestApp) Resources() *fs.ResourcesManager {
 
 func createTestApp() *TestApp {
 	schemaDir := utils.Must(os.MkdirTemp("", "schema"))
-	utils.WriteFile(schemaDir+"/blog.json", `{
-		"name": "blog",
-		"namespace": "blogs",
-		"label_field": "name",
-		"fields": [
-			{
-				"type": "string",
-				"name": "name",
-				"label": "Name",
-				"sortable": true
-			}
-		]
-	}`)
+	utils.WriteFile(schemaDir+"/blog.yaml", `name: blog
+namespace: blogs
+label_field: name
+fields:
+  - name: name
+    label: Name
+    type: string
+    sortable: true
+`)
 	sb := utils.Must(schema.NewBuilderFromDir(schemaDir, fs.SystemSchemaTypes...))
 	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
 	roleModel := utils.Must(db.Model("role"))

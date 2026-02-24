@@ -24,7 +24,7 @@ func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema
 		return nil, err
 	}
 
-	jsonFiles, err := filepath.Glob(path.Join(dir, "*.json"))
+	yamlFiles, err := filepath.Glob(path.Join(dir, "*.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -46,8 +46,8 @@ func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema
 		schemas[systemSchema.Name] = systemSchema
 	}
 
-	for _, jsonFile := range jsonFiles {
-		schema, err := NewSchemaFromJSONFile(jsonFile)
+	for _, yamlFile := range yamlFiles {
+		schema, err := NewSchemaFromYAMLFile(yamlFile)
 
 		if err != nil {
 			return nil, err
@@ -59,8 +59,8 @@ func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema
 				schema.Fields...,
 			)
 			if schemas[schema.Name].DB == nil {
-				schemas[schema.Name].DB = &SchemaDB{
-					Indexes: []*SchemaDBIndex{},
+				schemas[schema.Name].DB = &DB{
+					Indexes: []*DBIndex{},
 				}
 			}
 			if schema.DB != nil && schema.DB.Indexes != nil {
@@ -145,7 +145,7 @@ func (b *Builder) SaveToDir(dir string) error {
 	}
 
 	for _, schema := range b.schemas {
-		schemaFile := path.Join(dir, schema.Name+".json")
+		schemaFile := path.Join(dir, schema.Name+".yaml")
 		if err := schema.SaveToFile(schemaFile); err != nil {
 			return err
 		}
@@ -181,9 +181,9 @@ func (b *Builder) Init() (err error) {
 	return nil
 }
 
-// SchemaFile returns the json file path of a schema
+// SchemaFile returns the yaml file path of a schema
 func (b *Builder) SchemaFile(name string) string {
-	return path.Join(b.dir, name+".json")
+	return path.Join(b.dir, name+".yaml")
 }
 
 // Schemas returns all schemas
