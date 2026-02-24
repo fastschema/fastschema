@@ -1,0 +1,47 @@
+# Build stage
+FROM golang:1.24-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git make ca-certificates tzdata
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /app/bin/fastschema ./cmd/main.go
+
+# Runtime stage
+FROM alpine:3.19
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates tzdata nodejs npm postgresql-client
+
+# Create non-root user
+RUN addgroup -g 1000 fastschema && \
+    adduser -D -u 1000 -G fastschema fastschema
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/bin/fastschema /app/fastschema
+
+# Copy necessary files
+
+# Create data directory with proper permissions
+RUN mkdir -p /app/data /app/data/logs /app/public && \
+    chown -R fastschema:fastschema /app && \
+    chmod -R 755 /app/data && \
+    touch /app/data/fastschema.db && \
+    chown fastschema:fastschema /app/data/fastschema.db
+
+# Expose port
+EXPOSE 8000
+
+# Start the application
+CMD ["./fastschema", "start"]
