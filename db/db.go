@@ -149,6 +149,9 @@ type Config struct {
 	DisableForeignKeys bool          `json:"disable_foreign_keys"`
 	UseSoftDeletes     bool          `json:"use_soft_deletes"`
 	Hooks              func() *Hooks `json:"-"`
+	// SSLMode is only applicable for pgx (Postgres) driver.
+	// Valid values: disable, allow, prefer, require (verify-ca, verify-full not supported). Defaults to prefer.
+	SSLMode string `json:"ssl_mode"`
 }
 
 func (c *Config) Clone() *Config {
@@ -164,6 +167,7 @@ func (c *Config) Clone() *Config {
 		MigrationDir:       c.MigrationDir,
 		IgnoreMigration:    c.IgnoreMigration,
 		DisableForeignKeys: c.DisableForeignKeys,
+		SSLMode:            c.SSLMode,
 		Hooks:              c.Hooks,
 	}
 }
