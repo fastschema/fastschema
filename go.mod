@@ -1,4 +1,4 @@
-module github.com/fastschema/fastschema
+module github.com/GeoNet/fastschema
 
 go 1.24
 
@@ -15,6 +15,7 @@ require (
 	github.com/emersion/go-smtp v0.23.0
 	github.com/expr-lang/expr v1.17.5
 	github.com/fasthttp/websocket v1.5.12
+	github.com/fastschema/fastschema v0.9.6
 	github.com/fastschema/qjs v0.0.6
 	github.com/fatih/color v1.18.0
 	github.com/go-sql-driver/mysql v1.9.3
@@ -117,7 +118,6 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
-	github.com/mattn/go-sqlite3 v1.14.24 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
