@@ -6,8 +6,8 @@
 
 coverage:
   status:
-    project: off
-    patch: off
+    project: true
+    patch: true
 
   range: 70..90
   round: down
