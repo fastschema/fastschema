@@ -152,6 +152,20 @@ var (
 		"float64":  TypeFloat64,
 		"relation": TypeRelation,
 		"file":     TypeFile,
+
+		// Common aliases
+		"boolean":   TypeBool,
+		"integer":   TypeInt,
+		"number":    TypeFloat64,
+		"float":     TypeFloat64,
+		"double":    TypeFloat64,
+		"datetime":  TypeTime,
+		"timestamp": TypeTime,
+		"date":      TypeTime,
+		"varchar":   TypeString,
+		"longtext":  TypeText,
+		"object":    TypeJSON,
+		"array":     TypeJSON,
 	}
 
 	fieldTypeToStringsToStructTypes = [...]reflect.Type{
@@ -339,6 +353,7 @@ var (
 		"o2o":     O2O,
 		"o2m":     O2M,
 		"m2m":     M2M,
+		"m2o":     O2M, // alias: m2o is treated as o2m (inverse perspective)
 	}
 )
 
