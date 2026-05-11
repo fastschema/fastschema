@@ -17,7 +17,7 @@ func TestSchemaServiceDetail(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 404, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Contains(t, response, `schema product not found`)
+	assert.Contains(t, response, `schema 'product' not found`)
 
 	// Case 2: scuccess
 	req = httptest.NewRequest("GET", "/schema/category", nil)

@@ -339,7 +339,7 @@ func TestCreateObjectPredicates(t *testing.T) {
 		{
 			name:        "invalid field",
 			filter:      `{"invalid_field": "test"}`,
-			expectError: "filter error: field user.invalid_field not found",
+			expectError: "filter error: [field.not_found] schema 'user', field 'invalid_field': field 'invalid_field' is not defined in schema 'user'",
 		},
 		{
 			name:         "single_field",
@@ -478,7 +478,7 @@ func TestCreateObjectPredicates(t *testing.T) {
 					"$like": "group1",
 				}
 			}`,
-			expectError: "filter error: field user.groups not found",
+			expectError: "filter error: [field.not_found] schema 'user', field 'groups': field 'groups' is not defined in schema 'user'",
 		},
 		{
 			name: "relation_invalid_field_type",
@@ -496,7 +496,7 @@ func TestCreateObjectPredicates(t *testing.T) {
 					"$like": "group1",
 				}
 			}`,
-			expectError: "filter error: field car.name2 not found",
+			expectError: "filter error: [field.not_found] schema 'car', field 'name2': field 'name2' is not defined in schema 'car'",
 		},
 		{
 			name: "relation",

@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -44,7 +43,7 @@ type Field struct {
 func (f *Field) Init(schemaNames ...string) (err error) {
 	if f.Type == TypeFile {
 		if len(schemaNames) == 0 {
-			return errors.New("schema names are required for file field")
+			return FieldFileSchemaRequired()
 		}
 
 		if f.Relation == nil {
@@ -62,11 +61,11 @@ func (f *Field) Init(schemaNames ...string) (err error) {
 	}
 
 	if f.setterProgram, err = expr.Compile[SetterArgs, any](f.Setter); err != nil {
-		return fmt.Errorf(`invalid setter for field "%s": %w`, f.Name, err)
+		return FieldSetterCompileError(f.Name, err)
 	}
 
 	if f.getterProgram, err = expr.Compile[GetterArgs, any](f.Getter); err != nil {
-		return fmt.Errorf(`invalid getter for field "%s": %w`, f.Name, err)
+		return FieldGetterCompileError(f.Name, err)
 	}
 
 	return nil

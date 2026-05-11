@@ -1,6 +1,7 @@
 package schemaservice
 
 import (
+	stderrors "errors"
 	"fmt"
 
 	"github.com/fastschema/fastschema/fs"
@@ -79,6 +80,10 @@ func (ss *SchemaService) Create(c fs.Context, newSchemaData *schema.Schema) (*sc
 	}
 
 	if err := newSchemaData.Validate(); err != nil {
+		var batch *schema.SchemaErrors
+		if stderrors.As(err, &batch) {
+			return nil, errors.UnprocessableEntity("schema validation failed").WithData(batch)
+		}
 		return nil, errors.UnprocessableEntity(err.Error())
 	}
 

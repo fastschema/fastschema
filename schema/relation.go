@@ -221,21 +221,13 @@ func (r *Relation) CreateFKField(targetField *Field) (*Field, error) {
 	}
 
 	if targetField == nil {
-		return nil, fmt.Errorf(
-			"relation %s.%s: target field '%s' not found",
-			r.SourceSchemaName,
-			r.SourceFieldName,
-			utils.If(r.TargetColumn == "", entity.FieldID, r.TargetColumn),
-		)
+		targetFieldName := utils.If(r.TargetColumn == "", entity.FieldID, r.TargetColumn)
+		return nil, RelationFKTargetNotFound(r.SourceSchemaName, r.SourceFieldName, targetFieldName)
 	}
 
 	fkField := cloneReferenceField(targetField, r.SourceColumn)
 	if fkField == nil {
-		return nil, fmt.Errorf(
-			"relation %s.%s: cannot clone target field",
-			r.SourceSchemaName,
-			r.SourceFieldName,
-		)
+		return nil, RelationFKCloneFailed(r.SourceSchemaName, r.SourceFieldName)
 	}
 
 	fkField.IsSystemField = true
@@ -258,11 +250,11 @@ func (r *Relation) CreateFKField(targetField *Field) (*Field, error) {
 }
 
 func NewRelationNodeError(schema *Schema, field *Field) error {
-	return RelationTargetNotFoundError(schema.Name, field.Name, field.Relation.TargetSchemaName)
+	return RelationTargetNotFound(schema.Name, field.Name, field.Relation.TargetSchemaName)
 }
 
 func NewRelationBackRefError(relation *Relation) error {
-	return RelationBackRefError(
+	return RelationBackRefMissing(
 		relation.SourceSchemaName,
 		relation.SourceFieldName,
 		relation.TargetSchemaName,

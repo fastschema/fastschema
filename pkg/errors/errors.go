@@ -64,10 +64,18 @@ type Error struct {
 	Code    string `json:"code,omitempty"`
 	Message string `json:"message"`
 	Detail  string `json:"detail,omitempty"`
+	Data    any    `json:"data,omitempty"`
 
 	err   error
 	base  error
 	frame xerrors.Frame
+}
+
+// WithData attaches a structured payload to the error. Used to surface
+// typed errors (e.g. *schema.SchemaErrors) as JSON to API consumers.
+func (e *Error) WithData(data any) *Error {
+	e.Data = data
+	return e
 }
 
 // New creates new error object. Example: errors.New("Login failed", "LOGIN_FAILED", "Invalid username or password")
@@ -208,9 +216,11 @@ func (e *Error) MarshalJSON() ([]byte, error) {
 		Code    string `json:"code,omitempty"`
 		Message string `json:"message"`
 		Detail  string `json:"detail,omitempty"`
+		Data    any    `json:"data,omitempty"`
 	}{
 		Code:    code,
 		Message: message,
 		Detail:  e.Detail,
+		Data:    e.Data,
 	})
 }

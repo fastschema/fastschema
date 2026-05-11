@@ -1,7 +1,7 @@
 package schema
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -40,7 +40,7 @@ func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema
 
 		// Prevent duplicate system schemas
 		if _, ok := schemas[systemSchema.Name]; ok {
-			return nil, BuilderDuplicateSchemaError(systemSchema.Name)
+			return nil, BuilderSchemaDuplicate(systemSchema.Name)
 		}
 
 		schemas[systemSchema.Name] = systemSchema
@@ -65,47 +65,69 @@ func GetSchemasFromDir(dir string, systemSchemaTypes ...any) (map[string]*Schema
 	return schemas, nil
 }
 
-// NewBuilderFromSchemas creates a new schema from a map of schemas.
+// NewBuilderFromSchemas creates a new schema builder from a map of schemas,
+// collecting all validation errors instead of stopping at the first one.
+// Returns (*Builder, error) — when error is non-nil, the underlying typed
+// value is *BuilderErrors and the builder may be incomplete. Use errors.As
+// to extract the typed error for rich access (HasCode, Errors slice).
 func NewBuilderFromSchemas(dir string, schemas map[string]*Schema, systemSchemaTypes ...any) (*Builder, error) {
 	b := &Builder{dir: dir, schemas: map[string]*Schema{}}
+	errs := &BuilderErrors{}
 
-	// Create system schemas
+	// Create system schemas - collect errors instead of returning early
 	for _, systemSchema := range systemSchemaTypes {
 		systemSchema, err := CreateSchema(systemSchema)
 		if err != nil {
-			return nil, err
+			errs.AddAny(err)
+			continue
 		}
 
 		if err := systemSchema.Init(false); err != nil {
-			return nil, err
+			errs.AddAny(err)
+			continue
 		}
 
 		// Prevent duplicate system schemas
 		if _, ok := b.schemas[systemSchema.Name]; ok {
-			return nil, BuilderDuplicateSchemaError(systemSchema.Name)
+			errs.Add(BuilderSchemaDuplicate(systemSchema.Name))
+			continue
 		}
 
 		b.schemas[systemSchema.Name] = systemSchema
 	}
 
+	// Process user schemas - collect errors instead of returning early
 	for _, schema := range schemas {
 		if existingSchema, ok := b.schemas[schema.Name]; ok {
 			// Merge the schema into the existing schema first
-			// This allows user customizations to override system schema properties
 			MergeSchemas(existingSchema, schema)
 			// Re-init the merged schema to ensure all fields are properly initialized
 			if err := existingSchema.Init(false); err != nil {
-				return nil, err
+				errs.AddAny(err)
 			}
 		} else {
 			if err := schema.Init(false); err != nil {
-				return nil, err
+				errs.AddAny(err)
+				continue
 			}
 			b.schemas[schema.Name] = schema
 		}
 	}
 
-	return b, b.Init()
+	// Initialize relations and FKs - collect errors via merged Builder.Init
+	if initErr := b.Init(); initErr != nil {
+		var be *BuilderErrors
+		if errors.As(initErr, &be) {
+			errs.Errors = append(errs.Errors, be.Errors...)
+		} else {
+			errs.AddAny(initErr)
+		}
+	}
+
+	if errs.HasErrors() {
+		return b, errs
+	}
+	return b, nil
 }
 
 // NewBuilderFromDir creates a new schema builder from a directory.
@@ -165,20 +187,42 @@ func (b *Builder) Dir(dirs ...string) string {
 	return b.dir
 }
 
-// Init initializes the builder.
-func (b *Builder) Init() (err error) {
+// Init initializes the builder, collecting all errors from relation and
+// FK creation. FKs only run when relations have no errors (FKs depend on
+// resolved relations). Returns *BuilderErrors via the error interface
+// when any stage fails; nil otherwise.
+func (b *Builder) Init() error {
+	errs := &BuilderErrors{}
+
 	if b.schemas == nil {
 		b.schemas = map[string]*Schema{}
 	}
 
-	if err = b.CreateRelations(); err != nil {
-		return err
+	relErr := b.CreateRelations()
+	if relErr != nil {
+		var be *BuilderErrors
+		if errors.As(relErr, &be) {
+			errs.Errors = append(errs.Errors, be.Errors...)
+		} else {
+			errs.AddAny(relErr)
+		}
 	}
 
-	if err = b.CreateFKs(); err != nil {
-		return err
+	// Only proceed to FKs if no relation errors (FKs depend on relations being valid)
+	if !errs.HasErrors() {
+		if fkErr := b.CreateFKs(); fkErr != nil {
+			var be *BuilderErrors
+			if errors.As(fkErr, &be) {
+				errs.Errors = append(errs.Errors, be.Errors...)
+			} else {
+				errs.AddAny(fkErr)
+			}
+		}
 	}
 
+	if errs.HasErrors() {
+		return errs
+	}
 	return nil
 }
 
@@ -216,17 +260,30 @@ func (b *Builder) Relations() []*Relation {
 	return b.relations
 }
 
-// CreateRelations creates all relations between nodes
-func (b *Builder) CreateRelations() (err error) {
+// CreateRelations creates all relations between nodes, collecting all
+// errors instead of stopping at the first one. Nil-relation safe — emits
+// RelationConfigMissing when a relation-typed field has no Relation
+// configured. Returns *BuilderErrors via the error interface when any
+// failure occurs; nil otherwise.
+func (b *Builder) CreateRelations() error {
+	errs := &BuilderErrors{}
+
 	for _, s := range b.schemas {
 		for _, field := range s.Fields {
 			if !field.Type.IsRelationType() {
 				continue
 			}
 
+			// Check for nil relation before accessing its properties
+			if field.Relation == nil {
+				errs.Add(RelationConfigMissing(s.Name, field.Name))
+				continue
+			}
+
 			relationSchema, err := b.Schema(field.Relation.TargetSchemaName)
 			if err != nil {
-				return NewRelationNodeError(s, field)
+				errs.AddAny(NewRelationNodeError(s, field))
+				continue
 			}
 
 			b.relations = append(b.relations, field.Relation.Init(s, relationSchema, field))
@@ -237,12 +294,14 @@ func (b *Builder) CreateRelations() (err error) {
 		if r.Type == M2M {
 			sourceSchema, err := b.Schema(r.SourceSchemaName)
 			if err != nil {
-				return err
+				errs.AddAny(err)
+				continue
 			}
 
 			junctionSchema, exists, err := b.CreateM2mJunctionSchema(sourceSchema, r)
 			if err != nil {
-				return err
+				errs.AddAny(err)
+				continue
 			}
 
 			r.JunctionSchema = junctionSchema
@@ -255,35 +314,44 @@ func (b *Builder) CreateRelations() (err error) {
 		if r.BackRef == nil {
 			r.BackRef = b.Relation(r.GetBackRefName())
 			if r.BackRef == nil {
-				return NewRelationBackRefError(r)
+				errs.AddAny(NewRelationBackRefError(r))
 			}
 		}
 	}
 
+	if errs.HasErrors() {
+		return errs
+	}
 	return nil
 }
 
-// CreateFKs creates all foreign keys for relations
+// CreateFKs creates all foreign keys for relations, collecting all
+// errors instead of stopping at the first one. Returns *BuilderErrors
+// via the error interface when any failure occurs; nil otherwise.
 func (b *Builder) CreateFKs() error {
+	errs := &BuilderErrors{}
+
 	for _, relation := range b.relations {
 		schema, err := b.Schema(relation.SourceSchemaName)
 		if err != nil {
-			return err
+			errs.AddAny(err)
+			continue
 		}
 
 		// O2O and O2M relations
 		if relation.Type.IsO2O() || relation.Type.IsO2M() {
 			targetField, err := b.relationTargetField(relation)
 			if err != nil {
-				return err
+				errs.AddAny(err)
+				continue
 			}
 
 			fkField, err := relation.CreateFKField(targetField)
 			if err != nil {
-				return err
+				errs.AddAny(err)
+				continue
 			}
 
-			// if relation.FKFields != nil {
 			if fkField != nil {
 				foundFKField := schema.Field(fkField.Name)
 				if foundFKField != nil {
@@ -311,6 +379,9 @@ func (b *Builder) CreateFKs() error {
 		}
 	}
 
+	if errs.HasErrors() {
+		return errs
+	}
 	return nil
 }
 
@@ -327,7 +398,7 @@ func (b *Builder) Schema(name string) (*Schema, error) {
 	for schemaName := range b.schemas {
 		availableSchemas = append(availableSchemas, schemaName)
 	}
-	return nil, BuilderSchemaNotFoundError(name, availableSchemas)
+	return nil, BuilderSchemaNotFound(name, availableSchemas)
 }
 
 // Relation returns a relation by it's name
@@ -364,7 +435,7 @@ func (b *Builder) relationTargetField(r *Relation) (*Field, error) {
 
 func (b *Builder) CreateM2mJunctionSchema(sourceSchema *Schema, r *Relation) (*Schema, bool, error) {
 	if r == nil || !r.Type.IsM2M() {
-		return nil, false, BuilderNotM2MRelationError(r.Name)
+		return nil, false, BuilderRelationNotM2M(r.SourceSchemaName, r.Name)
 	}
 
 	targetSchema, err := b.Schema(r.TargetSchemaName)
@@ -405,19 +476,19 @@ func (b *Builder) CreateM2mJunctionSchema(sourceSchema *Schema, r *Relation) (*S
 
 	targetIDField := targetSchema.PrimaryField()
 	if targetIDField == nil {
-		return nil, false, BuilderMissingPrimaryKeyError(targetSchema.Name)
+		return nil, false, BuilderSchemaPrimaryKeyMissing(targetSchema.Name)
 	}
 
 	sourceIDField := sourceSchema.PrimaryField()
 	if sourceIDField == nil {
-		return nil, false, BuilderMissingPrimaryKeyError(sourceSchema.Name)
+		return nil, false, BuilderSchemaPrimaryKeyMissing(sourceSchema.Name)
 	}
 
 	firstFKField := cloneReferenceField(targetIDField, fKColumnNames[0])
 	secondFKField := cloneReferenceField(sourceIDField, fKColumnNames[1])
 	for _, fkField := range []*Field{firstFKField, secondFKField} {
 		if fkField == nil {
-			return nil, false, BuilderJunctionFieldError(r.JunctionTable)
+			return nil, false, BuilderJunctionFieldFailed(r.JunctionTable)
 		}
 		fkField.IsSystemField = true
 		fkField.Immutable = true
@@ -436,221 +507,96 @@ func (b *Builder) CreateM2mJunctionSchema(sourceSchema *Schema, r *Relation) (*S
 	return junctionSchema, false, nil
 }
 
-// BuilderErrors holds multiple validation errors from a builder operation.
-// This allows collecting all errors instead of stopping at the first one.
-type BuilderErrors struct {
-	Errors []error
-}
-
-// Error implements the error interface by joining all error messages.
-func (be *BuilderErrors) Error() string {
-	if len(be.Errors) == 0 {
-		return ""
-	}
-	var messages []string
-	for _, err := range be.Errors {
-		messages = append(messages, err.Error())
-	}
-	return strings.Join(messages, "\n")
-}
-
-// Add appends an error to the collection if it's not nil.
-func (be *BuilderErrors) Add(err error) {
-	if err != nil {
-		be.Errors = append(be.Errors, err)
-	}
-}
-
-// HasErrors returns true if there are any errors collected.
-func (be *BuilderErrors) HasErrors() bool {
-	return len(be.Errors) > 0
-}
-
-// NewBuilderFromSchemasCollectErrors creates a new schema builder from a map of schemas,
-// collecting all validation errors instead of stopping at the first one.
-// This is useful for providing comprehensive feedback when multiple schemas have issues.
-// Returns (*Builder, *BuilderErrors) - if BuilderErrors.HasErrors() is true, the builder may be incomplete.
-func NewBuilderFromSchemasCollectErrors(dir string, schemas map[string]*Schema, systemSchemaTypes ...any) (*Builder, *BuilderErrors) {
-	b := &Builder{dir: dir, schemas: map[string]*Schema{}}
+// NewBuilderFromRelations builds a Builder from schemas containing only
+// relation-type fields and validates the cross-schema relation topology.
+// Use case: relation-graph-only validators (UI relation editor, build/CI
+// checks, schema-diff tooling) where full schema definitions aren't
+// available because primitives have been caller-stripped.
+//
+// For each input schema:
+//   - A synthetic UUID primary field is prepended if neither a primary
+//     field nor an "id" field already exists (so junction/back-ref
+//     resolution has a target to point at).
+//   - LabelFieldName defaults to entity.FieldID if empty.
+//   - Only relation-type fields are initialized; primitives are skipped.
+//
+// The returned error carries primarily relation.* and builder.* codes
+// inside a *BuilderErrors typed value (extract via errors.As). Schema-level
+// (schema.*) and most per-field (field.*) errors are NOT detected. Exception:
+// if a relation-type field has a malformed setter or getter expression,
+// Field.Init surfaces field.setter.compile_error or field.getter.compile_error
+// since expression compilation is unconditional. Callers needing full
+// per-schema validation should use NewBuilderFromSchemas with full schemas,
+// or Schema.Init per schema.
+//
+// Trade-off: cannot detect FK column-name conflicts with primitive fields
+// or PK type mismatches across relations. CreateFKs is intentionally
+// skipped because FK column generation needs primitive field types that
+// have been stripped from the input.
+//
+// NOTE: this function mutates the input *Schema values (synthetic id field
+// prepend, LabelFieldName default, s.initialized = true). Callers that
+// reuse the same *Schema pointers after this call should be aware of that.
+func NewBuilderFromRelations(schemas map[string]*Schema) (*Builder, error) {
+	b := &Builder{schemas: map[string]*Schema{}}
 	errs := &BuilderErrors{}
 
-	// Create system schemas - collect errors instead of returning early
-	for _, systemSchema := range systemSchemaTypes {
-		systemSchema, err := CreateSchema(systemSchema)
-		if err != nil {
-			errs.Add(err)
+	for _, s := range schemas {
+		if s == nil {
 			continue
 		}
 
-		if err := systemSchema.Init(false); err != nil {
-			errs.Add(err)
-			continue
+		// Inject synthetic PK if no primary field exists.
+		// defaultIDField() returns the project's standard UUID PK
+		// (matches system-schema convention since commit 95b55b4).
+		if s.PrimaryField() == nil {
+			s.Fields = append([]*Field{defaultIDField()}, s.Fields...)
 		}
 
-		// Prevent duplicate system schemas
-		if _, ok := b.schemas[systemSchema.Name]; ok {
-			errs.Add(BuilderDuplicateSchemaError(systemSchema.Name))
-			continue
+		// Default LabelFieldName to id so downstream code that relies on it
+		// (e.g. relation/junction setup) has a valid reference.
+		if s.LabelFieldName == "" {
+			s.LabelFieldName = entity.FieldID
 		}
 
-		b.schemas[systemSchema.Name] = systemSchema
+		// Initialize relation fields only. Primitive fields are caller-
+		// stripped; calling Field.Init on them would either no-op or fail
+		// depending on type — we skip them entirely to keep behavior crisp.
+		for _, f := range s.Fields {
+			if !f.Type.IsRelationType() {
+				continue
+			}
+			if err := f.Init(s.Name); err != nil {
+				errs.AddAny(err)
+			}
+		}
+
+		// Mark initialized so downstream lookups (Builder.Schema) don't
+		// attempt re-initialization that would invoke ensurePrimaryField
+		// and primitive Field.Init.
+		s.initialized = true
+
+		if _, dup := b.schemas[s.Name]; dup {
+			errs.Add(BuilderSchemaDuplicate(s.Name))
+			continue
+		}
+		b.schemas[s.Name] = s
 	}
 
-	// Process user schemas - collect errors instead of returning early
-	for _, schema := range schemas {
-		if existingSchema, ok := b.schemas[schema.Name]; ok {
-			// Merge the schema into the existing schema first
-			MergeSchemas(existingSchema, schema)
-			// Re-init the merged schema to ensure all fields are properly initialized
-			if err := existingSchema.Init(false); err != nil {
-				errs.Add(err)
-			}
+	// Single source of truth for cross-schema relation validation.
+	if relErr := b.CreateRelations(); relErr != nil {
+		var be *BuilderErrors
+		if errors.As(relErr, &be) {
+			errs.Errors = append(errs.Errors, be.Errors...)
 		} else {
-			if err := schema.Init(false); err != nil {
-				errs.Add(err)
-				continue
-			}
-			b.schemas[schema.Name] = schema
+			errs.AddAny(relErr)
 		}
 	}
 
-	// Initialize relations and FKs - collect errors
-	initErrs := b.InitCollectErrors()
-	errs.Errors = append(errs.Errors, initErrs.Errors...)
+	// CreateFKs INTENTIONALLY SKIPPED — needs primitive types.
 
-	return b, errs
-}
-
-// InitCollectErrors initializes the builder, collecting all errors instead of stopping at the first.
-func (b *Builder) InitCollectErrors() *BuilderErrors {
-	errs := &BuilderErrors{}
-
-	if b.schemas == nil {
-		b.schemas = map[string]*Schema{}
+	if errs.HasErrors() {
+		return b, errs
 	}
-
-	// Collect relation creation errors
-	relationErrs := b.CreateRelationsCollectErrors()
-	errs.Errors = append(errs.Errors, relationErrs.Errors...)
-
-	// Only proceed to FKs if no relation errors (FKs depend on relations being valid)
-	if !relationErrs.HasErrors() {
-		fkErrs := b.CreateFKsCollectErrors()
-		errs.Errors = append(errs.Errors, fkErrs.Errors...)
-	}
-
-	return errs
-}
-
-// CreateRelationsCollectErrors creates all relations between nodes, collecting all errors.
-func (b *Builder) CreateRelationsCollectErrors() *BuilderErrors {
-	errs := &BuilderErrors{}
-
-	for _, s := range b.schemas {
-		for _, field := range s.Fields {
-			if !field.Type.IsRelationType() {
-				continue
-			}
-
-			// Check for nil relation before accessing its properties
-			if field.Relation == nil {
-				errs.Add(fmt.Errorf("field '%s' in schema '%s' has relation type but no relation configuration", field.Name, s.Name))
-				continue
-			}
-
-			relationSchema, err := b.Schema(field.Relation.TargetSchemaName)
-			if err != nil {
-				errs.Add(NewRelationNodeError(s, field))
-				continue
-			}
-
-			b.relations = append(b.relations, field.Relation.Init(s, relationSchema, field))
-		}
-	}
-
-	for _, r := range b.relations {
-		if r.Type == M2M {
-			sourceSchema, err := b.Schema(r.SourceSchemaName)
-			if err != nil {
-				errs.Add(err)
-				continue
-			}
-
-			junctionSchema, exists, err := b.CreateM2mJunctionSchema(sourceSchema, r)
-			if err != nil {
-				errs.Add(err)
-				continue
-			}
-
-			r.JunctionSchema = junctionSchema
-
-			if !exists {
-				b.AddSchema(junctionSchema)
-			}
-		}
-
-		if r.BackRef == nil {
-			r.BackRef = b.Relation(r.GetBackRefName())
-			if r.BackRef == nil {
-				errs.Add(NewRelationBackRefError(r))
-			}
-		}
-	}
-
-	return errs
-}
-
-// CreateFKsCollectErrors creates all foreign keys for relations, collecting all errors.
-func (b *Builder) CreateFKsCollectErrors() *BuilderErrors {
-	errs := &BuilderErrors{}
-
-	for _, relation := range b.relations {
-		schema, err := b.Schema(relation.SourceSchemaName)
-		if err != nil {
-			errs.Add(err)
-			continue
-		}
-
-		// O2O and O2M relations
-		if relation.Type.IsO2O() || relation.Type.IsO2M() {
-			targetField, err := b.relationTargetField(relation)
-			if err != nil {
-				errs.Add(err)
-				continue
-			}
-
-			fkField, err := relation.CreateFKField(targetField)
-			if err != nil {
-				errs.Add(err)
-				continue
-			}
-
-			if fkField != nil {
-				foundFKField := schema.Field(fkField.Name)
-				if foundFKField != nil {
-					MergeFields(foundFKField, fkField)
-				} else {
-					foundFKField = fkField
-					schema.Fields = utils.SliceInsertBeforeElement(
-						schema.Fields,
-						foundFKField,
-						func(f *Field) bool {
-							return f.Name == entity.FieldCreatedAt
-						},
-					)
-					schema.dbColumns = utils.SliceInsertBeforeElement(
-						schema.dbColumns,
-						relation.SourceColumn,
-						func(c string) bool {
-							return c == entity.FieldCreatedAt
-						},
-					)
-				}
-
-				relation.FKFields = []*Field{foundFKField}
-			}
-		}
-	}
-
-	return errs
+	return b, nil
 }

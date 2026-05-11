@@ -28,7 +28,10 @@ func TestSchemaServiceCreate(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 422, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Contains(t, response, `schema validation error`)
+	assert.Contains(t, response, `schema validation failed`)
+	assert.Contains(t, response, `"schema":"blog"`)
+	assert.Contains(t, response, `"code":"schema.label_field.required"`)
+	assert.Contains(t, response, `"code":"schema.namespace.required"`)
 	assert.Contains(t, response, `label_field is required`)
 	assert.Contains(t, response, `namespace is required`)
 

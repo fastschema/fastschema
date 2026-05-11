@@ -19,7 +19,7 @@ func TestSchemaServiceDelete(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 404, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Contains(t, response, `schema product not found`)
+	assert.Contains(t, response, `schema 'product' not found`)
 
 	// Case 2: schema has no relation
 	req = httptest.NewRequest("POST", "/schema", bytes.NewReader([]byte(testBlogJSON)))

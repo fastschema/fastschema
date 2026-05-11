@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"testing"
 
@@ -334,25 +335,25 @@ func TestSchemaValidate(t *testing.T) {
 	s.Name = ""
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Missing 'name' property")
+	assert.Contains(t, err.Error(), "schema name is required")
 
 	s.Name = "user"
 	s.LabelFieldName = ""
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Missing 'label_field' property")
+	assert.Contains(t, err.Error(), "label_field is required")
 
 	s.LabelFieldName = "name"
 	s.Namespace = ""
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Missing 'namespace' property")
+	assert.Contains(t, err.Error(), "namespace is required")
 
 	s.Namespace = "schema"
 	s.Fields = []*Field{}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "label_field 'name' is invalid for system schema")
+	assert.Contains(t, err.Error(), "label_field 'name' invalid for system schema")
 
 	// Test missing field name
 	s.Fields = []*Field{
@@ -364,7 +365,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Field is missing 'name' property")
+	assert.Contains(t, err.Error(), "field at index 0 is missing 'name'")
 
 	// Test missing field label
 	s.Fields = []*Field{
@@ -393,7 +394,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Invalid type 'invalid'")
+	assert.Contains(t, err.Error(), "field type 'invalid' is not recognized")
 
 	// Test missing enum values
 	s.Fields = []*Field{
@@ -405,7 +406,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Enum type requires 'enums' array")
+	assert.Contains(t, err.Error(), "enum field requires 'enums' array")
 
 	// Test missing relation
 	s.Fields = []*Field{
@@ -417,7 +418,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Relation type requires 'relation' object")
+	assert.Contains(t, err.Error(), "relation field requires 'relation' object")
 
 	// Test missing relation schema
 	s.Fields = []*Field{
@@ -488,19 +489,19 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Type is invalid or missing")
+	assert.Contains(t, err.Error(), "field type is missing")
 
 	// Test missing label field
 	s.LabelFieldName = "nonexistent"
 	err = s.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "label_field 'nonexistent' is invalid for system schema")
+	assert.Contains(t, err.Error(), "label_field 'nonexistent' invalid for system schema")
 }
 
 func TestErrFieldNotFound(t *testing.T) {
 	err := ErrFieldNotFound("user", "field1")
 	assert.Error(t, err)
-	assert.Equal(t, "field user.field1 not found", err.Error())
+	assert.Contains(t, err.Error(), "field 'field1' is not defined in schema 'user'")
 }
 func TestNewSchemaFromMap(t *testing.T) {
 	// invalid schema map
@@ -888,7 +889,7 @@ func TestEnsurePrimaryFieldEdgeCases(t *testing.T) {
 		}
 		err := s.Init(false)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "primary field 'nonexistent' is not found")
+		assert.Contains(t, err.Error(), "primary_field 'nonexistent' is not a field in this schema")
 	})
 
 	t.Run("disable ID column with no candidate", func(t *testing.T) {
@@ -979,4 +980,147 @@ func TestSchemaFormZoneFieldClone(t *testing.T) {
 	clonedNoOpts := fieldNoOpts.Clone()
 	assert.NotNil(t, clonedNoOpts)
 	assert.Nil(t, clonedNoOpts.Options)
+}
+
+func TestSchema_Validate_CollectsAfterMissingRelation(t *testing.T) {
+	s := &Schema{
+		Name:           "post",
+		Namespace:      "posts",
+		LabelFieldName: "title",
+		Fields: []*Field{
+			{Name: "title", Type: TypeString, Label: "Title"},
+			{Name: "category", Type: TypeRelation, Label: "Category"}, // missing relation block
+			{Name: "bad", Type: FieldType(99), Label: "Bad"},          // invalid type, comes after
+		},
+	}
+	err := s.Validate()
+	assert.Error(t, err)
+
+	var batch *SchemaErrors
+	assert.True(t, errors.As(err, &batch))
+	assert.True(t, batch.HasCode(CodeFieldRelationRequired), "expected field.relation.required")
+	assert.True(t, batch.HasCode(CodeFieldTypeInvalid), "expected field.type.invalid (downstream of relation error)")
+}
+
+func TestSchema_Init_EmptySchema(t *testing.T) {
+	s := &Schema{}
+	err := s.Init(false)
+	assert.Error(t, err)
+	var errs *SchemaErrors
+	assert.True(t, errors.As(err, &errs))
+	assert.True(t, errs.HasCode(CodeSchemaNameRequired))
+	assert.True(t, errs.HasCode(CodeSchemaNamespaceRequired))
+	assert.True(t, errs.HasCode(CodeSchemaLabelFieldRequired))
+}
+
+func TestSchema_Init_ValidSchema(t *testing.T) {
+	s := &Schema{
+		Name:           "post",
+		Namespace:      "posts",
+		LabelFieldName: "title",
+		Fields: []*Field{
+			{Name: "title", Type: TypeString, Label: "Title"},
+			{Name: "body", Type: TypeText, Label: "Body"},
+		},
+	}
+	err := s.Init(false)
+	assert.NoError(t, err)
+	// Verify auto "id" field was prepended
+	assert.NotNil(t, s.Field(entity.FieldID))
+}
+
+func TestSchema_Init_LabelFieldNotFound(t *testing.T) {
+	s := &Schema{
+		Name:           "post",
+		Namespace:      "posts",
+		LabelFieldName: "missing_label",
+		Fields: []*Field{
+			{Name: "title", Type: TypeString, Label: "Title"},
+		},
+	}
+	err := s.Init(false)
+	assert.Error(t, err)
+	var errs *SchemaErrors
+	assert.True(t, errors.As(err, &errs))
+	assert.True(t, errs.HasCode(CodeSchemaLabelFieldNotFound))
+}
+
+func TestSchema_Init_PrimaryFieldNotFound(t *testing.T) {
+	s := &Schema{
+		Name:             "post",
+		Namespace:        "posts",
+		LabelFieldName:   "title",
+		PrimaryFieldName: "missing",
+		Fields: []*Field{
+			{Name: "title", Type: TypeString, Label: "Title"},
+		},
+	}
+	err := s.Init(false)
+	assert.Error(t, err)
+	var errs *SchemaErrors
+	assert.True(t, errors.As(err, &errs))
+	assert.True(t, errs.HasCode(CodeSchemaPrimaryFieldNotFound))
+}
+
+func TestSchema_Init_BadSetterExpression(t *testing.T) {
+	s := &Schema{
+		Name:           "post",
+		Namespace:      "posts",
+		LabelFieldName: "title",
+		Fields: []*Field{
+			{Name: "title", Type: TypeString, Label: "Title", Setter: "(((((invalid expression"},
+		},
+	}
+	err := s.Init(false)
+	assert.Error(t, err)
+	var errs *SchemaErrors
+	assert.True(t, errors.As(err, &errs))
+	assert.True(t, errs.HasCode(CodeFieldSetterCompileError))
+}
+
+func TestSchema_Init_MultiStage(t *testing.T) {
+	s := &Schema{
+		Name:             "post",
+		Namespace:        "posts",
+		LabelFieldName:   "title",
+		PrimaryFieldName: "missing_pk",
+		Fields: []*Field{
+			{Name: "title", Type: TypeString, Label: "Title", Setter: "((bad expr"},
+			{Name: "broken", Type: FieldType(99), Label: "Broken"}, // invalid type
+		},
+	}
+	err := s.Init(false)
+	assert.Error(t, err)
+	var errs *SchemaErrors
+	assert.True(t, errors.As(err, &errs))
+	// Stage 1: invalid type
+	assert.True(t, errs.HasCode(CodeFieldTypeInvalid))
+	// Stage 2: missing primary field
+	assert.True(t, errs.HasCode(CodeSchemaPrimaryFieldNotFound))
+	// Stage 3: bad setter
+	assert.True(t, errs.HasCode(CodeFieldSetterCompileError))
+}
+
+func TestSchema_Init_RelationStructural(t *testing.T) {
+	s := &Schema{
+		Name:           "post",
+		Namespace:      "posts",
+		LabelFieldName: "title",
+		Fields: []*Field{
+			{Name: "title", Type: TypeString, Label: "Title"},
+			{Name: "category", Type: TypeRelation, Label: "Category"},
+		},
+	}
+	err := s.Init(false)
+	assert.Error(t, err)
+	var errs *SchemaErrors
+	assert.True(t, errors.As(err, &errs))
+	assert.True(t, errs.HasCode(CodeFieldRelationRequired))
+}
+
+func TestSchema_Init_NoInitializedFlagOnFailure(t *testing.T) {
+	s := &Schema{} // no Name → fails validation
+	err := s.Init(false)
+	assert.Error(t, err)
+	assert.False(t, s.initialized, "Init must not set initialized flag on validation failure")
 }

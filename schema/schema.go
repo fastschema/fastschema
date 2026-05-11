@@ -2,9 +2,8 @@ package schema
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"os"
-	"strings"
 
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/pkg/utils"
@@ -65,28 +64,44 @@ func NewSchemaFromMap(data map[string]any) (*Schema, error) {
 	return NewSchemaFromJSON(string(jsonData))
 }
 
-// Init initializes the node.
+// Init initializes the node. Validation runs in collect-all mode: every
+// stage (Validate, ensurePrimaryField, per-field Field.Init) reports all
+// its errors before Init returns. Side effects (dbColumns population,
+// timestamp field appending, s.initialized=true) only apply when
+// validation passes. Returns *SchemaErrors via the error interface when
+// any stage fails; nil otherwise. Re-entry on an already-initialized
+// schema is a no-op.
 func (s *Schema) Init(disableIDColumn bool) error {
 	if s.initialized {
 		return nil
 	}
 
-	defer func() {
-		s.initialized = true
-	}()
+	errs := &SchemaErrors{Schema: s.Name}
 
 	if err := s.Validate(); err != nil {
-		return err
+		var batch *SchemaErrors
+		if errors.As(err, &batch) {
+			errs.FieldErrors = append(errs.FieldErrors, batch.FieldErrors...)
+		} else {
+			appendStageError(errs, err, "")
+		}
 	}
 
 	if err := s.ensurePrimaryField(disableIDColumn); err != nil {
-		return err
+		appendStageError(errs, err, "")
 	}
 
 	for _, f := range s.Fields {
 		if err := f.Init(s.Name); err != nil {
-			return err
+			appendStageError(errs, err, f.Name)
 		}
+	}
+
+	if errs.HasErrors() {
+		return errs
+	}
+
+	for _, f := range s.Fields {
 		if !f.Type.IsRelationType() {
 			s.dbColumns = append(s.dbColumns, f.Name)
 		}
@@ -122,13 +137,59 @@ func (s *Schema) Init(disableIDColumn bool) error {
 				s.dbColumns = append(s.dbColumns, timeField[0])
 				s.Fields = append(s.Fields, tsField)
 				if err := tsField.Init(); err != nil {
-					return err
+					appendStageError(errs, err, tsField.Name)
+					return errs
 				}
 			}
 		}
 	}
 
+	s.initialized = true
 	return nil
+}
+
+// appendStageError lifts a non-batch stage error into a *FieldError and
+// appends it to errs. Preserves *SchemaError fields when present;
+// otherwise wraps as schema.init.unknown.
+func appendStageError(errs *SchemaErrors, err error, fieldFallback string) {
+	if err == nil {
+		return
+	}
+	var se *SchemaError
+	if errors.As(err, &se) {
+		field := se.Field
+		if field == "" {
+			field = fieldFallback
+		}
+		var idx *int
+		if se.Index != nil {
+			v := *se.Index
+			idx = &v
+		}
+		errs.FieldErrors = append(errs.FieldErrors, &FieldError{
+			Code:    se.Code,
+			Field:   field,
+			Index:   idx,
+			Message: se.Message,
+			Cause:   se.Cause,
+		})
+		return
+	}
+	var fe *FieldError
+	if errors.As(err, &fe) {
+		clone := *fe
+		if clone.Field == "" {
+			clone.Field = fieldFallback
+		}
+		errs.FieldErrors = append(errs.FieldErrors, &clone)
+		return
+	}
+	errs.FieldErrors = append(errs.FieldErrors, &FieldError{
+		Code:    CodeSchemaInitUnknown,
+		Field:   fieldFallback,
+		Message: err.Error(),
+		Cause:   err,
+	})
 }
 
 // Clone returns a copy of the schema.
@@ -293,17 +354,18 @@ func (s *Schema) PrimaryKeyName() string {
 }
 
 // Validate inspects the fields of the schema for validation errors.
+// Returns *SchemaErrors when one or more validations fail; nil otherwise.
 func (s *Schema) Validate() error {
-	var schemaErrors []error
+	var fieldErrors []*FieldError
 	if s.Name == "" {
-		schemaErrors = append(schemaErrors, SchemaNameRequiredError())
+		fieldErrors = append(fieldErrors, SchemaNameRequired())
 	}
 	if s.LabelFieldName == "" {
-		schemaErrors = append(schemaErrors, SchemaLabelFieldRequiredError(s.Name))
+		fieldErrors = append(fieldErrors, SchemaLabelFieldRequired())
 	}
 
 	if s.Namespace == "" {
-		schemaErrors = append(schemaErrors, SchemaNamespaceRequiredError(s.Name))
+		fieldErrors = append(fieldErrors, SchemaNamespaceRequired())
 	}
 
 	hasLabelField := false
@@ -320,7 +382,7 @@ func (s *Schema) Validate() error {
 		}
 
 		if field.Name == "" {
-			schemaErrors = append(schemaErrors, FieldNameRequiredError(s.Name, i))
+			fieldErrors = append(fieldErrors, FieldNameRequired(i))
 		}
 
 		if field.Label == "" {
@@ -329,36 +391,36 @@ func (s *Schema) Validate() error {
 
 		if !field.Type.IsRelationType() && field.Type != TypeEnum {
 			if !field.Type.Valid() {
-				schemaErrors = append(schemaErrors, FieldInvalidTypeError(s.Name, field.Name, field.Type.String()))
+				fieldErrors = append(fieldErrors, FieldInvalidType(field.Name, field.Type.String()))
 			}
 		}
 
 		if field.Type == TypeEnum && len(field.Enums) == 0 {
-			schemaErrors = append(schemaErrors, FieldEnumRequiredError(s.Name, field.Name))
+			fieldErrors = append(fieldErrors, FieldEnumRequired(field.Name))
 		}
 
 		if field.Type.IsRelationType() && !field.Type.IsFileType() {
 			relation := field.Relation
 			if relation == nil {
-				schemaErrors = append(schemaErrors, FieldRelationRequiredError(s.Name, field.Name))
-				break
+				fieldErrors = append(fieldErrors, FieldRelationRequired(field.Name))
+				continue
 			}
 
 			if relation.TargetSchemaName == "" {
-				schemaErrors = append(schemaErrors, FieldRelationSchemaRequiredError(s.Name, field.Name))
+				fieldErrors = append(fieldErrors, FieldRelationSchemaRequired(field.Name))
 			}
 
 			if relation.Type == RelationInvalid {
-				schemaErrors = append(schemaErrors, FieldRelationTypeRequiredError(s.Name, field.Name))
+				fieldErrors = append(fieldErrors, FieldRelationTypeRequired(field.Name))
 			}
 
 			if relation.TargetFieldName == "" {
-				schemaErrors = append(schemaErrors, FieldRelationFieldRequiredError(s.Name, field.Name))
+				fieldErrors = append(fieldErrors, FieldRelationFieldRequired(field.Name))
 			}
 		}
 
 		if field.Type == TypeInvalid {
-			schemaErrors = append(schemaErrors, FieldTypeInvalidError(s.Name, field.Name))
+			fieldErrors = append(fieldErrors, FieldTypeMissing(field.Name))
 		}
 	}
 
@@ -371,18 +433,14 @@ func (s *Schema) Validate() error {
 		// Check if this is extending a system schema (user, role, file)
 		isSystemSchemaExtension := s.Name == "user" || s.Name == "role" || s.Name == "file"
 		if isSystemSchemaExtension {
-			schemaErrors = append(schemaErrors, SchemaLabelFieldSystemSchemaError(s.Name, s.LabelFieldName))
+			fieldErrors = append(fieldErrors, SchemaLabelFieldSystemSchema(s.Name, s.LabelFieldName))
 		} else {
-			schemaErrors = append(schemaErrors, SchemaLabelFieldNotFoundError(s.Name, s.LabelFieldName, stringFields))
+			fieldErrors = append(fieldErrors, SchemaLabelFieldNotFound(s.LabelFieldName, stringFields))
 		}
 	}
 
-	if len(schemaErrors) > 0 {
-		var errorMessages []string
-		for _, err := range schemaErrors {
-			errorMessages = append(errorMessages, err.Error())
-		}
-		return fmt.Errorf("schema validation error: [%s]\n%s", s.Name, strings.Join(errorMessages, "\n"))
+	if len(fieldErrors) > 0 {
+		return &SchemaErrors{Schema: s.Name, FieldErrors: fieldErrors}
 	}
 
 	return nil
@@ -396,7 +454,7 @@ func (s *Schema) ensurePrimaryField(disableIDColumn bool) error {
 	if s.PrimaryFieldName != "" && s.PrimaryFieldName != entity.FieldID {
 		candidate = s.Field(s.PrimaryFieldName)
 		if candidate == nil {
-			return fmt.Errorf("schema %s: primary field '%s' is not found", s.Name, s.PrimaryFieldName)
+			return SchemaPrimaryFieldNotFound(s.Name, s.PrimaryFieldName)
 		}
 	}
 
@@ -416,7 +474,7 @@ func (s *Schema) ensurePrimaryField(disableIDColumn bool) error {
 			return nil
 		}
 
-		return fmt.Errorf("schema %s: primary key field is required", s.Name)
+		return SchemaPrimaryFieldRequired(s.Name)
 	}
 
 	applyPrimaryFieldDefaults(candidate, autoCreated)
@@ -432,7 +490,7 @@ func (s *Schema) ensurePrimaryField(disableIDColumn bool) error {
 }
 
 func ErrFieldNotFound(schemaName, fieldName string) error {
-	return fmt.Errorf("field %s.%s not found", schemaName, fieldName)
+	return FieldNotFound(schemaName, fieldName)
 }
 
 func defaultIDField() *Field {

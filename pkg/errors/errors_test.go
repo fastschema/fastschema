@@ -330,6 +330,26 @@ func TestErrorMarshalJSON(t *testing.T) {
 		assert.Equal(t, expected, string(result))
 	})
 
+	t.Run("WithData", func(t *testing.T) {
+		e := &Error{
+			Message: "validation failed",
+			Code:    "422",
+			Status:  422,
+		}
+		e.WithData(map[string]any{"field": "name", "rule": "required"})
+		expected := `{"code":"422","message":"validation failed","data":{"field":"name","rule":"required"}}`
+		result, marshalErr := e.MarshalJSON()
+		assert.NoError(t, marshalErr)
+		assert.Equal(t, expected, string(result))
+	})
+
+	t.Run("DataOmitsWhenNil", func(t *testing.T) {
+		e := &Error{Message: "x", Code: "X"}
+		result, marshalErr := e.MarshalJSON()
+		assert.NoError(t, marshalErr)
+		assert.NotContains(t, string(result), `"data"`)
+	})
+
 	t.Run("WithoutStatus", func(t *testing.T) {
 		err.Status = 0
 		expected := `{"code":"ERROR_CODE","message":"Something went wrong","detail":"Additional details"}`

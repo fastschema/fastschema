@@ -1,385 +1,566 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
 
-// Error code constants for categorization
+// Error code constants — dotted lowercase, hierarchical for filtering.
 const (
-	// Schema-level errors (SCH-xxx)
-	ErrCodeSchemaNameRequired       = "SCH-001"
-	ErrCodeSchemaLabelFieldRequired = "SCH-002"
-	ErrCodeSchemaNamespaceRequired  = "SCH-003"
-	ErrCodeSchemaLabelFieldNotFound = "SCH-004"
-	ErrCodeSchemaPrimaryFieldMissing = "SCH-005"
+	// Schema-level
+	CodeSchemaNameRequired           = "schema.name.required"
+	CodeSchemaLabelFieldRequired     = "schema.label_field.required"
+	CodeSchemaNamespaceRequired      = "schema.namespace.required"
+	CodeSchemaLabelFieldNotFound     = "schema.label_field.not_found"
+	CodeSchemaLabelFieldSystemSchema = "schema.label_field.system_schema"
+	CodeSchemaPrimaryFieldNotFound   = "schema.primary_field.not_found"
+	CodeSchemaPrimaryFieldRequired   = "schema.primary_field.required"
+	CodeSchemaIOReadError            = "schema.io.read_error"
+	CodeSchemaInitUnknown            = "schema.init.unknown"
 
-	// Field-level errors (FLD-xxx)
-	ErrCodeFieldNameRequired       = "FLD-001"
-	ErrCodeFieldInvalidType        = "FLD-002"
-	ErrCodeFieldEnumRequired       = "FLD-003"
-	ErrCodeFieldRelationRequired   = "FLD-004"
-	ErrCodeFieldRelationSchema     = "FLD-005"
-	ErrCodeFieldRelationType       = "FLD-006"
-	ErrCodeFieldRelationField      = "FLD-007"
-	ErrCodeFieldTypeInvalid        = "FLD-008"
-	ErrCodeFieldInvalidTypeParse   = "FLD-009"
+	// Field-level
+	CodeFieldNameRequired       = "field.name.required"
+	CodeFieldTypeInvalid        = "field.type.invalid"
+	CodeFieldTypeMissing        = "field.type.missing"
+	CodeFieldTypeParseError     = "field.type.parse_error"
+	CodeFieldEnumRequired       = "field.enum.required"
+	CodeFieldRelationRequired   = "field.relation.required"
+	CodeFieldRelationSchemaReq  = "field.relation.schema.required"
+	CodeFieldRelationTypeReq    = "field.relation.type.required"
+	CodeFieldRelationFieldReq   = "field.relation.field.required"
+	CodeFieldNotFound           = "field.not_found"
+	CodeFieldFileSchemaRequired = "field.file.schema.required"
+	CodeFieldSetterCompileError = "field.setter.compile_error"
+	CodeFieldGetterCompileError = "field.getter.compile_error"
 
-	// Relation errors (REL-xxx)
-	ErrCodeRelationTargetNotFound = "REL-001"
-	ErrCodeRelationBackRefMissing = "REL-002"
-	ErrCodeRelationFKFieldNotFound = "REL-003"
-	ErrCodeRelationFKFieldClone    = "REL-004"
+	// Relation
+	CodeRelationTargetNotFound   = "relation.target.not_found"
+	CodeRelationBackRefMissing   = "relation.back_ref.missing"
+	CodeRelationFKTargetNotFound = "relation.fk.target.not_found"
+	CodeRelationFKCloneFailed    = "relation.fk.clone_failed"
+	CodeRelationConfigMissing    = "relation.config.missing"
 
-	// Builder errors (BLD-xxx)
-	ErrCodeBuilderDuplicateSchema    = "BLD-001"
-	ErrCodeBuilderSchemaNotFound     = "BLD-002"
-	ErrCodeBuilderNotM2MRelation     = "BLD-003"
-	ErrCodeBuilderMissingPrimaryKey  = "BLD-004"
-	ErrCodeBuilderJunctionFieldFailed = "BLD-005"
+	// Builder
+	CodeBuilderSchemaDuplicate         = "builder.schema.duplicate"
+	CodeBuilderSchemaNotFound          = "builder.schema.not_found"
+	CodeBuilderSchemaPrimaryKeyMissing = "builder.schema.primary_key.missing"
+	CodeBuilderRelationNotM2M          = "builder.relation.not_m2m"
+	CodeBuilderJunctionFieldFailed     = "builder.junction_field.create_failed"
 )
 
-// ValidFieldTypes returns all valid field type names for error messages
-func ValidFieldTypes() string {
-	return "string, text, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool, time, json, uuid, bytes, enum, relation, file"
+// FieldError is a per-field error within a schema validation batch.
+// Schema context is supplied by the enclosing SchemaErrors wrapper.
+type FieldError struct {
+	Code    string `json:"code"`
+	Field   string `json:"field,omitempty"`
+	Index   *int   `json:"index,omitempty"`
+	Message string `json:"message"`
+	Cause   error  `json:"-"`
 }
 
-// ValidFieldTypesShort returns commonly used field types for concise error messages
-func ValidFieldTypesShort() string {
-	return "string, text, int, uint, uint64, float, float64, bool, time, json, enum, relation, file"
-}
-
-// ValidRelationTypes returns valid relation types for error messages
-func ValidRelationTypes() string {
-	return "o2o (one-to-one), o2m (one-to-many), m2m (many-to-many)"
-}
-
-// SchemaError provides detailed, actionable error messages for AI correction
-type SchemaError struct {
-	Code     string `json:"code"`
-	Location string `json:"location"`
-	Message  string `json:"message"`
-	Fix      string `json:"fix"`
-	Example  string `json:"example,omitempty"`
-}
-
-// Error implements the error interface with a structured format
-func (e *SchemaError) Error() string {
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "[%s] %s: %s", e.Code, e.Location, e.Message)
-	if e.Fix != "" {
-		fmt.Fprintf(&sb, ". FIX: %s", e.Fix)
+func (e *FieldError) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "[%s] ", e.Code)
+	switch {
+	case e.Field != "":
+		fmt.Fprintf(&b, "field '%s': ", e.Field)
+	case e.Index != nil:
+		fmt.Fprintf(&b, "field at index %d: ", *e.Index)
 	}
-	if e.Example != "" {
-		fmt.Fprintf(&sb, ". EXAMPLE: %s", e.Example)
-	}
-	return sb.String()
+	b.WriteString(e.Message)
+	return b.String()
 }
 
-// NewSchemaError creates a new SchemaError with the given parameters
-func NewSchemaError(code, location, message, fix string, example ...string) *SchemaError {
-	e := &SchemaError{
-		Code:     code,
-		Location: location,
-		Message:  message,
-		Fix:      fix,
-	}
-	if len(example) > 0 && example[0] != "" {
-		e.Example = example[0]
-	}
-	return e
-}
+func (e *FieldError) Unwrap() error { return e.Cause }
 
-// Unwrap returns nil (SchemaError does not wrap other errors)
-func (e *SchemaError) Unwrap() error {
-	return nil
-}
-
-// Is allows error comparison by code
-func (e *SchemaError) Is(target error) bool {
-	if t, ok := target.(*SchemaError); ok {
+func (e *FieldError) Is(target error) bool {
+	var t *FieldError
+	if errors.As(target, &t) {
 		return e.Code == t.Code
 	}
 	return false
 }
 
-// Helper functions for common errors
-
-// SchemaNameRequiredError creates an error for missing schema name
-func SchemaNameRequiredError() *SchemaError {
-	return NewSchemaError(
-		ErrCodeSchemaNameRequired,
-		"Schema",
-		"Missing 'name' property",
-		`Add "name": "<unique_snake_case_name>" to your schema. The name must be unique across all schemas and use snake_case`,
-		`"name": "blog_post"`,
-	)
+// SchemaError is an error with explicit schema context.
+// Used for cross-schema errors (relation back-ref), builder-level errors,
+// and standalone errors escaping a per-schema batch.
+type SchemaError struct {
+	Code    string `json:"code"`
+	Schema  string `json:"schema,omitempty"`
+	Field   string `json:"field,omitempty"`
+	Index   *int   `json:"index,omitempty"`
+	Target  string `json:"target,omitempty"`
+	Message string `json:"message"`
+	Cause   error  `json:"-"`
 }
 
-// SchemaLabelFieldRequiredError creates an error for missing label_field
-func SchemaLabelFieldRequiredError(schemaName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeSchemaLabelFieldRequired,
-		fmt.Sprintf("Schema '%s'", schemaName),
-		"Missing 'label_field' property",
-		`Add "label_field": "<field_name>" where the field is a string/text field that best represents this record`,
-		`"label_field": "title"`,
-	)
-}
-
-// SchemaNamespaceRequiredError creates an error for missing namespace
-func SchemaNamespaceRequiredError(schemaName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeSchemaNamespaceRequired,
-		fmt.Sprintf("Schema '%s'", schemaName),
-		"Missing 'namespace' property",
-		`Add "namespace": "<plural_name>" (typically the plural form of the schema name)`,
-		`"namespace": "posts"`,
-	)
-}
-
-// SchemaLabelFieldNotFoundError creates an error for label_field not found in schema
-func SchemaLabelFieldNotFoundError(schemaName, labelField string, availableFields []string) *SchemaError {
-	fix := `Set label_field to one of the existing string/text fields in the schema. The label_field MUST match an existing field name exactly`
-	if len(availableFields) > 0 {
-		fix = fmt.Sprintf(`Set label_field to one of these existing string/text fields: [%s]`, strings.Join(availableFields, ", "))
+func (e *SchemaError) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "[%s]", e.Code)
+	if e.Schema != "" {
+		fmt.Fprintf(&b, " schema '%s'", e.Schema)
+		if e.Field != "" {
+			fmt.Fprintf(&b, ", field '%s'", e.Field)
+		}
+		if e.Target != "" {
+			fmt.Fprintf(&b, " -> '%s'", e.Target)
+		}
+	} else if e.Field != "" {
+		fmt.Fprintf(&b, " field '%s'", e.Field)
 	}
-	return NewSchemaError(
-		ErrCodeSchemaLabelFieldNotFound,
-		fmt.Sprintf("Schema '%s'", schemaName),
-		fmt.Sprintf("label_field '%s' not found", labelField),
-		fix,
-		fmt.Sprintf(`"label_field": "%s"`, func() string {
-			if len(availableFields) > 0 {
-				return availableFields[0]
-			}
-			return "name"
-		}()),
-	)
+	b.WriteString(": ")
+	b.WriteString(e.Message)
+	return b.String()
 }
 
-// SchemaLabelFieldSystemSchemaError creates an error for invalid label_field on system schema
-func SchemaLabelFieldSystemSchemaError(schemaName, labelField string) *SchemaError {
-	labelFieldMap := map[string]string{
-		"user": "username",
-		"role": "name",
-		"file": "name",
+func (e *SchemaError) Unwrap() error { return e.Cause }
+
+func (e *SchemaError) Is(target error) bool {
+	var t *SchemaError
+	if errors.As(target, &t) {
+		return e.Code == t.Code
 	}
-	expectedLabelField := labelFieldMap[schemaName]
-	return NewSchemaError(
-		ErrCodeSchemaLabelFieldNotFound,
-		fmt.Sprintf("System schema '%s'", schemaName),
-		fmt.Sprintf("label_field '%s' is invalid for system schema", labelField),
-		fmt.Sprintf(`System schemas have FIXED label_field values: user='username', role='name', file='name'. You MUST use label_field='%s' for %s`, expectedLabelField, schemaName),
-		fmt.Sprintf(`"label_field": "%s"`, expectedLabelField),
-	)
+	return false
 }
 
-// FieldNameRequiredError creates an error for missing field name
-func FieldNameRequiredError(schemaName string, fieldIndex int) *SchemaError {
-	return NewSchemaError(
-		ErrCodeFieldNameRequired,
-		fmt.Sprintf("Schema '%s', field at index %d", schemaName, fieldIndex),
-		"Field is missing 'name' property",
-		`Add "name": "<field_name>" using snake_case`,
-		`"name": "created_at"`,
-	)
+// SchemaErrors collects FieldError instances from a single-schema validation batch.
+type SchemaErrors struct {
+	Schema      string        `json:"schema"`
+	FieldErrors []*FieldError `json:"field_errors,omitempty"`
 }
 
-// FieldInvalidTypeError creates an error for invalid field type
-func FieldInvalidTypeError(schemaName, fieldName, invalidType string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeFieldInvalidType,
-		fmt.Sprintf("Schema '%s', field '%s'", schemaName, fieldName),
-		fmt.Sprintf("Invalid type '%s'", invalidType),
-		fmt.Sprintf("Use one of the valid types: %s", ValidFieldTypesShort()),
-		`"type": "string"`,
-	)
+func (e *SchemaErrors) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "schema validation error: [%s]", e.Schema)
+	for _, fe := range e.FieldErrors {
+		b.WriteString("\n  ")
+		b.WriteString(fe.Error())
+	}
+	return b.String()
 }
 
-// FieldEnumRequiredError creates an error for enum field without enums array
-func FieldEnumRequiredError(schemaName, fieldName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeFieldEnumRequired,
-		fmt.Sprintf("Schema '%s', field '%s'", schemaName, fieldName),
-		"Enum type requires 'enums' array",
-		`Add an 'enums' array with value-label pairs. Each enum must have 'value' (stored in DB) and 'label' (displayed to user)`,
-		`"enums": [{"value": "draft", "label": "Draft"}, {"value": "published", "label": "Published"}]`,
-	)
+func (e *SchemaErrors) Unwrap() []error {
+	out := make([]error, len(e.FieldErrors))
+	for i, fe := range e.FieldErrors {
+		out[i] = fe
+	}
+	return out
 }
 
-// FieldRelationRequiredError creates an error for relation field without relation object
-func FieldRelationRequiredError(schemaName, fieldName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeFieldRelationRequired,
-		fmt.Sprintf("Schema '%s', field '%s'", schemaName, fieldName),
-		"Relation type requires 'relation' object",
-		`Add a 'relation' object with 'type', 'schema', and 'field' properties. Both sides of a relation MUST reference each other`,
-		`"relation": {"type": "o2m", "schema": "category", "field": "posts"}`,
-	)
-}
+func (e *SchemaErrors) HasErrors() bool { return len(e.FieldErrors) > 0 }
 
-// FieldRelationSchemaRequiredError creates an error for missing relation.schema
-func FieldRelationSchemaRequiredError(schemaName, fieldName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeFieldRelationSchema,
-		fmt.Sprintf("Schema '%s', field '%s'", schemaName, fieldName),
-		"relation.schema is required",
-		`Specify the target schema name in the relation object`,
-		`"relation": {"type": "o2m", "schema": "user", "field": "posts"}`,
-	)
-}
-
-// FieldRelationTypeRequiredError creates an error for missing/invalid relation.type
-func FieldRelationTypeRequiredError(schemaName, fieldName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeFieldRelationType,
-		fmt.Sprintf("Schema '%s', field '%s'", schemaName, fieldName),
-		"relation.type is required",
-		fmt.Sprintf("Add relation.type with one of: %s", ValidRelationTypes()),
-		`"relation": {"type": "o2m", "schema": "user", "field": "posts"}`,
-	)
-}
-
-// FieldRelationFieldRequiredError creates an error for missing relation.field
-func FieldRelationFieldRequiredError(schemaName, fieldName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeFieldRelationField,
-		fmt.Sprintf("Schema '%s', field '%s'", schemaName, fieldName),
-		"relation.field is required",
-		`Specify the back-reference field name in the target schema. The target schema MUST have a relation field with this name pointing back to this schema`,
-		`"relation": {"type": "o2m", "schema": "user", "field": "posts"}`,
-	)
-}
-
-// FieldTypeInvalidError creates an error for invalid/missing field type
-func FieldTypeInvalidError(schemaName, fieldName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeFieldTypeInvalid,
-		fmt.Sprintf("Schema '%s', field '%s'", schemaName, fieldName),
-		"Type is invalid or missing",
-		fmt.Sprintf("Add a valid 'type' property. Valid types: %s", ValidFieldTypesShort()),
-		`"type": "string"`,
-	)
-}
-
-// FieldTypeParseError creates an error for JSON type parsing failure
-func FieldTypeParseError(invalidType string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeFieldInvalidTypeParse,
-		"Field type",
-		fmt.Sprintf("Invalid type '%s' in JSON", invalidType),
-		fmt.Sprintf("Use one of the valid types: %s", ValidFieldTypes()),
-		`"type": "string"`,
-	)
-}
-
-// RelationTargetNotFoundError creates an error for relation referencing non-existent schema
-func RelationTargetNotFoundError(schemaName, fieldName, targetSchemaName string) *SchemaError {
-	fix := fmt.Sprintf(`Ensure the target schema '%s' is defined in your schemas array`, targetSchemaName)
-	example := fmt.Sprintf(`{"name": "%s", "namespace": "%ss", "label_field": "name", "fields": [...]}`, targetSchemaName, targetSchemaName)
-
-	// Special handling for system schemas
-	if targetSchemaName == "user" || targetSchemaName == "role" || targetSchemaName == "file" {
-		fix = fmt.Sprintf(`System schema '%s' is pre-defined. To extend it, add a schema with name='%s' and only define additional fields needed for the back-reference`, targetSchemaName, targetSchemaName)
-		if targetSchemaName == "user" {
-			example = `{"name": "user", "namespace": "users", "label_field": "username", "fields": [{"name": "posts", "type": "relation", "relation": {...}}]}`
-		} else {
-			example = fmt.Sprintf(`{"name": "%s", "namespace": "%ss", "label_field": "name", "fields": [...]}`, targetSchemaName, targetSchemaName)
+func (e *SchemaErrors) HasCode(code string) bool {
+	for _, fe := range e.FieldErrors {
+		if fe.Code == code {
+			return true
 		}
 	}
-
-	return NewSchemaError(
-		ErrCodeRelationTargetNotFound,
-		fmt.Sprintf("Schema '%s', field '%s'", schemaName, fieldName),
-		fmt.Sprintf("Target schema '%s' does not exist", targetSchemaName),
-		fix,
-		example,
-	)
+	return false
 }
 
-// RelationBackRefError creates an error for missing/invalid back-reference
-func RelationBackRefError(sourceSchema, sourceField, targetSchema, targetField string, relationType RelationType) *SchemaError {
-	var example string
-	switch relationType {
-	case O2O:
-		example = fmt.Sprintf(`In %s.json: {"name": "%s", "type": "relation", "relation": {"type": "o2o", "schema": "%s", "field": "%s"}}`,
-			targetSchema, targetField, sourceSchema, sourceField)
-	case O2M:
-		example = fmt.Sprintf(`In %s.json: {"name": "%s", "type": "relation", "relation": {"type": "o2m", "schema": "%s", "field": "%s", "owner": true}}`,
-			targetSchema, targetField, sourceSchema, sourceField)
-	case M2M:
-		example = fmt.Sprintf(`In %s.json: {"name": "%s", "type": "relation", "relation": {"type": "m2m", "schema": "%s", "field": "%s"}}`,
-			targetSchema, targetField, sourceSchema, sourceField)
-	default:
-		example = fmt.Sprintf(`In %s.json: {"name": "%s", "type": "relation", "relation": {"type": "...", "schema": "%s", "field": "%s"}}`,
-			targetSchema, targetField, sourceSchema, sourceField)
+func (e *SchemaErrors) ByCode(code string) []*FieldError {
+	var out []*FieldError
+	for _, fe := range e.FieldErrors {
+		if fe.Code == code {
+			out = append(out, fe)
+		}
 	}
-
-	return NewSchemaError(
-		ErrCodeRelationBackRefMissing,
-		fmt.Sprintf("Relation '%s.%s' -> '%s.%s'", sourceSchema, sourceField, targetSchema, targetField),
-		fmt.Sprintf("Back-reference field '%s' not found in schema '%s' or does not reference back correctly", targetField, targetSchema),
-		fmt.Sprintf(`Add a relation field named '%s' in schema '%s' that points back to '%s.%s'. Both sides of a relation MUST reference each other`, targetField, targetSchema, sourceSchema, sourceField),
-		example,
-	)
+	return out
 }
 
-// BuilderDuplicateSchemaError creates an error for duplicate system schema
-func BuilderDuplicateSchemaError(schemaName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeBuilderDuplicateSchema,
-		fmt.Sprintf("Schema '%s'", schemaName),
-		"Duplicate system schema",
-		`System schemas can only be defined once. To extend a system schema, use the same name and add only new fields. Do not redefine existing system fields`,
-		"",
-	)
-}
-
-// BuilderSchemaNotFoundError creates an error for schema not found during build
-func BuilderSchemaNotFoundError(schemaName string, availableSchemas []string) *SchemaError {
-	fix := fmt.Sprintf(`Ensure the schema '%s' is defined in your schemas array. Check for typos in the schema name`, schemaName)
-	if len(availableSchemas) > 0 {
-		fix += fmt.Sprintf(`. Available schemas: [%s]`, strings.Join(availableSchemas, ", "))
+// ToSchemaErrors lifts FieldErrors into []*SchemaError with Schema filled in,
+// for aggregation into BuilderErrors at the builder level.
+func (e *SchemaErrors) ToSchemaErrors() []*SchemaError {
+	out := make([]*SchemaError, len(e.FieldErrors))
+	for i, fe := range e.FieldErrors {
+		var idx *int
+		if fe.Index != nil {
+			v := *fe.Index
+			idx = &v
+		}
+		out[i] = &SchemaError{
+			Code:    fe.Code,
+			Schema:  e.Schema,
+			Field:   fe.Field,
+			Index:   idx,
+			Message: fe.Message,
+			Cause:   fe.Cause,
+		}
 	}
-	return NewSchemaError(
-		ErrCodeBuilderSchemaNotFound,
-		"Builder",
-		fmt.Sprintf("Schema '%s' not found", schemaName),
-		fix,
-		"",
-	)
+	return out
 }
 
-// BuilderMissingPrimaryKeyError creates an error for schema missing primary key
-func BuilderMissingPrimaryKeyError(schemaName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeBuilderMissingPrimaryKey,
-		fmt.Sprintf("Schema '%s'", schemaName),
-		"Missing primary key field (id)",
-		`Add an 'id' field of type uint64 to your schema, OR specify a custom primary_field at the schema level`,
-		`{"name": "id", "type": "uint64"}`,
-	)
+func (e *SchemaErrors) Add(fe *FieldError) {
+	if fe != nil {
+		e.FieldErrors = append(e.FieldErrors, fe)
+	}
 }
 
-// BuilderNotM2MRelationError creates an error when trying to create junction for non-M2M relation
-func BuilderNotM2MRelationError(fieldName string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeBuilderNotM2MRelation,
-		fmt.Sprintf("Field '%s'", fieldName),
-		"Cannot create junction table for non-M2M relation",
-		`Only relations with "type": "m2m" create junction tables. For o2o/o2m relations, one side holds the foreign key`,
-		`"relation": {"type": "m2m", "schema": "tag", "field": "posts"}`,
-	)
+// BuilderErrors aggregates errors across multiple schemas at build time.
+type BuilderErrors struct {
+	Errors []*SchemaError `json:"errors"`
 }
 
-// BuilderJunctionFieldError creates an error for failed junction field creation
-func BuilderJunctionFieldError(junctionTable string) *SchemaError {
-	return NewSchemaError(
-		ErrCodeBuilderJunctionFieldFailed,
-		fmt.Sprintf("Junction table '%s'", junctionTable),
-		"Failed to create junction field",
-		`This is an internal error. Ensure both schemas in the M2M relation have valid primary key fields`,
-		"",
-	)
+func (e *BuilderErrors) Error() string {
+	if len(e.Errors) == 0 {
+		return ""
+	}
+	msgs := make([]string, len(e.Errors))
+	for i, se := range e.Errors {
+		msgs[i] = se.Error()
+	}
+	return strings.Join(msgs, "\n")
+}
+
+func (e *BuilderErrors) Unwrap() []error {
+	out := make([]error, len(e.Errors))
+	for i, se := range e.Errors {
+		out[i] = se
+	}
+	return out
+}
+
+func (e *BuilderErrors) Add(se *SchemaError) {
+	if se != nil {
+		e.Errors = append(e.Errors, se)
+	}
+}
+
+// AddBatch lifts a SchemaErrors batch into the builder collection.
+func (e *BuilderErrors) AddBatch(batch *SchemaErrors) {
+	if batch == nil {
+		return
+	}
+	e.Errors = append(e.Errors, batch.ToSchemaErrors()...)
+}
+
+// AddAny accepts any error and routes by type. Useful for transitional
+// call sites that produce mixed typed/untyped errors (e.g., schema.Init
+// may return *SchemaErrors, *FieldError, *SchemaError, or plain error).
+func (e *BuilderErrors) AddAny(err error) {
+	if err == nil {
+		return
+	}
+	var batch *SchemaErrors
+	if errors.As(err, &batch) {
+		e.AddBatch(batch)
+		return
+	}
+	var se *SchemaError
+	if errors.As(err, &se) {
+		e.Errors = append(e.Errors, se)
+		return
+	}
+	var fe *FieldError
+	if errors.As(err, &fe) {
+		e.Errors = append(e.Errors, &SchemaError{
+			Code:    fe.Code,
+			Field:   fe.Field,
+			Index:   fe.Index,
+			Message: fe.Message,
+			Cause:   fe.Cause,
+		})
+		return
+	}
+	e.Errors = append(e.Errors, &SchemaError{
+		Code:    "schema.unknown_error",
+		Message: err.Error(),
+		Cause:   err,
+	})
+}
+
+func (e *BuilderErrors) HasErrors() bool { return len(e.Errors) > 0 }
+
+func (e *BuilderErrors) HasCode(code string) bool {
+	for _, se := range e.Errors {
+		if se.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *BuilderErrors) BySchema(name string) []*SchemaError {
+	var out []*SchemaError
+	for _, se := range e.Errors {
+		if se.Schema == name {
+			out = append(out, se)
+		}
+	}
+	return out
+}
+
+// ----- Helper constructors -----
+//
+// Convention:
+//   - Helpers used inside Schema.Validate() return *FieldError; schema context
+//     is supplied by the enclosing SchemaErrors wrapper at aggregation time.
+//   - Helpers used outside a batch (cross-schema, builder, FK, IO, file-field
+//     init) return *SchemaError with explicit schema context.
+
+func SchemaNameRequired() *FieldError {
+	return &FieldError{
+		Code:    CodeSchemaNameRequired,
+		Message: "schema name is required",
+	}
+}
+
+func SchemaLabelFieldRequired() *FieldError {
+	return &FieldError{
+		Code:    CodeSchemaLabelFieldRequired,
+		Message: "label_field is required",
+	}
+}
+
+func SchemaNamespaceRequired() *FieldError {
+	return &FieldError{
+		Code:    CodeSchemaNamespaceRequired,
+		Message: "namespace is required",
+	}
+}
+
+func SchemaLabelFieldNotFound(labelField string, available []string) *FieldError {
+	msg := fmt.Sprintf("label_field '%s' is not a string/text field", labelField)
+	if len(available) > 0 {
+		msg += fmt.Sprintf("; available: %s", strings.Join(available, ", "))
+	}
+	return &FieldError{
+		Code:    CodeSchemaLabelFieldNotFound,
+		Message: msg,
+	}
+}
+
+func SchemaLabelFieldSystemSchema(schemaName, labelField string) *FieldError {
+	expected := map[string]string{"user": "username", "role": "name", "file": "name"}[schemaName]
+	return &FieldError{
+		Code:    CodeSchemaLabelFieldSystemSchema,
+		Message: fmt.Sprintf("label_field '%s' invalid for system schema '%s'; must be '%s'", labelField, schemaName, expected),
+	}
+}
+
+func SchemaPrimaryFieldNotFound(schemaName, primaryField string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeSchemaPrimaryFieldNotFound,
+		Schema:  schemaName,
+		Message: fmt.Sprintf("primary_field '%s' is not a field in this schema", primaryField),
+	}
+}
+
+func SchemaPrimaryFieldRequired(schemaName string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeSchemaPrimaryFieldRequired,
+		Schema:  schemaName,
+		Message: "primary key field is required (id field or primary_field)",
+	}
+}
+
+func FieldNameRequired(index int) *FieldError {
+	idx := index
+	return &FieldError{
+		Code:    CodeFieldNameRequired,
+		Index:   &idx,
+		Message: fmt.Sprintf("field at index %d is missing 'name'", index),
+	}
+}
+
+func FieldInvalidType(fieldName, invalidType string) *FieldError {
+	return &FieldError{
+		Code:    CodeFieldTypeInvalid,
+		Field:   fieldName,
+		Message: fmt.Sprintf("field type '%s' is not recognized", invalidType),
+	}
+}
+
+func FieldTypeMissing(fieldName string) *FieldError {
+	return &FieldError{
+		Code:    CodeFieldTypeMissing,
+		Field:   fieldName,
+		Message: "field type is missing",
+	}
+}
+
+func FieldTypeParseError(invalidType string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeFieldTypeParseError,
+		Message: fmt.Sprintf("field type '%s' is not a valid type identifier", invalidType),
+	}
+}
+
+func FieldEnumRequired(fieldName string) *FieldError {
+	return &FieldError{
+		Code:    CodeFieldEnumRequired,
+		Field:   fieldName,
+		Message: "enum field requires 'enums' array with value-label pairs",
+	}
+}
+
+func FieldRelationRequired(fieldName string) *FieldError {
+	return &FieldError{
+		Code:    CodeFieldRelationRequired,
+		Field:   fieldName,
+		Message: "relation field requires 'relation' object",
+	}
+}
+
+func FieldRelationSchemaRequired(fieldName string) *FieldError {
+	return &FieldError{
+		Code:    CodeFieldRelationSchemaReq,
+		Field:   fieldName,
+		Message: "relation.schema is required",
+	}
+}
+
+func FieldRelationTypeRequired(fieldName string) *FieldError {
+	return &FieldError{
+		Code:    CodeFieldRelationTypeReq,
+		Field:   fieldName,
+		Message: "relation.type is required (o2o, o2m, or m2m)",
+	}
+}
+
+func FieldRelationFieldRequired(fieldName string) *FieldError {
+	return &FieldError{
+		Code:    CodeFieldRelationFieldReq,
+		Field:   fieldName,
+		Message: "relation.field is required",
+	}
+}
+
+func FieldNotFound(schemaName, fieldName string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeFieldNotFound,
+		Schema:  schemaName,
+		Field:   fieldName,
+		Message: fmt.Sprintf("field '%s' is not defined in schema '%s'", fieldName, schemaName),
+	}
+}
+
+func FieldFileSchemaRequired() *FieldError {
+	return &FieldError{
+		Code:    CodeFieldFileSchemaRequired,
+		Message: "file field requires owning schema name",
+	}
+}
+
+func FieldSetterCompileError(fieldName string, cause error) *FieldError {
+	return &FieldError{
+		Code:    CodeFieldSetterCompileError,
+		Field:   fieldName,
+		Message: fmt.Sprintf("setter expression failed to compile: %v", cause),
+		Cause:   cause,
+	}
+}
+
+func FieldGetterCompileError(fieldName string, cause error) *FieldError {
+	return &FieldError{
+		Code:    CodeFieldGetterCompileError,
+		Field:   fieldName,
+		Message: fmt.Sprintf("getter expression failed to compile: %v", cause),
+		Cause:   cause,
+	}
+}
+
+// ----- Cross-schema helpers (return *SchemaError) -----
+
+func RelationTargetNotFound(sourceSchema, sourceField, targetSchema string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeRelationTargetNotFound,
+		Schema:  sourceSchema,
+		Field:   sourceField,
+		Target:  targetSchema,
+		Message: fmt.Sprintf("target schema '%s' is not defined", targetSchema),
+	}
+}
+
+func RelationBackRefMissing(sourceSchema, sourceField, targetSchema, targetField string, relationType RelationType) *SchemaError {
+	return &SchemaError{
+		Code:    CodeRelationBackRefMissing,
+		Schema:  sourceSchema,
+		Field:   sourceField,
+		Target:  fmt.Sprintf("%s.%s", targetSchema, targetField),
+		Message: fmt.Sprintf("back-reference field '%s' not found in target schema '%s' (relation type %s)", targetField, targetSchema, relationType),
+	}
+}
+
+func RelationFKTargetNotFound(sourceSchema, sourceField, targetField string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeRelationFKTargetNotFound,
+		Schema:  sourceSchema,
+		Field:   sourceField,
+		Message: fmt.Sprintf("foreign key target field '%s' not found in target schema", targetField),
+	}
+}
+
+func RelationFKCloneFailed(sourceSchema, sourceField string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeRelationFKCloneFailed,
+		Schema:  sourceSchema,
+		Field:   sourceField,
+		Message: "foreign key field clone failed",
+	}
+}
+
+func RelationConfigMissing(schemaName, fieldName string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeRelationConfigMissing,
+		Schema:  schemaName,
+		Field:   fieldName,
+		Message: fmt.Sprintf("relation field '%s' is missing 'relation' configuration", fieldName),
+	}
+}
+
+// ----- Builder-level helpers (return *SchemaError) -----
+
+func BuilderSchemaDuplicate(schemaName string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeBuilderSchemaDuplicate,
+		Schema:  schemaName,
+		Message: fmt.Sprintf("system schema '%s' is defined more than once", schemaName),
+	}
+}
+
+func BuilderSchemaNotFound(schemaName string, available []string) *SchemaError {
+	msg := fmt.Sprintf("schema '%s' not found", schemaName)
+	if len(available) > 0 {
+		msg += fmt.Sprintf("; available: %s", strings.Join(available, ", "))
+	}
+	return &SchemaError{
+		Code:    CodeBuilderSchemaNotFound,
+		Schema:  schemaName,
+		Message: msg,
+	}
+}
+
+func BuilderSchemaPrimaryKeyMissing(schemaName string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeBuilderSchemaPrimaryKeyMissing,
+		Schema:  schemaName,
+		Message: fmt.Sprintf("schema '%s' is missing primary key field", schemaName),
+	}
+}
+
+func BuilderRelationNotM2M(schemaName, fieldName string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeBuilderRelationNotM2M,
+		Schema:  schemaName,
+		Field:   fieldName,
+		Message: "cannot create junction table; relation is not m2m",
+	}
+}
+
+func BuilderJunctionFieldFailed(junctionTable string) *SchemaError {
+	return &SchemaError{
+		Code:    CodeBuilderJunctionFieldFailed,
+		Schema:  junctionTable,
+		Message: fmt.Sprintf("junction field creation failed for '%s'", junctionTable),
+	}
+}
+
+func SchemaIOReadError(path string, cause error) *SchemaError {
+	return &SchemaError{
+		Code:    CodeSchemaIOReadError,
+		Message: fmt.Sprintf("schema directory '%s' read failed: %v", path, cause),
+		Cause:   cause,
+	}
 }

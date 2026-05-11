@@ -63,7 +63,7 @@ func TestSchemaServiceImport(t *testing.T) {
 
 	assert.Equal(t, 500, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Contains(t, response, `schema validation error`)
+	assert.Contains(t, response, `schema 'blog'`)
 	assert.Contains(t, response, `label_field is required`)
 	assert.Contains(t, response, `namespace is required`)
 
@@ -93,7 +93,7 @@ func TestSchemaServiceImport(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 500, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Contains(t, response, `relation node blog.categories: 'cat' is not found`)
+	assert.Contains(t, response, `target schema 'cat' is not defined`)
 
 	// Case 4: invalid back ref relation
 	newBlogJSON = strings.ReplaceAll(
@@ -142,7 +142,7 @@ func TestSchemaServiceImport(t *testing.T) {
 	assert.Equal(t, 500, resp.StatusCode)
 	response = utils.Must(utils.ReadCloserToString(resp.Body))
 	assert.NotEmpty(t, response)
-	assert.Contains(t, response, `relation for blog.categories is not valid`)
+	assert.Contains(t, response, `back-reference field 'blogs' not found in target schema 'category_import'`)
 
 	// Case 5: create schema successfully
 	newBlogJSON = strings.ReplaceAll(

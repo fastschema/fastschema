@@ -1,13 +1,16 @@
 package schema
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testcategory struct {
@@ -37,8 +40,9 @@ func TestNewBuilderFromSchemasErrorInvalidSchema(t *testing.T) {
 	}
 
 	builder, err := NewBuilderFromSchemas(dir, schemas, testcategory{}, testpost{})
-	assert.Nil(t, builder)
-	assert.Contains(t, err.Error(), "Missing 'label_field'")
+	// Merged collect-all returns a (possibly partial) builder alongside the error.
+	assert.NotNil(t, builder)
+	assert.Contains(t, err.Error(), "label_field is required")
 }
 
 func TestNewBuilderFromSchemasErrorInvalidSystemSchema(t *testing.T) {
@@ -48,7 +52,7 @@ func TestNewBuilderFromSchemasErrorInvalidSystemSchema(t *testing.T) {
 
 func TestNewBuilderFromSchemasErrorDuplicateSchema(t *testing.T) {
 	_, err := NewBuilderFromSchemas(t.TempDir(), nil, testcategory{}, testpost{}, testcategory{})
-	assert.Contains(t, err.Error(), "Duplicate system schema")
+	assert.Contains(t, err.Error(), "is defined more than once")
 }
 
 func TestNewBuilderFromSchemas(t *testing.T) {
@@ -461,7 +465,7 @@ func TestGetSchemasFromDirError(t *testing.T) {
 	// Case 2: Duplicate schema name
 	schemas, err = GetSchemasFromDir(t.TempDir(), Post{}, Post{})
 	assert.Nil(t, schemas)
-	assert.Contains(t, err.Error(), "Duplicate system schema")
+	assert.Contains(t, err.Error(), "is defined more than once")
 }
 
 func TestGetSchemasFromDirExtendsSystemSchemas(t *testing.T) {
@@ -513,11 +517,11 @@ func TestBuilderErrorsType(t *testing.T) {
 	assert.False(t, errs.HasErrors())
 
 	// Test adding actual errors
-	errs.Add(BuilderSchemaNotFoundError("test1", nil))
+	errs.Add(BuilderSchemaNotFound("test1", nil))
 	assert.True(t, errs.HasErrors())
 	assert.Equal(t, 1, len(errs.Errors))
 
-	errs.Add(BuilderSchemaNotFoundError("test2", nil))
+	errs.Add(BuilderSchemaNotFound("test2", nil))
 	assert.Equal(t, 2, len(errs.Errors))
 
 	// Test Error() joins messages
@@ -526,7 +530,7 @@ func TestBuilderErrorsType(t *testing.T) {
 	assert.Contains(t, errString, "test2")
 }
 
-func TestNewBuilderFromSchemasCollectErrors_MultipleSchemaErrors(t *testing.T) {
+func TestNewBuilderFromSchemas_MultipleSchemaErrors(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create schemas with multiple different errors
@@ -555,10 +559,12 @@ func TestNewBuilderFromSchemasCollectErrors_MultipleSchemaErrors(t *testing.T) {
 		},
 	}
 
-	_, errs := NewBuilderFromSchemasCollectErrors(dir, schemas)
+	_, err := NewBuilderFromSchemas(dir, schemas)
 
 	// Should have errors from both schemas
-	assert.True(t, errs.HasErrors())
+	require.Error(t, err)
+	var errs *BuilderErrors
+	require.True(t, errors.As(err, &errs))
 	assert.GreaterOrEqual(t, len(errs.Errors), 2, "Should collect errors from both schemas")
 
 	// Verify both types of errors are present
@@ -567,7 +573,7 @@ func TestNewBuilderFromSchemasCollectErrors_MultipleSchemaErrors(t *testing.T) {
 	assert.Contains(t, errString, "namespace")
 }
 
-func TestNewBuilderFromSchemasCollectErrors_RelationErrors(t *testing.T) {
+func TestNewBuilderFromSchemas_RelationErrors(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create schemas with multiple relation errors
@@ -603,14 +609,16 @@ func TestNewBuilderFromSchemasCollectErrors_RelationErrors(t *testing.T) {
 		},
 	}
 
-	_, errs := NewBuilderFromSchemasCollectErrors(dir, schemas)
+	_, err := NewBuilderFromSchemas(dir, schemas)
 
 	// Should have errors for both missing relation targets
-	assert.True(t, errs.HasErrors())
+	require.Error(t, err)
+	var errs *BuilderErrors
+	require.True(t, errors.As(err, &errs))
 	assert.GreaterOrEqual(t, len(errs.Errors), 2, "Should collect errors from both relations")
 }
 
-func TestNewBuilderFromSchemasCollectErrors_ValidSchemas(t *testing.T) {
+func TestNewBuilderFromSchemas_ValidSchemas(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create valid schemas
@@ -628,35 +636,35 @@ func TestNewBuilderFromSchemasCollectErrors_ValidSchemas(t *testing.T) {
 		},
 	}
 
-	builder, errs := NewBuilderFromSchemasCollectErrors(dir, schemas, testcategory{}, testpost{})
+	builder, err := NewBuilderFromSchemas(dir, schemas, testcategory{}, testpost{})
 
 	// Should have no errors
-	assert.False(t, errs.HasErrors())
+	assert.NoError(t, err)
 	assert.NotNil(t, builder)
 	assert.Equal(t, 3, len(builder.schemas)) // post + testcategory + testpost
 }
 
-func TestNewBuilderFromSchemasCollectErrors_DuplicateSystemSchema(t *testing.T) {
-	_, errs := NewBuilderFromSchemasCollectErrors(t.TempDir(), nil, testcategory{}, testpost{}, testcategory{})
+func TestNewBuilderFromSchemas_DuplicateSystemSchema(t *testing.T) {
+	_, err := NewBuilderFromSchemas(t.TempDir(), nil, testcategory{}, testpost{}, testcategory{})
 
 	// Should collect duplicate schema error
-	assert.True(t, errs.HasErrors())
-	assert.Contains(t, errs.Error(), "Duplicate system schema")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is defined more than once")
 }
 
-func TestInitCollectErrors_EmptySchemas(t *testing.T) {
+func TestBuilder_Init_EmptySchemas(t *testing.T) {
 	builder := &Builder{
 		dir:       t.TempDir(),
 		schemas:   nil,
 		relations: []*Relation{},
 	}
 
-	errs := builder.InitCollectErrors()
-	assert.False(t, errs.HasErrors())
+	err := builder.Init()
+	assert.NoError(t, err)
 	assert.NotNil(t, builder.schemas)
 }
 
-func TestCreateRelationsCollectErrors_MultipleErrors(t *testing.T) {
+func TestBuilder_CreateRelations_MultipleErrors(t *testing.T) {
 	builder := &Builder{
 		dir: t.TempDir(),
 		schemas: map[string]*Schema{
@@ -682,14 +690,16 @@ func TestCreateRelationsCollectErrors_MultipleErrors(t *testing.T) {
 		},
 	}
 
-	errs := builder.CreateRelationsCollectErrors()
+	err := builder.CreateRelations()
 
 	// Should collect both relation errors
-	assert.True(t, errs.HasErrors())
+	require.Error(t, err)
+	var errs *BuilderErrors
+	require.True(t, errors.As(err, &errs))
 	assert.GreaterOrEqual(t, len(errs.Errors), 2, "Should collect errors from both relation fields")
 }
 
-func TestCreateRelationsCollectErrors_BackRefErrors(t *testing.T) {
+func TestBuilder_CreateRelations_BackRefErrors(t *testing.T) {
 	builder := &Builder{
 		dir: t.TempDir(),
 		relations: []*Relation{
@@ -708,10 +718,414 @@ func TestCreateRelationsCollectErrors_BackRefErrors(t *testing.T) {
 		},
 	}
 
-	errs := builder.CreateRelationsCollectErrors()
+	err := builder.CreateRelations()
 
 	// Should collect both backref errors
-	assert.True(t, errs.HasErrors())
+	require.Error(t, err)
+	var errs *BuilderErrors
+	require.True(t, errors.As(err, &errs))
 	assert.GreaterOrEqual(t, len(errs.Errors), 2, "Should collect errors from both missing backrefs")
+}
+
+// ---- NewBuilderFromRelations tests ----
+
+// TestNewBuilderFromRelations_Empty: empty input → builder with no schemas, no errors.
+func TestNewBuilderFromRelations_Empty(t *testing.T) {
+	b, err := NewBuilderFromRelations(map[string]*Schema{})
+	assert.NotNil(t, b)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(b.schemas))
+}
+
+// TestNewBuilderFromRelations_NoRelations: schemas with only primitive fields → no errors, all registered.
+func TestNewBuilderFromRelations_NoRelations(t *testing.T) {
+	schemas := map[string]*Schema{
+		"post": {
+			Name:      "post",
+			Namespace: "posts",
+			Fields: []*Field{
+				{Name: "title", Type: TypeString},
+			},
+		},
+		"user": {
+			Name:      "user",
+			Namespace: "users",
+			Fields: []*Field{
+				{Name: "email", Type: TypeString},
+			},
+		},
+	}
+
+	b, err := NewBuilderFromRelations(schemas)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(b.schemas))
+}
+
+// TestNewBuilderFromRelations_ValidO2M: post.author -> user, user.posts -> post[].
+func TestNewBuilderFromRelations_ValidO2M(t *testing.T) {
+	schemas := map[string]*Schema{
+		"post": {
+			Name:      "post",
+			Namespace: "posts",
+			Fields: []*Field{
+				{
+					Name: "author",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "user",
+						TargetFieldName:  "posts",
+						Type:             O2M,
+						Owner:            false,
+					},
+				},
+			},
+		},
+		"user": {
+			Name:      "user",
+			Namespace: "users",
+			Fields: []*Field{
+				{
+					Name: "posts",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "post",
+						TargetFieldName:  "author",
+						Type:             O2M,
+						Owner:            true,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := NewBuilderFromRelations(schemas)
+	assert.NoError(t, err)
+	assert.NotNil(t, b.schemas["post"])
+	assert.NotNil(t, b.schemas["user"])
+}
+
+// TestNewBuilderFromRelations_ValidM2M: post.tags <-> tag.posts → junction added.
+func TestNewBuilderFromRelations_ValidM2M(t *testing.T) {
+	schemas := map[string]*Schema{
+		"post": {
+			Name:      "post",
+			Namespace: "posts",
+			Fields: []*Field{
+				{
+					Name: "tags",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "tag",
+						TargetFieldName:  "posts",
+						Type:             M2M,
+						Owner:            true,
+					},
+				},
+			},
+		},
+		"tag": {
+			Name:      "tag",
+			Namespace: "tags",
+			Fields: []*Field{
+				{
+					Name: "posts",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "post",
+						TargetFieldName:  "tags",
+						Type:             M2M,
+						Owner:            false,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := NewBuilderFromRelations(schemas)
+	assert.NoError(t, err)
+	// Junction schema should be created and added
+	junctionFound := false
+	for name := range b.schemas {
+		if name != "post" && name != "tag" {
+			junctionFound = true
+		}
+	}
+	assert.True(t, junctionFound, "expected junction schema in builder")
+}
+
+// TestNewBuilderFromRelations_ValidO2O: user.profile <-> profile.user.
+func TestNewBuilderFromRelations_ValidO2O(t *testing.T) {
+	schemas := map[string]*Schema{
+		"user": {
+			Name:      "user",
+			Namespace: "users",
+			Fields: []*Field{
+				{
+					Name: "profile",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "profile",
+						TargetFieldName:  "user",
+						Type:             O2O,
+						Owner:            true,
+					},
+				},
+			},
+		},
+		"profile": {
+			Name:      "profile",
+			Namespace: "profiles",
+			Fields: []*Field{
+				{
+					Name: "user",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "user",
+						TargetFieldName:  "profile",
+						Type:             O2O,
+						Owner:            false,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := NewBuilderFromRelations(schemas)
+	assert.NoError(t, err)
+	assert.NotNil(t, b.schemas["user"])
+	assert.NotNil(t, b.schemas["profile"])
+}
+
+// TestNewBuilderFromRelations_MissingTarget: relation to nonexistent schema → relation.target.not_found.
+func TestNewBuilderFromRelations_MissingTarget(t *testing.T) {
+	schemas := map[string]*Schema{
+		"post": {
+			Name:      "post",
+			Namespace: "posts",
+			Fields: []*Field{
+				{
+					Name: "author",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "ghost",
+						TargetFieldName:  "posts",
+						Type:             O2M,
+					},
+				},
+			},
+		},
+	}
+
+	_, err := NewBuilderFromRelations(schemas)
+	require.Error(t, err)
+	var errs *BuilderErrors
+	require.True(t, errors.As(err, &errs))
+	assert.True(t, errs.HasCode(CodeRelationTargetNotFound))
+}
+
+// TestNewBuilderFromRelations_MissingBackRef: relation target exists but has no matching back-ref.
+func TestNewBuilderFromRelations_MissingBackRef(t *testing.T) {
+	schemas := map[string]*Schema{
+		"post": {
+			Name:      "post",
+			Namespace: "posts",
+			Fields: []*Field{
+				{
+					Name: "author",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "user",
+						TargetFieldName:  "posts",
+						Type:             O2M,
+						Owner:            false,
+					},
+				},
+			},
+		},
+		// user schema has no "posts" field pointing back
+		"user": {
+			Name:      "user",
+			Namespace: "users",
+			Fields:    []*Field{},
+		},
+	}
+
+	_, err := NewBuilderFromRelations(schemas)
+	require.Error(t, err)
+	var errs *BuilderErrors
+	require.True(t, errors.As(err, &errs))
+	assert.True(t, errs.HasCode(CodeRelationBackRefMissing))
+}
+
+// TestNewBuilderFromRelations_DuplicateSchema: two input entries share the same Schema.Name.
+func TestNewBuilderFromRelations_DuplicateSchema(t *testing.T) {
+	// Map keys differ ("a" vs "b") but both Schema.Name == "user"
+	// → second iteration hits b.schemas["user"] already set → duplicate error.
+	schemas := map[string]*Schema{
+		"user_a": {Name: "user", Namespace: "users", Fields: []*Field{}},
+		"user_b": {Name: "user", Namespace: "users2", Fields: []*Field{}},
+	}
+
+	_, err := NewBuilderFromRelations(schemas)
+	require.Error(t, err)
+	var errs *BuilderErrors
+	require.True(t, errors.As(err, &errs))
+	assert.True(t, errs.HasCode(CodeBuilderSchemaDuplicate))
+}
+
+// TestNewBuilderFromRelations_SyntheticIDInjected: schema with no PK and no id field
+// gets synthetic UUID id prepended.
+func TestNewBuilderFromRelations_SyntheticIDInjected(t *testing.T) {
+	s := &Schema{
+		Name:      "widget",
+		Namespace: "widgets",
+		Fields: []*Field{
+			{Name: "label", Type: TypeString},
+		},
+	}
+	initialLen := len(s.Fields)
+
+	_, err := NewBuilderFromRelations(map[string]*Schema{"widget": s})
+	assert.NoError(t, err)
+
+	// Synthetic id prepended → one more field
+	assert.Equal(t, initialLen+1, len(s.Fields))
+	assert.NotNil(t, s.PrimaryField(), "PrimaryField() must return the injected synthetic UUID field")
+	assert.Equal(t, "id", s.Fields[0].Name)
+}
+
+// TestNewBuilderFromRelations_NoSyntheticIDWhenIDExists: schema already has id field → no injection.
+func TestNewBuilderFromRelations_NoSyntheticIDWhenIDExists(t *testing.T) {
+	s := &Schema{
+		Name:      "widget",
+		Namespace: "widgets",
+		Fields: []*Field{
+			{
+				Name: "id",
+				Type: TypeUUID,
+				DB:   &FieldDB{Key: DBPrimaryKey},
+			},
+			{Name: "label", Type: TypeString},
+		},
+	}
+	initialLen := len(s.Fields)
+
+	_, err := NewBuilderFromRelations(map[string]*Schema{"widget": s})
+	assert.NoError(t, err)
+	assert.Equal(t, initialLen, len(s.Fields), "no extra id field should be injected")
+}
+
+// TestNewBuilderFromRelations_LabelFieldDefaulted: empty LabelFieldName → defaults to "id".
+func TestNewBuilderFromRelations_LabelFieldDefaulted(t *testing.T) {
+	s := &Schema{
+		Name:      "widget",
+		Namespace: "widgets",
+		Fields:    []*Field{},
+	}
+	assert.Equal(t, "", s.LabelFieldName)
+
+	_, err := NewBuilderFromRelations(map[string]*Schema{"widget": s})
+	assert.NoError(t, err)
+	assert.Equal(t, "id", s.LabelFieldName)
+}
+
+// TestNewBuilderFromRelations_OnlyRelationAndBuilderErrors: all returned error codes
+// must start with "relation." or "builder." — no "schema.*" or "field.*" codes.
+func TestNewBuilderFromRelations_OnlyRelationAndBuilderErrors(t *testing.T) {
+	// missing target: relation.target.not_found
+	// missing back-ref: relation.back_ref.missing (user has no "posts")
+	// duplicate name: builder.schema.duplicate
+	schemas := map[string]*Schema{
+		// post points to nonexistent schema → relation.target.not_found
+		"post": {
+			Name:      "post",
+			Namespace: "posts",
+			Fields: []*Field{
+				{
+					Name: "ghost_rel",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "nowhere",
+						TargetFieldName:  "posts",
+						Type:             O2M,
+					},
+				},
+			},
+		},
+		// article also points to nonexistent → another relation.target.not_found
+		"article": {
+			Name:      "article",
+			Namespace: "articles",
+			Fields: []*Field{
+				{
+					Name: "ref",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "also_nowhere",
+						TargetFieldName:  "articles",
+						Type:             O2M,
+					},
+				},
+			},
+		},
+		// duplicate: two entries with Schema.Name == "dup"
+		"dup_a": {Name: "dup", Namespace: "dups", Fields: []*Field{}},
+		"dup_b": {Name: "dup", Namespace: "dups2", Fields: []*Field{}},
+	}
+
+	_, err := NewBuilderFromRelations(schemas)
+	require.Error(t, err)
+	var errs *BuilderErrors
+	require.True(t, errors.As(err, &errs))
+	for _, se := range errs.Errors {
+		assert.True(t,
+			strings.HasPrefix(se.Code, "relation.") || strings.HasPrefix(se.Code, "builder."),
+			"unexpected error code %q — must start with relation. or builder.",
+			se.Code,
+		)
+	}
+}
+
+// TestNewBuilderFromRelations_CircularValid: a.b -> b, b.a -> a with matching back-refs → no errors.
+func TestNewBuilderFromRelations_CircularValid(t *testing.T) {
+	schemas := map[string]*Schema{
+		"a": {
+			Name:      "a",
+			Namespace: "as",
+			Fields: []*Field{
+				{
+					Name: "b",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "b",
+						TargetFieldName:  "a",
+						Type:             O2O,
+						Owner:            true,
+					},
+				},
+			},
+		},
+		"b": {
+			Name:      "b",
+			Namespace: "bs",
+			Fields: []*Field{
+				{
+					Name: "a",
+					Type: TypeRelation,
+					Relation: &Relation{
+						TargetSchemaName: "a",
+						TargetFieldName:  "b",
+						Type:             O2O,
+						Owner:            false,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := NewBuilderFromRelations(schemas)
+	assert.NoError(t, err)
+	assert.NotNil(t, b.schemas["a"])
+	assert.NotNil(t, b.schemas["b"])
 }
 
