@@ -1,10 +1,9 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"math"
-
-	"github.com/fastschema/fastschema/pkg/errors"
 )
 
 func IntToUint[

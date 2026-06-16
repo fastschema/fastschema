@@ -7,13 +7,13 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 )
@@ -61,7 +61,7 @@ type HashConfig struct {
 
 func GenerateHash(input string) (string, error) {
 	if input == "" {
-		return "", errors.BadRequest("hash: input cannot be empty")
+		return "", errors.New("hash: input cannot be empty")
 	}
 
 	salt := make([]byte, 16)
@@ -203,22 +203,22 @@ func CreateConfirmationToken(
 func ParseConfirmationToken(token, key string) (*ConfirmationData, error) {
 	decryptedData, err := Decrypt(token, key)
 	if err != nil {
-		return nil, errors.BadRequest("Invalid token")
+		return nil, errors.New("Invalid token")
 	}
 
 	parts := strings.Split(decryptedData, "_")
 	if len(parts) != 2 {
-		return nil, errors.BadRequest("Invalid token")
+		return nil, errors.New("Invalid token")
 	}
 
 	userID, err := uuid.Parse(parts[0])
 	if err != nil {
-		return nil, errors.BadRequest("Invalid token")
+		return nil, errors.New("Invalid token")
 	}
 
 	expTime, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
-		return nil, errors.BadRequest("Invalid token")
+		return nil, errors.New("Invalid token")
 	}
 
 	return &ConfirmationData{
