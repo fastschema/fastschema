@@ -28,7 +28,7 @@ func TestFileServiceDeleteErrorNotFound(t *testing.T) {
 		"name": "test.txt",
 		"size": 1,
 		"type": "text/plain",
-		"user_id": "%v"
+		"owner_id": "%v"
 	}`, userID)))
 
 	// Case 1: success
@@ -53,7 +53,7 @@ func TestFileServiceDelete(t *testing.T) {
 		"name": "test.txt",
 		"size": 1,
 		"type": "text/plain",
-		"user_id": "%v"
+		"owner_id": "%v"
 	}`, userID)))
 
 	testFile := &fs.File{
