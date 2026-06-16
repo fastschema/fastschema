@@ -6,7 +6,6 @@ import (
 
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/expr"
-	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 )
 
@@ -44,7 +43,7 @@ func (s *Schema) ApplyGetters(ctx context.Context, e *entity.Entity, configs ...
 			Exist:  exist,
 		}, configs...)
 		if err != nil {
-			return errors.BadRequest(err.Error())
+			return fmt.Errorf("failed to apply getter for field %s: %w", field.Name, err)
 		}
 
 		if getter.IsUndefined() {
@@ -75,7 +74,7 @@ func (s *Schema) ApplySetters(ctx context.Context, e *entity.Entity, configs ...
 		}, configs...)
 
 		if err != nil {
-			return errors.BadRequest(err.Error())
+			return fmt.Errorf("failed to apply setter for field %s: %w", field.Name, err)
 		}
 
 		if setter.IsUndefined() {
