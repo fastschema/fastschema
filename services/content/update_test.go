@@ -40,7 +40,7 @@ func TestContentServiceUpdate(t *testing.T) {
 	)
 	resp = utils.Must(server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 500, resp.StatusCode)
+	assert.Equal(t, 400, resp.StatusCode)
 	assert.Contains(
 		t,
 		utils.Must(utils.ReadCloserToString(resp.Body)),
