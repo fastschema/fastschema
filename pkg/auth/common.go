@@ -54,7 +54,9 @@ func ValidateConfirmationToken(token, key string) (uuid.UUID, error) {
 
 	parsed, err := utils.ParseConfirmationToken(token, key)
 	if err != nil {
-		return emptyUUID, err
+		// A malformed/undecryptable token is a client error, not a server error.
+		// ParseConfirmationToken returns a plain error which would otherwise map to 500.
+		return emptyUUID, ERR_INVALID_TOKEN
 	}
 
 	if time.Now().UnixMicro() > parsed.Exp {
