@@ -2,6 +2,9 @@ package auth_test
 
 import (
 	"context"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/mail"
 	"sync"
 	"testing"
@@ -336,4 +339,56 @@ func TestValidateRegisterData(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSendRequest(t *testing.T) {
+	type TR struct {
+		Message string `json:"message"`
+	}
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+	// Case 1: Missing protocol scheme
+	_, err := auth.SendRequest[TR]("GET", "://example.local", headers, nil)
+	assert.ErrorContains(t, err, "missing protocol scheme")
+
+	// Case 2: Timeout
+	backUpClient := http.DefaultClient
+	http.DefaultClient = &http.Client{
+		Transport: &http.Transport{
+			Dial: func(network, addr string) (net.Conn, error) {
+				return net.DialTimeout(network, addr, time.Millisecond)
+			},
+		},
+	}
+	_, err = auth.SendRequest[TR]("GET", "http://example.local", headers, nil)
+	assert.ErrorContains(t, err, "timeout")
+	http.DefaultClient = backUpClient
+
+	// Case 3: Access token server error
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer errorServer.Close()
+	_, err = auth.SendRequest[TR]("GET", errorServer.URL, headers, nil)
+	assert.ErrorContains(t, err, "request failed with status code")
+
+	// Case 4: Invalid JSON response
+	errorServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`invalid json`))
+	}))
+	defer errorServer.Close()
+	_, err = auth.SendRequest[TR]("GET", errorServer.URL, headers, nil)
+	assert.ErrorContains(t, err, "invalid character")
+
+	// Case 5: Successful request
+	successServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"message": "success"}`))
+	}))
+	defer successServer.Close()
+	resp, err := auth.SendRequest[TR]("GET", successServer.URL, headers, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, TR{Message: "success"}, resp)
 }

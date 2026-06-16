@@ -173,7 +173,7 @@ func (as *GoogleAuthProvider) getUser(code string) (*GoogleUser, error) {
 		return nil, fmt.Errorf("google auth code exchange error: %w", err)
 	}
 
-	userResponse, err := utils.SendRequest[GoogleUser](
+	userResponse, err := SendRequest[GoogleUser](
 		"GET",
 		as.userInfoURL+token.AccessToken,
 		map[string]string{},

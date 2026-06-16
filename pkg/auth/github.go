@@ -120,7 +120,7 @@ func (ga *GithubAuthProvider) getUser(code string) (*GithubUserResponse, error) 
 		return nil, err
 	}
 
-	userResponse, err := utils.SendRequest[GithubUserResponse](
+	userResponse, err := SendRequest[GithubUserResponse](
 		"GET",
 		ga.userInfoURL,
 		map[string]string{"Authorization": "token " + accessToken},
@@ -143,7 +143,7 @@ func (ga *GithubAuthProvider) getAccessToken(code string) (string, error) {
 		return "", fmt.Errorf("failed to marshal access token request body: %w", err)
 	}
 
-	accessTokenResponse, err := utils.SendRequest[GithubAccessTokenResponse](
+	accessTokenResponse, err := SendRequest[GithubAccessTokenResponse](
 		"POST",
 		ga.accessTokenURL,
 		map[string]string{

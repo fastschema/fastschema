@@ -1,11 +1,9 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"math"
-	"net/http"
 	"os"
 	"reflect"
 	"regexp"
@@ -491,37 +489,4 @@ func CreateSwaggerUIPage(specURL string) string {
 };</script>
 </body>
 </html>`, specURL)
-}
-
-func SendRequest[T any](method, url string, headers map[string]string, requestBody io.Reader) (T, error) {
-	var t T
-	req, err := http.NewRequest(method, url, requestBody)
-	if err != nil {
-		return t, err
-	}
-
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return t, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return t, fmt.Errorf("request failed with status code %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return t, err
-	}
-
-	if err := json.Unmarshal(body, &t); err != nil {
-		return t, err
-	}
-
-	return t, nil
 }
