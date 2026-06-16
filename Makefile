@@ -4,6 +4,10 @@ testpkg:
 test:
 	./tests/test.sh
 
+validate-example-schemas:
+	@go run ./docs/schemas/cmd docs/schemas/
+.PHONY: validate-example-schemas
+
 lint:
 	golangci-lint run
 
