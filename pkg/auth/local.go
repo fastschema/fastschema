@@ -41,6 +41,7 @@ type LocalProvider struct {
 	verificationMethod  string // "link" or "otp"
 	otpConfig           func() *fs.OTPConfig
 	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
+	emailTemplates      func() *fs.EmailTemplates
 }
 
 func NewLocalAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
@@ -63,6 +64,7 @@ func (la *LocalProvider) Init(
 	mailer func(names ...string) fs.Mailer,
 	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc,
 	otpConfig func() *fs.OTPConfig,
+	emailTemplates func() *fs.EmailTemplates,
 ) {
 	la.db = db
 	la.appKey = appKey
@@ -71,6 +73,7 @@ func (la *LocalProvider) Init(
 	la.appBaseURL = appBaseURL
 	la.jwtCustomClaimsFunc = jwtCustomClaimsFunc
 	la.otpConfig = otpConfig
+	la.emailTemplates = emailTemplates
 
 	if la.activationURL == "" {
 		la.activationURL = appBaseURL() + "/auth/local/activate"

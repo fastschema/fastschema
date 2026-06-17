@@ -90,6 +90,7 @@ func (a *TestApp) GetAuthProvider(name string) fs.AuthProvider {
 			func(names ...string) fs.Mailer { return nil },
 			nil,
 			func() *fs.OTPConfig { return nil },
+			nil,
 		)
 		return lp
 	}

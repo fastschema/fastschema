@@ -437,6 +437,7 @@ func (a *App) createAuthProviders() (err error) {
 				func() *fs.OTPConfig {
 					return a.config.AuthConfig.OTP
 				},
+				a.EmailTemplates,
 			)
 		}
 
@@ -551,6 +552,23 @@ func (a *App) createMailClients() (err error) {
 
 	if a.config.MailConfig == nil || len(a.config.MailConfig.Clients) == 0 {
 		return nil
+	}
+
+	// Ensure Templates struct exists and resolve from env vars
+	if a.config.MailConfig.Templates == nil {
+		a.config.MailConfig.Templates = &fs.EmailTemplates{}
+	}
+	if a.config.MailConfig.Templates.ActivationSubject == "" {
+		a.config.MailConfig.Templates.ActivationSubject = utils.Env("MAIL_ACTIVATION_SUBJECT")
+	}
+	if a.config.MailConfig.Templates.ActivationBody == "" {
+		a.config.MailConfig.Templates.ActivationBody = utils.Env("MAIL_ACTIVATION_BODY")
+	}
+	if a.config.MailConfig.Templates.RecoverySubject == "" {
+		a.config.MailConfig.Templates.RecoverySubject = utils.Env("MAIL_RECOVERY_SUBJECT")
+	}
+	if a.config.MailConfig.Templates.RecoveryBody == "" {
+		a.config.MailConfig.Templates.RecoveryBody = utils.Env("MAIL_RECOVERY_BODY")
 	}
 
 	if !utils.IsValidEmail(a.config.MailConfig.SenderMail) {

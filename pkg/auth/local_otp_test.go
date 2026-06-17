@@ -78,6 +78,7 @@ func createOTPLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 				MaxAttempts: 3,
 			}
 		},
+		nil,
 	)
 
 	return localAuthProvider

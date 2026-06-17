@@ -134,6 +134,7 @@ func createLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 		func(names ...string) fs.Mailer { return config.mailer },
 		nil,
 		nil,
+		nil,
 	)
 
 	return localAuthProvider

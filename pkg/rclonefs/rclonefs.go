@@ -4,8 +4,10 @@ import (
 	"errors"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/fastschema/fastschema/fs"
+	rclonefs "github.com/rclone/rclone/fs"
 )
 
 func NewFromConfig(diskConfigs []*fs.DiskConfig, localRoot string) ([]fs.Disk, error) {
@@ -16,11 +18,14 @@ func NewFromConfig(diskConfigs []*fs.DiskConfig, localRoot string) ([]fs.Disk, e
 		case "s3":
 			s3Disk, err := NewS3(&RcloneS3Config{
 				Name:            diskConfig.Name,
-				Root:            diskConfig.Root,
+				Root:            strings.TrimPrefix(diskConfig.Root, "/"),
 				Provider:        diskConfig.Provider,
 				Bucket:          diskConfig.Bucket,
 				Region:          diskConfig.Region,
 				Endpoint:        diskConfig.Endpoint,
+				ChunkSize:       rclonefs.SizeSuffix(diskConfig.ChunkSize),
+				CopyCutoff:      rclonefs.SizeSuffix(diskConfig.CopyCutoff),
+				ForcePathStyle:  diskConfig.ForcePathStyle,
 				AccessKeyID:     diskConfig.AccessKeyID,
 				SecretAccessKey: diskConfig.SecretAccessKey,
 				BaseURL:         diskConfig.BaseURL,

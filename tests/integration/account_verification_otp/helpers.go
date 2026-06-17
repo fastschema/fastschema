@@ -274,6 +274,7 @@ func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig, verific
 		func(names ...string) fs.Mailer { return mailer },
 		nil,
 		func() *fs.OTPConfig { return otpConfig },
+		nil,
 	)
 	app.localProvider = lp
 
