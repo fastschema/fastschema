@@ -1,0 +1,4 @@
+dash bundle source: fastschema/js (apps/dash)
+js commit: f509670bc8c9d20b3f0fa8b1491cab089a1ee114 (branch master)
+built: 2026-06-17
+vite base: /dash/
