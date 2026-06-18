@@ -1,0 +1,1 @@
+import{mr as e,or as t,pr as n,vr as r}from"./index-BkwbQHd-.js";var i=r(n()),a=r(e());const o=()=>(0,a.jsx)(i.Fragment,{children:(0,a.jsx)(`div`,{children:`Welcome to FastSchema Dash!`})}),s=t(`/privateRoute/`)({component:o});export{o as IndexPage,s as indexLazyRoute};

@@ -1,0 +1,1 @@
+import{mr as e,or as t,u as n,vr as r}from"./index-BkwbQHd-.js";var i=r(e());const a=()=>(n({title:`About`,breadcrumbs:[{title:`About`,href:`/about`}]}),(0,i.jsx)(`div`,{children:`About Us`})),o=t(`/privateRoute/about`)({component:a});export{a as AboutPage,o as aboutLazyRoute};

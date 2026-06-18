@@ -1,1 +1,0 @@
-import{_r as e,ar as t,pr as n,u as r}from"./index-BLN8SWm9.js";var i=e(n());const a=()=>(r({title:`About`,breadcrumbs:[{title:`About`,href:`/about`}]}),(0,i.jsx)(`div`,{children:`About Us`})),o=t(`/privateRoute/about`)({component:a});export{a as AboutPage,o as aboutLazyRoute};
