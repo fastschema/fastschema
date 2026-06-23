@@ -81,8 +81,8 @@ type ResetPassword struct {
 
 // Activation represents the activation status response
 type Activation struct {
-	Activation string `json:"activation"`            // auto, manual, email, activated
-	SessionID  string `json:"session_id,omitempty"`  // Only for OTP flow
-	ExpiresIn  int    `json:"expires_in,omitempty"`  // Only for OTP flow (seconds)
-	Verified   bool   `json:"verified,omitempty"`    // For recover/check OTP response
+	Activation string `json:"activation"`           // auto, manual, email, activated
+	SessionID  string `json:"session_id,omitempty"` // Only for OTP flow
+	ExpiresIn  int    `json:"expires_in,omitempty"` // Only for OTP flow (seconds)
+	Verified   bool   `json:"verified,omitempty"`   // For recover/check OTP response
 }

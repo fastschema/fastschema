@@ -108,7 +108,7 @@ func (f *Field) IsValidValue(value any) bool {
 	if value != nil {
 		for {
 			v := reflect.ValueOf(value)
-			if v.Kind() == reflect.Ptr && !v.IsNil() {
+			if v.Kind() == reflect.Pointer && !v.IsNil() {
 				value = v.Elem().Interface()
 			} else {
 				break

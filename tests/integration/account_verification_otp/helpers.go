@@ -181,7 +181,7 @@ var systemSchemas = []any{
 	fs.Session{},
 }
 
-func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig, verificationMethod string) *testApp {
+func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig) *testApp {
 	t.Helper()
 	roleModel := utils.Must(dbc.Model("role"))
 	userModel := utils.Must(dbc.Model("user"))
@@ -263,7 +263,7 @@ func createTestApp(t *testing.T, dbc db.Client, otpConfig *fs.OTPConfig, verific
 	// Create and initialize Local provider with OTP verification
 	localProvider, _ := auth.NewLocalAuthProvider(fs.Map{
 		"activation_method":   "email",
-		"verification_method": verificationMethod,
+		"verification_method": "otp",
 	}, "http://localhost:8080/callback")
 	lp := localProvider.(*auth.LocalProvider)
 	lp.Init(
