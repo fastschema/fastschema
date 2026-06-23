@@ -1,3 +1,0 @@
-[submodule "pkg/dash"]
-	path = pkg/dash
-	url = git@github.com:fastschema/dash.git

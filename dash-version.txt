@@ -1,4 +1,4 @@
 dash bundle source: fastschema/js (apps/dash)
-js commit: 64cbc5e55869eb56ff2a8295df68d427cf42728e (branch refactor/js-monorepo-integration)
-built: 2026-06-18 (post feature-preserving refactor; e2e 184/0/15)
+js commit: 2b828935ab7aaff69053009931777fa157546c6b (branch main)
+built: 2026-06-23 (post user-menu + header fixes; FastSchema brand favicon/PWA icons; e2e 184/0/15)
 vite base: /dash/
