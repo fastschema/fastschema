@@ -13,6 +13,7 @@ linters:
     - depguard
     - dupl
     - err113
+    - errname
     - exhaustive
     - exhaustruct
     - forbidigo
@@ -23,6 +24,7 @@ linters:
     - gocognit
     - goconst
     - gocyclo
+    - godoclint
     - godot
     - godox
     - inamedparam
@@ -37,11 +39,14 @@ linters:
     - noctx
     - noinlineerr
     - nonamedreturns
+    - perfsprint
     - prealloc
+    - predeclared
     - recvcheck
     - revive
     - tagalign
     - tagliatelle
+    - thelper
     - usestdlibvars
     - varnamelen
     - wastedassign
@@ -63,6 +68,7 @@ linters:
       excludes:
         - G115
         - G402
+        - G703
     staticcheck:
       checks:
         - all
@@ -85,6 +91,12 @@ linters:
       - linters:
           - funlen
         path: pkg/entdbadapter/query.go
+      - linters:
+          - funlen
+        path: cmd/main.go
+      - linters:
+          - unused
+        path: tests/integration/
       - linters:
           - govet
         path: schema/system_test.go

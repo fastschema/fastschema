@@ -337,15 +337,12 @@ func IsFileExists(filePath string) bool {
 }
 
 func CopyFile(src string, dst string) error {
-	// src and dst are trusted internal paths supplied by callers, not
-	// attacker-controlled input, so gosec's path-traversal taint warning is a
-	// false positive here.
-	data, err := os.ReadFile(src) //nolint:gosec
+	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(dst, data, 0600) //nolint:gosec
+	return os.WriteFile(dst, data, 0600)
 }
 
 func MkDirs(dirs ...string) error {

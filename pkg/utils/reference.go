@@ -13,11 +13,11 @@ func GetDereferencedType(v any) reflect.Type {
 	// v can be a pointer that points to its own address,
 	// so we need to check if v is a pointer to itself to avoid infinite loops.
 	var originalAddress uintptr
-	if reflect.TypeOf(v).Kind() == reflect.Ptr {
+	if reflect.TypeOf(v).Kind() == reflect.Pointer {
 		originalAddress = reflect.ValueOf(v).Pointer()
 	}
 
-	for reflect.TypeOf(v).Kind() == reflect.Ptr {
+	for reflect.TypeOf(v).Kind() == reflect.Pointer {
 		if reflect.ValueOf(v).IsZero() {
 			v = CreateZeroValue(reflect.TypeOf(v).Elem())
 			continue
@@ -25,7 +25,7 @@ func GetDereferencedType(v any) reflect.Type {
 
 		v = reflect.ValueOf(v).Elem().Interface()
 
-		if reflect.TypeOf(v).Kind() == reflect.Ptr {
+		if reflect.TypeOf(v).Kind() == reflect.Pointer {
 			newAddress := reflect.ValueOf(v).Pointer()
 			if originalAddress == newAddress {
 				break
@@ -54,7 +54,7 @@ func GeneratePointerChain(v any, times int) any {
 
 // Dereferenceable returns true if the value is dereferenceable.
 func Dereferenceable(v any) bool {
-	for reflect.TypeOf(v) != nil && reflect.TypeOf(v).Kind() == reflect.Ptr {
+	for reflect.TypeOf(v) != nil && reflect.TypeOf(v).Kind() == reflect.Pointer {
 		if reflect.ValueOf(v).IsZero() {
 			v = reflect.New(reflect.TypeOf(v).Elem()).Elem().Interface()
 			continue

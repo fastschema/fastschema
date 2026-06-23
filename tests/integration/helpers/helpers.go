@@ -15,7 +15,6 @@ import (
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/pkg/entdbadapter"
 	"github.com/fastschema/fastschema/pkg/utils"
-	u "github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
@@ -51,7 +50,7 @@ func Ctx() context.Context { return context.Background() }
 
 func IDUint64(t *testing.T, value any) uint64 {
 	t.Helper()
-	id, err := u.AnyToUint[uint64](value)
+	id, err := utils.AnyToUint[uint64](value)
 	require.NoError(t, err)
 	return id
 }
@@ -60,8 +59,8 @@ func IDUint64(t *testing.T, value any) uint64 {
 func AssertUint64ID(t *testing.T, value any) {
 	t.Helper()
 	id, err := utils.AnyToInt[int64](value)
-	assert.NoError(t, err)
-	assert.Greater(t, id, int64(0))
+	require.NoError(t, err)
+	assert.Positive(t, id)
 }
 
 // AssertID asserts that the value is a valid ID (either UUID or uint64).
@@ -80,8 +79,8 @@ func AssertID(t *testing.T, value any) {
 	}
 	// Otherwise, check if it's a uint64
 	id, err := utils.AnyToInt[int64](value)
-	assert.NoError(t, err)
-	assert.Greater(t, id, int64(0))
+	require.NoError(t, err)
+	assert.Positive(t, id)
 }
 
 // ToJSONID converts an ID to its JSON representation.
