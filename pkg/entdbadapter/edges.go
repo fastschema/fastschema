@@ -470,7 +470,7 @@ func (e *edgeLoader) executeM2MWindowQuery(
 
 	// Execute query
 	query, args := outer.Query()
-	return e.executeM2MWindowQueryRaw(entAdapter, query, args, cols)
+	return e.executeM2MWindowQueryRaw(entAdapter, query, args)
 }
 
 // executeM2MWindowQueryRaw executes the raw M2M window query and parses results.
@@ -478,7 +478,6 @@ func (e *edgeLoader) executeM2MWindowQueryRaw(
 	entAdapter EntAdapter,
 	query string,
 	args []any,
-	cols []string,
 ) ([]*entity.Entity, []any, error) {
 	var rows = &sql.Rows{}
 	if err := entAdapter.Driver().Query(e.ctx, query, args, rows); err != nil {

@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/fastschema/fastschema/entity"
@@ -52,9 +53,7 @@ func (ro *RelationOption) Clone() *RelationOption {
 
 	if ro.Filter != nil {
 		cloned.Filter = make(map[string]any, len(ro.Filter))
-		for k, v := range ro.Filter {
-			cloned.Filter[k] = v
-		}
+		maps.Copy(cloned.Filter, ro.Filter)
 	}
 
 	if ro.Select != nil {
@@ -122,8 +121,8 @@ func (ros RelationOptions) GetNestedOptions(parentField string) RelationOptions 
 	nested := make(RelationOptions)
 
 	for key, opt := range ros {
-		if strings.HasPrefix(key, prefix) {
-			nestedKey := strings.TrimPrefix(key, prefix)
+		if after, ok := strings.CutPrefix(key, prefix); ok {
+			nestedKey := after
 			nested[nestedKey] = opt
 		}
 	}

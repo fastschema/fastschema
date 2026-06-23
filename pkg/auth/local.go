@@ -169,19 +169,20 @@ func (la *LocalProvider) Activate(c fs.Context, data *Confirmation) (*Activation
 	var userID uuid.UUID
 	var err error
 
-	if data.IsTokenBased() {
+	switch {
+	case data.IsTokenBased():
 		userID, err = ValidateConfirmationToken(data.Token, la.appKey())
 		if err != nil {
 			err = fmt.Errorf(MSG_INVALID_TOKEN+": %w", err)
 			c.Logger().Error(err)
 			return nil, err
 		}
-	} else if data.IsOTPBased() {
+	case data.IsOTPBased():
 		userID, err = la.verifyOTPSession(c, data.SessionID, data.OTP, fs.SessionTypeActivation, true)
 		if err != nil {
 			return nil, err
 		}
-	} else {
+	default:
 		return nil, ERR_INVALID_TOKEN
 	}
 
@@ -450,17 +451,18 @@ func (la *LocalProvider) RecoverCheck(c fs.Context, data *Confirmation) (*Activa
 func (la *LocalProvider) ResetPassword(c fs.Context, data *ResetPassword) (_ bool, err error) {
 	var userID uuid.UUID
 
-	if data.Token != "" {
+	switch {
+	case data.Token != "":
 		userID, err = ValidateConfirmationToken(data.Token, la.appKey())
 		if err != nil {
 			return false, err
 		}
-	} else if data.SessionID != "" {
+	case data.SessionID != "":
 		userID, err = la.getUserFromVerifiedSession(c, data.SessionID, fs.SessionTypeRecovery)
 		if err != nil {
 			return false, err
 		}
-	} else {
+	default:
 		return false, ERR_INVALID_TOKEN
 	}
 

@@ -302,11 +302,11 @@ func WriteMigrationFiles(dir string, mf *fs.MigrationFile) error {
 	upPath := filepath.Join(dir, baseName+".up.sql")
 	downPath := filepath.Join(dir, baseName+".down.sql")
 
-	if err := os.WriteFile(upPath, []byte(mf.UpSQL), 0644); err != nil {
+	if err := os.WriteFile(upPath, []byte(mf.UpSQL), 0600); err != nil {
 		return fmt.Errorf("failed to write up migration: %w", err)
 	}
 
-	if err := os.WriteFile(downPath, []byte(mf.DownSQL), 0644); err != nil {
+	if err := os.WriteFile(downPath, []byte(mf.DownSQL), 0600); err != nil {
 		return fmt.Errorf("failed to write down migration: %w", err)
 	}
 

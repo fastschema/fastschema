@@ -1,5 +1,7 @@
 package schema
 
+import "maps"
+
 type SchemaDBIndex struct {
 	Name    string   `json:"name,omitempty"`
 	Unique  bool     `json:"unique,omitempty"`
@@ -28,9 +30,7 @@ func (f *SchemaFormZoneField) Clone() *SchemaFormZoneField {
 	}
 	if f.Options != nil {
 		clone.Options = make(map[string]any, len(f.Options))
-		for k, v := range f.Options {
-			clone.Options[k] = v
-		}
+		maps.Copy(clone.Options, f.Options)
 	}
 	return clone
 }

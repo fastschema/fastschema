@@ -87,7 +87,7 @@ func testActivationOTPRequestSuccess(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		reqBody := map[string]string{"email": app.inactiveUser.Email}
 		body, _ := json.Marshal(reqBody)
@@ -143,7 +143,7 @@ func testActivationOTPRequestInvalidEmail(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		reqBody := map[string]string{"email": "not-an-email"}
 		body, _ := json.Marshal(reqBody)
@@ -167,7 +167,7 @@ func testActivationOTPRequestNonExistentUser(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Non-existent user should still return success (no enumeration)
 		reqBody := map[string]string{"email": "nonexistent@example.com"}
@@ -203,7 +203,7 @@ func testActivationOTPRequestActiveUser(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Active user should still return success (no enumeration)
 		reqBody := map[string]string{"email": app.activeUser.Email}
@@ -235,7 +235,7 @@ func testActivationOTPVerifySuccess(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Create OTP session
 		otp := "123456"
@@ -295,7 +295,7 @@ func testActivationOTPVerifyInvalidOTP(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Create OTP session
 		otp := "123456"
@@ -345,7 +345,7 @@ func testActivationOTPVerifyExpired(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Create expired OTP session
 		otp := "123456"
@@ -388,7 +388,7 @@ func testActivationOTPVerifyMaxAttempts(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Create OTP session with max attempts reached
 		otp := "123456"
@@ -431,7 +431,7 @@ func testActivationOTPVerifyInvalidSession(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		reqBody := map[string]string{
 			"session_id": "invalid-uuid",
@@ -459,7 +459,7 @@ func testRecoveryOTPRequestSuccess(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		reqBody := map[string]string{"email": app.activeUser.Email}
 		body, _ := json.Marshal(reqBody)
@@ -500,7 +500,7 @@ func testRecoveryOTPRequestNonExistentUser(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		reqBody := map[string]string{"email": "nonexistent@example.com"}
 		body, _ := json.Marshal(reqBody)
@@ -529,7 +529,7 @@ func testRecoveryOTPRequestInactiveUser(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		reqBody := map[string]string{"email": app.inactiveUser.Email}
 		body, _ := json.Marshal(reqBody)
@@ -561,7 +561,7 @@ func testRecoveryOTPVerifySuccess(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Create recovery OTP session
 		otp := "654321"
@@ -616,7 +616,7 @@ func testRecoveryOTPVerifyInvalidOTP(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		otp := "654321"
 		otpHash, _ := auth.HashOTP(otp)
@@ -658,7 +658,7 @@ func testRecoveryOTPVerifyExpired(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		otp := "654321"
 		otpHash, _ := auth.HashOTP(otp)
@@ -702,7 +702,7 @@ func testPasswordResetWithSessionSuccess(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Create verified recovery session
 		sessionUUID := utils.Must(uuid.NewV7())
@@ -746,7 +746,7 @@ func testPasswordResetWithUnverifiedSession(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Create unverified (pending_otp) recovery session
 		sessionUUID := utils.Must(uuid.NewV7())
@@ -786,7 +786,7 @@ func testPasswordResetPasswordMismatch(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		sessionUUID := utils.Must(uuid.NewV7())
 		_, err := db.Builder[*fs.Session](dbc).Create(context.Background(), entity.New().
@@ -824,7 +824,7 @@ func testOTPSessionInvalidationOnResend(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Create existing activation session
 		oldSessionUUID := utils.Must(uuid.NewV7())
@@ -865,7 +865,7 @@ func testOTPSessionInvalidationOnRecoveryResend(dbc db.Client) func(t *testing.T
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Create existing recovery session
 		oldSessionUUID := utils.Must(uuid.NewV7())
@@ -908,7 +908,7 @@ func testFullActivationOTPFlow(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Step 1: Request activation OTP
 		reqBody := map[string]string{"email": app.inactiveUser.Email}
@@ -975,7 +975,7 @@ func testFullRecoveryOTPFlow(dbc db.Client) func(t *testing.T) {
 			Length:      6,
 			Expiration:  300,
 			MaxAttempts: 3,
-		}, "otp")
+		})
 
 		// Step 1: Request recovery OTP
 		reqBody := map[string]string{"email": app.activeUser.Email}

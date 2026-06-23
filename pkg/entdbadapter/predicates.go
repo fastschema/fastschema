@@ -230,7 +230,6 @@ func createRelationsPredicate(
 		pred = func(s2 *sql.Selector) {
 			s2.Where(sql.And(predFn(s2)...))
 		}
-
 	}
 
 	return func(selector *sql.Selector) *sql.Predicate {

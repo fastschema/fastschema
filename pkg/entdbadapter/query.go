@@ -380,8 +380,8 @@ func (q *Query) Get(ctx context.Context) (_ []*entity.Entity, err error) {
 	}
 
 	// Combine direct and FK columns
-	allColumns := append(buildResult.directColumnNames, buildResult.fkColumns...)
-	allColumns = utils.Unique(allColumns)
+	buildResult.directColumnNames = append(buildResult.directColumnNames, buildResult.fkColumns...)
+	allColumns := utils.Unique(buildResult.directColumnNames)
 
 	entAdapter, ok := q.client.(EntAdapter)
 	if !ok {
