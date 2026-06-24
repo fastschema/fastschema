@@ -111,6 +111,10 @@ func (a *App) init() (err error) {
 		BasePath: "/" + a.config.DashBaseName,
 		RootFS:   http.FS(embedDashStatic),
 		FSPrefix: "dash",
+		// The dash is a single-page application with one index.html entry.
+		// Serve it as the fallback so deep links and hard navigations such as
+		// /dash/setup/?token=... resolve to the SPA instead of returning 404.
+		NotFoundFile: "dash/index.html",
 	})
 
 	return nil

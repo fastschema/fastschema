@@ -38,6 +38,13 @@ type StaticFs struct {
 	// FSPrefix is a prefix to be added to the path when reading from the FileSystem.
 	// Use when using embed.FS, default ""
 	FSPrefix string
+
+	// NotFoundFile is the file served when a requested path is not found in
+	// RootFS. Enables single-page-application fallback: deep links and hard
+	// navigations (e.g. /dash/setup/) resolve to the SPA entry point instead
+	// of returning 404. The value is opened directly from RootFS, so it must
+	// include FSPrefix (e.g. "dash/index.html"). Empty disables the fallback.
+	NotFoundFile string
 }
 
 // HandlerFn is a function that generates a resolver function

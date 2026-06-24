@@ -52,8 +52,9 @@ func (r *RestfulResolver) init(logger logger.Logger) *RestfulResolver {
 	for _, staticResource := range r.config.StaticFSs {
 		if staticResource.RootFS != nil {
 			r.server.App.Use(staticResource.BasePath, filesystem.New(filesystem.Config{
-				Root:       staticResource.RootFS,
-				PathPrefix: staticResource.FSPrefix,
+				Root:         staticResource.RootFS,
+				PathPrefix:   staticResource.FSPrefix,
+				NotFoundFile: staticResource.NotFoundFile,
 				Next: func(c *fiber.Ctx) bool {
 					// skip serving static files for root path
 					return c.Path() == "/" || c.Path() == ""
