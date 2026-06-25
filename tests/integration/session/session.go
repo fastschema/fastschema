@@ -111,11 +111,24 @@ func createTestApp(t *testing.T, dbc db.Client) *testApp {
 	roleModel := utils.Must(dbc.Model("role"))
 	userModel := utils.Must(dbc.Model("user"))
 
+	// Resolve the "User" role, creating it if it does not already exist.
+	// Multiple sub-tests share this DB, so the role may have been created by a prior sub-test.
 	var userRoleID uuid.UUID
 	for _, r := range []*fs.Role{fs.RoleAdmin, fs.RoleUser, fs.RoleGuest} {
-		roleID, _ := roleModel.Create(context.Background(), entity.New().
+		ctx := context.Background()
+		existingRoles, _ := db.Builder[*fs.Role](dbc).Where(db.EQ("name", r.Name)).Get(ctx)
+		if len(existingRoles) > 0 {
+			if r.Name == fs.RoleUser.Name {
+				userRoleID = existingRoles[0].ID
+			}
+			continue
+		}
+		roleID, err := roleModel.Create(ctx, entity.New().
 			Set("name", r.Name).
 			Set("root", r.Root))
+		if err != nil {
+			t.Fatalf("failed to create role %s: %v", r.Name, err)
+		}
 		if r.Name == fs.RoleUser.Name {
 			userRoleID = roleID.(uuid.UUID)
 		}

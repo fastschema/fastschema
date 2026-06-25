@@ -4,17 +4,21 @@ import (
 	"testing"
 
 	"github.com/fastschema/fastschema/entity"
-	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/auth"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRegisterEntity(t *testing.T) {
+	// Simulate a real DB-generated role ID; role name is the stable identifier, ID is deployment-specific.
+	testRoleID := uuid.MustParse("01900000-0000-7000-8000-000000000001")
+
 	tests := []struct {
 		name             string
 		register         auth.Register
 		activationMethod string
 		provider         string
+		roleID           uuid.UUID
 		expectedEntity   *entity.Entity
 	}{
 		{
@@ -29,13 +33,14 @@ func TestRegisterEntity(t *testing.T) {
 			},
 			activationMethod: "auto",
 			provider:         "testprovider",
+			roleID:           testRoleID,
 			expectedEntity: entity.New().
 				Set("email", "testuser@site.local").
 				Set("password", "password123").
 				Set("active", true).
 				Set("provider", "testprovider").
 				Set("roles", []*entity.Entity{
-					entity.New(fs.RoleUser.ID),
+					entity.New(testRoleID),
 				}).
 				Set("username", "testuser").
 				Set("first_name", "first").
@@ -53,13 +58,14 @@ func TestRegisterEntity(t *testing.T) {
 			},
 			activationMethod: "manual",
 			provider:         "testprovider",
+			roleID:           testRoleID,
 			expectedEntity: entity.New().
 				Set("email", "testuser@site.local").
 				Set("password", "password123").
 				Set("active", false).
 				Set("provider", "testprovider").
 				Set("roles", []*entity.Entity{
-					entity.New(fs.RoleUser.ID),
+					entity.New(testRoleID),
 				}).
 				Set("username", "testuser").
 				Set("first_name", "first").
@@ -69,7 +75,7 @@ func TestRegisterEntity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entity := tt.register.Entity(tt.activationMethod, tt.provider)
+			entity := tt.register.Entity(tt.activationMethod, tt.provider, tt.roleID)
 			expectedJson, err := tt.expectedEntity.ToJSON()
 			assert.NoError(t, err)
 			entityJson, err := entity.ToJSON()

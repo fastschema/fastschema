@@ -29,26 +29,26 @@ func TestRoleServiceUpdate(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 404, resp.StatusCode)
 
-	// Case 3: Valid Payload, update role only
+	// Case 3: Attempt to rename a system role — must be rejected (system roles are identified by name)
 	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/role/%v", userRoleID), bytes.NewReader([]byte(`{"name": "user role"}`)))
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, 400, resp.StatusCode)
 	response := utils.Must(utils.ReadCloserToString(resp.Body))
-	assert.Contains(t, response, `"user role"`)
+	assert.Contains(t, response, "Can't rename default roles")
 
-	// Case 4: Role rule compile error
+	// Case 4: Role rule compile error (name unchanged — same as existing "User")
 	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/role/%v", userRoleID), bytes.NewReader([]byte(`{
-		"name": "user role",
+		"name": "User",
 		"rule": "invalid rule"
 	}`)))
 	resp = utils.Must(testApp.server.Test(req))
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 500, resp.StatusCode)
 
-	// Case 5: Permission compile error
+	// Case 5: Permission compile error (name unchanged — same as existing "User")
 	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/role/%v", userRoleID), bytes.NewReader([]byte(`{
-		"name": "user role",
+		"name": "User",
 		"permissions": [
 			{
 				"resource": "content.blog.list",
@@ -60,14 +60,14 @@ func TestRoleServiceUpdate(t *testing.T) {
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, 500, resp.StatusCode)
 
-	// Case 4: Valid Payload, update role and permissions
+	// Case 6: Valid Payload, update role and permissions (name unchanged)
 	// Current permissions: content.blog.list=allow, content.blog.detail=deny, content.blog.meta=notset
 	// This test perform:
 	// 	- Remove content.blog.detail
 	// 	- Add content.blog.meta, content.blog.view
 	//  - Update content.blog.list rule to $context.User().ID < 2
 	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/role/%v", userRoleID), bytes.NewReader([]byte(`{
-		"name": "user role",
+		"name": "User",
 		"permissions": [
 			{
 				"resource": "content.blog.list",

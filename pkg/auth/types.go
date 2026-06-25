@@ -2,7 +2,7 @@ package auth
 
 import (
 	"github.com/fastschema/fastschema/entity"
-	"github.com/fastschema/fastschema/fs"
+	"github.com/google/uuid"
 )
 
 type LoginData struct {
@@ -19,14 +19,16 @@ type Register struct {
 	ConfirmPassword string `json:"confirm_password"`
 }
 
-func (d *Register) Entity(activationMethod, provider string) *entity.Entity {
+// Entity builds the user entity for registration.
+// roleID must be the real DB-generated role ID for the "User" role; caller resolves it before calling.
+func (d *Register) Entity(activationMethod, provider string, roleID uuid.UUID) *entity.Entity {
 	e := entity.New().
 		Set("email", d.Email).
 		Set("password", d.Password).
 		Set("active", activationMethod == "auto").
 		Set("provider", provider).
 		Set("roles", []*entity.Entity{
-			entity.New(fs.RoleUser.ID),
+			entity.New(roleID),
 		})
 
 	if d.Username != "" {

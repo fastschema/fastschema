@@ -56,10 +56,14 @@ func (as *AuthService) Authorize(c fs.Context) error {
 	var emptyUUID uuid.UUID
 	user := c.User()
 	if user == nil {
+		guestRoles := as.RolesByName(fs.RoleGuest.Name)
+		if len(guestRoles) == 0 {
+			c.Logger().Errorf("guest role '%s' not found in cache; anonymous request has no permissions", fs.RoleGuest.Name)
+		}
 		user = &fs.User{
 			ID:       emptyUUID,
 			Username: "",
-			Roles:    as.GetRolesFromIDs([]uuid.UUID{fs.RoleGuest.ID}),
+			Roles:    guestRoles,
 		}
 	}
 

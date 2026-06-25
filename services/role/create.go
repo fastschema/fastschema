@@ -2,6 +2,7 @@ package roleservice
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/fastschema/fastschema/db"
 	"github.com/fastschema/fastschema/entity"
@@ -29,12 +30,8 @@ func (rs *RoleService) Create(c fs.Context, _ any) (*fs.Role, error) {
 		return nil, errors.InternalServerError(err.Error())
 	}
 
-	createRoleData := payload.Delete("permissions")
-	createdRole, err := db.Create[*fs.Role](c, tx, createRoleData)
-	if err != nil {
-		return nil, errors.InternalServerError(err.Error())
-	}
-
+	// Register tx finalization before the first write so every error path
+	// (including the unique-name violation below) rolls back the open tx.
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("role update error: %w, rollback error: %w", err, tx.Rollback())
@@ -49,6 +46,17 @@ func (rs *RoleService) Create(c fs.Context, _ any) (*fs.Role, error) {
 
 		err = rs.UpdateCache(c)
 	}()
+
+	createRoleData := payload.Delete("permissions")
+	createdRole, err := db.Create[*fs.Role](c, tx, createRoleData)
+	if err != nil {
+		// Wrap duplicate-name DB error with a user-visible message instead of a raw 500.
+		if strings.Contains(strings.ToLower(err.Error()), "unique") ||
+			strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+			return nil, errors.BadRequest("role name already exists")
+		}
+		return nil, errors.InternalServerError(err.Error())
+	}
 
 	updateRoleData := entity.New(createdRole.ID).Set("permissions", rolePermissions)
 	existingRole, err := db.Builder[*fs.Role](tx).

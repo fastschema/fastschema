@@ -21,7 +21,7 @@ func New(app AppLike) *ToolService {
 
 func (s *ToolService) CreateResource(api *fs.Resource) {
 	api.Group("tool").
-		Add(fs.NewResource("stats", s.Stats, &fs.Meta{Get: "/stats", Public: true}))
+		Add(fs.NewResource("stats", s.Stats, &fs.Meta{Get: "/stats"}))
 }
 
 type StatsData struct {

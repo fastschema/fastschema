@@ -132,7 +132,17 @@ func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation,
 		return nil, err
 	}
 
-	userEntity := payload.Entity(la.activationMethod, la.Name())
+	// Resolve the User role by name before opening the transaction so we can fail early.
+	// Role name is the stable identifier; IDs are random per-deployment.
+	userRole, err := db.Builder[*fs.Role](la.db()).
+		Where(db.EQ("name", fs.RoleUser.Name)).
+		First(c)
+	if err != nil || userRole == nil {
+		c.Logger().Errorf("role '%s' not found in database: %v", fs.RoleUser.Name, err)
+		return nil, ERR_SAVE_USER
+	}
+
+	userEntity := payload.Entity(la.activationMethod, la.Name(), userRole.ID)
 	if err := db.WithTx(la.db(), c, func(tx db.Client) error {
 		user, err := db.Builder[*fs.User](tx).Create(c, userEntity)
 		if err != nil {

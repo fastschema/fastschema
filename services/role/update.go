@@ -62,6 +62,14 @@ func (rs *RoleService) UpdateRole(
 		return nil, e(err.Error())
 	}
 
+	// System roles are identified by name; renaming them breaks name-based resolution at runtime.
+	if existingRole.System {
+		newName := updateRoleData.GetString("name", "")
+		if newName != "" && newName != existingRole.Name {
+			return nil, errors.BadRequest("Can't rename default roles")
+		}
+	}
+
 	if err := updateRolePermissions(
 		c,
 		existingRole,

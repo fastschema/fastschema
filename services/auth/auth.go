@@ -167,6 +167,32 @@ func (as *AuthService) AuthUserCan(c fs.Context, user *fs.User, resourceID strin
 	return false
 }
 
+// RoleByName returns the first role matching the given name from the in-memory cache.
+// Role name is the stable identifier; IDs are random per-deployment.
+// Returns nil if not found.
+func (as *AuthService) RoleByName(name string) *fs.Role {
+	for _, r := range as.Roles() {
+		if r.Name == name {
+			return r
+		}
+	}
+	return nil
+}
+
+// RolesByName returns all roles matching the given names from the in-memory cache.
+// Role name is the stable identifier; IDs are random per-deployment.
+func (as *AuthService) RolesByName(names ...string) []*fs.Role {
+	result := []*fs.Role{}
+	for _, r := range as.Roles() {
+		for _, name := range names {
+			if r.Name == name {
+				result = append(result, r)
+			}
+		}
+	}
+	return result
+}
+
 func (as *AuthService) GetRolesFromIDs(ids []uuid.UUID) []*fs.Role {
 	result := []*fs.Role{}
 	roles := as.Roles()

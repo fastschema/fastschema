@@ -9,7 +9,6 @@ import (
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/fastschema/fastschema/pkg/utils"
-	"github.com/google/uuid"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
@@ -105,8 +104,6 @@ func (ga *GithubAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
 		Username: githubUser.Login,
 		Email:    githubUser.Email,
 		Active:   true,
-		RoleIDs:  []uuid.UUID{fs.RoleUser.ID},
-		Roles:    []*fs.Role{fs.RoleUser},
 	}, nil
 }
 

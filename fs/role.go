@@ -35,7 +35,8 @@ var RoleGuest = &Role{
 type Role struct {
 	_           any           `json:"-" fs:"label_field=name"`
 	ID          uuid.UUID     `json:"id,omitempty" fs:"type=uuid"`
-	Name        string        `json:"name,omitempty"`
+	// role name is the stable identifier across deployments; ids are random per-deployment
+	Name        string        `json:"name,omitempty" fs:"unique"`
 	Description string        `json:"description,omitempty" fs:"optional"`
 	Root        bool          `json:"root,omitempty" fs:"optional"`
 	System      bool          `json:"system,omitempty" fs:"optional"`
