@@ -1,4 +1,4 @@
 dash bundle source: fastschema/js (apps/dash)
-js commit: 2b828935ab7aaff69053009931777fa157546c6b (branch main) + working tree (setup route)
-built: 2026-06-24 (add /setup SPA route ported from legacy Next.js dash; pairs with server SPA fallback so /dash/setup/?token=... resolves instead of 404)
+js commit: 61a92f5b69595e750af7f97de49a06f3803ce019 (branch main)
+built: 2026-06-25 (self-host Inter variable font for cross-OS typography consistency; bundles SDK init 401-guest fix + schema stub-by-default via workspace dep; roles list edit-link cleanup)
 vite base: /dash/
