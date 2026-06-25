@@ -1,1 +1,0 @@
-import{$n as e,dr as t,or as n,sr as r}from"./index-CTyfmPn7.js";var i=t(n()),a=t(r());const o=()=>(0,a.jsx)(i.Fragment,{children:(0,a.jsx)(`div`,{children:`Welcome to FastSchema Dash!`})}),s=e(`/privateRoute/`)({component:o});export{o as IndexPage,s as indexLazyRoute};
