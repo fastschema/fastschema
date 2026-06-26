@@ -495,6 +495,7 @@ func (a *App) createDBClient() (err error) {
 			LogQueries:         utils.Env("DB_LOGGING", "false") == "true",
 			DisableForeignKeys: utils.Env("DB_DISABLE_FOREIGN_KEYS", "false") == "true",
 			UseSoftDeletes:     utils.Env("DB_USE_SOFT_DELETES", "false") == "true",
+			SSLMode:            utils.Env("DB_SSLMODE"),
 		}
 	}
 
@@ -516,6 +517,11 @@ func (a *App) createDBClient() (err error) {
 
 	if a.config.DBConfig.MigrationDir == "" {
 		a.config.DBConfig.MigrationDir = a.migrationDir
+	}
+
+	pgxValidSSLModes := []string{"disable", "allow", "prefer", "require"}
+	if a.config.DBConfig.Driver == "pgx" && a.config.DBConfig.SSLMode != "" && !utils.Contains(pgxValidSSLModes, a.config.DBConfig.SSLMode) {
+		return fmt.Errorf("invalid ssl_mode %q: must be one of %v", a.config.DBConfig.SSLMode, pgxValidSSLModes)
 	}
 
 	// If driver is sqlite and the DB_NAME (file path) is not set,
