@@ -1,0 +1,1 @@
+import{gr as e}from"./index-cGVsfQeU.js";var t=e((e,t)=>{t.exports=function(){throw Error(`ws does not work in the browser. Browser clients must use the native WebSocket object`)}})();export{t as default};

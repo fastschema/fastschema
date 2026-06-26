@@ -1,4 +1,4 @@
 dash bundle source: fastschema/js (apps/dash)
-js commit: a0e1759e8fdf52c259893585151e2d024976d956 (branch main)
-built: 2026-06-26 (dashboard resilient to missing contentCounts; getting-started steps are clickable actions)
+js commit: a0cd1f1abeb855d8a674dab5cd5ad5a84d530d58 (branch main)
+built: 2026-06-26 (scrollable dashboard lists, content card deep-link, search clear button; UUID primary keys as compact copyable cells)
 vite base: /dash/
