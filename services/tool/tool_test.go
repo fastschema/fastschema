@@ -60,6 +60,9 @@ func TestToolService(t *testing.T) {
 	resources.Group("tool").
 		Add(fs.NewResource("stats", toolService.Stats, &fs.Meta{
 			Get: "/stats",
+		})).
+		Add(fs.NewResource("recent", toolService.Recent, &fs.Meta{
+			Get: "/recent",
 		}))
 
 	assert.NoError(t, resources.Init())
@@ -77,8 +80,21 @@ func TestToolService(t *testing.T) {
 	assert.Contains(t, response, `"totalSchemas":7`)
 	assert.Contains(t, response, `"totalUsers":0`)
 	assert.Contains(t, response, `"totalFiles":0`)
+	// Only system schemas are registered here, so content stats are empty:
+	// this confirms system/junction schemas are excluded from contentCounts.
+	assert.Contains(t, response, `"totalContent":0`)
+	assert.Contains(t, response, `"contentCounts":[]`)
+
+	// Recent has no content schemas to draw from here, so it returns an empty list.
+	recentReq := httptest.NewRequest("GET", "/tool/recent", nil)
+	recentResp := utils.Must(server.Test(recentReq))
+	defer func() { assert.NoError(t, recentResp.Body.Close()) }()
+	assert.Equal(t, 200, recentResp.StatusCode)
+	recentBody := utils.Must(utils.ReadCloserToString(recentResp.Body))
+	assert.Contains(t, recentBody, `"data":[]`)
 
 	api := fs.NewResourcesManager().Group("api")
 	toolService.CreateResource(api)
 	assert.NotNil(t, api.Find("api.tool.stats"))
+	assert.NotNil(t, api.Find("api.tool.recent"))
 }
