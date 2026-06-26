@@ -1,4 +1,4 @@
 dash bundle source: fastschema/js (apps/dash)
-js commit: 42a73c708d5e055d0fdf5bb01daa29506dbf0523 (branch main)
-built: 2026-06-26 (dashboard home page: stat cards, searchable add-content quick action, getting-started checklist, content-by-type, recent content; always-on sidebar schema search)
+js commit: a0e1759e8fdf52c259893585151e2d024976d956 (branch main)
+built: 2026-06-26 (dashboard resilient to missing contentCounts; getting-started steps are clickable actions)
 vite base: /dash/
