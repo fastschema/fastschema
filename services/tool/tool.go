@@ -89,9 +89,10 @@ func (s *ToolService) Stats(c fs.Context, _ any) (_ *StatsData, err error) {
 func (s *ToolService) contentCounts(c fs.Context) ([]SchemaCount, int, error) {
 	counts := []SchemaCount{}
 	total := 0
+	builtin := builtinSystemSchemaNames()
 
 	for _, sch := range s.DB().SchemaBuilder().Schemas() {
-		if sch.IsSystemSchema || sch.IsJunctionSchema {
+		if _, isBuiltin := builtin[sch.Name]; isBuiltin || sch.IsJunctionSchema {
 			continue
 		}
 
@@ -129,6 +130,26 @@ func schemaLabel(sch *schema.Schema) string {
 	return sch.Name
 }
 
+// builtinSystemSchemaNames returns the names of FastSchema's built-in system
+// schemas (user, role, permission, file, session, migration), which are excluded
+// from content stats.
+//
+// We must NOT filter by Schema.IsSystemSchema: content schemas declared as Go
+// structs (via app config SystemSchemas) also carry IsSystemSchema=true, so that
+// flag would wrongly drop every code-defined content type. Excluding by built-in
+// name keeps those content schemas counted.
+func builtinSystemSchemaNames() map[string]struct{} {
+	names := make(map[string]struct{}, len(fs.SystemSchemaTypes))
+	for _, t := range fs.SystemSchemaTypes {
+		sch, err := schema.CreateSchema(t)
+		if err != nil {
+			continue
+		}
+		names[sch.Name] = struct{}{}
+	}
+	return names
+}
+
 const (
 	recentDefaultLimit = 10
 	recentMaxLimit     = 50
@@ -156,11 +177,13 @@ func (s *ToolService) Recent(c fs.Context, _ any) ([]*RecentItem, error) {
 	}
 
 	items := []*RecentItem{}
+	builtin := builtinSystemSchemaNames()
 
 	for _, sch := range s.DB().SchemaBuilder().Schemas() {
-		// Skip system/junction schemas and schemas without timestamp columns
-		// (no updated_at to order by).
-		if sch.IsSystemSchema || sch.IsJunctionSchema || sch.DisableTimestamp {
+		// Skip built-in system schemas, junction schemas, and schemas without
+		// timestamp columns (no updated_at to order by). Code-defined content
+		// schemas (IsSystemSchema=true) are intentionally kept.
+		if _, isBuiltin := builtin[sch.Name]; isBuiltin || sch.IsJunctionSchema || sch.DisableTimestamp {
 			continue
 		}
 

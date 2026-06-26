@@ -98,3 +98,37 @@ func TestToolService(t *testing.T) {
 	assert.NotNil(t, api.Find("api.tool.stats"))
 	assert.NotNil(t, api.Find("api.tool.recent"))
 }
+
+// Category is defined as a Go struct, so the schema builder marks it
+// IsSystemSchema=true even though it is user content. Stats must still count it.
+type Category struct {
+	Name string `json:"name" fs:"label_field;optional;sortable;filterable;size=255"`
+}
+
+func TestToolServiceCountsCodeDefinedSchemas(t *testing.T) {
+	schemaTypes := append([]any{}, fs.SystemSchemaTypes...)
+	schemaTypes = append(schemaTypes, Category{})
+
+	sb := utils.Must(schema.NewBuilderFromDir(t.TempDir(), schemaTypes...))
+	db := utils.Must(entdbadapter.NewTestClient(utils.Must(os.MkdirTemp("", "migrations")), sb))
+	toolService := toolservice.New(&testApp{sb: sb, db: db})
+
+	resources := fs.NewResourcesManager()
+	resources.Group("tool").
+		Add(fs.NewResource("stats", toolService.Stats, &fs.Meta{Get: "/stats"}))
+	assert.NoError(t, resources.Init())
+	restResolver := restfulresolver.NewRestfulResolver(&restfulresolver.ResolverConfig{
+		ResourceManager: resources,
+		Logger:          logger.CreateMockLogger(true),
+	})
+	server := restResolver.Server()
+
+	req := httptest.NewRequest("GET", "/tool/stats", nil)
+	resp := utils.Must(server.Test(req))
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
+	assert.Equal(t, 200, resp.StatusCode)
+	response := utils.Must(utils.ReadCloserToString(resp.Body))
+	// The code-defined Category schema must appear in contentCounts despite
+	// carrying IsSystemSchema=true.
+	assert.Contains(t, response, `"schema":"category"`)
+}
