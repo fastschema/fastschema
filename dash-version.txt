@@ -1,4 +1,4 @@
 dash bundle source: fastschema/js (apps/dash)
-js commit: 1c09cc718b660b6e0864ee5f4f1498e0fc0ee877 (branch main)
-built: 2026-06-25 (content sidebar grouped by name-prefix into collapsible groups for high schema counts; fix latent NestedMenuItem crash where CollapsibleTrigger asChild received two children)
+js commit: 42a73c708d5e055d0fdf5bb01daa29506dbf0523 (branch main)
+built: 2026-06-26 (dashboard home page: stat cards, searchable add-content quick action, getting-started checklist, content-by-type, recent content; always-on sidebar schema search)
 vite base: /dash/
