@@ -28,7 +28,8 @@ func New(app AppLike) *ToolService {
 func (s *ToolService) CreateResource(api *fs.Resource) {
 	api.Group("tool").
 		Add(fs.NewResource("stats", s.Stats, &fs.Meta{Get: "/stats"})).
-		Add(fs.NewResource("recent", s.Recent, &fs.Meta{Get: "/recent"}))
+		Add(fs.NewResource("recent", s.Recent, &fs.Meta{Get: "/recent"})).
+		Add(fs.NewResource("activity", s.Activity, &fs.Meta{Get: "/activity"}))
 }
 
 // SchemaCount holds the record count for a single content schema.

@@ -12,6 +12,9 @@ var ignoreContentSchemas = []string{
 	// "permission",
 	"migration",
 	"session",
+	// Audit trail: hidden from the content UI and not editable there, like
+	// session/migration. Queried only via GET /api/tool/activity.
+	"_activity",
 }
 
 func (ss *SchemaService) List(c fs.Context, _ any) ([]*schema.Schema, error) {

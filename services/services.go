@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/fastschema/fastschema/fs"
+	activityservice "github.com/fastschema/fastschema/services/activity"
 	authservice "github.com/fastschema/fastschema/services/auth"
 	contentservice "github.com/fastschema/fastschema/services/content"
 	fileservice "github.com/fastschema/fastschema/services/file"
@@ -20,6 +21,7 @@ type Content = contentservice.ContentService
 type Tool = toolservice.ToolService
 type Auth = authservice.AuthService
 type Realtime = realtimeservice.RealtimeService
+type Activity = activityservice.ActivityService
 
 type Services struct {
 	file     *File
@@ -29,10 +31,11 @@ type Services struct {
 	tool     *Tool
 	auth     *Auth
 	realtime *Realtime
+	activity *Activity
 }
 
 type ServiceType interface {
-	File | Role | Schema | Content | Tool | Auth | Realtime
+	File | Role | Schema | Content | Tool | Auth | Realtime | Activity
 }
 
 type ServicesProvider interface {
@@ -63,6 +66,8 @@ func Get[T ServiceType](app any) (*T, error) {
 		return any(services.Schema()).(*T), nil
 	case toolservice.ToolService:
 		return any(services.Tool()).(*T), nil
+	case activityservice.ActivityService:
+		return any(services.Activity()).(*T), nil
 	}
 
 	return nil, errors.New("service not found")
@@ -77,6 +82,7 @@ func New(app fs.App) *Services {
 		tool:     toolservice.New(app),
 		auth:     authservice.New(app),
 		realtime: realtimeservice.New(app),
+		activity: activityservice.New(app),
 	}
 }
 
@@ -106,4 +112,8 @@ func (s *Services) Auth() *authservice.AuthService {
 
 func (s *Services) Realtime() *realtimeservice.RealtimeService {
 	return s.realtime
+}
+
+func (s *Services) Activity() *activityservice.ActivityService {
+	return s.activity
 }

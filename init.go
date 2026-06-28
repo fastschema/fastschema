@@ -70,6 +70,8 @@ func (a *App) init() (err error) {
 		return err
 	}
 
+	a.createAuditConfig()
+
 	a.createServices()
 
 	a.createResources()
@@ -345,6 +347,59 @@ func (a *App) createLogger() (err error) {
 
 	a.config.Logger, err = zaplogger.NewZapLogger(a.config.LoggerConfig)
 	return
+}
+
+// createAuditConfig resolves the audit-trail config from the programmatic
+// config, the AUDIT json env, and individual AUDIT_* env overrides, filling in
+// defaults. It always leaves a.config.AuditConfig non-nil.
+func (a *App) createAuditConfig() {
+	if a.config.AuditConfig == nil {
+		a.config.AuditConfig = &fs.AuditConfig{RetentionDays: fs.DefaultAuditRetentionDays}
+		if env := utils.Env("AUDIT"); env != "" {
+			if err := json.Unmarshal([]byte(env), a.config.AuditConfig); err != nil {
+				a.startupMessages = append(
+					a.startupMessages,
+					"Invalid AUDIT config env, using defaults: "+err.Error(),
+				)
+			}
+		}
+	}
+
+	ac := a.config.AuditConfig
+
+	if env := utils.Env("AUDIT_ENABLED"); env != "" {
+		enabled := strings.EqualFold(env, "true")
+		ac.Enabled = &enabled
+	}
+
+	if utils.Env("AUDIT_RETENTION_DAYS") != "" {
+		ac.RetentionDays = utils.EnvInt("AUDIT_RETENTION_DAYS")
+	}
+
+	if env := utils.Env("AUDIT_SKIP_SCHEMAS"); env != "" {
+		ac.SkipSchemas = splitCSV(env)
+	}
+	if len(ac.SkipSchemas) == 0 {
+		ac.SkipSchemas = fs.DefaultAuditSkipSchemas
+	}
+
+	if env := utils.Env("AUDIT_REDACT_FIELDS"); env != "" {
+		ac.RedactFields = splitCSV(env)
+	}
+}
+
+// splitCSV splits a comma-separated env value, trimming spaces and dropping
+// empty entries.
+func splitCSV(s string) []string {
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if v := strings.TrimSpace(p); v != "" {
+			out = append(out, v)
+		}
+	}
+
+	return out
 }
 
 func (a *App) createAuthProviders() (err error) {

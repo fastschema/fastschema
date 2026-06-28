@@ -243,11 +243,11 @@ func TestConfig(t *testing.T) {
 		{"PreDBExec", 1, len(hooks.DBHooks.PreDBExec)},
 		{"PostDBExec", 1, len(hooks.DBHooks.PostDBExec)},
 		{"PreDBCreate", 1, len(hooks.DBHooks.PreDBCreate)},
-		{"PostDBCreate", 2, len(hooks.DBHooks.PostDBCreate)}, // including the default one: realtime.ContentCreateHook
+		{"PostDBCreate", 3, len(hooks.DBHooks.PostDBCreate)}, // defaults: realtime.ContentCreateHook + activity.CaptureCreateHook
 		{"PreDBUpdate", 1, len(hooks.DBHooks.PreDBUpdate)},
-		{"PostDBUpdate", 2, len(hooks.DBHooks.PostDBUpdate)}, // including the default one: realtime.ContentUpdateHook
+		{"PostDBUpdate", 3, len(hooks.DBHooks.PostDBUpdate)}, // defaults: realtime.ContentUpdateHook + activity.CaptureUpdateHook
 		{"PreDBDelete", 1, len(hooks.DBHooks.PreDBDelete)},
-		{"PostDBDelete", 2, len(hooks.DBHooks.PostDBDelete)}, // including the default one: realtime.ContentDeleteHook
+		{"PostDBDelete", 3, len(hooks.DBHooks.PostDBDelete)}, // defaults: realtime.ContentDeleteHook + activity.CaptureDeleteHook
 	}
 
 	for _, test := range tests {

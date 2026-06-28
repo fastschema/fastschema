@@ -609,11 +609,13 @@ func TestFastschemaResources(t *testing.T) {
 	hooks := a.Hooks()
 	assert.NotNil(t, hooks)
 	assert.NotNil(t, hooks.DBHooks)
-	// All db hooks expected 2 includes: the default one and the one we added in the test
+	// PostDBQuery has the file-list default + the one added in this test.
 	assert.Len(t, hooks.DBHooks.PostDBQuery, 2)
-	assert.Len(t, hooks.DBHooks.PostDBCreate, 2)
-	assert.Len(t, hooks.DBHooks.PostDBUpdate, 2)
-	assert.Len(t, hooks.DBHooks.PostDBDelete, 2)
+	// Create/Update/Delete each have the realtime default, the audit-trail
+	// capture hook, and the one added in this test.
+	assert.Len(t, hooks.DBHooks.PostDBCreate, 3)
+	assert.Len(t, hooks.DBHooks.PostDBUpdate, 3)
+	assert.Len(t, hooks.DBHooks.PostDBDelete, 3)
 
 	a.AddResource(fs.NewResource("test", func(c fs.Context, _ any) (any, error) {
 		return "test", nil

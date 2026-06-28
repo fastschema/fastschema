@@ -26,6 +26,7 @@ import (
 	cs "github.com/fastschema/fastschema/services/content"
 	rs "github.com/fastschema/fastschema/services/role"
 	ss "github.com/fastschema/fastschema/services/schema"
+	ts "github.com/fastschema/fastschema/services/tool"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -275,6 +276,7 @@ func CreateTestApp(t *testing.T) *TestApp {
 	contentService := cs.New(app)
 	schemaService := ss.New(app)
 	roleService := rs.New(app)
+	toolService := ts.New(app)
 
 	// Create resources
 	app.resources = fs.NewResourcesManager()
@@ -301,6 +303,9 @@ func CreateTestApp(t *testing.T) *TestApp {
 
 	// Role endpoints
 	roleService.CreateResource(api)
+
+	// Tool endpoints (stats/recent/activity)
+	toolService.CreateResource(api)
 
 	require.NoError(t, app.resources.Init())
 

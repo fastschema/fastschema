@@ -33,6 +33,7 @@ var SystemSchemaTypes = []any{
 	File{},
 	Session{},
 	Migration{},
+	Activity{},
 }
 
 type Arg struct {

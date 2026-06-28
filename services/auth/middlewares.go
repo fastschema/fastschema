@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/auditlog"
 	"github.com/fastschema/fastschema/pkg/errors"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/golang-jwt/jwt/v4"
@@ -28,6 +29,11 @@ func (as *AuthService) ParseUser(c fs.Context) error {
 			c.Local("user", user)
 		}
 	}
+
+	// Capture the request actor (user/guest + IP/method/path/trace) so the DB
+	// hooks can attribute audit-trail entries. Runs for every request since
+	// ParseUser is a global middleware.
+	auditlog.WithActor(c, auditlog.ActorFromRequest(c))
 
 	return c.Next()
 }

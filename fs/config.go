@@ -22,6 +22,7 @@ type Config struct {
 	AuthConfig             *AuthConfig                   `json:"auth_config"`
 	MailConfig             *MailConfig                   `json:"mail_config"`
 	RolePermissionSettings *RolePermissionSettingsConfig `json:"role_permission_settings"`
+	AuditConfig            *AuditConfig                  `json:"audit_config"`
 	SystemSchemas          []any                         `json:"-"` // types to build the system schemas
 	Hooks                  *Hooks                        `json:"-"`
 	HideResourcesInfo      bool                          `json:"hide_resources_info"`
@@ -71,6 +72,10 @@ func (ac *Config) Clone() *Config {
 
 	if ac.RolePermissionSettings != nil {
 		c.RolePermissionSettings = ac.RolePermissionSettings.Clone()
+	}
+
+	if ac.AuditConfig != nil {
+		c.AuditConfig = ac.AuditConfig.Clone()
 	}
 
 	return c

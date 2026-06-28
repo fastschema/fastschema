@@ -35,6 +35,26 @@ func (a *App) createServices() {
 		a.config.Hooks.DBHooks.PostDBDelete,
 		realTimeService.ContentDeleteHook,
 	)
+
+	// Register audit-trail capture only when enabled; honor the configured
+	// skip/redact lists.
+	if audit := a.config.AuditConfig; audit.IsEnabled() {
+		activityService := a.services.Activity()
+		activityService.Configure(audit.SkipSchemas, audit.RedactFields)
+
+		a.config.Hooks.DBHooks.PostDBCreate = append(
+			a.config.Hooks.DBHooks.PostDBCreate,
+			activityService.CaptureCreateHook,
+		)
+		a.config.Hooks.DBHooks.PostDBUpdate = append(
+			a.config.Hooks.DBHooks.PostDBUpdate,
+			activityService.CaptureUpdateHook,
+		)
+		a.config.Hooks.DBHooks.PostDBDelete = append(
+			a.config.Hooks.DBHooks.PostDBDelete,
+			activityService.CaptureDeleteHook,
+		)
+	}
 	a.config.Hooks.PreResolve = append(
 		a.config.Hooks.PreResolve,
 		a.services.Auth().Authorize,

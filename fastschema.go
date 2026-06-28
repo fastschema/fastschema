@@ -413,6 +413,12 @@ func (a *App) Start() error {
 		return err
 	}
 
+	// Start the audit-trail retention cleanup loop (no-op if disabled or
+	// retention is non-positive).
+	if a.config.AuditConfig.IsEnabled() {
+		a.services.Activity().StartRetentionCleanup(a.config.AuditConfig.RetentionDays)
+	}
+
 	if !a.config.HideResourcesInfo {
 		a.resources.Print()
 	}
@@ -459,6 +465,10 @@ func (a *App) HTTPAdaptor() (http.HandlerFunc, error) {
 }
 
 func (a *App) Shutdown() error {
+	if a.services != nil {
+		a.services.Activity().StopRetentionCleanup()
+	}
+
 	if a.DB() != nil {
 		if err := a.DB().Close(); err != nil {
 			return err
