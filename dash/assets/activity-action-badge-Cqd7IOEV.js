@@ -1,1 +1,0 @@
-import{Mr as e,Or as t,j as n}from"./index-Cd-Brtau.js";var r=e(t()),i={create:`default`,update:`secondary`,delete:`destructive`};const a=({action:e})=>(0,r.jsx)(n,{variant:e&&i[e]||`outline`,children:e??`unknown`});export{a as t};

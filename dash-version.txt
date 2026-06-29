@@ -1,4 +1,4 @@
 dash bundle source: fastschema/js (apps/dash)
-js commit: 603066a8dd8221589a1d2bac64cff5126ff2ae90 (branch main)
-built: 2026-06-28 (activity audit-trail page + dashboard recent-activity widget + UUID id compaction; 12-col dashboard panel layout)
+js commit: cd17eac3 (branch main)
+built: 2026-06-29 (fix relation picker on content create: select mode + primary-key reference value; sdk 1.4.4)
 vite base: /dash/
