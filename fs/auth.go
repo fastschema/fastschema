@@ -109,13 +109,27 @@ func (oc *OTPConfig) GetMaxAttempts() int {
 	return oc.MaxAttempts
 }
 
+// RegistrationPolicy is the opt-in built-in validation applied to self-service
+// signup (local + OAuth). All fields are optional; a nil policy (or all-zero
+// fields) blocks nothing. It runs as the first PreUserRegister hook so custom
+// hooks (e.g. disposable-email or free-webmail checks, invite gating) chain
+// after it. Anything beyond these basics is meant to be done via a custom
+// OnPreUserRegister hook.
+type RegistrationPolicy struct {
+	AllowedEmailDomains []string `json:"allowed_email_domains"` // non-empty = allowlist (only these domains)
+	BlockedEmailDomains []string `json:"blocked_email_domains"` // explicit deny list
+	ReservedUsernames   []string `json:"reserved_usernames"`    // admin, root, system, ...
+	NormalizeEmail      bool     `json:"normalize_email"`       // lowercase domain + IDN punycode
+}
+
 type AuthConfig struct {
-	EnabledProviders     []string       `json:"enabled_providers"`
-	Providers            map[string]Map `json:"providers"`
-	AccessTokenLifetime  int            `json:"access_token_lifetime"`  // default: 15 minutes if refresh token is enabled, 7 days if refresh token is disabled
-	RefreshTokenLifetime int            `json:"refresh_token_lifetime"` // default: 604800 = 7 days)
-	EnableRefreshToken   bool           `json:"enable_refresh_token"`   // default: false
-	OTP                  *OTPConfig     `json:"otp"`                    // OTP configuration
+	EnabledProviders     []string            `json:"enabled_providers"`
+	Providers            map[string]Map      `json:"providers"`
+	AccessTokenLifetime  int                 `json:"access_token_lifetime"`  // default: 15 minutes if refresh token is enabled, 7 days if refresh token is disabled
+	RefreshTokenLifetime int                 `json:"refresh_token_lifetime"` // default: 604800 = 7 days)
+	EnableRefreshToken   bool                `json:"enable_refresh_token"`   // default: false
+	OTP                  *OTPConfig          `json:"otp"`                    // OTP configuration
+	Registration         *RegistrationPolicy `json:"registration"`           // opt-in signup policy
 }
 
 func (ac *AuthConfig) Clone() *AuthConfig {
@@ -130,6 +144,7 @@ func (ac *AuthConfig) Clone() *AuthConfig {
 		RefreshTokenLifetime: ac.RefreshTokenLifetime,
 		EnableRefreshToken:   ac.EnableRefreshToken,
 		OTP:                  ac.OTP.Clone(),
+		Registration:         ac.Registration.Clone(),
 	}
 
 	copy(clone.EnabledProviders, ac.EnabledProviders)
@@ -137,4 +152,17 @@ func (ac *AuthConfig) Clone() *AuthConfig {
 	maps.Copy(clone.Providers, ac.Providers)
 
 	return clone
+}
+
+// Clone creates a deep copy of RegistrationPolicy.
+func (rp *RegistrationPolicy) Clone() *RegistrationPolicy {
+	if rp == nil {
+		return nil
+	}
+	return &RegistrationPolicy{
+		AllowedEmailDomains: append([]string{}, rp.AllowedEmailDomains...),
+		BlockedEmailDomains: append([]string{}, rp.BlockedEmailDomains...),
+		ReservedUsernames:   append([]string{}, rp.ReservedUsernames...),
+		NormalizeEmail:      rp.NormalizeEmail,
+	}
 }

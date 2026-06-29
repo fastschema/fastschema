@@ -54,6 +54,20 @@ var (
 	MSG_USER_EXISTS                   = "User already exists"
 	MSG_EXISTING_USER_WITH_EMAIL      = "Looks like you already have an account with this email. Please log in using your existing sign-in method, or try signing up with a different email."
 
+	// Registration policy messages. These describe the email domain / username
+	// (which is not yet in the system), so stating the reason does not leak
+	// account existence.
+	MSG_EMAIL_DOMAIN_NOT_ALLOWED = "Email domain is not allowed"
+	MSG_USERNAME_NOT_AVAILABLE   = "Username is not available"
+
+	// Email-change flow messages.
+	MSG_INCORRECT_PASSWORD      = "Current password is incorrect"
+	MSG_EMAIL_CHANGE_SAME       = "New email must be different from your current email"
+	MSG_EMAIL_NOT_AVAILABLE     = "This email address is not available"
+	MSG_EMAIL_CHANGE_ONLY_LOCAL = "Email can only be changed for local accounts"
+	MSG_EMAIL_CHANGE_REQUESTED  = "A confirmation link has been sent to your new email address"
+	MSG_EMAIL_CHANGED           = "Your email address has been updated"
+
 	// OTP-related messages
 	MSG_OTP_NOT_ENABLED           = "OTP passwordless login is not enabled"
 	MSG_OTP_SENT                  = "If an account exists with this email, a verification code has been sent"

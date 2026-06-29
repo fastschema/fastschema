@@ -178,6 +178,13 @@ func (a *App) OnPostDBDelete(hooks ...db.PostDBDelete) {
 	)
 }
 
+func (a *App) OnPreUserRegister(hooks ...fs.PreUserRegisterHook) {
+	a.config.Hooks.PreUserRegister = append(
+		a.config.Hooks.PreUserRegister,
+		hooks...,
+	)
+}
+
 func (a *App) SetJwtCustomClaimsFunc(jwtCustomClaimsFunc fs.JwtCustomClaimsFunc) {
 	a.jwtCustomClaimsFunc = jwtCustomClaimsFunc
 }

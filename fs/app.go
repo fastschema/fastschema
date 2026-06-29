@@ -28,6 +28,8 @@ type Hookable interface {
 
 	OnPreDBDelete(hooks ...db.PreDBDelete)
 	OnPostDBDelete(hooks ...db.PostDBDelete)
+
+	OnPreUserRegister(hooks ...PreUserRegisterHook)
 }
 
 // App is the interface that defines the methods that an app must implement
@@ -62,15 +64,17 @@ type ResolveHook = Middleware
 
 // Hooks is a struct that contains app hooks
 type Hooks struct {
-	DBHooks     *db.Hooks
-	PreResolve  []ResolveHook
-	PostResolve []ResolveHook
+	DBHooks         *db.Hooks
+	PreResolve      []ResolveHook
+	PostResolve     []ResolveHook
+	PreUserRegister []PreUserRegisterHook
 }
 
 func (h *Hooks) Clone() *Hooks {
 	return &Hooks{
-		DBHooks:     h.DBHooks.Clone(),
-		PreResolve:  append([]ResolveHook{}, h.PreResolve...),
-		PostResolve: append([]ResolveHook{}, h.PostResolve...),
+		DBHooks:         h.DBHooks.Clone(),
+		PreResolve:      append([]ResolveHook{}, h.PreResolve...),
+		PostResolve:     append([]ResolveHook{}, h.PostResolve...),
+		PreUserRegister: append([]PreUserRegisterHook{}, h.PreUserRegister...),
 	}
 }

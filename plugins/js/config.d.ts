@@ -10,6 +10,7 @@ import {
   _FsPostDBUpdate,
   _FsPreDBDelete,
   _FsPostDBDelete,
+  _FsPreUserRegister,
 } from './hooks';
 
 export interface FsLoggerConfig {
@@ -92,4 +93,6 @@ export interface FsAppConfig {
 
   OnPreDBDelete(hook: _FsPreDBDelete): void;
   OnPostDBDelete(hook: _FsPostDBDelete): void;
+
+  OnPreUserRegister(hook: _FsPreUserRegister): void;
 }

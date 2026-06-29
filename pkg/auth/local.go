@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -42,6 +43,12 @@ type LocalProvider struct {
 	otpConfig           func() *fs.OTPConfig
 	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
 	emailTemplates      func() *fs.EmailTemplates
+	// fireRegister runs the PreUserRegister hook chain (built-in policy + custom
+	// hooks) before a user row is created. Nil when not wired (e.g. tests).
+	fireRegister func(ctx context.Context, in *fs.RegistrationInput) error
+	// registrationPolicy exposes the opt-in signup policy so LocalLogin can apply
+	// the same email normalization used at registration. Nil when unset.
+	registrationPolicy func() *fs.RegistrationPolicy
 }
 
 func NewLocalAuthProvider(config fs.Map, redirectURL string) (fs.AuthProvider, error) {
@@ -65,6 +72,8 @@ func (la *LocalProvider) Init(
 	jwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc,
 	otpConfig func() *fs.OTPConfig,
 	emailTemplates func() *fs.EmailTemplates,
+	fireRegister func(ctx context.Context, in *fs.RegistrationInput) error,
+	registrationPolicy func() *fs.RegistrationPolicy,
 ) {
 	la.db = db
 	la.appKey = appKey
@@ -74,6 +83,8 @@ func (la *LocalProvider) Init(
 	la.jwtCustomClaimsFunc = jwtCustomClaimsFunc
 	la.otpConfig = otpConfig
 	la.emailTemplates = emailTemplates
+	la.fireRegister = fireRegister
+	la.registrationPolicy = registrationPolicy
 
 	if la.activationURL == "" {
 		la.activationURL = appBaseURL() + "/auth/local/activate"
@@ -128,6 +139,26 @@ func (la *LocalProvider) VerifyIDToken(c fs.Context, t fs.IDToken) (user *fs.Use
 }
 
 func (la *LocalProvider) Register(c fs.Context, payload *Register) (*Activation, error) {
+	// Run the registration hook chain (built-in policy + custom hooks) FIRST so
+	// the email is normalized before the uniqueness check below. Otherwise a
+	// case/format variant (e.g. user@GMAIL.com vs user@gmail.com) slips past the
+	// app-layer dedup and only trips the DB unique index — surfacing as a 500
+	// instead of a clean "user already exists". Hooks may also mutate the
+	// username; apply the result back so the persisted entity matches login.
+	if la.fireRegister != nil {
+		in := &fs.RegistrationInput{
+			Email:    payload.Email,
+			Username: payload.Username,
+			Provider: la.Name(),
+			IsOAuth:  false,
+		}
+		if err := la.fireRegister(c, in); err != nil {
+			return nil, err
+		}
+		payload.Email = in.Email
+		payload.Username = in.Username
+	}
+
 	if err := ValidateRegisterData(c, c.Logger(), la.db(), payload); err != nil {
 		return nil, err
 	}
@@ -320,6 +351,14 @@ func (la *LocalProvider) LocalLogin(c fs.Context, payload *LoginData) (*fs.User,
 	}
 
 	login := strings.TrimSpace(payload.Login)
+	// Apply the same email normalization used at registration so a normalized
+	// stored email still matches at login. Only when login looks like an email
+	// (usernames are left untouched) and the policy enables normalization.
+	if strings.Contains(login, "@") && la.registrationPolicy != nil {
+		if p := la.registrationPolicy(); p != nil && p.NormalizeEmail {
+			login = NormalizeEmail(login)
+		}
+	}
 	c.Local("keeppassword", "true")
 	user, err := db.Builder[*fs.User](la.db()).
 		Where(db.Or(

@@ -24,8 +24,9 @@ type SessionType string
 const (
 	SessionTypeRefreshToken SessionType = "refresh_token"
 	SessionTypeOTPLogin     SessionType = "otp_login"
-	SessionTypeActivation   SessionType = "activation" // Account activation OTP
-	SessionTypeRecovery     SessionType = "recovery"   // Password recovery OTP
+	SessionTypeActivation   SessionType = "activation"   // Account activation OTP
+	SessionTypeRecovery     SessionType = "recovery"     // Password recovery OTP
+	SessionTypeEmailChange  SessionType = "email_change" // Pending email-change confirmation
 	// SessionTypeOTP2FA
 )
 

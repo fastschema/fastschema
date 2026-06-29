@@ -223,3 +223,15 @@ func (ac *AppConfig) OnPostResolve(value *qjs.Value) (err error) {
 		})
 	})
 }
+
+func (ac *AppConfig) OnPreUserRegister(value *qjs.Value) error {
+	return ac.plugin.WithJSFuncName(value, func(jsFuncName string) {
+		ac.app.OnPreUserRegister(func(
+			ctx context.Context,
+			in *fs.RegistrationInput,
+		) (err error) {
+			_, err = ac.plugin.InvokeJsFunc(jsFuncName, ctx, in)
+			return err
+		})
+	})
+}

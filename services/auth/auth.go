@@ -104,6 +104,10 @@ func (as *AuthService) CreateResource(api *fs.Resource, authProviders map[string
 			fs.Post("recover", localAuthProvider.Recover, &fs.Meta{Public: true}),
 			fs.Post("recover/check", localAuthProvider.RecoverCheck, &fs.Meta{Public: true}),
 			fs.Post("recover/reset", localAuthProvider.ResetPassword, &fs.Meta{Public: true}),
+			// email/change requires an authenticated caller; the handler enforces
+			// c.User() != nil (Public avoids needing a per-user permission entry).
+			fs.Post("email/change", localAuthProvider.ChangeEmail, &fs.Meta{Public: true}),
+			fs.Post("email/confirm", localAuthProvider.ConfirmEmailChange, &fs.Meta{Public: true}),
 		)
 
 	// OTP passwordless login endpoints

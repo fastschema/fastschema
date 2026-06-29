@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/fastschema/fastschema/fs"
+	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/utils"
 	"github.com/fastschema/fastschema/schema"
 	"github.com/fastschema/fastschema/services"
@@ -59,6 +60,15 @@ func (a *App) createServices() {
 		a.config.Hooks.PreResolve,
 		a.services.Auth().Authorize,
 	)
+
+	// Register the built-in registration policy as the first PreUserRegister hook
+	// (chain entry [0]) so custom hooks added after New() see the normalized email.
+	if ac := a.config.AuthConfig; ac != nil && ac.Registration != nil {
+		a.config.Hooks.PreUserRegister = append(
+			[]fs.PreUserRegisterHook{auth.BuiltinPolicyValidator(ac.Registration)},
+			a.config.Hooks.PreUserRegister...,
+		)
+	}
 }
 
 func (a *App) createResources() {

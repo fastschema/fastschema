@@ -62,3 +62,19 @@ export type _FsPostDBDelete = (
   originalEntities: FsEntity[],
   affected: number,
 ) => Promise<void> | void;
+
+export interface FsRegistrationInput {
+  email: string;
+  username: string;
+  provider: string;
+  provider_id: string;
+  profile?: { [key: string]: any };
+  is_oauth: boolean;
+}
+
+// Runs before a self-service user is created (local + OAuth). Throw to reject
+// registration. Does NOT fire for admin-created users.
+export type _FsPreUserRegister = (
+  ctx: FsContext,
+  input: FsRegistrationInput,
+) => Promise<void> | void;

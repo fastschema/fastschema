@@ -92,6 +92,8 @@ func (a *TestApp) GetAuthProvider(name string) fs.AuthProvider {
 			nil,
 			func() *fs.OTPConfig { return nil },
 			nil,
+			nil,
+			nil,
 		)
 		return lp
 	}

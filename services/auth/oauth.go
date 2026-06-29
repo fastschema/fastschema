@@ -1,6 +1,7 @@
 package authservice
 
 import (
+	"context"
 	"strings"
 
 	"github.com/fastschema/fastschema/db"
@@ -9,6 +10,16 @@ import (
 	"github.com/fastschema/fastschema/pkg/auth"
 	"github.com/fastschema/fastschema/pkg/errors"
 )
+
+// fireOnPreUserRegister runs the PreUserRegister hook chain (built-in policy +
+// custom hooks). Shared with the local path (wired via LocalProvider.Init).
+func (as *AuthService) fireOnPreUserRegister(ctx context.Context, in *fs.RegistrationInput) error {
+	cfg := as.AppConfig()
+	if cfg == nil || cfg.Hooks == nil {
+		return nil
+	}
+	return fs.RunPreUserRegisterHooks(ctx, cfg.Hooks.PreUserRegister, in)
+}
 
 func (as *AuthService) Me(c fs.Context, _ any) (*fs.User, error) {
 	if c.User() == nil {
@@ -93,6 +104,22 @@ func (as *AuthService) createLoginResponse(c fs.Context, providerUser *fs.User) 
 }
 
 func (as *AuthService) createUser(c fs.Context, providerUser *fs.User) (*fs.User, error) {
+	// Run the registration hook chain (built-in policy + custom hooks) before any
+	// DB work so social login cannot bypass signup restrictions. Hooks may
+	// normalize email/username; apply the result before lookups and persist.
+	in := &fs.RegistrationInput{
+		Email:      strings.TrimSpace(providerUser.Email),
+		Username:   strings.TrimSpace(providerUser.Username),
+		Provider:   providerUser.Provider,
+		ProviderID: providerUser.ProviderID,
+		IsOAuth:    true,
+	}
+	if err := as.fireOnPreUserRegister(c, in); err != nil {
+		return nil, err
+	}
+	providerUser.Email = in.Email
+	providerUser.Username = in.Username
+
 	// Check for existing user with same email but different provider
 	duplicateEmailUser, err := db.Builder[*fs.User](as.DB()).
 		Where(db.And(

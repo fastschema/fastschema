@@ -150,9 +150,10 @@ func (a *App) prepareConfig() (err error) {
 
 	if a.config.Hooks == nil {
 		a.config.Hooks = &fs.Hooks{
-			DBHooks:     &db.Hooks{},
-			PreResolve:  []fs.Middleware{},
-			PostResolve: []fs.Middleware{},
+			DBHooks:         &db.Hooks{},
+			PreResolve:      []fs.Middleware{},
+			PostResolve:     []fs.Middleware{},
+			PreUserRegister: []fs.PreUserRegisterHook{},
 		}
 	}
 
@@ -402,6 +403,51 @@ func splitCSV(s string) []string {
 	return out
 }
 
+// applyRegistrationPolicyEnv reads AUTH_REG_* env vars and, if any are set,
+// populates AuthConfig.Registration. Env values override matching fields of an
+// existing (programmatic) policy. NormalizeEmail defaults to true when the
+// policy is first created from env.
+func (a *App) applyRegistrationPolicyEnv() {
+	allowed := splitCSVEnv("AUTH_REG_ALLOWED_DOMAINS")
+	blocked := splitCSVEnv("AUTH_REG_BLOCKED_DOMAINS")
+	reserved := splitCSVEnv("AUTH_REG_RESERVED_USERNAMES")
+
+	if len(allowed) == 0 && len(blocked) == 0 && len(reserved) == 0 {
+		return
+	}
+
+	if a.config.AuthConfig.Registration == nil {
+		a.config.AuthConfig.Registration = &fs.RegistrationPolicy{NormalizeEmail: true}
+	}
+
+	reg := a.config.AuthConfig.Registration
+	if len(allowed) > 0 {
+		reg.AllowedEmailDomains = allowed
+	}
+	if len(blocked) > 0 {
+		reg.BlockedEmailDomains = blocked
+	}
+	if len(reserved) > 0 {
+		reg.ReservedUsernames = reserved
+	}
+}
+
+// splitCSVEnv reads a comma-separated env var into a trimmed, non-empty slice.
+func splitCSVEnv(name string) []string {
+	raw := utils.Env(name)
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func (a *App) createAuthProviders() (err error) {
 	if a.config.AuthConfig == nil {
 		if utils.Env("AUTH") != "" {
@@ -455,6 +501,10 @@ func (a *App) createAuthProviders() (err error) {
 		a.config.AuthConfig.OTP.MaxAttempts = envValue
 	}
 
+	// Registration policy (opt-in). Presence of any AUTH_REG_* var activates the
+	// built-in policy; programmatic AuthConfig.Registration is honored as-is.
+	a.applyRegistrationPolicyEnv()
+
 	if a.config.AuthConfig.EnabledProviders == nil {
 		a.config.AuthConfig.EnabledProviders = []string{}
 	}
@@ -497,6 +547,18 @@ func (a *App) createAuthProviders() (err error) {
 					return a.config.AuthConfig.OTP
 				},
 				a.EmailTemplates,
+				func(ctx context.Context, in *fs.RegistrationInput) error {
+					if a.config.Hooks == nil {
+						return nil
+					}
+					return fs.RunPreUserRegisterHooks(ctx, a.config.Hooks.PreUserRegister, in)
+				},
+				func() *fs.RegistrationPolicy {
+					if a.config.AuthConfig == nil {
+						return nil
+					}
+					return a.config.AuthConfig.Registration
+				},
 			)
 		}
 

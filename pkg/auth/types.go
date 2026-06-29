@@ -50,6 +50,19 @@ type Recovery struct {
 	Email string `json:"email"`
 }
 
+// ChangeEmailRequest initiates an authenticated email change. Requires the
+// current password (re-authentication) before a pending change is created.
+type ChangeEmailRequest struct {
+	NewEmail        string `json:"new_email"`
+	CurrentPassword string `json:"current_password"`
+}
+
+// ConfirmEmailChange completes a pending email change via the single-use,
+// time-limited token sent to the new address.
+type ConfirmEmailChange struct {
+	Token string `json:"token"`
+}
+
 // Confirmation supports both link-based (token) and OTP-based (session_id + otp) verification
 type Confirmation struct {
 	Token     string `json:"token,omitempty"`      // For link-based verification
@@ -79,6 +92,11 @@ type ResetPassword struct {
 	SessionID       string `json:"session_id,omitempty"` // For OTP-based verification
 	Password        string `json:"password"`
 	ConfirmPassword string `json:"confirm_password"`
+}
+
+// EmailChangeResponse is the generic response for email-change endpoints.
+type EmailChangeResponse struct {
+	Message string `json:"message"`
 }
 
 // Activation represents the activation status response

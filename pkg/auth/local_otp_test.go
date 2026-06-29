@@ -79,6 +79,8 @@ func createOTPLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 			}
 		},
 		nil,
+		nil,
+		nil,
 	)
 
 	return localAuthProvider

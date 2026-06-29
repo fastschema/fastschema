@@ -77,6 +77,9 @@ type testAppConfig struct {
 	db         db.Client
 	createData bool
 	activation string
+	// Optional registration hook + policy wiring for the local provider.
+	preUserRegister    fs.PreUserRegisterHook
+	registrationPolicy *fs.RegistrationPolicy
 	// Track created user IDs for testing
 	user01ID uuid.UUID
 	user02ID uuid.UUID
@@ -135,6 +138,13 @@ func createLocalAuthProvider(config *testAppConfig) *auth.LocalProvider {
 		nil,
 		nil,
 		nil,
+		func(ctx context.Context, in *fs.RegistrationInput) error {
+			if config.preUserRegister != nil {
+				return config.preUserRegister(ctx, in)
+			}
+			return nil
+		},
+		func() *fs.RegistrationPolicy { return config.registrationPolicy },
 	)
 
 	return localAuthProvider
