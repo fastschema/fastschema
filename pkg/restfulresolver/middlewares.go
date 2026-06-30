@@ -71,7 +71,7 @@ func MiddlewareCookie(c *Context) error {
 			return err
 		}
 		exp := time.Now().Add(time.Hour * 100 * 365 * 24)
-		c.Cookie("UUID", &Cookie{
+		c.Cookie("UUID", &fs.Cookie{
 			Name:     "UUID",
 			Value:    uuidValue.String(),
 			Expires:  exp,

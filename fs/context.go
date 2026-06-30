@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/fastschema/fastschema/entity"
 	"github.com/fastschema/fastschema/logger"
@@ -12,6 +13,20 @@ import (
 
 // Handler is a function that resolves a request
 type Handler func(c Context) (any, error)
+
+// Cookie is a transport-agnostic response cookie passed to Context.Cookie when
+// setting a cookie, keeping the cookie API on the Context interface without
+// leaking the HTTP resolver. SameSite accepts "Lax", "Strict", or "None".
+type Cookie struct {
+	Name     string
+	Value    string
+	Path     string
+	Domain   string
+	Expires  time.Time
+	Secure   bool
+	HTTPOnly bool
+	SameSite string
+}
 
 // Context is the interface that defines the methods that a context must implement
 type Context interface {
@@ -36,6 +51,7 @@ type Context interface {
 	Result(...*Result) *Result
 	Files() ([]*File, error)
 	Redirect(string) error
+	Cookie(name string, values ...*Cookie) string
 	WSClient() WSClient
 	IP() string
 }

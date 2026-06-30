@@ -2,6 +2,7 @@ package authservice_test
 
 import (
 	"context"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -50,13 +51,18 @@ func (s testApp) DB() db.Client {
 	return s.db
 }
 
+// testAppKey is a valid 32-byte AES-256 key, matching production where APP_KEY
+// is generated as RandomString(32). The signed auth carrier (AES-GCM) requires
+// a valid key length, so the test key cannot be a short string.
+const testAppKey = "0123456789abcdef0123456789abcdef"
+
 func (s testApp) Key() string {
-	return "test"
+	return testAppKey
 }
 
 func (s testApp) Config() *fs.Config {
 	return &fs.Config{
-		AppKey: "test",
+		AppKey: testAppKey,
 		AuthConfig: &fs.AuthConfig{
 			EnableRefreshToken: false,
 		},
@@ -102,7 +108,10 @@ func (t testAuthProvider) Name() string {
 }
 
 func (t testAuthProvider) Login(c fs.Context) (any, error) {
-	return c.Redirect("http://auth.example.local?callback=http://localhost:8000/auth/testauthprovider/callback"), nil
+	// Echo the injected state carrier into the redirect, mimicking a real
+	// provider's AuthCodeURL so the callback flow can round-trip it.
+	state := c.Arg("auth_state")
+	return c.Redirect("http://auth.example.local?callback=http://localhost:8000/auth/testauthprovider/callback&state=" + url.QueryEscape(state)), nil
 }
 
 func (t testAuthProvider) Callback(c fs.Context) (*fs.User, error) {

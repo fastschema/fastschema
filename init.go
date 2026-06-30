@@ -212,6 +212,19 @@ func (a *App) prepareConfig() (err error) {
 		)
 	}
 
+	// APP_KEY is the AES key for built-in encryption (email-change tokens,
+	// social-login state carriers), which needs a 16, 24, or 32-byte key. Warn at
+	// startup on any other length so the cause is visible before encryption fails
+	// at request time. The auto-generated key is 32 bytes; an explicit key is
+	// left as-is.
+	if l := len(a.config.AppKey); l != 16 && l != 24 && l != 32 {
+		a.startupMessages = append(
+			a.startupMessages,
+			fmt.Sprintf("APP_KEY is %d bytes; AES needs 16, 24, or 32. "+
+				"Encryption features (email change, social/CLI login) will fail until this is fixed.", l),
+		)
+	}
+
 	// Parse ROLE_PERMISSION_SETTINGS from environment variable
 	if a.config.RolePermissionSettings == nil {
 		if envValue := utils.Env("ROLE_PERMISSION_SETTINGS"); envValue != "" {
@@ -504,6 +517,22 @@ func (a *App) createAuthProviders() (err error) {
 	// Registration policy (opt-in). Presence of any AUTH_REG_* var activates the
 	// built-in policy; programmatic AuthConfig.Registration is honored as-is.
 	a.applyRegistrationPolicyEnv()
+
+	// CLI / native-app login (opt-in, gated off by default). Mirrors the OTP
+	// precedent: a JSON-configurable struct plus standalone env overrides.
+	if strings.ToLower(utils.Env("AUTH_CLI_LOGIN_ENABLED")) == "true" {
+		if a.config.AuthConfig.CLILogin == nil {
+			a.config.AuthConfig.CLILogin = &fs.CLILoginConfig{}
+		}
+		a.config.AuthConfig.CLILogin.Enabled = true
+	}
+
+	if hosts := splitCSVEnv("AUTH_CLI_ALLOWED_REDIRECT_HOSTS"); len(hosts) > 0 {
+		if a.config.AuthConfig.CLILogin == nil {
+			a.config.AuthConfig.CLILogin = &fs.CLILoginConfig{}
+		}
+		a.config.AuthConfig.CLILogin.AllowedRedirectHosts = hosts
+	}
 
 	if a.config.AuthConfig.EnabledProviders == nil {
 		a.config.AuthConfig.EnabledProviders = []string{}

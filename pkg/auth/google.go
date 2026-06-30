@@ -92,13 +92,17 @@ func (as *GoogleAuthProvider) Name() string {
 }
 
 func (as *GoogleAuthProvider) Login(c fs.Context) (_ any, err error) {
-	state := utils.RandomString(16)
+	// Relay the signed state carrier injected by the auth service; fall back to
+	// a random value so direct provider use keeps working.
+	state := c.Arg("auth_state")
+	if state == "" {
+		state = utils.RandomString(16)
+	}
 	url := as.oauth.AuthCodeURL(state)
 	return nil, c.Redirect(url)
 }
 
 func (as *GoogleAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
-	// should check c.Arg("state") for invalid oauth Google state
 	if c.Arg("code") == "" {
 		return nil, errors.New("callback code is empty")
 	}

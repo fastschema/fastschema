@@ -120,24 +120,25 @@ type mockContext struct {
 	ip      string
 }
 
-func (m *mockContext) TraceID() string                    { return "test-trace" }
-func (m *mockContext) User() *fs.User                     { return m.user }
-func (m *mockContext) Value(key any) any                  { return nil }
-func (m *mockContext) Logger() logger.Logger              { return logger.CreateMockLogger(false) }
-func (m *mockContext) AuthToken() string                  { return "" }
-func (m *mockContext) Next() error                        { return nil }
-func (m *mockContext) Result(...*fs.Result) *fs.Result    { return nil }
-func (m *mockContext) Arg(string, ...string) string       { return "" }
-func (m *mockContext) ArgInt(string, ...int) int          { return 0 }
-func (m *mockContext) Args() map[string]string            { return nil }
-func (m *mockContext) SetArg(key, val string) string      { return "" }
-func (m *mockContext) Body() ([]byte, error)              { return nil, nil }
-func (m *mockContext) Payload() (*entity.Entity, error)   { return nil, nil }
-func (m *mockContext) BodyParser(out any) error           { return nil }
-func (m *mockContext) Bind(out any) error                 { return nil }
-func (m *mockContext) FormValue(string, ...string) string { return "" }
-func (m *mockContext) Resource() *fs.Resource             { return nil }
-func (m *mockContext) Redirect(string) error              { return nil }
+func (m *mockContext) TraceID() string                     { return "test-trace" }
+func (m *mockContext) User() *fs.User                      { return m.user }
+func (m *mockContext) Value(key any) any                   { return nil }
+func (m *mockContext) Logger() logger.Logger               { return logger.CreateMockLogger(false) }
+func (m *mockContext) AuthToken() string                   { return "" }
+func (m *mockContext) Next() error                         { return nil }
+func (m *mockContext) Result(...*fs.Result) *fs.Result     { return nil }
+func (m *mockContext) Arg(string, ...string) string        { return "" }
+func (m *mockContext) ArgInt(string, ...int) int           { return 0 }
+func (m *mockContext) Args() map[string]string             { return nil }
+func (m *mockContext) SetArg(key, val string) string       { return "" }
+func (m *mockContext) Body() ([]byte, error)               { return nil, nil }
+func (m *mockContext) Payload() (*entity.Entity, error)    { return nil, nil }
+func (m *mockContext) BodyParser(out any) error            { return nil }
+func (m *mockContext) Bind(out any) error                  { return nil }
+func (m *mockContext) FormValue(string, ...string) string  { return "" }
+func (m *mockContext) Resource() *fs.Resource              { return nil }
+func (m *mockContext) Redirect(string) error               { return nil }
+func (m *mockContext) Cookie(string, ...*fs.Cookie) string { return "" }
 func (m *mockContext) IP() string {
 	if m.ip != "" {
 		return m.ip

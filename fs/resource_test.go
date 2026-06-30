@@ -99,6 +99,7 @@ func (c *testContext) Next() error                                         { ret
 func (c *testContext) Result(...*fs.Result) *fs.Result                     { return nil }
 func (c *testContext) Files() ([]*fs.File, error)                          { return nil, nil }
 func (c *testContext) Redirect(string) error                               { return nil }
+func (c *testContext) Cookie(string, ...*fs.Cookie) string                 { return "" }
 func (c *testContext) WSClient() fs.WSClient                               { return nil }
 func (c *testContext) Deadline() (deadline time.Time, ok bool)             { return time.Time{}, false }
 func (c *testContext) Done() <-chan struct{}                               { return nil }

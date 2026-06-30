@@ -221,7 +221,7 @@ func TestContextMethods(t *testing.T) {
 		assert.Nil(t, c.WSClient())
 		c.Status(201)
 		c.Header("response-header", "response-header-value")
-		c.Cookie("testcookiename", &restfulresolver.Cookie{
+		c.Cookie("testcookiename", &fs.Cookie{
 			Name:  "testcookiename",
 			Value: "testcookievalue",
 		})

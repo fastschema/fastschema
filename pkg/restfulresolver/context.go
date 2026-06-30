@@ -222,7 +222,10 @@ func (c *Context) Header(key string, vals ...string) string {
 	return c.ctx.Get(key)
 }
 
-func (c *Context) Cookie(name string, values ...*Cookie) string {
+// Cookie reads the named request cookie, or sets a response cookie when a value
+// is supplied. The transport-agnostic fs.Cookie keeps the cookie API on the
+// Context interface without leaking the HTTP layer.
+func (c *Context) Cookie(name string, values ...*fs.Cookie) string {
 	cookieValue := c.ctx.Cookies(name)
 	if len(values) > 0 {
 		v := values[0]

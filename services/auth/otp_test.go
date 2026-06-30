@@ -167,26 +167,27 @@ type mockOTPContext struct {
 	locals map[string]any
 }
 
-func (m *mockOTPContext) TraceID() string                    { return "test-trace" }
-func (m *mockOTPContext) User() *fs.User                     { return m.user }
-func (m *mockOTPContext) Value(key any) any                  { return nil }
-func (m *mockOTPContext) Logger() logger.Logger              { return logger.CreateMockLogger(false) }
-func (m *mockOTPContext) AuthToken() string                  { return "" }
-func (m *mockOTPContext) Next() error                        { return nil }
-func (m *mockOTPContext) Result(...*fs.Result) *fs.Result    { return nil }
-func (m *mockOTPContext) Arg(string, ...string) string       { return "" }
-func (m *mockOTPContext) ArgInt(string, ...int) int          { return 0 }
-func (m *mockOTPContext) Args() map[string]string            { return nil }
-func (m *mockOTPContext) SetArg(key, val string) string      { return "" }
-func (m *mockOTPContext) Body() ([]byte, error)              { return nil, nil }
-func (m *mockOTPContext) Payload() (*entity.Entity, error)   { return nil, nil }
-func (m *mockOTPContext) BodyParser(out any) error           { return nil }
-func (m *mockOTPContext) Bind(out any) error                 { return nil }
-func (m *mockOTPContext) FormValue(string, ...string) string { return "" }
-func (m *mockOTPContext) Resource() *fs.Resource             { return nil }
-func (m *mockOTPContext) Redirect(string) error              { return nil }
-func (m *mockOTPContext) IP() string                         { return "127.0.0.1" }
-func (m *mockOTPContext) Header(string, ...string) string    { return "test-user-agent" }
+func (m *mockOTPContext) TraceID() string                     { return "test-trace" }
+func (m *mockOTPContext) User() *fs.User                      { return m.user }
+func (m *mockOTPContext) Value(key any) any                   { return nil }
+func (m *mockOTPContext) Logger() logger.Logger               { return logger.CreateMockLogger(false) }
+func (m *mockOTPContext) AuthToken() string                   { return "" }
+func (m *mockOTPContext) Next() error                         { return nil }
+func (m *mockOTPContext) Result(...*fs.Result) *fs.Result     { return nil }
+func (m *mockOTPContext) Arg(string, ...string) string        { return "" }
+func (m *mockOTPContext) ArgInt(string, ...int) int           { return 0 }
+func (m *mockOTPContext) Args() map[string]string             { return nil }
+func (m *mockOTPContext) SetArg(key, val string) string       { return "" }
+func (m *mockOTPContext) Body() ([]byte, error)               { return nil, nil }
+func (m *mockOTPContext) Payload() (*entity.Entity, error)    { return nil, nil }
+func (m *mockOTPContext) BodyParser(out any) error            { return nil }
+func (m *mockOTPContext) Bind(out any) error                  { return nil }
+func (m *mockOTPContext) FormValue(string, ...string) string  { return "" }
+func (m *mockOTPContext) Resource() *fs.Resource              { return nil }
+func (m *mockOTPContext) Redirect(string) error               { return nil }
+func (m *mockOTPContext) Cookie(string, ...*fs.Cookie) string { return "" }
+func (m *mockOTPContext) IP() string                          { return "127.0.0.1" }
+func (m *mockOTPContext) Header(string, ...string) string     { return "test-user-agent" }
 func (m *mockOTPContext) Local(key string, value ...any) any {
 	if m.locals == nil {
 		m.locals = make(map[string]any)

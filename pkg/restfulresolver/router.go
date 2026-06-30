@@ -7,6 +7,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// Handler is the resolver's HTTP handler signature, registered on routes via
+// the Router/Server methods below.
+type Handler func(c *Context) error
+
 type Router struct {
 	*fiber.App
 

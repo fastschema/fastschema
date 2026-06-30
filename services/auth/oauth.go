@@ -43,6 +43,15 @@ func (as *AuthService) Login(c fs.Context, _ any) (_ any, err error) {
 		return nil, errors.NotFound("invalid auth provider")
 	}
 
+	// The carrier is relayed as the OAuth `state`; for browser-bound modes its
+	// nonce is also stored in a cookie that the callback matches.
+	carrier, parsed, err := as.buildLoginCarrier(c)
+	if err != nil {
+		return nil, err
+	}
+	injectAuthState(c, carrier)
+	as.bindStateCookie(c, parsed)
+
 	return provider.Login(c)
 }
 
@@ -50,6 +59,16 @@ func (as *AuthService) Callback(c fs.Context, _ any) (u *fs.JWTTokens, err error
 	provider := as.GetAuthProvider(c.Arg("provider"))
 	if provider == nil {
 		return nil, errors.NotFound("invalid auth provider")
+	}
+
+	// Verify `state` before trusting the provider exchange; for browser-bound
+	// modes also require the binding cookie set at login to match.
+	carrier, err := as.readVerifiedCarrier(c)
+	if err != nil {
+		return nil, err
+	}
+	if err := verifyStateBinding(c, carrier); err != nil {
+		return nil, err
 	}
 
 	user, err := provider.Callback(c)
@@ -61,7 +80,12 @@ func (as *AuthService) Callback(c fs.Context, _ any) (u *fs.JWTTokens, err error
 		return nil, errors.Unauthorized("invalid user")
 	}
 
-	return as.createLoginResponse(c, user)
+	tokens, err := as.createLoginResponse(c, user)
+	if err != nil {
+		return nil, err
+	}
+
+	return as.deliverSocialLogin(c, carrier, tokens)
 }
 
 func (as *AuthService) VerifyIDToken(c fs.Context, payload fs.IDToken) (u *fs.JWTTokens, err error) {

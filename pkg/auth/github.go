@@ -76,7 +76,12 @@ func (ga *GithubAuthProvider) WithResources(resource *fs.Resource) {
 }
 
 func (ga *GithubAuthProvider) Login(c fs.Context) (_ any, err error) {
-	state := utils.RandomString(16) // should replace with a cookie from context
+	// Relay the signed state carrier injected by the auth service; fall back to
+	// a random value so direct provider use keeps working.
+	state := c.Arg("auth_state")
+	if state == "" {
+		state = utils.RandomString(16)
+	}
 	redirectURL := ga.oauth.AuthCodeURL(
 		state,
 		oauth2.AccessTypeOffline,
@@ -86,7 +91,6 @@ func (ga *GithubAuthProvider) Login(c fs.Context) (_ any, err error) {
 }
 
 func (ga *GithubAuthProvider) Callback(c fs.Context) (_ *fs.User, err error) {
-	// should check c.Arg("state") for invalid oauth Github state
 	if c.Arg("code") == "" {
 		return nil, errors.New("github auth: callback code is empty")
 	}

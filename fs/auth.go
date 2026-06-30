@@ -122,6 +122,26 @@ type RegistrationPolicy struct {
 	NormalizeEmail      bool     `json:"normalize_email"`       // lowercase domain + IDN punycode
 }
 
+// CLILoginConfig holds the opt-in configuration for CLI / native-app login
+// (RFC 8252 loopback flow). Disabled by default; AllowedRedirectHosts is the
+// allowlist of non-loopback https hosts permitted as the loopback target
+// (loopback addresses are always allowed regardless of this list).
+type CLILoginConfig struct {
+	Enabled              bool     `json:"enabled"`                // default: false (feature gated off)
+	AllowedRedirectHosts []string `json:"allowed_redirect_hosts"` // non-loopback https hosts, exact match
+}
+
+// Clone creates a deep copy of CLILoginConfig.
+func (cc *CLILoginConfig) Clone() *CLILoginConfig {
+	if cc == nil {
+		return nil
+	}
+	return &CLILoginConfig{
+		Enabled:              cc.Enabled,
+		AllowedRedirectHosts: append([]string{}, cc.AllowedRedirectHosts...),
+	}
+}
+
 type AuthConfig struct {
 	EnabledProviders     []string            `json:"enabled_providers"`
 	Providers            map[string]Map      `json:"providers"`
@@ -130,6 +150,7 @@ type AuthConfig struct {
 	EnableRefreshToken   bool                `json:"enable_refresh_token"`   // default: false
 	OTP                  *OTPConfig          `json:"otp"`                    // OTP configuration
 	Registration         *RegistrationPolicy `json:"registration"`           // opt-in signup policy
+	CLILogin             *CLILoginConfig     `json:"cli_login"`              // opt-in CLI / native-app login
 }
 
 func (ac *AuthConfig) Clone() *AuthConfig {
@@ -145,6 +166,7 @@ func (ac *AuthConfig) Clone() *AuthConfig {
 		EnableRefreshToken:   ac.EnableRefreshToken,
 		OTP:                  ac.OTP.Clone(),
 		Registration:         ac.Registration.Clone(),
+		CLILogin:             ac.CLILogin.Clone(),
 	}
 
 	copy(clone.EnabledProviders, ac.EnabledProviders)

@@ -59,6 +59,7 @@ func (c *otpMockContext) Next() error                                         { 
 func (c *otpMockContext) Result(...*fs.Result) *fs.Result                     { return nil }
 func (c *otpMockContext) Files() ([]*fs.File, error)                          { return nil, nil }
 func (c *otpMockContext) Redirect(string) error                               { return nil }
+func (c *otpMockContext) Cookie(string, ...*fs.Cookie) string                 { return "" }
 func (c *otpMockContext) WSClient() fs.WSClient                               { return nil }
 func (c *otpMockContext) IP() string                                          { return "127.0.0.1" }
 

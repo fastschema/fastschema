@@ -33,6 +33,8 @@ func (m *mockContext) Redirect(url string) error {
 	return nil
 }
 
+func (m *mockContext) Cookie(string, ...*fs.Cookie) string { return "" }
+
 func (m *mockContext) FormValue(key string, defaultValue ...string) string {
 	return ""
 }

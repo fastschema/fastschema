@@ -39,6 +39,11 @@ type AuthService struct {
 	Roles               func() []*fs.Role
 	JwtCustomClaimsFunc func() fs.JwtCustomClaimsFunc
 	Mailer              func(names ...string) fs.Mailer
+
+	// otcStore backs the CLI / native-app login one-time codes. It is a
+	// per-service singleton (the service is constructed once per app), so the
+	// store is shared across requests without leaking between them.
+	otcStore *otcStore
 }
 
 func New(app AppLike) *AuthService {
@@ -50,6 +55,7 @@ func New(app AppLike) *AuthService {
 		Roles:               app.Roles,
 		JwtCustomClaimsFunc: app.JwtCustomClaimsFunc,
 		Mailer:              app.Mailer,
+		otcStore:            newOTCStore(),
 	}
 }
 
@@ -91,8 +97,12 @@ func (as *AuthService) CreateResource(api *fs.Resource, authProviders map[string
 
 	authGroup := api.Group("auth").
 		Add(fs.Get("me", as.Me, &fs.Meta{Public: true})).
+		Add(fs.Get("methods", as.AuthMethods, &fs.Meta{Public: true})).
 		Add(fs.Post("logout", as.Logout, &fs.Meta{Public: true})).
-		Add(fs.Post("token/refresh", as.RefreshToken, &fs.Meta{Public: true}))
+		Add(fs.Post("token/refresh", as.RefreshToken, &fs.Meta{Public: true})).
+		// Redeems a one-time code minted by the web social callback or the cli
+		// flow; ungated since codes only exist once minted (gate is at mint time).
+		Add(fs.Post("exchange", as.Exchange, &fs.Meta{Public: true}))
 
 	authGroup.
 		Group(auth.ProviderLocal).
@@ -118,6 +128,15 @@ func (as *AuthService) CreateResource(api *fs.Resource, authProviders map[string
 				fs.Post("verify", as.OTPVerifyWrapper(otpProvider), &fs.Meta{Public: true}),
 			)
 	}
+
+	// Always registered; each handler returns 403 when the feature is disabled,
+	// keeping route registration static regardless of config.
+	cliGroup := authGroup.Group("cli")
+	cliGroup.Add(fs.Post("initiate", as.CLIInitiate, &fs.Meta{Public: true}))
+	cliGroup.Group("login").Add(
+		fs.Post("local", as.CLILocalLogin, &fs.Meta{Public: true}),
+		fs.Post("otp", as.CLIOTPLogin, &fs.Meta{Public: true}),
+	)
 
 	if len(authProviders) > 1 {
 		authGroup.Group("provider", &fs.Meta{
