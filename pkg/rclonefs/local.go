@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"path"
+	"strings"
 
 	"github.com/fastschema/fastschema/fs"
 	"github.com/rclone/rclone/backend/local"
@@ -73,6 +75,22 @@ func (r *RcloneLocal) URL(filepath string) string {
 	if r.config.GetBaseURL != nil {
 		baseURL = r.config.GetBaseURL()
 	}
-	url, _ := url.JoinPath(baseURL, r.config.PublicPath, filepath)
-	return url
+
+	publicPath := r.config.PublicPath
+	if parsedBaseURL, err := url.Parse(baseURL); err == nil && publicPathAlreadyInBaseURL(parsedBaseURL.Path, publicPath) {
+		publicPath = ""
+	}
+
+	result, _ := url.JoinPath(baseURL, publicPath, filepath)
+	return result
+}
+
+func publicPathAlreadyInBaseURL(basePath, publicPath string) bool {
+	cleanPublicPath := path.Clean("/" + publicPath)
+	if cleanPublicPath == "/" {
+		return false
+	}
+
+	cleanBasePath := path.Clean("/" + basePath)
+	return cleanBasePath == cleanPublicPath || strings.HasSuffix(cleanBasePath, cleanPublicPath)
 }

@@ -71,14 +71,24 @@ func TestRcloneLocalURL(t *testing.T) {
 	actualURL := rl.URL(filepath)
 	assert.Equal(t, expectedURL, actualURL)
 
+	// Public paths already included in the base URL must not be duplicated.
+	localDisk, ok := rl.(*RcloneLocal)
+	assert.True(t, ok)
+	localDisk.config.BaseURL = "http://example.com/files"
+	localDisk.config.PublicPath = "/files"
+	assert.Equal(t, "http://example.com/files/file.txt", localDisk.URL(filepath))
+
+	// Keep a distinct base path when it does not already end with the public path.
+	localDisk.config.BaseURL = "http://example.com/app"
+	assert.Equal(t, "http://example.com/app/files/file.txt", localDisk.URL(filepath))
+	localDisk.config.BaseURL = "http://example.com"
+	localDisk.config.PublicPath = ""
+
 	// Test the URL method with an empty file path
 	emptyFilepath := ""
 	expectedEmptyURL := "http://example.com"
 	actualEmptyURL := rl.URL(emptyFilepath)
 	assert.Equal(t, expectedEmptyURL, actualEmptyURL)
-
-	localDisk, ok := rl.(*RcloneLocal)
-	assert.True(t, ok)
 
 	localDisk.config.GetBaseURL = func() string {
 		return "http://custom-url.com"
